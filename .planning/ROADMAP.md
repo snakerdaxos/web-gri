@@ -61,7 +61,7 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente Móvil RE
   3. Cada mesa tiene un código QR único en formato GRI-MESA-XXX y el sistema impide que dos mesas compartan código (constraint en BD)
 **Notas**: Las tablas de dominio (mesa, categoria, producto, pedido, pedido_item, reserva, pago, calificacion) se crean aquí con FKs e índices compuestos por restaurante. Las transiciones de MESA_TRANSITIONS y PEDIDO_TRANSITIONS se implementan con el schema (research ligero/SPEC recomendado antes de planear).
 **Plans**: 2 plans
-- [ ] 03-01-PLAN.md — Vertical Slice Models + State Machines + Migración 0002 + tests DB-direct (MESA-02, mitad INFR-03 migraciones)
+- [x] 03-01-PLAN.md — Vertical Slice Models + State Machines + Migración 0002 + tests DB-direct (MESA-02, mitad INFR-03 migraciones) — ✅ 53/53 tests, 9 tablas, 5 state machines
 - [ ] 03-02-PLAN.md — Vertical Slice Seed Demo + Lifespan Wiring + verify_seed.sh (PLAT-04, mitad INFR-03 seed)
 
 ### Phase 4: Panel Admin — Login, Dashboard y Mapa (Solo Lectura)

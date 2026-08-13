@@ -33,7 +33,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Mesas y QR
 
 - [ ] **MESA-01**: Admin restaurante puede crear y editar mesas con número y capacidad
-- [ ] **MESA-02**: Cada mesa tiene un código QR único que la identifica (formato GRI-MESA-XXX o URL)
+- [x] **MESA-02**: Cada mesa tiene un código QR único que la identifica (formato GRI-MESA-XXX o URL)
 - [ ] **MESA-03**: Admin restaurante puede ver e imprimir el QR de una mesa
 - [ ] **MESA-04**: Mesa tiene 4 estados: disponible, reservada, ocupada, limpieza — con transiciones válidas controladas
 - [ ] **MESA-05**: Cliente puede escanear el QR de una mesa desde la app con la cámara del teléfono
@@ -150,7 +150,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MENU-01 | Fase 8 | Pending |
 | MENU-02 | Fase 8 | Pending |
 | MESA-01 | Fase 8 | Pending |
-| MESA-02 | Fase 3 | Pending |
+| MESA-02 | Fase 3 | Done |
 | MESA-03 | Fase 8 | Pending |
 | MESA-04 | Fase 5 | Pending |
 | MESA-05 | Fase 6 | Pending |

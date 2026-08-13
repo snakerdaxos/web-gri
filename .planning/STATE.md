@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase 2 completa (02-01 + 02-02 ejecutados) — listo para `/gsd-verify-work 2` (UAT) y luego `/gsd-plan-phase 3`
-stopped_at: "Phase 2 completa (02-02-PLAN.md ejecutado — roles, multi-tenant, admin platform). Próximo paso: `/gsd-verify-work 2`, luego `/gsd-plan-phase 3` (Modelo de Dominio + Seed)."
-last_updated: "2026-08-14T00:10:00.000Z"
-last_activity: 2026-08-13 — Phase 2 ejecutada completa (02-01 auth foundation + 02-02 roles/tenant/admin); suite 34/34, verify_auth.sh 19/19
+status: Phase 3 en progreso (03-01 ejecutado: modelo de dominio + state machines + migración 0002) — próximo: Plan 02 (seed demo)
+stopped_at: "Phase 3 / Plan 01 ejecutado (9 tablas dominio + 5 state machines + migración 0002 + db_session fixture + 19 tests). Próximo: Plan 03-02 (seed_service + DEMO_MODE gate)."
+last_updated: "2026-08-13T22:55:00.000Z"
+last_activity: 2026-08-13 — Phase 3 Plan 01 ejecutado (modelo de dominio, state machines, migración 0002, tests); suite 53/53
 progress:
   total_phases: 9
   completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 4
+  completed_plans: 4
   percent: 22
 ---
 
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-13)
 
 **Core value:** Un cliente puede sentarse en una mesa, escanear su QR, pedir del menú y recibir su comida — con el pedido fluyendo en tiempo real hacia cocina — sin intermediarios.
-**Current focus:** Fase 2 — Autenticación, Roles y Multi-tenant (completada)
+**Current focus:** Fase 3 — Modelo de Dominio y Seed Demo (en progreso: Plan 01 completo)
 
 ## Current Position
 
-Phase: 2 de 9 (Autenticación, Roles y Multi-tenant) — **COMPLETADA**
-Plan: 2/2 planes ejecutados (02-01 auth foundation, 02-02 roles/tenant/admin platform)
-Status: Phase 2 completa — listo para `/gsd-verify-work 2` (UAT) y luego `/gsd-plan-phase 3`
-Last activity: 2026-08-13 — Phase 2 ejecutada completa; 4/6 requisitos de fase (AUTH-03/04, PLAT-02/03) cerrados en 02-02
+Phase: 3 de 9 (Modelo de Dominio y Seed Demo) — **EN PROGRESO**
+Plan: 1/2 planes ejecutados (03-01 domain models + state machines + migration 0002)
+Status: Phase 3 Plan 01 completo — próximo: Plan 03-02 (seed_service + DEMO_MODE gate + verify_seed.sh)
+Last activity: 2026-08-13 — 9 tablas dominio + 5 state machines + migración 0002 + db_session fixture; suite 53/53
 
-Progress: [██░░░░░░░░] 22% (2/9 fases)
+Progress: [██░░░░░░░░] 22% (2/9 fases completas + Phase 3 parcial)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3
-- Average duration: ~47 min
-- Total execution time: ~140 min
+- Total plans completed: 4
+- Average duration: ~38 min
+- Total execution time: ~152 min
 
 **By Phase:**
 
@@ -46,11 +46,12 @@ Progress: [██░░░░░░░░] 22% (2/9 fases)
 |-------|-------|-------|----------|
 | 1. Fundación e Infraestructura | 1 | ~45min | ~45min |
 | 2. Autenticación, Roles y Multi-tenant | 2 | ~95min | ~47min |
+| 3. Modelo de Dominio y Seed Demo | 1 (de 2) | ~12min | ~12min |
 
 **Recent Trend:**
 
-- Last 5 plans: Phase 2 / Plan 02 (~45min, 2 tasks, 10 files, 3 commits) · Phase 2 / Plan 01 (~50min, 2 tasks, 21 files, 4 commits) · Phase 1 / Plan 01 (~45min, 3 tasks, 16 files, 3 commits)
-- Trend: estable (~45-50min/plan); 02-02 reanudado a mitad (RED ya commiteado)
+- Last 5 plans: Phase 3 / Plan 01 (~12min, 2 tasks, 14 files, 2 commits) · Phase 2 / Plan 02 (~45min, 2 tasks, 10 files, 3 commits) · Phase 2 / Plan 01 (~50min, 2 tasks, 21 files, 4 commits) · Phase 1 / Plan 01 (~45min, 3 tasks, 16 files, 3 commits)
+- Trend: 03-01 fue rápido (12min) — era declaración de dominio pura, sin endpoints
 
 *Updated after each plan completion*
 
@@ -87,6 +88,17 @@ Recent decisions affecting current work:
 - `require_roles(*roles)` dependency factory — única forma de gatear roles; `get_tenant_scope` con defense-in-depth (cliente → 403 aunque el endpoint olvide el gate).
 - StaffRole enum Pydantic restringido (admin_restaurante/mesero/cocina) — escalada a super_admin vía API imposible (422).
 
+**Phase 3 (Modelo de Dominio) — decisiones clave (detalle en 03-01 SUMMARY):**
+
+- `codigo_qr` UNIQUE GLOBAL (no por restaurante) — MESA-02/SC3 explícito; el QR escaneado debe resolver a una sola mesa.
+- `activo_flag` columna Computed + UNIQUE(mesa_id, activo_flag) para sesión activa única — MySQL no tiene partial indexes; explota semántica NULL ≠ NULL.
+- 9 tablas en UNA migración 0002 (cohesión — up/down atómico).
+- State machines como módulo PURO (`core/state_machines.py`) — no importa ORM ni FastAPI; tests unitarios en 0.04s.
+- CHECK constraints en BD (cantidad>0, estrellas 1-5, num_personas>=1) — MySQL 8.0.16+ enforce; última línea de defensa.
+- `Numeric(10,2)` + `decimal.Decimal` end-to-end para dinero (asyncmy devuelve Decimal, no float).
+- Snapshot de precio en `pedido_item.precio_unitario` (locked decision — reportes históricos exactos).
+- MySQL 8.4 CHECK viol. → `OperationalError` (no `IntegrityError`); UNIQUE viol. → `IntegrityError` (estándar).
+
 ### Pending Todos
 
 None yet.
@@ -100,7 +112,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-08-13
-Stopped at: Phase 2 completa (02-01 + 02-02 ejecutados; AUTH-01..04 + PLAT-02/03 verificados: suite 34/34, verify_auth.sh 19/19 ALL CHECKS PASSED). Próximo paso: `/gsd-verify-work 2` (UAT), luego `/gsd-plan-phase 3` (Modelo de Dominio + Seed).
+Stopped at: Phase 3 / Plan 01 ejecutado (9 tablas dominio + 5 state machines + migración 0002 + db_session fixture; MESA-02 cerrado, INFR-03 mitad migraciones completa; suite 53/53). Próximo: Plan 03-02 (seed_service + DEMO_MODE gate + verify_seed.sh → cierra PLAT-04 + SC1/SC2 + mitad seed de INFR-03).
 Resume file: None
 
-**Stack estado actual:** `docker compose up -d` deja corriendo `gri-mysql` (healthy) + `gri-api` (Up, /health=200). Super-admin bootstrap desde .env (admin@gri.dev). Para verificar auth completo: `docker exec -w /app gri-api sh scripts/verify_auth.sh` (curl+jq efímeros: `docker exec -u root gri-api sh -c "apt-get update -qq && apt-get install -y -qq curl jq"`).
+**Stack estado actual:** `docker compose up -d` deja corriendo `gri-mysql` (healthy) + `gri-api` (Up, /health=200, imagen rebuilt con migración 0002 aplicada automáticamente por CMD). Super-admin bootstrap desde .env (admin@gri.dev). Suite completa: `docker exec -w /app gri-api uv run pytest tests/ -v` (53 tests). Tests SM puros (sin stack): `docker exec -w /app gri-api uv run pytest tests/test_state_machines.py -v` (11 tests en <0.1s).
