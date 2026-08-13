@@ -11,12 +11,15 @@ from fastapi import FastAPI
 
 from app.api import health
 from app.core.config import settings
-from app.core.db import engine
+from app.core.db import async_session_maker, engine
+from app.services.bootstrap import ensure_super_admin
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # --- startup: nothing to do (engine is created lazily) ---
+    # --- startup: bootstrap the platform super-admin if configured & absent ---
+    async with async_session_maker() as session:
+        await ensure_super_admin(session)
     yield
     # --- shutdown: close the pool cleanly ---
     await engine.dispose()

@@ -27,6 +27,19 @@ class Settings(BaseSettings):
     # Read but inert this phase. Phase 3 seeds the demo restaurant when True.
     DEMO_MODE: bool = False
 
+    # --- Phase 2: auth + tenancy ---
+    # JWT signing secret (HS256, single-secret architecture — ARCHITECTURE.md
+    # Pattern 2). In prod this MUST be a strong random value; generate with:
+    #   python -c "import secrets; print(secrets.token_urlsafe(48))"
+    JWT_SECRET: str = "replace-me-with-a-long-random-string"
+    ACCESS_TTL_MIN: int = 15        # access token lifetime (minutes)
+    REFRESH_TTL_DAYS: int = 7       # refresh token lifetime (days)
+
+    # Bootstrap super-admin: created idempotently on startup if absent.
+    # None => bootstrap is skipped (dev convenience). Prod MUST set both.
+    SUPER_ADMIN_EMAIL: str | None = None
+    SUPER_ADMIN_PASSWORD: str | None = None
+
     @property
     def database_url(self) -> str:
         """SQLAlchemy async URL pointing at MySQL via asyncmy, utf8mb4 charset."""

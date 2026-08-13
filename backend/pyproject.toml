@@ -14,6 +14,17 @@ dependencies = [
     # non-TLS connections (e.g. the internal docker network). Has manylinux +
     # win wheels, so no build toolchain needed.
     "cryptography>=43.0",
+    # --- Phase 2: auth + tenancy ---
+    # PyJWT 2.13 (NOT python-jose — dormant). HS256 JWT encode/decode.
+    "pyjwt>=2.13.0",
+    # bcrypt direct (NOT passlib — frozen since 2020-10-08, abandoned).
+    # 4.x Rust core, manylinux + win wheels.
+    "bcrypt>=4.0",
+    # Alembic: schema migrations (pulled forward from Phase 3 — first permanent
+    # models land here). Same author as SQLAlchemy.
+    "alembic>=1.19.0",
+    # email-validator: backs pydantic.EmailStr on UserCreate/UserLogin.
+    "email-validator>=2.0",
 ]
 
 [dependency-groups]

@@ -2,7 +2,8 @@
 # Uses the official uv-from-GHCR Docker pattern. asyncmy / bcrypt / greenlet
 # all ship manylinux cp312 wheels (verified Aug 2026), so NO build-essential /
 # default-libmysqlclient-dev / pkg-config is needed on the standard x86_64 build.
-# Alembic is deferred to Phase 3 -> CMD is just `uvicorn` (no `alembic upgrade head`).
+# Phase 2: Alembic lands here (first permanent models exist). CMD runs
+# `alembic upgrade head` before uvicorn so the schema is always current.
 
 FROM python:3.12-slim
 
@@ -38,5 +39,6 @@ USER appuser
 ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8000
-# CMD is uvicorn only — `alembic upgrade head` is added in Phase 3 when migrations exist.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# CMD applies migrations (idempotent) then serves. sh -c so the && chain works.
+# alembic upgrade head is a no-op when already at head, so this is safe on every boot.
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

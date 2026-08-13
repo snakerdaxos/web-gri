@@ -53,6 +53,12 @@ services:
       DB_NAME: gri
       DEMO_MODE: ${DEMO_MODE:-false}
       ENVIRONMENT: development
+      # --- Phase 2: auth + tenancy ---
+      JWT_SECRET: ${JWT_SECRET:-replace-me-dev-only}
+      ACCESS_TTL_MIN: "15"
+      REFRESH_TTL_DAYS: "7"
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
     ports:
       - "8000:8000"
 
