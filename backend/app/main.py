@@ -13,6 +13,7 @@ from app.api import admin, auth, health
 from app.core.config import settings
 from app.core.db import async_session_maker, engine
 from app.services.bootstrap import ensure_super_admin
+from app.services.seed_service import seed_if_demo_mode
 
 
 @asynccontextmanager
@@ -20,6 +21,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # --- startup: bootstrap the platform super-admin if configured & absent ---
     async with async_session_maker() as session:
         await ensure_super_admin(session)
+        # Phase 3: seed demo restaurante (PLAT-04). Gate inside the service;
+        # no-op when DEMO_MODE=false (PITFALL 4 — defense-in-depth).
+        await seed_if_demo_mode(session)
     yield
     # --- shutdown: close the pool cleanly ---
     await engine.dispose()
