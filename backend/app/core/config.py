@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     SUPER_ADMIN_EMAIL: str | None = None
     SUPER_ADMIN_PASSWORD: str | None = None
 
+    # --- Phase 4: CORS (panel admin web origin, T-04-01) ---
+    # Comma-separated browser origins allowed to call the API with credentials.
+    # Explicit origins ONLY — allow_credentials=True forbids "*" (wildcard +
+    # credentials is rejected at runtime and would leak cross-origin).
+    # Phase 9 prod: set the panel's HTTPS domain(s), e.g. "https://panel.gri.com".
+    CORS_ORIGINS: str = "http://localhost:5173"
+
     @property
     def database_url(self) -> str:
         """SQLAlchemy async URL pointing at MySQL via asyncmy, utf8mb4 charset."""
