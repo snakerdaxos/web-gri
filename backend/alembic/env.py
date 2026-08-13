@@ -20,7 +20,18 @@ from app.core.config import settings
 from app.models.base import Base
 # IMPORTANT: import every model module so Base.metadata is fully populated.
 # Without these imports Alembic autogenerate would see an empty metadata.
-from app.models import restaurante, usuario  # noqa: F401
+# Phase 3 extends the list with the 7 new domain model modules.
+from app.models import (  # noqa: F401
+    calificacion,
+    mesa,
+    menu,
+    pago,
+    pedido,
+    reserva,
+    restaurante,
+    sesion_mesa,
+    usuario,
+)
 
 config = context.config
 if config.config_file_name is not None:
