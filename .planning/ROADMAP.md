@@ -12,7 +12,7 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente Móvil RE
 - Fases enteras (1, 2, 3): trabajo planificado del milestone
 - Fases decimales (2.1, 2.2): inserciones urgentes (marcadas con INSERTED)
 
-- [ ] **Phase 1: Fundación e Infraestructura** - Docker + MySQL + API corriendo con configuración por entorno
+- [x] **Phase 1: Fundación e Infraestructura** - Docker + MySQL + API corriendo con configuración por entorno
 - [ ] **Phase 2: Autenticación, Roles y Multi-tenant** - JWT multi-rol con aislamiento por restaurante; el super-admin crea restaurantes y staff
 - [ ] **Phase 3: Modelo de Dominio y Seed Demo** - Todas las tablas de negocio, state machines y restaurante demo sembrado
 - [ ] **Phase 4: Panel Admin — Login, Dashboard y Mapa (Solo Lectura)** - El staff inicia sesión y ve estadísticas y mapa de mesas con los colores del mockup
@@ -34,7 +34,7 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente Móvil RE
   2. Los datos de MySQL sobreviven al reinicio del contenedor (volumen persistente) y la BD usa charset utf8mb4 con timezone America/Bogota (acentos y emojis se guardan y se leen bien)
   3. La conexión a la BD se configura por variables de entorno: cambiar el `.env` cambia la conexión sin tocar código
 **Plans**: 1 plan
-- [ ] 01-01-PLAN.md — Walking Skeleton: stack Docker (MySQL 8.4 + FastAPI) con /health verificando SELECT 1, charset/TZ/persistencia y conexión por .env
+- [x] 01-01-PLAN.md — Walking Skeleton: stack Docker (MySQL 8.4 + FastAPI) con /health verificando SELECT 1, charset/TZ/persistencia y conexión por .env
 
 ### Phase 2: Autenticación, Roles y Multi-tenant
 **Goal**: Usuarios autenticados con sesión persistente, 5 roles distinguibles y aislamiento estricto por restaurante; el super-admin administra la plataforma vía API
@@ -144,7 +144,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fundación e Infraestructura | 0/1 | Planned | - |
+| 1. Fundación e Infraestructura | 1/1 | Complete | 2026-08-13 |
 | 2. Autenticación, Roles y Multi-tenant | 0/? | Not started | - |
 | 3. Modelo de Dominio y Seed Demo | 0/? | Not started | - |
 | 4. Panel Admin — Login, Dashboard y Mapa (Solo Lectura) | 0/? | Not started | - |

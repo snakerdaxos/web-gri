@@ -89,8 +89,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Infraestructura
 
-- [ ] **INFR-01**: MySQL corre en Docker con volumen persistente, charset utf8mb4 y timezone America/Bogota
-- [ ] **INFR-02**: La API FastAPI corre en Docker (Ubuntu Server) y se conecta a MySQL por configuración de entorno
+- [x] **INFR-01**: MySQL corre en Docker con volumen persistente, charset utf8mb4 y timezone America/Bogota
+- [x] **INFR-02**: La API FastAPI corre en Docker (Ubuntu Server) y se conecta a MySQL por configuración de entorno
 - [ ] **INFR-03**: Las migraciones (Alembic) y el seed demo se ejecutan como parte del despliegue
 
 ## v2 Requirements
@@ -182,8 +182,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ADMN-05 | Fase 6 | Pending |
 | REPO-01 | Fase 8 | Pending |
 | REPO-02 | Fase 8 | Pending |
-| INFR-01 | Fase 1 | Pending |
-| INFR-02 | Fase 1 | Pending |
+| INFR-01 | Fase 1 | Complete |
+| INFR-02 | Fase 1 | Complete |
 | INFR-03 | Fase 3 | Pending |
 
 **Coverage:**
