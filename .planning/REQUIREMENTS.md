@@ -135,13 +135,62 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (filled during roadmap creation) | | |
+| PLAT-01 | Fase 4 | Pending |
+| PLAT-02 | Fase 2 | Pending |
+| PLAT-03 | Fase 2 | Pending |
+| PLAT-04 | Fase 3 | Pending |
+| PLAT-05 | Fase 8 | Pending |
+| AUTH-01 | Fase 2 | Pending |
+| AUTH-02 | Fase 2 | Pending |
+| AUTH-03 | Fase 2 | Pending |
+| AUTH-04 | Fase 2 | Pending |
+| AUTH-05 | Fase 5 | Pending |
+| REST-01 | Fase 5 | Pending |
+| REST-02 | Fase 5 | Pending |
+| MENU-01 | Fase 8 | Pending |
+| MENU-02 | Fase 8 | Pending |
+| MESA-01 | Fase 8 | Pending |
+| MESA-02 | Fase 3 | Pending |
+| MESA-03 | Fase 8 | Pending |
+| MESA-04 | Fase 5 | Pending |
+| MESA-05 | Fase 6 | Pending |
+| MESA-06 | Fase 6 | Pending |
+| RESV-01 | Fase 5 | Pending |
+| RESV-02 | Fase 5 | Pending |
+| RESV-03 | Fase 5 | Pending |
+| RESV-04 | Fase 5 | Pending |
+| RESV-05 | Fase 5 | Pending |
+| PEDI-01 | Fase 6 | Pending |
+| PEDI-02 | Fase 6 | Pending |
+| PEDI-03 | Fase 6 | Pending |
+| PEDI-04 | Fase 6 | Pending |
+| PEDI-05 | Fase 6 | Pending |
+| PEDI-06 | Fase 6 | Pending |
+| RT-01 | Fase 7 | Pending |
+| RT-02 | Fase 7 | Pending |
+| RT-03 | Fase 7 | Pending |
+| PAGO-01 | Fase 6 | Pending |
+| PAGO-02 | Fase 9 | Pending |
+| PAGO-03 | Fase 9 | Pending |
+| PAGO-04 | Fase 9 | Pending |
+| CALI-01 | Fase 9 | Pending |
+| CALI-02 | Fase 9 | Pending |
+| ADMN-01 | Fase 4 | Pending |
+| ADMN-02 | Fase 4 | Pending |
+| ADMN-03 | Fase 8 | Pending |
+| ADMN-04 | Fase 8 | Pending |
+| ADMN-05 | Fase 6 | Pending |
+| REPO-01 | Fase 8 | Pending |
+| REPO-02 | Fase 8 | Pending |
+| INFR-01 | Fase 1 | Pending |
+| INFR-02 | Fase 1 | Pending |
+| INFR-03 | Fase 3 | Pending |
 
 **Coverage:**
-- v1 requirements: 47 total
-- Mapped to phases: 0
-- Unmapped: 47 ⚠️
+- v1 requirements: 50 total (nota: este archivo decía "47 total" por error aritmético; el conteo real de IDs enumerados es 50)
+- Mapped to phases: 50
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-08-13*
-*Last updated: 2026-08-13 after initial definition*
+*Last updated: 2026-08-13 after roadmap creation (9 fases)*
