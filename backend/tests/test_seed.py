@@ -49,10 +49,17 @@ async def test_seed_crea_demo(db_session):
     assert restaurante.activo is True
     restaurante_id = restaurante.id
 
-    # Las 8 mesas cumplen el patrón GRI-MESA-\d{3}$.
+    # Las 8 mesas cumplen el patrón GRI-MESA-\d{3}$. Filtramos por codigo_qr
+    # (no solo restaurant_id) porque test_domain_constraints.py crea mesas de
+    # prueba GRI-TEST-* que se adjuntan al primer restaurante (que es el demo).
     mesas = (
         await db_session.execute(
-            select(Mesa).where(Mesa.restaurant_id == restaurante_id).order_by(Mesa.numero)
+            select(Mesa)
+            .where(
+                Mesa.restaurant_id == restaurante_id,
+                Mesa.codigo_qr.like("GRI-MESA-%"),
+            )
+            .order_by(Mesa.numero)
         )
     ).scalars().all()
     assert len(mesas) == 8
@@ -101,11 +108,17 @@ async def test_seed_crea_menu_cop(db_session):
     ).scalar_one()
     assert fuerte.orden == 2
 
-    # Las 4 categorías del demo existen (acotadas al tenant demo — el BD del
-    # stack Docker acumula datos de tests anteriores).
+    # Las 4 categorías del demo existen, acotadas por (restaurant_id, nombre IN
+    # demo) — el BD del stack Docker acumula datos de tests anteriores
+    # (test_domain_constraints.py crea categorias cat-XXXXXX en el primer
+    # restaurante, que es el demo).
+    demo_nombres = {"Entradas", "Platos Fuertes", "Bebidas", "Postres"}
     categorias = (
         await db_session.execute(
-            select(Categoria).where(Categoria.restaurant_id == restaurante.id)
+            select(Categoria).where(
+                Categoria.restaurant_id == restaurante.id,
+                Categoria.nombre.in_(demo_nombres),
+            )
         )
     ).scalars().all()
     assert len(categorias) == 4
