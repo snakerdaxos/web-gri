@@ -46,7 +46,9 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente Móvil RE
   2. El sistema distingue los 5 roles (super_admin, admin_restaurante, mesero, cocina, cliente) y cada rol solo accede a los endpoints que le corresponden
   3. Un usuario staff del restaurante A que solicita recursos del restaurante B recibe 404 (aislamiento multi-tenant verificado con tests de acceso cruzado)
   4. El super-admin puede crear restaurantes con sus datos básicos y usuarios staff (admin, mesero, cocina) asignados a un restaurante vía la API
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 02-01-PLAN.md — Vertical Slice Fundación: Models + Alembic + Bootstrap super-admin + register/login/refresh/me (AUTH-01, AUTH-02)
+- [ ] 02-02-PLAN.md — Vertical Slice Roles + Tenant + Platform Admin: require_roles + TenantScope + /admin/restaurantes + /admin/restaurantes/{id}/staff (AUTH-03, AUTH-04, PLAT-02, PLAT-03)
 
 ### Phase 3: Modelo de Dominio y Seed Demo
 **Goal**: Toda la base de datos de negocio existe con state machines explícitas (mesa y pedido) y el restaurante demo sembrado al inicializar
@@ -145,7 +147,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Fundación e Infraestructura | 1/1 | Complete | 2026-08-13 |
-| 2. Autenticación, Roles y Multi-tenant | 0/? | Not started | - |
+| 2. Autenticación, Roles y Multi-tenant | 0/2 | Not started | - |
 | 3. Modelo de Dominio y Seed Demo | 0/? | Not started | - |
 | 4. Panel Admin — Login, Dashboard y Mapa (Solo Lectura) | 0/? | Not started | - |
 | 5. App Cliente — Descubrimiento y Reservas | 0/? | Not started | - |
