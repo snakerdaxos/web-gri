@@ -12,7 +12,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **PLAT-01**: Super-admin puede iniciar sesión en el panel web con sus credenciales
 - [x] **PLAT-02**: Super-admin puede crear restaurantes con sus datos básicos (nombre, descripción, tipo de cocina, dirección)
 - [x] **PLAT-03**: Super-admin puede crear usuarios staff (admin restaurante, mesero, cocina) y asignarlos a un restaurante
-- [ ] **PLAT-04**: El sistema siembra un restaurante demo con menú, mesas y datos de ejemplo al inicializarse
+- [x] **PLAT-04**: El sistema siembra un restaurante demo con menú, mesas y datos de ejemplo al inicializarse
 - [ ] **PLAT-05**: Super-admin puede ver la lista de restaurantes y desactivarlos
 
 ### Autenticación y Roles
@@ -91,7 +91,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **INFR-01**: MySQL corre en Docker con volumen persistente, charset utf8mb4 y timezone America/Bogota
 - [x] **INFR-02**: La API FastAPI corre en Docker (Ubuntu Server) y se conecta a MySQL por configuración de entorno
-- [ ] **INFR-03**: Las migraciones (Alembic) y el seed demo se ejecutan como parte del despliegue
+- [x] **INFR-03**: Las migraciones (Alembic) y el seed demo se ejecutan como parte del despliegue
 
 ## v2 Requirements
 
@@ -138,7 +138,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLAT-01 | Fase 4 | Pending |
 | PLAT-02 | Fase 2 | Complete |
 | PLAT-03 | Fase 2 | Complete |
-| PLAT-04 | Fase 3 | Pending |
+| PLAT-04 | Fase 3 | Done |
 | PLAT-05 | Fase 8 | Pending |
 | AUTH-01 | Fase 2 | Pending |
 | AUTH-02 | Fase 2 | Pending |
@@ -184,7 +184,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | REPO-02 | Fase 8 | Pending |
 | INFR-01 | Fase 1 | Complete |
 | INFR-02 | Fase 1 | Complete |
-| INFR-03 | Fase 3 | Pending |
+| INFR-03 | Fase 3 | Done |
 
 **Coverage:**
 - v1 requirements: 50 total (nota: este archivo decía "47 total" por error aritmético; el conteo real de IDs enumerados es 50)
@@ -194,3 +194,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 *Requirements defined: 2026-08-13*
 *Last updated: 2026-08-13 after roadmap creation (9 fases)*
+
