@@ -1,0 +1,32 @@
+[project]
+name = "gri-backend"
+version = "0.1.0"
+description = "GRI API — multi-restaurante gestion y reservas"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.141.0",
+    "uvicorn[standard]>=0.52.0",
+    "sqlalchemy[asyncio]>=2.0.52",
+    "asyncmy>=0.2.14",
+    "pydantic-settings>=2.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.28",
+    "ruff>=0.6",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "ASYNC", "S", "T20"]
+ignore = ["S101"]  # allow assert in tests
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
