@@ -9,6 +9,11 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.52",
     "asyncmy>=0.2.14",
     "pydantic-settings>=2.0",
+    # cryptography: required by asyncmy/PyMySQL to complete the
+    # caching_sha2_password handshake (MySQL 8.4 default auth plugin) over
+    # non-TLS connections (e.g. the internal docker network). Has manylinux +
+    # win wheels, so no build toolchain needed.
+    "cryptography>=43.0",
 ]
 
 [dependency-groups]

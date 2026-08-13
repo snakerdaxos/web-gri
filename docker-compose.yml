@@ -1,0 +1,60 @@
+# GRI — local dev orchestration (Phase 1).
+# Root-level so the mysql + api pair is visible together and matches the
+# Ubuntu Server deploy layout (Phase 9). Production hardening (nginx/TLS,
+# port 3306 removal) lands in Phase 9.
+
+services:
+  mysql:
+    # Tag `8.4` is the rolling tag for the 8.4 LTS branch (the literal `8.4-lts`
+    # tag does NOT exist on Docker Hub — verified Aug 2026). Pinning the branch
+    # gets security patches without breaking changes; pin a specific patch
+    # (e.g. 8.4.11) in Phase 9 prod for reproducibility.
+    image: mysql:8.4
+    container_name: gri-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: gri          # DB 'gri' created on first boot
+      MYSQL_USER: gri_app
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
+      TZ: America/Bogota           # container OS TZ (MySQL time_zone=SYSTEM resolves to this)
+    ports:
+      - "3306:3306"                # DEV ONLY — remove/omit in prod (Phase 9)
+    volumes:
+      - gri_mysql_data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=-05:00
+      # Bogota = UTC-5, no DST since 1993, so -05:00 == America/Bogota permanently.
+      # DO NOT pass --default-authentication-plugin — it was REMOVED in MySQL 8.4
+      # (caching_sha2_password is already the default).
+    healthcheck:
+      # `$$` escapes to a literal `$` so the running container resolves its OWN
+      # MYSQL_ROOT_PASSWORD env var at healthcheck time (not the host's).
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10            # first boot of MySQL is slow; give it room
+      start_period: 30s
+
+  api:
+    build: ./backend
+    container_name: gri-api
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy   # API won't start until MySQL answers mysqladmin ping
+    environment:
+      DB_HOST: mysql                 # docker DNS name of the mysql service
+      DB_PORT: "3306"
+      DB_USER: gri_app
+      DB_PASSWORD: ${MYSQL_APP_PASSWORD}
+      DB_NAME: gri
+      DEMO_MODE: ${DEMO_MODE:-false}
+      ENVIRONMENT: development
+    ports:
+      - "8000:8000"
+
+volumes:
+  gri_mysql_data:                    # named volume -> data survives `docker compose down`

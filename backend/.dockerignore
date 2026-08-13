@@ -1,0 +1,13 @@
+# Keep the build context lean AND prevent the host's Windows-built .venv from
+# leaking into the Linux image (which would break uvicorn with ELF/ABI errors).
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.env
+tests/
+*.pyc
+.git/
+.gitignore
+Dockerfile
+.dockerignore
