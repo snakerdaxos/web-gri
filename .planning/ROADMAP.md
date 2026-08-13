@@ -60,7 +60,9 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente Móvil RE
   2. El sistema siembra un restaurante demo con menú, mesas y datos de ejemplo cuando DEMO_MODE está activo; con DEMO_MODE=false no siembra nada
   3. Cada mesa tiene un código QR único en formato GRI-MESA-XXX y el sistema impide que dos mesas compartan código (constraint en BD)
 **Notas**: Las tablas de dominio (mesa, categoria, producto, pedido, pedido_item, reserva, pago, calificacion) se crean aquí con FKs e índices compuestos por restaurante. Las transiciones de MESA_TRANSITIONS y PEDIDO_TRANSITIONS se implementan con el schema (research ligero/SPEC recomendado antes de planear).
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 03-01-PLAN.md — Vertical Slice Models + State Machines + Migración 0002 + tests DB-direct (MESA-02, mitad INFR-03 migraciones)
+- [ ] 03-02-PLAN.md — Vertical Slice Seed Demo + Lifespan Wiring + verify_seed.sh (PLAT-04, mitad INFR-03 seed)
 
 ### Phase 4: Panel Admin — Login, Dashboard y Mapa (Solo Lectura)
 **Goal**: El staff (admin restaurante y super-admin) inicia sesión en el panel web y ve dashboard con estadísticas y mapa de mesas con la identidad visual del mockup
@@ -148,7 +150,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 |-------|----------------|--------|-----------|
 | 1. Fundación e Infraestructura | 1/1 | Complete | 2026-08-13 |
 | 2. Autenticación, Roles y Multi-tenant | 2/2 | Complete   | 2026-08-13 |
-| 3. Modelo de Dominio y Seed Demo | 0/? | Not started | - |
+| 3. Modelo de Dominio y Seed Demo | 0/2 | Planned | - |
 | 4. Panel Admin — Login, Dashboard y Mapa (Solo Lectura) | 0/? | Not started | - |
 | 5. App Cliente — Descubrimiento y Reservas | 0/? | Not started | - |
 | 6. App Cliente — Pedido por QR (REST) y Vista Cocina | 0/? | Not started | - |
