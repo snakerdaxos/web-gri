@@ -1,11 +1,14 @@
 # Keep the build context lean AND prevent the host's Windows-built .venv from
 # leaking into the Linux image (which would break uvicorn with ELF/ABI errors).
+# tests/ is NOT excluded: Phase 2+ runs the suite inside the container (via
+# `docker compose exec api uv run pytest`) so DB_* / SUPER_ADMIN_* env vars are
+# in the process environment — required by test_db_config (which connects to
+# the live MySQL). For CI parity the image must contain the tests.
 .venv/
 __pycache__/
 .pytest_cache/
 .ruff_cache/
 .env
-tests/
 *.pyc
 .git/
 .gitignore
