@@ -73,7 +73,9 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃ³vil 
   1. Admin restaurante y super-admin pueden iniciar sesiÃ³n en el panel web (Flutter Web) con sus credenciales y la sesiÃ³n persiste
   2. El dashboard muestra estadÃ­sticas del restaurante con datos reales: mesas disponibles/ocupadas, reservas del dÃ­a y pedidos activos
   3. El mapa de mesas muestra cada mesa con su estado codificado por color (verde/rojo/amarillo/azul del mockup) y refleja cambios de la BD al refrescar (polling corto â€” deuda temporal; el tiempo real llega en Phase 7)
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 04-01-PLAN.md - Vertical Slice Backend: CORSMiddleware + GET /staff/mesas + GET /staff/stats (tenant-scoped) + tests aislamiento + tests CORS (ADMN-01, ADMN-02)
+- [ ] 04-02-PLAN.md - Vertical Slice Panel Admin Flutter Web: scaffold + auth (login/persistencia/refresh interceptor/go_router guard) + dashboard (4 stat cards + mapa coloreado + sidebar) + polling 10s + widget tests (PLAT-01, ADMN-01, ADMN-02)
 
 ### Phase 5: App Cliente â€” Descubrimiento y Reservas
 **Goal**: Un cliente puede descubrir restaurantes y completar el ciclo completo de reserva (buscar â†’ reservar â†’ consultar â†’ cancelar â†’ sentarse)
