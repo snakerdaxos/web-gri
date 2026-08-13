@@ -10,8 +10,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Plataforma (Super-admin GRI)
 
 - [ ] **PLAT-01**: Super-admin puede iniciar sesión en el panel web con sus credenciales
-- [ ] **PLAT-02**: Super-admin puede crear restaurantes con sus datos básicos (nombre, descripción, tipo de cocina, dirección)
-- [ ] **PLAT-03**: Super-admin puede crear usuarios staff (admin restaurante, mesero, cocina) y asignarlos a un restaurante
+- [x] **PLAT-02**: Super-admin puede crear restaurantes con sus datos básicos (nombre, descripción, tipo de cocina, dirección)
+- [x] **PLAT-03**: Super-admin puede crear usuarios staff (admin restaurante, mesero, cocina) y asignarlos a un restaurante
 - [ ] **PLAT-04**: El sistema siembra un restaurante demo con menú, mesas y datos de ejemplo al inicializarse
 - [ ] **PLAT-05**: Super-admin puede ver la lista de restaurantes y desactivarlos
 
@@ -19,8 +19,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **AUTH-01**: Usuario puede registrarse como cliente con nombre, email y contraseña
 - [ ] **AUTH-02**: Usuario puede iniciar sesión y su sesión persiste (JWT con refresh)
-- [ ] **AUTH-03**: El sistema distingue 5 roles: super_admin, admin_restaurante, mesero, cocina, cliente
-- [ ] **AUTH-04**: Un usuario staff solo puede acceder a los datos de su restaurante (aislamiento multi-tenant)
+- [x] **AUTH-03**: El sistema distingue 5 roles: super_admin, admin_restaurante, mesero, cocina, cliente
+- [x] **AUTH-04**: Un usuario staff solo puede acceder a los datos de su restaurante (aislamiento multi-tenant)
 - [ ] **AUTH-05**: Cliente puede ver y editar su perfil
 
 ### Restaurantes y Menú
@@ -136,14 +136,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | PLAT-01 | Fase 4 | Pending |
-| PLAT-02 | Fase 2 | Pending |
-| PLAT-03 | Fase 2 | Pending |
+| PLAT-02 | Fase 2 | Complete |
+| PLAT-03 | Fase 2 | Complete |
 | PLAT-04 | Fase 3 | Pending |
 | PLAT-05 | Fase 8 | Pending |
 | AUTH-01 | Fase 2 | Pending |
 | AUTH-02 | Fase 2 | Pending |
-| AUTH-03 | Fase 2 | Pending |
-| AUTH-04 | Fase 2 | Pending |
+| AUTH-03 | Fase 2 | Complete |
+| AUTH-04 | Fase 2 | Complete |
 | AUTH-05 | Fase 5 | Pending |
 | REST-01 | Fase 5 | Pending |
 | REST-02 | Fase 5 | Pending |

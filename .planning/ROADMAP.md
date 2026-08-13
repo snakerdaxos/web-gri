@@ -13,7 +13,7 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente Móvil RE
 - Fases decimales (2.1, 2.2): inserciones urgentes (marcadas con INSERTED)
 
 - [x] **Phase 1: Fundación e Infraestructura** - Docker + MySQL + API corriendo con configuración por entorno
-- [ ] **Phase 2: Autenticación, Roles y Multi-tenant** - JWT multi-rol con aislamiento por restaurante; el super-admin crea restaurantes y staff
+- [x] **Phase 2: Autenticación, Roles y Multi-tenant** - JWT multi-rol con aislamiento por restaurante; el super-admin crea restaurantes y staff (completed 2026-08-13)
 - [ ] **Phase 3: Modelo de Dominio y Seed Demo** - Todas las tablas de negocio, state machines y restaurante demo sembrado
 - [ ] **Phase 4: Panel Admin — Login, Dashboard y Mapa (Solo Lectura)** - El staff inicia sesión y ve estadísticas y mapa de mesas con los colores del mockup
 - [ ] **Phase 5: App Cliente — Descubrimiento y Reservas** - El cliente descubre restaurantes y completa el ciclo de reserva de principio a fin
@@ -147,7 +147,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Fundación e Infraestructura | 1/1 | Complete | 2026-08-13 |
-| 2. Autenticación, Roles y Multi-tenant | 0/2 | Not started | - |
+| 2. Autenticación, Roles y Multi-tenant | 2/2 | Complete   | 2026-08-13 |
 | 3. Modelo de Dominio y Seed Demo | 0/? | Not started | - |
 | 4. Panel Admin — Login, Dashboard y Mapa (Solo Lectura) | 0/? | Not started | - |
 | 5. App Cliente — Descubrimiento y Reservas | 0/? | Not started | - |
