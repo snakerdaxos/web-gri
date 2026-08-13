@@ -33,7 +33,8 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente Móvil RE
   1. `docker compose up` levanta MySQL y la API; el healthcheck de la API responde OK con la conexión a BD verificada
   2. Los datos de MySQL sobreviven al reinicio del contenedor (volumen persistente) y la BD usa charset utf8mb4 con timezone America/Bogota (acentos y emojis se guardan y se leen bien)
   3. La conexión a la BD se configura por variables de entorno: cambiar el `.env` cambia la conexión sin tocar código
-**Plans**: TBD
+**Plans**: 1 plan
+- [ ] 01-01-PLAN.md — Walking Skeleton: stack Docker (MySQL 8.4 + FastAPI) con /health verificando SELECT 1, charset/TZ/persistencia y conexión por .env
 
 ### Phase 2: Autenticación, Roles y Multi-tenant
 **Goal**: Usuarios autenticados con sesión persistente, 5 roles distinguibles y aislamiento estricto por restaurante; el super-admin administra la plataforma vía API
@@ -143,7 +144,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fundación e Infraestructura | 0/? | Not started | - |
+| 1. Fundación e Infraestructura | 0/1 | Planned | - |
 | 2. Autenticación, Roles y Multi-tenant | 0/? | Not started | - |
 | 3. Modelo de Dominio y Seed Demo | 0/? | Not started | - |
 | 4. Panel Admin — Login, Dashboard y Mapa (Solo Lectura) | 0/? | Not started | - |
