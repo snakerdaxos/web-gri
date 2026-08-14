@@ -58,9 +58,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Tiempo Real
 
-- [ ] **RT-01**: Cambios de estado de pedidos llegan a cocina, mesero y cliente sin refrescar (WebSockets)
-- [ ] **RT-02**: Cambios de estado de mesas se reflejan en el mapa de mesas del panel sin refrescar
-- [ ] **RT-03**: La app se recupera de desconexiones (reconexiÃ³n + re-sincronizaciÃ³n de estado al reconectar)
+- [x] **RT-01**: Cambios de estado de pedidos llegan a cocina, mesero y cliente sin refrescar (WebSockets)
+- [x] **RT-02**: Cambios de estado de mesas se reflejan en el mapa de mesas del panel sin refrescar
+- [x] **RT-03**: La app se recupera de desconexiones (reconexiÃ³n + re-sincronizaciÃ³n de estado al reconectar)
 
 ### Cuenta y Pago
 
@@ -166,9 +166,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PEDI-04 | Fase 6 | Complete |
 | PEDI-05 | Fase 6 | Complete |
 | PEDI-06 | Fase 6 | Complete |
-| RT-01 | Fase 7 | Pending |
-| RT-02 | Fase 7 | Pending |
-| RT-03 | Fase 7 | Pending |
+| RT-01 | Fase 7 | Done |
+| RT-02 | Fase 7 | Done |
+| RT-03 | Fase 7 | Done |
 | PAGO-01 | Fase 6 | Complete |
 | PAGO-02 | Fase 9 | Pending |
 | PAGO-03 | Fase 9 | Pending |
