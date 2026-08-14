@@ -1,23 +1,32 @@
-"""Staff router — operational reads for the panel admin (ADMN-01 + ADMN-02).
+"""Staff router — operational reads + mesa state writes for the panel admin
+(ADMN-01 + ADMN-02 + RESV-05 + MESA-04).
 
 Separated from /admin (platform ops) per the research convention: /staff holds
-the read endpoints the panel dashboard consumes (mesas, stats; pedidos follow
-in Phase 5).
+the endpoints the panel dashboard consumes (mesas, stats, reservas del día,
+mesa state transitions; pedidos follow in Phase 6).
 
 Role matrix, enforced via get_tenant_scope (no require_roles needed — the
 scope dep already rejects cliente with 403):
 
-| Endpoint         | Allowed roles               | Denied ->                              |
-|------------------|-----------------------------|----------------------------------------|
-| GET /staff/mesas | staff (any) + super_admin*  | 401 (no token) / 403 (cliente)         |
-| GET /staff/stats | staff (any) + super_admin*  | 401 / 403 (same)                       |
-|                  |                             | 400 (super_admin sin ?restaurante_id=) |
-|                  |                             | 404 (restaurante inexistente/inactivo) |
+| Endpoint                    | Allowed roles               | Denied ->                              |
+|-----------------------------|-----------------------------|----------------------------------------|
+| GET  /staff/mesas           | staff (any) + super_admin*  | 401 (no token) / 403 (cliente)         |
+| GET  /staff/stats           | staff (any) + super_admin*  | 401 / 403 (same)                       |
+| GET  /staff/reservas        | staff (any) + super_admin*  | 401 / 403 / 400 / 404 (same rules)     |
+| POST /staff/mesas/{id}/estado | staff (any) + super_admin* | 401 / 403 / 404 / 409                  |
+|                             |                             | 400 (super_admin sin ?restaurante_id=) |
+|                             |                             | 404 (restaurante/mesa inexistente/ajena)|
+|                             |                             | 409 (transición MESA_TRANSITIONS inválida)|
 
 * super_admin MUST pass ?restaurante_id= (a hint, validated 404-if-unknown);
   for staff the param is IGNORED — the tenant always comes from the token
   (T-04-02, mirrored from admin_service.get_restaurante_for_staff).
+
+Existence hiding cross-tenant (AUTH-04 style): una mesa de OTRO tenant es
+indistinguible de una mesa inexistente → 404 (nunca 403, nunca 200).
 """
+
+import datetime as dt
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +35,7 @@ from app.core.db import get_session
 from app.deps.auth import TenantScope, get_tenant_scope
 from app.schemas.dashboard import DashboardStats
 from app.schemas.mesa import MesaRead
+from app.schemas.reserva import ReservaRead
 from app.services import staff_service
 
 router = APIRouter(prefix="/staff", tags=["staff"])
@@ -58,3 +68,24 @@ async def get_stats(
 ):
     """Dashboard counts for the caller's tenant (ADMN-01)."""
     return await staff_service.get_stats(session, scope, restaurante_id)
+
+
+@router.get("/reservas", response_model=list[ReservaRead])
+async def list_reservas(
+    fecha: dt.date | None = Query(
+        default=None, description="Default: hoy (computado DB-side)."
+    ),
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff (el "
+        "tenant sale del token).",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+):
+    """RESV-05 (ver): reservas del día del caller's tenant, con joins display
+    (restaurante_nombre, mesa_numero). Incluye canceladas (el campo estado
+    discrimina). Orden por hora_inicio."""
+    return await staff_service.list_reservas_by_fecha(
+        session, scope, restaurante_id, fecha
+    )

@@ -12,6 +12,8 @@ for staff it is ignored and `scope.restaurant_id` is forced, making
 cross-tenant reads structurally impossible).
 """
 
+import datetime as dt
+
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +24,7 @@ from app.models.pedido import EstadoPedido, Pedido
 from app.models.reserva import EstadoReserva, Reserva
 from app.models.restaurante import Restaurante
 from app.schemas.dashboard import DashboardStats
+from app.schemas.reserva import ReservaRead
 
 # The "active" pedido states for the dashboard card: everything after envio
 # except the terminals (pagado/rechazado). borrador is excluded — the cliente
@@ -70,6 +73,53 @@ async def list_mesas(
     rid = await _resolve_rid(session, scope, restaurante_id)
     stmt = select(Mesa).where(Mesa.restaurant_id == rid).order_by(Mesa.numero)
     return list((await session.execute(stmt)).scalars().all())
+
+
+async def list_reservas_by_fecha(
+    session: AsyncSession,
+    scope: TenantScope,
+    restaurante_id: int | None,
+    fecha: dt.date | None,
+) -> list[ReservaRead]:
+    """RESV-05 (ver): reservas del tenant resuelto para una fecha (RESV-05).
+
+    - Tenant filter: ``_resolve_rid`` (el param crudo NUNCA filtra para
+      staff — T-04-02; cross-tenant es estructuralmente imposible).
+    - ``fecha`` None → ``func.curdate()`` DB-side (Pitfall 6 — la misma BD
+      que guardó los rows computa "hoy"; NUNCA ``date.today()`` Python-side,
+      que puede divergir por TZ del contenedor). Misma decisión que Phase 4
+      ``reservas_hoy``.
+    - Incluye TODAS las reservas del día (también canceladas): el admin ve
+      el historial completo y el campo ``estado`` discrimina. Decisión del
+      plan (05-02 Task 1, action §5).
+    - Joins display (Restaurante.nombre, Mesa.numero) para el panel; mismo
+      patrón que ``reserva_service.list_reservas_usuario`` (05-01).
+    """
+    rid = await _resolve_rid(session, scope, restaurante_id)
+    target_fecha = fecha if fecha is not None else func.curdate()
+    stmt = (
+        select(Reserva, Restaurante.nombre, Mesa.numero)
+        .join(Restaurante, Restaurante.id == Reserva.restaurant_id)
+        .join(Mesa, Mesa.id == Reserva.mesa_id)
+        .where(Reserva.restaurant_id == rid, Reserva.fecha == target_fecha)
+        .order_by(Reserva.hora_inicio, Reserva.id)
+    )
+    rows = (await session.execute(stmt)).all()
+    return [
+        ReservaRead(
+            id=reserva.id,
+            restaurante_id=reserva.restaurant_id,
+            restaurante_nombre=nombre,
+            mesa_id=reserva.mesa_id,
+            mesa_numero=numero,
+            fecha=reserva.fecha,
+            hora_inicio=reserva.hora_inicio,
+            num_personas=reserva.num_personas,
+            estado=reserva.estado,
+            created_at=reserva.created_at,
+        )
+        for reserva, nombre, numero in rows
+    ]
 
 
 async def get_stats(
