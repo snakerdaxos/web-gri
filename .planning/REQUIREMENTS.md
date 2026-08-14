@@ -13,7 +13,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PLAT-02**: Super-admin puede crear restaurantes con sus datos bÃ¡sicos (nombre, descripciÃ³n, tipo de cocina, direcciÃ³n)
 - [x] **PLAT-03**: Super-admin puede crear usuarios staff (admin restaurante, mesero, cocina) y asignarlos a un restaurante
 - [x] **PLAT-04**: El sistema siembra un restaurante demo con menÃº, mesas y datos de ejemplo al inicializarse
-- [ ] **PLAT-05**: Super-admin puede ver la lista de restaurantes y desactivarlos
+- [x] **PLAT-05**: Super-admin puede ver la lista de restaurantes y desactivarlos
 
 ### AutenticaciÃ³n y Roles
 
@@ -27,14 +27,14 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **REST-01**: Cliente puede ver la lista de restaurantes activos con nombre, tipo de cocina y calificaciÃ³n
 - [x] **REST-02**: Cliente puede ver el detalle de un restaurante con su menÃº (categorÃ­as y productos con precio y descripciÃ³n)
-- [ ] **MENU-01**: Admin restaurante puede crear, editar y desactivar categorÃ­as del menÃº
-- [ ] **MENU-02**: Admin restaurante puede crear, editar y desactivar productos con precio, descripciÃ³n, imagen y disponibilidad (agotado)
+- [x] **MENU-01**: Admin restaurante puede crear, editar y desactivar categorÃ­as del menÃº
+- [x] **MENU-02**: Admin restaurante puede crear, editar y desactivar productos con precio, descripciÃ³n, imagen y disponibilidad (agotado)
 
 ### Mesas y QR
 
-- [ ] **MESA-01**: Admin restaurante puede crear y editar mesas con nÃºmero y capacidad
+- [x] **MESA-01**: Admin restaurante puede crear y editar mesas con nÃºmero y capacidad
 - [x] **MESA-02**: Cada mesa tiene un cÃ³digo QR Ãºnico que la identifica (formato GRI-MESA-XXX o URL)
-- [ ] **MESA-03**: Admin restaurante puede ver e imprimir el QR de una mesa
+- [x] **MESA-03**: Admin restaurante puede ver e imprimir el QR de una mesa
 - [x] **MESA-04**: Mesa tiene 4 estados: disponible, reservada, ocupada, limpieza â€” con transiciones vÃ¡lidas controladas
 - [x] **MESA-05**: Cliente puede escanear el QR de una mesa desde la app con la cÃ¡mara del telÃ©fono
 - [x] **MESA-06**: Al escanear un QR vÃ¡lido, el cliente queda vinculado a la mesa (sesiÃ³n de mesa) y ve el menÃº
@@ -78,14 +78,14 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **ADMN-01**: Panel muestra dashboard con estadÃ­sticas: mesas disponibles/ocupadas, reservas del dÃ­a, pedidos activos
 - [x] **ADMN-02**: Panel muestra mapa de mesas con su estado codificado por color (verde/rojo/amarillo/azul) y actualizaciÃ³n en vivo
-- [ ] **ADMN-03**: Admin restaurante puede gestionar clientes (ver lista e historial)
-- [ ] **ADMN-04**: Admin puede cambiar estado de mesa (marcar en limpieza, liberar) desde el mapa
+- [x] **ADMN-03**: Admin restaurante puede gestionar clientes (ver lista e historial)
+- [x] **ADMN-04**: Admin puede cambiar estado de mesa (marcar en limpieza, liberar) desde el mapa
 - [x] **ADMN-05**: Panel incluye vista de cocina: cola de pedidos con estado y capacidad de avanzarlos
 
 ### Reportes
 
-- [ ] **REPO-01**: Admin restaurante puede ver reporte de ventas por dÃ­a/rango (total, nÃºmero de pedidos)
-- [ ] **REPO-02**: Admin restaurante puede ver platos mÃ¡s vendidos
+- [x] **REPO-01**: Admin restaurante puede ver reporte de ventas por dÃ­a/rango (total, nÃºmero de pedidos)
+- [x] **REPO-02**: Admin restaurante puede ver platos mÃ¡s vendidos
 
 ### Infraestructura
 
@@ -139,7 +139,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLAT-02 | Fase 2 | Complete |
 | PLAT-03 | Fase 2 | Complete |
 | PLAT-04 | Fase 3 | Done |
-| PLAT-05 | Fase 8 | Pending |
+| PLAT-05 | Fase 8 | Done |
 | AUTH-01 | Fase 2 | Pending |
 | AUTH-02 | Fase 2 | Pending |
 | AUTH-03 | Fase 2 | Complete |
@@ -147,11 +147,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-05 | Fase 5 | Done |
 | REST-01 | Fase 5 | Done |
 | REST-02 | Fase 5 | Done |
-| MENU-01 | Fase 8 | Pending |
-| MENU-02 | Fase 8 | Pending |
-| MESA-01 | Fase 8 | Pending |
+| MENU-01 | Fase 8 | Done |
+| MENU-02 | Fase 8 | Done |
+| MESA-01 | Fase 8 | Done |
 | MESA-02 | Fase 3 | Done |
-| MESA-03 | Fase 8 | Pending |
+| MESA-03 | Fase 8 | Done |
 | MESA-04 | Fase 5 | Complete (05-02) |
 | MESA-05 | Fase 6 | Complete |
 | MESA-06 | Fase 6 | Complete |
@@ -177,11 +177,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CALI-02 | Fase 9 | Pending |
 | ADMN-01 | Fase 4 | Complete |
 | ADMN-02 | Fase 4 | Complete |
-| ADMN-03 | Fase 8 | Pending |
-| ADMN-04 | Fase 8 | Pending |
+| ADMN-03 | Fase 8 | Done |
+| ADMN-04 | Fase 8 | Done |
 | ADMN-05 | Fase 6 | Complete |
-| REPO-01 | Fase 8 | Pending |
-| REPO-02 | Fase 8 | Pending |
+| REPO-01 | Fase 8 | Done |
+| REPO-02 | Fase 8 | Done |
 | INFR-01 | Fase 1 | Complete |
 | INFR-02 | Fase 1 | Complete |
 | INFR-03 | Fase 3 | Done |
@@ -194,5 +194,6 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 *Requirements defined: 2026-08-13*
 *Last updated: 2026-08-13 after roadmap creation (9 fases)*
+
 
 
