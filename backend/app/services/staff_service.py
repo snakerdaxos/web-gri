@@ -13,20 +13,31 @@ cross-tenant reads structurally impossible).
 """
 
 import datetime as dt
+from decimal import Decimal
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.broadcaster import emit_event
 from app.core.state_machines import validar_transicion
 from app.deps.auth import TenantScope
+from app.models.menu import Categoria, Producto
 from app.models.mesa import EstadoMesa, Mesa
 from app.models.pedido import EstadoPedido, Pedido
 from app.models.reserva import EstadoReserva, Reserva
 from app.models.restaurante import Restaurante
 from app.models.sesion_mesa import EstadoSesion, SesionMesa
 from app.schemas.dashboard import DashboardStats
+from app.schemas.menu import (
+    CategoriaCreate,
+    CategoriaStaff,
+    CategoriaUpdate,
+    ProductoCreate,
+    ProductoStaff,
+    ProductoUpdate,
+)
 from app.schemas.mesa import MesaEstadoUpdate
 from app.schemas.reserva import ReservaRead
 
@@ -272,3 +283,176 @@ async def get_stats(
         reservas_hoy=reservas_hoy,
         pedidos_activos=pedidos_activos,
     )
+
+
+# --- Phase 8 (MENU-01/02): menú CRUD staff ------------------------------------
+#
+# Semántica de los toggles (decision locked del research):
+# - ``activo`` = soft-delete: desaparece del menú público, la fila vive y los
+#   FK de pedido_item siguen válidos (historia intacta).
+# - ``disponible`` = agotado transitorio: SIGUE en /public con su flag.
+# PROHIBIDO reutilizar disponible como soft-delete.
+
+
+async def get_menu_staff(
+    session: AsyncSession, scope: TenantScope, restaurante_id: int | None
+) -> list[CategoriaStaff]:
+    """Menú completo del tenant para el panel: 2 queries (patrón
+    public_service) agrupadas en Python, INCLUYENDO inactivos y agotados —
+    el staff ve TODO con flags; /public es el que filtra ``activo``."""
+    rid = await _resolve_rid(session, scope, restaurante_id)
+    cat_rows = (
+        await session.execute(
+            select(Categoria)
+            .where(Categoria.restaurant_id == rid)
+            .order_by(Categoria.orden, Categoria.id)
+        )
+    ).scalars().all()
+    prod_rows = (
+        await session.execute(
+            select(Producto)
+            .where(Producto.restaurant_id == rid)
+            .order_by(Producto.categoria_id, Producto.nombre)
+        )
+    ).scalars().all()
+    by_cat: dict[int, list[ProductoStaff]] = {}
+    for p in prod_rows:
+        by_cat.setdefault(p.categoria_id, []).append(ProductoStaff.model_validate(p))
+    return [
+        CategoriaStaff(
+            id=c.id,
+            nombre=c.nombre,
+            orden=c.orden,
+            activo=c.activo,
+            productos=by_cat.get(c.id, []),
+        )
+        for c in cat_rows
+    ]
+
+
+async def _categoria_dup(
+    session: AsyncSession, rid: int, nombre: str
+) -> bool:
+    """Pre-check amigable del unique (restaurant_id, nombre) — la constraint
+    ``uq_categoria_restaurante_nombre`` es la autoridad (red de seguridad en
+    el commit para la carrera, Pitfall 7)."""
+    dup = await session.execute(
+        select(func.count())
+        .select_from(Categoria)
+        .where(Categoria.restaurant_id == rid, Categoria.nombre == nombre)
+    )
+    return bool(dup.scalar_one())
+
+
+async def create_categoria(
+    session: AsyncSession,
+    scope: TenantScope,
+    body: CategoriaCreate,
+    restaurante_id: int | None,
+) -> Categoria:
+    """MENU-01: crear categoría en el tenant resuelto.
+
+    - 400 super_admin sin ?restaurante_id= / 404 restaurante (via _resolve_rid).
+    - 409 nombre duplicado en el tenant (pre-check + IntegrityError safety net).
+    """
+    rid = await _resolve_rid(session, scope, restaurante_id)
+    if await _categoria_dup(session, rid, body.nombre):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Ya existe una categoría con ese nombre"
+        )
+    cat = Categoria(restaurant_id=rid, nombre=body.nombre, orden=body.orden)
+    session.add(cat)
+    try:
+        await session.commit()
+    except IntegrityError as exc:  # carrera del pre-check (Pitfall 7)
+        await session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Ya existe una categoría con ese nombre"
+        ) from exc
+    await session.refresh(cat)
+    return cat
+
+
+async def update_categoria(
+    session: AsyncSession,
+    scope: TenantScope,
+    categoria_id: int,
+    body: CategoriaUpdate,
+    restaurante_id: int | None,
+) -> Categoria:
+    """MENU-01: editar categoría (nombre/orden/activo) con existence hiding
+    cross-tenant (ajena == inexistente → 404 idéntico)."""
+    rid = await _resolve_rid(session, scope, restaurante_id)
+    cat = await session.get(Categoria, categoria_id)
+    if cat is None or cat.restaurant_id != rid:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Categoría no encontrada")
+    changes = body.model_dump(exclude_unset=True)
+    if "nombre" in changes and changes["nombre"] != cat.nombre:
+        if await _categoria_dup(session, rid, changes["nombre"]):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "Ya existe una categoría con ese nombre"
+            )
+    for field, value in changes.items():
+        setattr(cat, field, value)
+    try:
+        await session.commit()
+    except IntegrityError as exc:  # safety net de la carrera
+        await session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Ya existe una categoría con ese nombre"
+        ) from exc
+    await session.refresh(cat)
+    return cat
+
+
+async def create_producto(
+    session: AsyncSession,
+    scope: TenantScope,
+    body: ProductoCreate,
+    restaurante_id: int | None,
+) -> Producto:
+    """MENU-02: crear producto bajo una categoría DEL tenant.
+
+    - 422 precio<=0 (Pydantic gt=0, server-side).
+    - 404 categoría inexistente O de otro tenant (existence hiding).
+    - ``precio`` float → ``Decimal(str(...))`` — conversión exacta.
+    """
+    rid = await _resolve_rid(session, scope, restaurante_id)
+    cat = await session.get(Categoria, body.categoria_id)
+    if cat is None or cat.restaurant_id != rid:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Categoría no encontrada")
+    prod = Producto(
+        restaurant_id=rid,
+        categoria_id=body.categoria_id,
+        nombre=body.nombre,
+        descripcion=body.descripcion,
+        precio=Decimal(str(body.precio)),
+        imagen_url=body.imagen_url,
+    )
+    session.add(prod)
+    await session.commit()
+    await session.refresh(prod)
+    return prod
+
+
+async def update_producto(
+    session: AsyncSession,
+    scope: TenantScope,
+    producto_id: int,
+    body: ProductoUpdate,
+    restaurante_id: int | None,
+) -> Producto:
+    """MENU-02: editar producto (nombre/descripción/precio/imagen_url/
+    disponible/activo) con existence hiding cross-tenant."""
+    rid = await _resolve_rid(session, scope, restaurante_id)
+    prod = await session.get(Producto, producto_id)
+    if prod is None or prod.restaurant_id != rid:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Producto no encontrado")
+    changes = body.model_dump(exclude_unset=True)
+    if "precio" in changes:
+        changes["precio"] = Decimal(str(changes["precio"]))
+    for field, value in changes.items():
+        setattr(prod, field, value)
+    await session.commit()
+    await session.refresh(prod)
+    return prod

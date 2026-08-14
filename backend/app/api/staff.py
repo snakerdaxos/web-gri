@@ -38,14 +38,31 @@ from app.deps.auth import (
     TenantScope,
     get_current_user,
     get_tenant_scope,
+    require_roles,
 )
+from app.models.usuario import RolUsuario
 from app.schemas.dashboard import DashboardStats
+from app.schemas.menu import (
+    CategoriaCreate,
+    CategoriaStaff,
+    CategoriaUpdate,
+    ProductoCreate,
+    ProductoStaff,
+    ProductoUpdate,
+)
 from app.schemas.mesa import MesaEstadoUpdate, MesaRead
 from app.schemas.pedido import PedidoEstadoUpdate, PedidoStaffRead
 from app.schemas.reserva import ReservaRead
 from app.services import pedido_service, staff_service
 
 router = APIRouter(prefix="/staff", tags=["staff"])
+
+# Writes de menú (Phase 8): solo admin_restaurante/super_admin — los reads de
+# menú/clientes quedan abiertos a todo el staff (un mesero ver el menú es
+# correcto; la configuración es del admin).
+_menu_write_roles = Depends(
+    require_roles(RolUsuario.admin_restaurante, RolUsuario.super_admin)
+)
 
 
 @router.get("/mesas", response_model=list[MesaRead])
@@ -198,3 +215,127 @@ async def set_pedido_estado(
             status.HTTP_409_CONFLICT,
             f"Transición de estado no permitida: {exc}",
         ) from exc
+
+
+# --- Phase 8 (MENU-01/02): menú CRUD + staff read ------------------------------
+
+
+@router.get("/menu", response_model=list[CategoriaStaff])
+async def get_menu(
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff (el "
+        "tenant sale del token).",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+):
+    """MENU-01/02 (ver): menú completo del tenant para el panel — INCLUYE
+    inactivos y agotados con sus flags (el staff ve TODO; /public filtra).
+
+    Read abierto a todo el staff (mesero/cocina incluidos).
+
+    - 400 super_admin sin ?restaurante_id=; 404 restaurante desconocido.
+    - 403 cliente (get_tenant_scope).
+    """
+    return await staff_service.get_menu_staff(session, scope, restaurante_id)
+
+
+@router.post(
+    "/categorias", response_model=CategoriaStaff, status_code=status.HTTP_201_CREATED
+)
+async def create_categoria(
+    body: CategoriaCreate,
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff.",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+    _: CurrentUser = _menu_write_roles,
+):
+    """MENU-01 (crear): categoría del tenant.
+
+    - 201 CategoriaStaff (id/nombre/orden/activo=true, productos=[]).
+    - 400 super_admin sin ?restaurante_id= / 404 restaurante inactivo.
+    - 403 mesero/cocina/cliente (solo admin_restaurante/super_admin).
+    - 409 nombre duplicado en el tenant (uq_categoria_restaurante_nombre).
+    """
+    return await staff_service.create_categoria(
+        session, scope, body, restaurante_id
+    )
+
+
+@router.patch("/categorias/{categoria_id}", response_model=CategoriaStaff)
+async def update_categoria(
+    categoria_id: int,
+    body: CategoriaUpdate,
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff.",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+    _: CurrentUser = _menu_write_roles,
+):
+    """MENU-01 (editar): nombre/orden/activo (parcial — PATCH). ``activo=false``
+    es el soft-delete: desaparece de /public, la fila y su historia viven.
+
+    - 200 CategoriaStaff actualizada.
+    - 404 categoría inexistente O de otro tenant (existence hiding).
+    - 409 nombre duplicado / 403 mesero/cocina / 400 super_admin sin param.
+    """
+    return await staff_service.update_categoria(
+        session, scope, categoria_id, body, restaurante_id
+    )
+
+
+@router.post(
+    "/productos", response_model=ProductoStaff, status_code=status.HTTP_201_CREATED
+)
+async def create_producto(
+    body: ProductoCreate,
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff.",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+    _: CurrentUser = _menu_write_roles,
+):
+    """MENU-02 (crear): producto bajo una categoría DEL tenant.
+
+    - 201 ProductoStaff (precio float en la respuesta).
+    - 422 precio<=0 (gt=0 server-side) / campos fuera de rango.
+    - 404 categoría inexistente O de otro tenant (existence hiding).
+    - 403 mesero/cocina / 400 super_admin sin param.
+    """
+    return await staff_service.create_producto(
+        session, scope, body, restaurante_id
+    )
+
+
+@router.patch("/productos/{producto_id}", response_model=ProductoStaff)
+async def update_producto(
+    producto_id: int,
+    body: ProductoUpdate,
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff.",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+    _: CurrentUser = _menu_write_roles,
+):
+    """MENU-02 (editar): nombre/descripción/precio/imagen_url/disponible/activo
+    (parcial). Semántica de los toggles: ``disponible=false`` = agotado
+    (SIGUE en /public con su flag); ``activo=false`` = soft-delete
+    (DESAPARECE de /public).
+
+    - 200 ProductoStaff actualizada (precio float).
+    - 404 producto inexistente O de otro tenant / 422 precio<=0.
+    - 403 mesero/cocina / 400 super_admin sin param.
+    """
+    return await staff_service.update_producto(
+        session, scope, producto_id, body, restaurante_id
+    )
