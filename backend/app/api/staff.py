@@ -28,13 +28,14 @@ indistinguible de una mesa inexistente → 404 (nunca 403, nunca 200).
 
 import datetime as dt
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
+from app.core.state_machines import TransicionInvalidaError
 from app.deps.auth import TenantScope, get_tenant_scope
 from app.schemas.dashboard import DashboardStats
-from app.schemas.mesa import MesaRead
+from app.schemas.mesa import MesaEstadoUpdate, MesaRead
 from app.schemas.reserva import ReservaRead
 from app.services import staff_service
 
@@ -89,3 +90,38 @@ async def list_reservas(
     return await staff_service.list_reservas_by_fecha(
         session, scope, restaurante_id, fecha
     )
+
+
+@router.post("/mesas/{mesa_id}/estado", response_model=MesaRead)
+async def set_mesa_estado(
+    mesa_id: int,
+    body: MesaEstadoUpdate,
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff (el "
+        "tenant sale del token).",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+):
+    """RESV-05 (marcar) + MESA-04: transicionar el estado de una mesa.
+
+    Caso de uso principal: el cliente llega y el admin marca la mesa
+    ocupada (reservada→ocupada, o disponible→ocupada para walk-ins). El
+    ciclo sigue con ocupada→limpieza→disponible.
+
+    - 200 MesaRead actualizada (transición válida en MESA_TRANSITIONS).
+    - 404 mesa inexistente O de otro tenant (existence hiding).
+    - 409 transición inválida (ej. limpieza→ocupada) — el dominio
+      (``TransicionInvalidaError``) no decide códigos HTTP; el router mapea.
+    """
+    try:
+        mesa = await staff_service.set_mesa_estado(
+            session, scope, mesa_id, body, restaurante_id
+        )
+    except TransicionInvalidaError as exc:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Transición de estado no permitida: {exc}",
+        ) from exc
+    return MesaRead.model_validate(mesa)

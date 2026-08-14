@@ -7,8 +7,10 @@ del OTRO restaurante no existe para el staff).
 
 Setup de estados: manipulación directa vía ``db_session`` (UPDATE mesa SET
 estado=...), como indica el plan 05-02 Task 2. Verificación post-POST:
-rollback + get fresco (lección REPEATABLE READ de 05-01 — la tx del test
-mantiene el snapshot del primer read; NUNCA refresh tras un commit del API).
+``expire_all()`` + get (lección REPEATABLE READ de 05-01 REFINADA — el
+"rollback + get" de 05-01 solo refresca si hay tx activa; tras un commit
+propio, get() sirve el objeto stale del identity map. ``expire_all()``
+fuerza el SELECT en tx nueva → siempre post-commit-del-API).
 
 Cada test restaura el estado original de la mesa que tocó (try/finally).
 """
@@ -49,35 +51,41 @@ async def _set_estado(db_session, mesa_id: int, estado: EstadoMesa) -> None:
 
 
 async def _estado_fresco(db_session, mesa_id: int) -> EstadoMesa:
-    """Lee el estado post-commit-del-API: rollback cierra la tx REPEATABLE
-    READ para que el get vea el commit hecho por la sesión del API."""
-    await db_session.rollback()
+    """Lee el estado post-commit-del-API de forma determinística.
+
+    Lección 05-01 ampliada (gotcha identity map): ``rollback + get`` SOLO
+    refresca si la sesión tenía una transacción activa al hacer rollback.
+    Tras un commit de la propia sesión (expire_on_commit=False), ``get()``
+    devuelve el objeto del identity map con el atributo STALE (el valor que
+    el test seteó, no el commit del API). ``expire_all()`` marca todos los
+    atributos como stale → el próximo acceso emite SELECT en una tx NUEVA
+    (posterior al commit del API) → siempre fresco, sin depender del estado
+    transaccional de la sesión."""
+    db_session.expire_all()
     mesa = await db_session.get(Mesa, mesa_id)
     return mesa.estado
 
 
-async def _restaurar_estado(db_session, mesa_id: int, original: EstadoMesa) -> None:
-    """Restaura el estado original de la mesa vía cadena de transiciones
-    válidas (limpieza→disponible, ocupada→limpieza→disponible, etc.) —
-    buen ciudadano de la BD compartida."""
-    await db_session.rollback()
+async def _restaurar_disponible(db_session, mesa_id: int) -> None:
+    """Restaura la mesa a 'disponible' (invariant del seed — igual que
+    ``_cleanup_reserva`` en test_reserva.py) leyendo el estado REAL de la BD
+    primero (``expire_all``, ver ``_estado_fresco``) y transitando por la
+    cadena válida (ocupada→limpieza→disponible). Auto-repara residuo de runs
+    previos fallidos: siempre termina en disponible, nunca perpetúa un estado
+    intermedio."""
+    db_session.expire_all()
     mesa = await db_session.get(Mesa, mesa_id)
-    if mesa.estado == original:
+    if mesa.estado == EstadoMesa.disponible:
         return
-    # Llevar a disponible por el camino válido, luego al original si hace falta.
     if mesa.estado == EstadoMesa.ocupada:
         mesa.estado = EstadoMesa.limpieza
         await db_session.flush()
     if mesa.estado == EstadoMesa.limpieza:
         mesa.estado = EstadoMesa.disponible
         await db_session.flush()
-    if mesa.estado == EstadoMesa.reservada and original != EstadoMesa.reservada:
+    elif mesa.estado == EstadoMesa.reservada:
         mesa.estado = EstadoMesa.disponible
         await db_session.flush()
-    if mesa.estado != original:
-        # disponible → original por transición directa (todas válidas desde
-        # disponible: reservada/ocupada) o ya coincide.
-        mesa.estado = original
     await db_session.commit()
 
 
@@ -96,7 +104,6 @@ async def test_reservada_to_ocupada(async_client, db_session):
     """RESV-05 clave: cliente llega, admin marca la mesa ocupada.
     reservada→ocupada es válida en MESA_TRANSITIONS → 200 + estado ocupada."""
     mesa = await _mesa_demo(db_session)
-    original = mesa.estado
     access, _ = await login(async_client, *_ADMIN_DEMO)
     headers = auth_header(access)
     try:
@@ -106,17 +113,16 @@ async def test_reservada_to_ocupada(async_client, db_session):
         body = resp.json()
         assert body["id"] == mesa.id
         assert body["estado"] == "ocupada"
-        # Verificación DB directa (rollback + get fresco — REPEATABLE READ).
+        # Verificación DB directa (expire_all + get — identity map).
         assert await _estado_fresco(db_session, mesa.id) == EstadoMesa.ocupada
     finally:
-        await _restaurar_estado(db_session, mesa.id, original)
+        await _restaurar_disponible(db_session, mesa.id)
 
 
 @pytest.mark.asyncio
 async def test_disponible_to_ocupada(async_client, db_session):
     """Walk-in válido: disponible→ocupada está en MESA_TRANSITIONS → 200."""
     mesa = await _mesa_demo(db_session)
-    original = mesa.estado
     access, _ = await login(async_client, *_ADMIN_DEMO)
     headers = auth_header(access)
     try:
@@ -126,14 +132,13 @@ async def test_disponible_to_ocupada(async_client, db_session):
         assert resp.json()["estado"] == "ocupada"
         assert await _estado_fresco(db_session, mesa.id) == EstadoMesa.ocupada
     finally:
-        await _restaurar_estado(db_session, mesa.id, original)
+        await _restaurar_disponible(db_session, mesa.id)
 
 
 @pytest.mark.asyncio
 async def test_ocupada_to_limpieza(async_client, db_session):
     """Ciclo válido del state machine: ocupada→limpieza (post-comida) → 200."""
     mesa = await _mesa_demo(db_session)
-    original = mesa.estado
     access, _ = await login(async_client, *_ADMIN_DEMO)
     headers = auth_header(access)
     try:
@@ -143,7 +148,7 @@ async def test_ocupada_to_limpieza(async_client, db_session):
         assert resp.json()["estado"] == "limpieza"
         assert await _estado_fresco(db_session, mesa.id) == EstadoMesa.limpieza
     finally:
-        await _restaurar_estado(db_session, mesa.id, original)
+        await _restaurar_disponible(db_session, mesa.id)
 
 
 # --- MESA-04: transición inválida → 409 ---------------------------------------
@@ -154,7 +159,6 @@ async def test_invalid_transition_409(async_client, db_session):
     """MESA-04 clave: limpieza→ocupada NO está en MESA_TRANSITIONS → 409.
     La mesa NO muta (sigue limpieza) — el rechazo no deja estado drift."""
     mesa = await _mesa_demo(db_session)
-    original = mesa.estado
     access, _ = await login(async_client, *_ADMIN_DEMO)
     headers = auth_header(access)
     try:
@@ -168,7 +172,7 @@ async def test_invalid_transition_409(async_client, db_session):
         # La mesa SIGUE en limpieza (sin drift).
         assert await _estado_fresco(db_session, mesa.id) == EstadoMesa.limpieza
     finally:
-        await _restaurar_estado(db_session, mesa.id, original)
+        await _restaurar_disponible(db_session, mesa.id)
 
 
 # --- Existence hiding cross-tenant + unknown id -------------------------------
@@ -204,9 +208,12 @@ async def test_cross_tenant_404(async_client, db_session, super_admin_token):
     assert r_staff.status_code == 201, r_staff.text
 
     mesa = await _mesa_demo(db_session)  # mesa del TENANT 1
-    original = mesa.estado
     access2, _ = await login(async_client, staff_email, staff_password)
     try:
+        # Forzar un estado con transición válida a ocupada (el residuo de
+        # runs previos puede dejar la mesa en limpieza, desde donde ocupada
+        # es inválida y el sanity check final no probaría lo que debe).
+        await _set_estado(db_session, mesa.id, EstadoMesa.reservada)
         resp = await _post_estado(
             async_client, auth_header(access2), mesa.id, "ocupada"
         )
@@ -215,7 +222,7 @@ async def test_cross_tenant_404(async_client, db_session, super_admin_token):
             f"recibido {resp.status_code}: {resp.text}"
         )
         # La mesa del tenant 1 NO mutó (el staff ajeno no puede tocarla).
-        assert await _estado_fresco(db_session, mesa.id) == original
+        assert await _estado_fresco(db_session, mesa.id) == EstadoMesa.reservada
 
         # Sanity: el admin del tenant 1 SÍ puede.
         access1, _ = await login(async_client, *_ADMIN_DEMO)
@@ -224,7 +231,7 @@ async def test_cross_tenant_404(async_client, db_session, super_admin_token):
         )
         assert resp1.status_code == 200, resp1.text
     finally:
-        await _restaurar_estado(db_session, mesa.id, original)
+        await _restaurar_disponible(db_session, mesa.id)
         await db_session.execute(
             delete(Usuario).where(Usuario.email == staff_email)
         )

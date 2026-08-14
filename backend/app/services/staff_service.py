@@ -18,12 +18,14 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.state_machines import validar_transicion
 from app.deps.auth import TenantScope
 from app.models.mesa import EstadoMesa, Mesa
 from app.models.pedido import EstadoPedido, Pedido
 from app.models.reserva import EstadoReserva, Reserva
 from app.models.restaurante import Restaurante
 from app.schemas.dashboard import DashboardStats
+from app.schemas.mesa import MesaEstadoUpdate
 from app.schemas.reserva import ReservaRead
 
 # The "active" pedido states for the dashboard card: everything after envio
@@ -120,6 +122,45 @@ async def list_reservas_by_fecha(
         )
         for reserva, nombre, numero in rows
     ]
+
+
+async def set_mesa_estado(
+    session: AsyncSession,
+    scope: TenantScope,
+    mesa_id: int,
+    body: MesaEstadoUpdate,
+    restaurante_id: int | None,
+) -> Mesa:
+    """RESV-05 (marcar) + MESA-04: transicionar el estado de una mesa del
+    tenant resuelto aplicando MESA_TRANSITIONS.
+
+    Orden de las validaciones (importante para no revelar información):
+
+    1. ``_resolve_rid`` — super_admin sin param → 400; restaurante
+       inexistente/inactivo → 404 (mismo contrato que el resto de /staff).
+    2. Existence hiding cross-tenant: mesa inexistente O de OTRO tenant →
+       404 idéntico (la mesa ajena "no existe" para el caller — AUTH-04
+       style; NUNCA 403, que confirmaría su existencia).
+    3. ``validar_transicion("mesa", actual, nueva)`` — MESA_TRANSITIONS es
+       la ÚNICA fuente de verdad (nunca inline ``if estado == ...``).
+       ``TransicionInvalidaError`` sube al router, que la mapea a 409.
+    4. Mutación + commit solo si TODO lo anterior pasó (sin estado drift
+       en rechazos).
+    """
+    rid = await _resolve_rid(session, scope, restaurante_id)
+
+    mesa = await session.get(Mesa, mesa_id)
+    if mesa is None or mesa.restaurant_id != rid:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Mesa no encontrada")
+
+    # MESA-04: la state machine decide. Raise TransicionInvalidaError → 409
+    # en el router (el dominio no decide códigos HTTP).
+    validar_transicion("mesa", mesa.estado, body.estado)
+
+    mesa.estado = body.estado
+    await session.commit()
+    await session.refresh(mesa)
+    return mesa
 
 
 async def get_stats(
