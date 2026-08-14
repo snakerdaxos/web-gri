@@ -63,10 +63,13 @@ async def get_public_restaurante_detalle(
         )
 
     # 3 queries total — no N+1.
+    # Filtro ``activo`` (migración 0005): solo categorías/productos activos
+    # llegan al cliente. ``disponible`` (agotado) NO se filtra — viaja como
+    # flag (behavior F5; soft-delete ≠ agotado).
     cat_rows = (
         await session.execute(
             select(Categoria)
-            .where(Categoria.restaurant_id == r.id)
+            .where(Categoria.restaurant_id == r.id, Categoria.activo.is_(True))
             .order_by(Categoria.orden, Categoria.id)
         )
     ).scalars().all()
@@ -74,7 +77,7 @@ async def get_public_restaurante_detalle(
     prod_rows = (
         await session.execute(
             select(Producto)
-            .where(Producto.restaurant_id == r.id)
+            .where(Producto.restaurant_id == r.id, Producto.activo.is_(True))
             .order_by(Producto.categoria_id, Producto.nombre)
         )
     ).scalars().all()

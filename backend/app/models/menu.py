@@ -27,7 +27,13 @@ from app.models.base import Base
 
 
 class Categoria(Base):
-    """Menu category (e.g. Entradas, Platos Fuertes)."""
+    """Menu category (e.g. Entradas, Platos Fuertes).
+
+    ``activo`` (migración 0005) es el soft-delete administrativo: la
+    categoría desaparece del menú público PERO la fila vive (los FK de
+    pedido_item siguen válidos). Distinto de ``producto.disponible``
+    (agotado transitorio), que NO existe a nivel categoría.
+    """
 
     __tablename__ = "categoria"
     __table_args__ = (
@@ -40,6 +46,9 @@ class Categoria(Base):
     )
     nombre: Mapped[str] = mapped_column(String(100), nullable=False)
     orden: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    activo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=func.true()
+    )
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=False), server_default=func.now(), nullable=False
     )
@@ -64,6 +73,12 @@ class Producto(Base):
     )
     imagen_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     disponible: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=func.true()
+    )
+    # Soft-delete administrativo (migración 0005): desaparece del menú
+    # público, la historia de pedidos queda intacta. ≠ disponible (agotado
+    # transitorio, SIGUE visible en /public con su flag — F5).
+    activo: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=func.true()
     )
     created_at: Mapped[dt.datetime] = mapped_column(
