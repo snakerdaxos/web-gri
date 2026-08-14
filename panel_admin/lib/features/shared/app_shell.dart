@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../core/token_provider.dart';
@@ -10,18 +11,23 @@ import '../dashboard/restaurantes_list_provider.dart';
 /// AppShell completo (Task 3) — sidebar 250px + topbar con nombre restaurante.
 ///
 /// Reemplaza al placeholder del Task 2. Contrato idéntico: recibe el `child`
-/// del ShellRoute. Layout:
+/// del ShellRoute + [location] (path actual, para derivar el ítem activo).
+/// Layout:
 ///  * Sidebar 250px fijo (responsive: <750px colapsa a 70px con solo iconos).
-///    Logo GRI + 7 ítems del mockup. Solo Dashboard navega; los otros 6
-///    muestran SnackBar "Próximamente" (Phase 8).
+///    Logo GRI + 7 ítems del mockup. Dashboard y Pedidos (→ /cocina, Phase 6)
+///    navegan; los otros 5 muestran SnackBar "Próximamente" (Phase 8).
 ///  * TopBar: título "Dashboard" + subtítulo. A la derecha: si super_admin,
 ///    DropdownButton de restaurantes (cambia currentRestauranteIdProvider);
 ///    si staff, texto nombre+rol. Avatar con iniciales.
 ///  * Body: child (la ruta activa).
 class AppShell extends ConsumerStatefulWidget {
-  const AppShell({super.key, required this.child});
+  const AppShell({super.key, required this.child, this.location = '/'});
 
   final Widget child;
+
+  /// Path actual de la ruta dentro del ShellRoute (derivado del GoRouter
+  /// state) — decide qué ítem del sidebar queda activo.
+  final String location;
 
   @override
   ConsumerState<AppShell> createState() => _AppShellState();
@@ -75,6 +81,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               _Sidebar(
                 width: sidebarWidth,
                 collapsed: collapsed,
+                location: widget.location,
                 onProximamente: _showProximamente,
               ),
               Expanded(
@@ -120,11 +127,16 @@ class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.width,
     required this.collapsed,
+    required this.location,
     required this.onProximamente,
   });
 
   final double width;
   final bool collapsed;
+
+  /// Path de la ruta activa ('/' | '/cocina' | …) — deriva el índice activo.
+  final String location;
+
   final VoidCallback onProximamente;
 
   static const _items = <(String, String)>[
@@ -137,8 +149,21 @@ class _Sidebar extends StatelessWidget {
     ('⚙️', 'Configuración'),
   ];
 
+  /// Ruta navegable por índice (null = Phase 8). '📋 Pedidos' abre la vista
+  /// cocina (ADMN-05).
+  static const _routes = <String?>[
+    '/',
+    null,
+    '/cocina',
+    null,
+    null,
+    null,
+    null,
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final activeIndex = _routes.indexOf(location);
     return Container(
       width: width,
       color: GriColors.sidebar,
@@ -188,15 +213,22 @@ class _Sidebar extends StatelessWidget {
           Expanded(
             child: ListView.builder(
               itemCount: _items.length,
-              itemBuilder: (_, i) {
+              itemBuilder: (context, i) {
                 final item = _items[i];
-                final isActive = i == 0; // Dashboard (única ruta activa)
+                final isActive = i == activeIndex;
+                final route = _routes[i];
                 return _MenuItem(
                   emoji: item.$1,
                   label: item.$2,
                   active: isActive,
                   collapsed: collapsed,
-                  onTap: isActive ? null : onProximamente,
+                  // Ítem con ruta navega (el activo queda deshabilitado);
+                  // los de Phase 8 muestran "Próximamente".
+                  onTap: route == null
+                      ? onProximamente
+                      : isActive
+                          ? null
+                          : () => context.go(route),
                 );
               },
             ),

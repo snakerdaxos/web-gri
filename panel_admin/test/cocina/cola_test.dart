@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gri_panel_admin/core/api_client.dart';
 import 'package:gri_panel_admin/core/format.dart';
 import 'package:gri_panel_admin/core/token_provider.dart';
 import 'package:gri_panel_admin/features/cocina/cocina_screen.dart';
@@ -26,11 +27,34 @@ class _FakeAuthState extends AuthState {
   Future<User?> build() async => user;
 }
 
+/// Fake del ApiClient que registra las llamadas a avanzarPedido (test e).
+class _RecordingApiClient extends ApiClient {
+  final List<(int, String)> avanzarCalls = [];
+
+  @override
+  Future<PedidoStaff> avanzarPedido(
+    int pedidoId,
+    String estado, {
+    int? restauranteId,
+  }) async {
+    avanzarCalls.add((pedidoId, estado));
+    return _pedido(id: pedidoId, estado: EstadoPedido.aceptado);
+  }
+}
+
 const _cocinaUser = User(
   id: 9,
   nombre: 'Cocina Demo',
   email: 'cocina@demo.gri.dev',
   role: 'cocina',
+  restaurantId: 1,
+);
+
+const _meseroUser = User(
+  id: 10,
+  nombre: 'Mesero Demo',
+  email: 'mesero@demo.gri.dev',
+  role: 'mesero',
   restaurantId: 1,
 );
 
@@ -183,4 +207,70 @@ void main() {
     expect(find.text('No hay pedidos activos 🎉'), findsOneWidget);
     expect(find.byType(ListView), findsNothing);
   });
+
+  testWidgets(
+    '(e) tap Aceptar llama avanzarPedido(id, "aceptado") e invalida la cola',
+    (tester) async {
+      final client = _RecordingApiClient();
+      var providerDisposed = false;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            apiClientProvider.overrideWithValue(client),
+            authStateProvider.overrideWith(() => _FakeAuthState(_cocinaUser)),
+            // Override funcional con onDispose espía: invalidar → rebuild →
+            // dispose del override anterior.
+            pedidosStaffProvider.overrideWith((ref) {
+              ref.onDispose(() => providerDisposed = true);
+              return Stream.value(
+                [_pedido(id: 7, mesa: 3, estado: EstadoPedido.enviado)],
+              );
+            }),
+          ],
+          child: const MaterialApp(home: CocinaScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Aceptar'));
+      await tester.pumpAndSettle();
+
+      // Wire exacto: POST /staff/pedidos/7/estado {"estado": "aceptado"}.
+      expect(client.avanzarCalls, [(7, 'aceptado')]);
+      expect(providerDisposed, isTrue, reason: 'debe invalidar el provider');
+    },
+  );
+
+  testWidgets(
+    '(f) mesero: sin Aceptar/Rechazar sobre enviado; solo Marcar servido en en_preparación',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authStateProvider.overrideWith(() => _FakeAuthState(_meseroUser)),
+            pedidosStaffProvider.overrideWithValue(
+              AsyncData([
+                _pedido(id: 1, mesa: 3, estado: EstadoPedido.enviado),
+                _pedido(id: 2, mesa: 5, estado: EstadoPedido.enPreparacion),
+              ]),
+            ),
+          ],
+          child: const MaterialApp(home: CocinaScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Matriz PEDI-05 lado mesero: no acepta ni rechaza.
+      expect(find.text('Aceptar'), findsNothing);
+      expect(find.text('Rechazar'), findsNothing);
+      // Y sobre en_preparación SOLO ve "Marcar servido" (label mesero).
+      expect(find.text('Marcar servido'), findsOneWidget);
+      expect(find.text('Servido'), findsNothing);
+    },
+  );
 }

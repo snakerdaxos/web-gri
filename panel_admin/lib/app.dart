@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'core/theme.dart';
 import 'core/token_provider.dart';
 import 'features/auth/login_screen.dart';
+import 'features/cocina/cocina_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/shared/app_shell.dart';
 
@@ -33,10 +34,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
       ShellRoute(
-        builder: (_, _, child) => AppShell(child: child),
+        // state.uri.path → AppShell deriva el ítem activo del sidebar.
+        builder: (_, state, child) =>
+            AppShell(location: state.uri.path, child: child),
         routes: [
           GoRoute(path: '/', builder: (_, _) => const DashboardScreen()),
-          // Phase 8: /mesas, /pedidos, /reservas, /clientes, /reportes,
+          GoRoute(path: '/cocina', builder: (_, _) => const CocinaScreen()),
+          // Phase 8: /mesas, /reservas, /clientes, /reportes,
           // /configuracion.
         ],
       ),
