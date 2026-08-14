@@ -59,6 +59,8 @@ services:
       REFRESH_TTL_DAYS: "7"
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
+      # --- Phase 4: CORS (explicit origins, comma-separated; never "*") ---
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
     ports:
       - "8000:8000"
 
