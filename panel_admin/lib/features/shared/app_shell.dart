@@ -89,6 +89,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _TopBar(
+                      location: widget.location,
                       collapsed: collapsed,
                       isSuperAdmin: isSuperAdmin,
                       userName: user?.nombre ?? 'Usuario',
@@ -150,10 +151,10 @@ class _Sidebar extends StatelessWidget {
   ];
 
   /// Ruta navegable por índice (null = Phase 8). '📋 Pedidos' abre la vista
-  /// cocina (ADMN-05).
+  /// cocina (ADMN-05); '🪑 Mesas' la gestión de mesas + QR (08-03, MESA-01).
   static const _routes = <String?>[
     '/',
-    null,
+    '/mesas',
     '/cocina',
     null,
     null,
@@ -296,6 +297,7 @@ class _MenuItem extends StatelessWidget {
 
 class _TopBar extends ConsumerWidget {
   const _TopBar({
+    required this.location,
     required this.collapsed,
     required this.isSuperAdmin,
     required this.userName,
@@ -303,17 +305,32 @@ class _TopBar extends ConsumerWidget {
     required this.onProximamente,
   });
 
+  /// Path activo ('/' | '/mesas' | '/cocina' | …) — decide título/subtítulo.
+  final String location;
+
   final bool collapsed;
   final bool isSuperAdmin;
   final String userName;
   final String userRole;
   final VoidCallback onProximamente;
 
+  /// Título + subtítulo por path (los 7 del sidebar). Default: Dashboard.
+  static const _titles = <String, (String, String)>{
+    '/': ('Dashboard', 'Resumen de tu restaurante'),
+    '/mesas': ('Mesas', 'Gestión de mesas y códigos QR'),
+    '/cocina': ('Pedidos', 'Cola de pedidos en vivo'),
+    '/reservas': ('Reservas', 'Reservas del día'),
+    '/clientes': ('Clientes', 'Clientes del restaurante'),
+    '/reportes': ('Reportes', 'Ventas y platos más vendidos'),
+    '/configuracion': ('Configuración', 'Menú y administración'),
+  };
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final restauranteAsync = ref.watch(restauranteProvider);
     final restaurantesListAsync =
         isSuperAdmin ? ref.watch(restaurantesListProvider) : null;
+    final (title, subtitle) = _titles[location] ?? _titles['/']!;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 22),
@@ -325,19 +342,19 @@ class _TopBar extends ConsumerWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  'Dashboard',
-                  style: TextStyle(
+                  title,
+                  style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: GriColors.text,
                   ),
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 5),
                 Text(
-                  'Resumen de tu restaurante',
-                  style: TextStyle(color: GriColors.gray),
+                  subtitle,
+                  style: const TextStyle(color: GriColors.gray),
                 ),
               ],
             ),

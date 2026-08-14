@@ -7,6 +7,7 @@ import 'core/token_provider.dart';
 import 'features/auth/login_screen.dart';
 import 'features/cocina/cocina_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
+import 'features/mesas/mesas_screen.dart';
 import 'features/shared/app_shell.dart';
 
 /// GoRouter con auth guard (T-04-08) + ShellRoute (sidebar persistente).
@@ -39,9 +40,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             AppShell(location: state.uri.path, child: child),
         routes: [
           GoRoute(path: '/', builder: (_, _) => const DashboardScreen()),
+          GoRoute(path: '/mesas', builder: (_, _) => const MesasScreen()),
           GoRoute(path: '/cocina', builder: (_, _) => const CocinaScreen()),
-          // Phase 8: /mesas, /reservas, /clientes, /reportes,
-          // /configuracion.
+          // Phase 8: /reservas, /clientes, /reportes, /configuracion.
         ],
       ),
     ],
