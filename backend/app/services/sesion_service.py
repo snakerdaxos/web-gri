@@ -26,6 +26,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.broadcaster import emit_event
 from app.core.state_machines import validar_transicion
 from app.models.mesa import EstadoMesa, Mesa
 from app.models.restaurante import Restaurante
@@ -128,6 +129,22 @@ async def abrir_sesion(
         )
     await session.refresh(sesion)
     await session.refresh(mesa)
+    # Phase 7 (RT-02): emisiones post-commit SOLO en el camino created=True —
+    # el re-escaneo idempotente (created=False, arriba) NO emite (doble scan
+    # ≠ nueva sesión). mesa.estado pinta el mapa del panel; sesion.abierta
+    # informa al dueño (user room).
+    await emit_event(
+        "mesa.estado",
+        restaurante_id=mesa.restaurant_id,
+        usuario_id=None,
+        data={"mesa_id": mesa.id, "estado": EstadoMesa.ocupada.value},
+    )
+    await emit_event(
+        "sesion.abierta",
+        restaurante_id=None,
+        usuario_id=usuario_id,
+        data={"sesion_id": sesion.id, "mesa_id": mesa.id},
+    )
     return _to_read(sesion, restaurante, mesa), True
 
 
@@ -183,5 +200,14 @@ async def solicitar_cuenta(
         sesion.solicitada_en = func.now()
         await session.commit()
         await session.refresh(sesion)  # carga el valor real de solicitada_en
+        # Phase 7 (RT-01): badge "pidió la cuenta" en la cola staff + ACK al
+        # dueño. DENTRO del if == idempotencia de emisión (doble tap no
+        # re-emite, igual que no re-escribe solicitada_en).
+        await emit_event(
+            "sesion.cuenta",
+            restaurante_id=sesion.restaurant_id,
+            usuario_id=usuario_id,
+            data={"sesion_id": sesion.id, "mesa_id": sesion.mesa_id},
+        )
 
     return _to_read(sesion, restaurante, mesa)

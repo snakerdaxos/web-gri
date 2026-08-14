@@ -21,6 +21,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.broadcaster import emit_event
 from app.core.state_machines import validar_transicion
 from app.deps.auth import CurrentUser, TenantScope
 from app.models.menu import Producto
@@ -188,6 +189,22 @@ async def crear_pedido(
         )
     await session.commit()
     await session.refresh(pedido)  # server-defaults (created_at)
+
+    # Phase 7 (RT-01): emisión post-commit — cocina/mesero ven el pedido
+    # nuevo y el dueño ve su pedido. Valores planos ya cargados
+    # (expire_on_commit=False); .value porque str() de un enum mixin da
+    # "EstadoPedido.enviado" (verificado), no el valor del contrato.
+    await emit_event(
+        "pedido.creado",
+        restaurante_id=sesion.restaurant_id,
+        usuario_id=usuario_id,
+        data={
+            "pedido_id": pedido.id,
+            "estado": pedido.estado.value,
+            "mesa_id": pedido.mesa_id,
+            "total": float(pedido.total),
+        },
+    )
 
     mesa = await session.get(Mesa, pedido.mesa_id)
     return PedidoRead(
@@ -450,4 +467,16 @@ async def transicionar(
     pedido.estado = nuevo_estado
     await session.commit()
     await session.refresh(pedido)
+    # Phase 7 (RT-01): emisión post-commit — cola re-ordenada en cocina y el
+    # dueño ve el avance. 409/403 del bloque anterior NUNCA llegan aquí.
+    await emit_event(
+        "pedido.estado",
+        restaurante_id=pedido.restaurant_id,
+        usuario_id=pedido.usuario_id,
+        data={
+            "pedido_id": pedido.id,
+            "estado": pedido.estado.value,
+            "mesa_id": pedido.mesa_id,
+        },
+    )
     return await _staff_read(session, pedido)

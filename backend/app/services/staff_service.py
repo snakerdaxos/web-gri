@@ -18,6 +18,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.broadcaster import emit_event
 from app.core.state_machines import validar_transicion
 from app.deps.auth import TenantScope
 from app.models.mesa import EstadoMesa, Mesa
@@ -159,12 +160,24 @@ async def set_mesa_estado(
     validar_transicion("mesa", mesa.estado, body.estado)
 
     mesa.estado = body.estado
+    zombi_usuario_id: int | None = None
     if body.estado == EstadoMesa.limpieza:
         # Anti-zombi (06-01 Task 3): mesa→limpieza cierra la sesión activa
         # de esa mesa EN LA MISMA tx (estado=cerrada, cerrada_en=now). Sin
         # esto, una sesión abierta bloquearía la mesa para siempre (no hay
         # cierre de sesión cliente en v1 — el cierre al pagar llega en F9).
         # UPDATE de 0 filas es no-op: no rompe el caso sin sesión.
+        #
+        # Phase 7: MySQL 8 NO soporta RETURNING — capturar el usuario_id de
+        # la sesión activa ANTES del UPDATE, como int PLANO (lección
+        # MissingGreenlet: valores capturados antes de commit/expire).
+        zombi_usuario_id = (
+            await session.execute(
+                select(SesionMesa.usuario_id).where(
+                    SesionMesa.mesa_id == mesa.id, SesionMesa.cerrada_en.is_(None)
+                )
+            )
+        ).scalar_one_or_none()
         await session.execute(
             update(SesionMesa)
             .where(
@@ -174,6 +187,22 @@ async def set_mesa_estado(
         )
     await session.commit()
     await session.refresh(mesa)
+    # Phase 7 (RT-02): emisión post-commit — mapa del panel en vivo.
+    await emit_event(
+        "mesa.estado",
+        restaurante_id=rid,
+        usuario_id=None,
+        data={"mesa_id": mesa.id, "estado": body.estado.value},
+    )
+    if zombi_usuario_id is not None:
+        # El anti-zombi cerró una sesión viva → el dueño se entera en su
+        # user room (su app re-sincroniza: la sesión murió).
+        await emit_event(
+            "sesion.cerrada",
+            restaurante_id=None,
+            usuario_id=zombi_usuario_id,
+            data={"mesa_id": mesa.id},
+        )
     return mesa
 
 
