@@ -42,6 +42,9 @@ services:
     build: ./backend
     container_name: gri-api
     restart: unless-stopped
+    # Phase 7: el Broadcaster de WebSockets es IN-MEMORY — exige 1 worker.
+    # NO añadir --workers al CMD del Dockerfile sin un RedisBroadcaster
+    # (PLT2-02): el broadcast entre procesos se rompería SILENCIOSAMENTE.
     depends_on:
       mysql:
         condition: service_healthy   # API won't start until MySQL answers mysqladmin ping

@@ -12,11 +12,12 @@ Task 1 (auth del handshake — RT-03):
 - token=basura / refresh token / rol cliente en /ws/staff → rechazo 4401.
 - super_admin SIN ?restaurante_id= en /ws/staff → rechazo 4400.
 
-Wave 0 open question (rechazo pre-accept): el rechazo puede llegar como close
-frame con el code (post-accept) o como handshake HTTP rechazado (pre-accept;
-httpx-ws lo envuelve en ``WebSocketUpgradeError``). ``_assert_ws_rejected``
-acepta ambas formas — para el WsClient de 07-02/07-03 son el MISMO caso
-(refresh + retry). La forma observada está documentada en el helper.
+Wave 0 open question (rechazo pre-accept): OBSERVADO contra el stack vivo —
+uvicorn 0.52.3 + websockets rechaza el handshake con HTTP 403 cuando el
+server raise WebSocketException ANTES del accept; el close code 4401/4400 NO
+viaja en ese caso. ``_assert_ws_rejected`` acepta esa forma (B) y la de close
+frame post-accept (A) — para el WsClient de 07-02/07-03 son el MISMO caso
+(refresh + retry). Detalle y racional en el helper.
 """
 
 import asyncio
@@ -51,10 +52,14 @@ def _assert_ws_rejected(exc: BaseException, expected_code: int) -> None:
     Forma A: close frame post-accept → ``WebSocketDisconnect`` con ``.code``
     == expected_code (4401/4400 según el caso).
     Forma B: handshake HTTP rechazado pre-accept → ``WebSocketUpgradeError``
-    con ``.response`` status 400/403 y SIN close code entregable.
+    con ``.response`` status 403 y SIN close code entregable.
 
-    Forma OBSERVADA contra el stack vivo (uvicorn 0.52.3 + websockets):
-    [actualizado tras el primer run GREEN — ver comentario abajo].
+    Forma OBSERVADA contra el stack vivo (uvicorn 0.52.3 + websockets, server
+    raising WebSocketException ANTES del accept): **Forma B — handshake
+    rechazado con HTTP 403**; el close code 4401/4400 NO viaja pre-accept.
+    El diseño conserva los códigos app-defined (RFC 6455 §7.4.1) porque son
+    el contrato del cliente (07-02/07-03 los trata igual: refresh + retry) y
+    pasarían a Forma A si el raise fuese post-accept o cambiara la impl ASGI.
     """
     code = getattr(exc, "code", None)
     if code is not None:  # Forma A: close frame con código
