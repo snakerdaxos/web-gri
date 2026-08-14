@@ -27,6 +27,13 @@ part 'pedidos_provider.g.dart';
 ///
 /// Sin sesión activa → stream vacío. autoDispose: al dejar de observarse
 /// mueren las suscripciones al broadcast del WsClient y el timer.
+///
+/// Nota riverpod 3: TODO uso de `ref` (watch/read/onDispose) ocurre ANTES
+/// del primer await — riverpod 3.4 lanza `UnmountedRefException` si un
+/// rebuild del provider invalida el `ref` mientras el generador está
+/// suspendido en un await. Los eventos que llegan durante el GET inicial
+/// quedan bufferizados en el controller (stream single-subscription) y se
+/// entregan tras el snapshot inicial.
 @riverpod
 Stream<List<Pedido>> pedidosSession(Ref ref) async* {
   final sesion = ref.watch(sesionProvider).value;
@@ -37,15 +44,15 @@ Stream<List<Pedido>> pedidosSession(Ref ref) async* {
 
   final client = ref.read(apiClientProvider);
 
-  // Snapshot inicial — también el re-sync de RT-03 (tras reconexión WS).
-  yield await client.getPedidosActuales();
-
   final controller = StreamController<List<Pedido>>();
   Future<void> refresh() async {
     try {
-      controller.add(await client.getPedidosActuales());
+      final pedidos = await client.getPedidosActuales();
+      // Guard anti-race: un sesion.cerrada puede invalidar (→ dispose →
+      // close) mientras este GET estaba en vuelo.
+      if (!controller.isClosed) controller.add(pedidos);
     } catch (e) {
-      controller.addError(e);
+      if (!controller.isClosed) controller.addError(e);
     }
   }
 
@@ -82,5 +89,9 @@ Stream<List<Pedido>> pedidosSession(Ref ref) async* {
     timer.cancel();
     controller.close();
   });
+
+  // Snapshot inicial — también el re-sync de RT-03 (tras reconexión WS).
+  yield await client.getPedidosActuales();
+
   yield* controller.stream;
 }
