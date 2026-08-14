@@ -24,6 +24,9 @@ dependencies:
   flutter_dotenv: ^5.2.1
   intl: ^0.19.0
 
+  # WS en vivo del panel (07-02): WebSocketChannel.connect cross-platform.
+  web_socket_channel: ^3.0.3
+
   # Modelos inmutables + JSON
   freezed_annotation: '>=3.0.0 <4.0.0'
   json_annotation: ^4.12.0
