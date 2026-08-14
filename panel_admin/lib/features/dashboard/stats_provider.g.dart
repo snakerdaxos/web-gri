@@ -8,10 +8,14 @@ part of 'stats_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Stream de DashboardStats con polling 10s (deuda Phase 7: WS).
+/// Stream de DashboardStats EN VIVO (RT-01/02, 07-02): WS push con
+/// kick-to-refetch — antes polling 10s.
 ///
-/// Emite el fetch inicial inmediatamente, luego Timer.periodic cada
-/// Env.pollSeconds (default 10). El timer se cancela en ref.onDispose.
+/// Emite el fetch inicial inmediato, luego cada evento WS relevante
+/// (`mesa.estado`, `pedido.creado`, `pedido.estado` — dashboard completo en
+/// vivo) dispara un GET refresh (el evento SOLO es señal). `wsResyncProvider`
+/// (reconexión restablecida) → re-sync total; Timer de 60s como safety net
+/// de un WS muerto silencioso.
 ///
 /// Filtra por restaurante:
 ///  * staff → restaurante_id=null (backend usa el tenant del token; Plan 04-01
@@ -20,14 +24,24 @@ part of 'stats_provider.dart';
 ///
 /// Si super_admin sin selección (rid null) → emite Stream vacío hasta que se
 /// setee el default (dashboard_screen muestra estado "Selecciona restaurante").
+///
+/// Estructura riverpod-3-safe (lección 07-03): TODO el uso de `ref` ocurre
+/// ANTES del primer await/yield — un rebuild con el generator suspendido
+/// desmonta el ref y un `ref.watch` tardío lanza UnmountedRefException. Los
+/// eventos que llegan durante el GET inicial quedan bufferizados en el
+/// controller single-subscription.
 
 @ProviderFor(stats)
 final statsProvider = StatsProvider._();
 
-/// Stream de DashboardStats con polling 10s (deuda Phase 7: WS).
+/// Stream de DashboardStats EN VIVO (RT-01/02, 07-02): WS push con
+/// kick-to-refetch — antes polling 10s.
 ///
-/// Emite el fetch inicial inmediatamente, luego Timer.periodic cada
-/// Env.pollSeconds (default 10). El timer se cancela en ref.onDispose.
+/// Emite el fetch inicial inmediato, luego cada evento WS relevante
+/// (`mesa.estado`, `pedido.creado`, `pedido.estado` — dashboard completo en
+/// vivo) dispara un GET refresh (el evento SOLO es señal). `wsResyncProvider`
+/// (reconexión restablecida) → re-sync total; Timer de 60s como safety net
+/// de un WS muerto silencioso.
 ///
 /// Filtra por restaurante:
 ///  * staff → restaurante_id=null (backend usa el tenant del token; Plan 04-01
@@ -36,6 +50,12 @@ final statsProvider = StatsProvider._();
 ///
 /// Si super_admin sin selección (rid null) → emite Stream vacío hasta que se
 /// setee el default (dashboard_screen muestra estado "Selecciona restaurante").
+///
+/// Estructura riverpod-3-safe (lección 07-03): TODO el uso de `ref` ocurre
+/// ANTES del primer await/yield — un rebuild con el generator suspendido
+/// desmonta el ref y un `ref.watch` tardío lanza UnmountedRefException. Los
+/// eventos que llegan durante el GET inicial quedan bufferizados en el
+/// controller single-subscription.
 
 final class StatsProvider
     extends
@@ -45,10 +65,14 @@ final class StatsProvider
           Stream<DashboardStats>
         >
     with $FutureModifier<DashboardStats>, $StreamProvider<DashboardStats> {
-  /// Stream de DashboardStats con polling 10s (deuda Phase 7: WS).
+  /// Stream de DashboardStats EN VIVO (RT-01/02, 07-02): WS push con
+  /// kick-to-refetch — antes polling 10s.
   ///
-  /// Emite el fetch inicial inmediatamente, luego Timer.periodic cada
-  /// Env.pollSeconds (default 10). El timer se cancela en ref.onDispose.
+  /// Emite el fetch inicial inmediato, luego cada evento WS relevante
+  /// (`mesa.estado`, `pedido.creado`, `pedido.estado` — dashboard completo en
+  /// vivo) dispara un GET refresh (el evento SOLO es señal). `wsResyncProvider`
+  /// (reconexión restablecida) → re-sync total; Timer de 60s como safety net
+  /// de un WS muerto silencioso.
   ///
   /// Filtra por restaurante:
   ///  * staff → restaurante_id=null (backend usa el tenant del token; Plan 04-01
@@ -57,6 +81,12 @@ final class StatsProvider
   ///
   /// Si super_admin sin selección (rid null) → emite Stream vacío hasta que se
   /// setee el default (dashboard_screen muestra estado "Selecciona restaurante").
+  ///
+  /// Estructura riverpod-3-safe (lección 07-03): TODO el uso de `ref` ocurre
+  /// ANTES del primer await/yield — un rebuild con el generator suspendido
+  /// desmonta el ref y un `ref.watch` tardío lanza UnmountedRefException. Los
+  /// eventos que llegan durante el GET inicial quedan bufferizados en el
+  /// controller single-subscription.
   StatsProvider._()
     : super(
         from: null,
@@ -83,4 +113,4 @@ final class StatsProvider
   }
 }
 
-String _$statsHash() => r'48c7590ccb5acc252f8fc5ae5518edaf99d58f11';
+String _$statsHash() => r'a7b963ee50c611bd096bfd060f2ef2a5674355b2';
