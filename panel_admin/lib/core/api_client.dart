@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/dashboard_stats.dart';
 import '../models/mesa.dart';
+import '../models/pedido_staff.dart';
 import '../models/restaurante.dart';
 import '../models/token_pair.dart';
 import '../models/user.dart';
@@ -80,6 +81,42 @@ class ApiClient {
           : {'restaurante_id': restauranteId},
     );
     return DashboardStats.fromJson(r.data!);
+  }
+
+  /// `GET /staff/pedidos?activos=true` — cola FIFO de pedidos activos con
+  /// items, total, notas, usuario y el badge `solicita_cuenta` (ADMN-05).
+  /// [restauranteId] SOLO lo manda el caller para super_admin (patrón
+  /// [getMesas]); el staff jamás filtra client-side.
+  Future<List<PedidoStaff>> getPedidosActivos({int? restauranteId}) async {
+    final r = await _dio.get<List<dynamic>>(
+      '/staff/pedidos',
+      queryParameters: {
+        'activos': 'true',
+        'restaurante_id': ?restauranteId,
+      },
+    );
+    return [
+      for (final e in r.data ?? const <dynamic>[])
+        PedidoStaff.fromJson(e as Map<String, dynamic>),
+    ];
+  }
+
+  /// `POST /staff/pedidos/{id}/estado` — avanza el estado de un pedido.
+  /// El server es la autoridad: 409 transición inválida, 403 rol no
+  /// autorizado para ESA transición, 404 cross-tenant (existence hiding).
+  Future<PedidoStaff> avanzarPedido(
+    int pedidoId,
+    String estado, {
+    int? restauranteId,
+  }) async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/staff/pedidos/$pedidoId/estado',
+      data: {'estado': estado},
+      queryParameters: restauranteId == null
+          ? null
+          : {'restaurante_id': restauranteId},
+    );
+    return PedidoStaff.fromJson(r.data!);
   }
 
   /// `GET /admin/restaurantes` — lista para el selector del super_admin.

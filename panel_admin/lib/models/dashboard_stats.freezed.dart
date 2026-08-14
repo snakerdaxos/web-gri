@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // coverage:ignore-file
-// ignore_for_file: type=lint
+// ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
 part of 'dashboard_stats.dart';
@@ -9,6 +9,7 @@ part of 'dashboard_stats.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
 
@@ -66,7 +67,7 @@ class _$DashboardStatsCopyWithImpl<$Res>
 /// Create a copy of DashboardStats
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? mesasDisponibles = null,Object? mesasOcupadas = null,Object? mesasReservadas = null,Object? mesasLimpieza = null,Object? totalMesas = null,Object? reservasHoy = null,Object? pedidosActivos = null,}) {
-  return _then(_self.copyWith(
+  return _then(DashboardStats(
 mesasDisponibles: null == mesasDisponibles ? _self.mesasDisponibles : mesasDisponibles // ignore: cast_nullable_to_non_nullable
 as int,mesasOcupadas: null == mesasOcupadas ? _self.mesasOcupadas : mesasOcupadas // ignore: cast_nullable_to_non_nullable
 as int,mesasReservadas: null == mesasReservadas ? _self.mesasReservadas : mesasReservadas // ignore: cast_nullable_to_non_nullable

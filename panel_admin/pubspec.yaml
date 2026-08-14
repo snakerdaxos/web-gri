@@ -36,7 +36,10 @@ dev_dependencies:
 
   build_runner: '>=2.4.0 <5.0.0'
   riverpod_generator: '>=3.0.0 <5.0.0'
-  freezed: '>=3.0.0 <4.0.0'
+  # Pineo exacto (mismo pin que app_cliente): freezed 3.2.6-dev.1 genera
+  # `required final List<T>` inválido para campos List (bug del dev line);
+  # 4.0.0-dev.3 genera el codegen correcto.
+  freezed: '4.0.0-dev.3'
   json_serializable: '>=6.8.0 <7.0.0'
 
 flutter:
