@@ -15,7 +15,7 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃ³vil 
 - [x] **Phase 1: FundaciÃ³n e Infraestructura** - Docker + MySQL + API corriendo con configuraciÃ³n por entorno
 - [x] **Phase 2: AutenticaciÃ³n, Roles y Multi-tenant** - JWT multi-rol con aislamiento por restaurante; el super-admin crea restaurantes y staff (completed 2026-08-13)
 - [x] **Phase 3: Modelo de Dominio y Seed Demo** - Todas las tablas de negocio, state machines y restaurante demo sembrado
-- [ ] **Phase 4: Panel Admin â€” Login, Dashboard y Mapa (Solo Lectura)** - El staff inicia sesiÃ³n y ve estadÃ­sticas y mapa de mesas con los colores del mockup
+- [x] **Phase 4: Panel Admin â€” Login, Dashboard y Mapa (Solo Lectura)** - El staff inicia sesiÃ³n y ve estadÃ­sticas y mapa de mesas con los colores del mockup
 - [ ] **Phase 5: App Cliente â€” Descubrimiento y Reservas** - El cliente descubre restaurantes y completa el ciclo de reserva de principio a fin
 - [ ] **Phase 6: App Cliente â€” Pedido por QR (REST) y Vista Cocina** - El core value end-to-end: escanear, pedir, seguir el estado y pedir la cuenta (sin tiempo real aÃºn)
 - [ ] **Phase 7: Tiempo Real â€” WebSockets** - Pedidos y mesas en vivo en cocina, mesero, cliente y panel sin refrescar
@@ -75,7 +75,7 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃ³vil 
   3. El mapa de mesas muestra cada mesa con su estado codificado por color (verde/rojo/amarillo/azul del mockup) y refleja cambios de la BD al refrescar (polling corto â€” deuda temporal; el tiempo real llega en Phase 7)
 **Plans**: 2 plans
 - [x] 04-01-PLAN.md - Vertical Slice Backend: CORSMiddleware + GET /staff/mesas + GET /staff/stats (tenant-scoped) + tests aislamiento + tests CORS (ADMN-01, ADMN-02)
-- [ ] 04-02-PLAN.md - Vertical Slice Panel Admin Flutter Web: scaffold + auth (login/persistencia/refresh interceptor/go_router guard) + dashboard (4 stat cards + mapa coloreado + sidebar) + polling 10s + widget tests (PLAT-01, ADMN-01, ADMN-02)
+- [x] 04-02-PLAN.md - Vertical Slice Panel Admin Flutter Web: scaffold + auth (login/persistencia/refresh interceptor/go_router guard) + dashboard (4 stat cards + mapa coloreado + sidebar) + polling 10s + widget tests (PLAT-01, ADMN-01, ADMN-02) Ã¢ DONE 2026-08-14
 
 ### Phase 5: App Cliente â€” Descubrimiento y Reservas
 **Goal**: Un cliente puede descubrir restaurantes y completar el ciclo completo de reserva (buscar â†’ reservar â†’ consultar â†’ cancelar â†’ sentarse)
@@ -153,7 +153,7 @@ Phases execute in numeric order: 1 â†’ 2 â†’ 3 â†’ 4 â†’ 5 �
 | 1. FundaciÃ³n e Infraestructura | 1/1 | Complete | 2026-08-13 |
 | 2. AutenticaciÃ³n, Roles y Multi-tenant | 2/2 | Complete   | 2026-08-13 |
 | 3. Modelo de Dominio y Seed Demo | 2/2 | Complete | 2026-08-13 |
-| 4. Panel Admin â€” Login, Dashboard y Mapa (Solo Lectura) | 1/2 | In Progress | - |
+| 4. Panel Admin â€” Login, Dashboard y Mapa (Solo Lectura) | 2/2 | Complete | 2026-08-14 |
 | 5. App Cliente â€” Descubrimiento y Reservas | 0/? | Not started | - |
 | 6. App Cliente â€” Pedido por QR (REST) y Vista Cocina | 0/? | Not started | - |
 | 7. Tiempo Real â€” WebSockets | 0/? | Not started | - |

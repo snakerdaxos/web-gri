@@ -9,7 +9,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Plataforma (Super-admin GRI)
 
-- [ ] **PLAT-01**: Super-admin puede iniciar sesión en el panel web con sus credenciales
+- [x] **PLAT-01**: Super-admin puede iniciar sesión en el panel web con sus credenciales
 - [x] **PLAT-02**: Super-admin puede crear restaurantes con sus datos básicos (nombre, descripción, tipo de cocina, dirección)
 - [x] **PLAT-03**: Super-admin puede crear usuarios staff (admin restaurante, mesero, cocina) y asignarlos a un restaurante
 - [x] **PLAT-04**: El sistema siembra un restaurante demo con menú, mesas y datos de ejemplo al inicializarse
@@ -76,8 +76,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Panel Admin (Web)
 
-- [ ] **ADMN-01**: Panel muestra dashboard con estadísticas: mesas disponibles/ocupadas, reservas del día, pedidos activos
-- [ ] **ADMN-02**: Panel muestra mapa de mesas con su estado codificado por color (verde/rojo/amarillo/azul) y actualización en vivo
+- [x] **ADMN-01**: Panel muestra dashboard con estadísticas: mesas disponibles/ocupadas, reservas del día, pedidos activos
+- [x] **ADMN-02**: Panel muestra mapa de mesas con su estado codificado por color (verde/rojo/amarillo/azul) y actualización en vivo
 - [ ] **ADMN-03**: Admin restaurante puede gestionar clientes (ver lista e historial)
 - [ ] **ADMN-04**: Admin puede cambiar estado de mesa (marcar en limpieza, liberar) desde el mapa
 - [ ] **ADMN-05**: Panel incluye vista de cocina: cola de pedidos con estado y capacidad de avanzarlos
@@ -135,7 +135,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PLAT-01 | Fase 4 | Pending |
+| PLAT-01 | Fase 4 | Complete |
 | PLAT-02 | Fase 2 | Complete |
 | PLAT-03 | Fase 2 | Complete |
 | PLAT-04 | Fase 3 | Done |
@@ -175,8 +175,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PAGO-04 | Fase 9 | Pending |
 | CALI-01 | Fase 9 | Pending |
 | CALI-02 | Fase 9 | Pending |
-| ADMN-01 | Fase 4 | Pending |
-| ADMN-02 | Fase 4 | Pending |
+| ADMN-01 | Fase 4 | Complete |
+| ADMN-02 | Fase 4 | Complete |
 | ADMN-03 | Fase 8 | Pending |
 | ADMN-04 | Fase 8 | Pending |
 | ADMN-05 | Fase 6 | Pending |
