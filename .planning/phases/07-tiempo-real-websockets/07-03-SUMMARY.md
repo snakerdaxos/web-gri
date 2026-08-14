@@ -36,7 +36,7 @@ decisions:
   - "wsConnectionProvider: else-branch disconnect en logout (conexión vive CON la sesión, plan de vida keepAlive del Provider manual)"
   - "pubspec: caret ^3.0.3 explícito (pub add había fijado 3.0.3 exacto — criterio del plan)"
 metrics:
-  duration: "~35 min"
+  duration: "~20 min"
   tasks: 2
   tests-new: 7 (5 ws_client + 2 pedidos_ws; suite 34 → 41)
   tests-total: 41
