@@ -1,9 +1,9 @@
 ﻿---
-status: Phase 5 EN PROGRESO - backend completo (05-01 core + 05-02 staff extensions, 105/105 tests); 05-03 app_cliente Flutter en progreso (agente paralelo)
-stopped_at: "Completed 05-02-PLAN.md (backend staff: GET /staff/reservas + POST /staff/mesas/{id}/estado)"
-current_phase: 5
+status: Phase 6 EN PROGRESO - 06-01 backend core value COMPLETO (sesion QR + pedidos + cola staff + cuenta, 141/141 tests); 06-02 (app_cliente) y 06-03 (panel cocina) pendientes
+stopped_at: "Completed 06-01-PLAN.md (backend: migración 0004 + sesión QR + pedidos + cola staff + HARD GATE concurrencia)"
+current_phase: 6
 updated: 2026-08-14
-last_activity: 2026-08-14 - Plan 05-02 ejecutado completo (2 tasks TDD, 4 commits); RESV-05 + MESA-04 cerrados; suite 105/105
+last_activity: 2026-08-14 - Plan 06-01 ejecutado completo (3 tasks TDD, 7 commits); MESA-05/06 + PEDI-01..06 + PAGO-01 cerrados; suite 141/141
 ---
 
 # STATE
@@ -13,9 +13,22 @@ last_activity: 2026-08-14 - Plan 05-02 ejecutado completo (2 tasks TDD, 4 commit
 See: .planning/PROJECT.md (updated 2026-08-13)
 
 **Core value:** Un cliente puede sentarse en una mesa, escanear su QR, pedir del menu y recibir su comida en tiempo real sin intermediarios.
-**Current focus:** Phase 5 IN PROGRESS - App Cliente (Descubrimiento y Reservas). Backend completo (05-01 + 05-02, 105/105 tests); 05-03 (app_cliente Flutter) en ejecución paralela
+**Current focus:** Phase 6 IN PROGRESS - App Cliente Pedido por QR (REST) y Vista Cocina. 06-01 (backend core value) COMPLETO con HARD GATE de concurrencia verificado; 06-02 (app_cliente) y 06-03 (panel_admin cocina) pendientes
 
 ## Recent Activity
+
+### 2026-08-14 — Plan 06-01 completo (Wave 1 backend core value)
+- Migración 0004 ÚNICA: sesion_mesa.solicita_cuenta/solicitada_en + UNIQUE(usuario_id, activo_flag) uq_sesion_mesa_usuario_activa + pedido.sesion_id FK + ix_pedido_sesion (alembic current = 0004)
+- POST /cliente/sesiones: FOR UPDATE + 2 UNIQUEs + IntegrityError→409 (BD gana la carrera); idempotencia propia 200 (mismo id), ajena 409, usuario con sesión en otra mesa 409, limpieza 409; mesa→ocupada AL ABRIR
+- HARD GATE concurrencia verificado: 2 usuarios simultáneos misma mesa → exactamente 1×201 + 1×409 + refuerzo DB (1 sesión activa)
+- POST /cliente/pedidos: estado=enviado directo, total server-side SIEMPRE (PedidoCreate sin campos de precio), snapshot precio_unitario en pedido_item, sesion_id SIEMPRE escrito; 404 ajena/cross-restaurante, 409 inactiva/agotado, 422 items/cantidad
+- GET /staff/pedidos?activos=true: cola FIFO FIELD(estado,'enviado','aceptado','en_preparacion','servido')+created_at ASC, joins batch (items+usuario+sesión), badge solicita_cuenta; POST /staff/pedidos/{id}/estado con TRANSITION_ROLES (cocina/admin/super_admin todo, mesero solo servido) y 409 ANTES de 403
+- Anti-zombi: mesa→limpieza cierra sesión activa EN LA MISMA tx (verificado end-to-end: /cliente/sesiones/actual → 404)
+- Cuenta PAGO-01: POST /cliente/sesiones/actual/cuenta idempotente (no re-escribe solicitada_en)
+- Suite: 105 → 141 tests (36 nuevos: 9 sesión + 14 pedidos/cuenta + 13 staff), 0 regresiones, 2 runs consecutivos + smoke runtime real sin residuo
+- Commits: 2546d2e/ec80f7b (T1), 75daeed/738bcc8 (T2), 3d25446/63b9cc4/36e9602 (T3)
+- Desviaciones Rule 1 x4: sa.false_() inexistente en SA 2.0 (→ sa.text("0")); MissingGreenlet por PK de objeto expirado (capturar ids ANTES de expire_all); fixture cross-tenant necesitó usuario dedicado (¡la UNIQUE 0004 funcionó!); cleanup anidado en test con asserts intermedios
+- REQUISITOS: MESA-05, MESA-06, PEDI-01..06, PAGO-01 marcados completos
 
 ### 2026-08-14 — Plan 05-02 completo (Wave 2 backend staff extensions)
 - GET /staff/reservas?fecha= tenant-scoped via _resolve_rid (param ignorado staff; super_admin 400 sin param / 404 inválido); default hoy con func.curdate() DB-side (Pitfall 6); joins display Restaurante.nombre + Mesa.numero; incluye canceladas (estado discrimina)
@@ -59,15 +72,16 @@ See: .planning/PROJECT.md (updated 2026-08-13)
 
 ## Progress
 
-Status: Phase 5 IN PROGRESS (backend 2/2 planes completo; 05-03 app_cliente en progreso por agente paralelo)
+Status: Phase 6 IN PROGRESS (06-01 backend core value COMPLETO; 06-02 app_cliente y 06-03 panel cocina pendientes)
 
 ### Phases
 - Phase 1: COMPLETE (verified passed)
 - Phase 2: COMPLETE (verified passed)
 - Phase 3: EXECUTED (verification pending)
 - Phase 4: COMPLETE - 04-01 (backend staff endpoints + CORS) + 04-02 (panel Flutter Web) ejecutados; PLAT-01, ADMN-01, ADMN-02 cerrados
-- Phase 5: IN PROGRESS - 05-01 (backend core) + 05-02 (backend staff) COMPLETOS (105/105 tests); 05-03 (app_cliente Flutter) en ejecución paralela
-- Phase 6-9: Not started
+- Phase 5: EXECUTED - 05-01 + 05-02 (backend) + 05-03 (app_cliente Flutter) completos
+- Phase 6: IN PROGRESS - 06-01 (backend core value: sesión QR + pedidos + cola staff + cuenta) COMPLETO (141/141 tests, HARD GATE concurrencia); 06-02 (app_cliente) + 06-03 (panel cocina) pendientes
+- Phase 7-9: Not started
 
 ## Gotchas para futuras sesiones
 
@@ -77,6 +91,10 @@ Status: Phase 5 IN PROGRESS (backend 2/2 planes completo; 05-03 app_cliente en p
 - flutter_secure_storage 11.0 en Web = WebCrypto + LocalStorage (NO Keystore/Keychain); "obfuscado, no cifrado" — solo aceptable sobre HTTPS (T-04-05).
 - La BD dev acumula residuo GRI-TEST-* (mesas/pedidos borrador) porque test_domain_constraints commitea sin cleanup: NUNCA asertar counts absolutos sobre la BD compartida; usar subset seed (patron GRI-MESA-\d{3}), invariantes o DB cross-check.
 - Tests que leen efectos de commits del API tras commitear su propia sesión: `rollback + get` SOLO refresca si hay tx activa (gotcha identity map, expire_on_commit=False). Usar `db_session.expire_all()` + get — determinístico. Y restaurar SIEMPRE al estado invariant (disponible), no al estado de entrada (auto-repara residuo).
+- MissingGreenlet (06-01): evaluar `obj.id` como PK de un objeto EXPIRADO (tras expire_all) dispara lazy-load síncrono → capturar PKs/valores en ints ANTES de expire_all. El `get(Model, pk_int)` con int crudo siempre es seguro.
+- Fixtures que crean sesiones de prueba: usuario DEDICADO por fixture — UNIQUE(usuario_id, activo_flag) de 0004 rechaza dos sesiones activas del mismo usuario (aunque sean de mesas/tenants distintos).
+- Cleanups de tests con setups anidados: SIEMPRE nested try/finally — un assert fallido antes del cleanup del setup interno filtra filas (residuo acumulado en BD compartida).
+- `sa.false_()` NO existe en SQLAlchemy 2.0 top-level: usar `sa.text("0")` o `sa.false()` en migraciones (server_default boolean).
 - El contenedor api NO tiene volume mount: todo cambio de codigo/test requiere docker compose up -d --build api antes de pytest.
 - PowerShell 5.1 no tiene Get-Date -AsUTC; usar [DateTimeOffset]::UtcNow.
 - login() de conftest retorna (access, refresh) — desempaquetar al reves manda el refresh token y da 401 "Tipo de token incorrecto" (guard PITFALL 6).
