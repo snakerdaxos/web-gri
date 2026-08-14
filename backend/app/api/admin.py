@@ -1,4 +1,4 @@
-"""Admin router — platform management endpoints (PLAT-02/03) + the AUTH-04
+"""Admin router — platform management endpoints (PLAT-02/03/05) + the AUTH-04
 tenant-scoped read.
 
 Role matrix (research Pattern 4), enforced via require_roles / get_tenant_scope:
@@ -7,6 +7,7 @@ Role matrix (research Pattern 4), enforced via require_roles / get_tenant_scope:
 |---------------------------------------|--------------------------|----------------------------------|
 | POST /admin/restaurantes              | super_admin              | 403 (others) / 401 (no token)    |
 | GET  /admin/restaurantes              | super_admin              | 403 (others) / 401 (no token)    |
+| PATCH /admin/restaurantes/{id}        | super_admin              | 403 (staff) / 404 / 422          |
 | POST /admin/restaurantes/{id}/staff   | super_admin              | 403 (others) / 401 (no token)    |
 | GET  /admin/restaurantes/{id}         | staff (any) + super_admin| 403 (cliente) / 404 (wrong tenant) |
 
@@ -14,13 +15,14 @@ The router is a thin parse -> call service -> return layer; all logic lives in
 admin_service.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.deps.auth import CurrentUser, TenantScope, get_tenant_scope, require_roles
 from app.models.usuario import RolUsuario
 from app.schemas.restaurante import (
+    RestauranteActivoUpdate,
     RestauranteCreate,
     RestauranteRead,
     StaffCreate,
@@ -48,11 +50,43 @@ async def create_restaurante(
 
 @router.get("/restaurantes", response_model=list[RestauranteRead])
 async def list_restaurantes(
+    incluir_inactivos: bool = Query(
+        default=False,
+        description="PLAT-05: true incluye restaurantes desactivados (la "
+        "única vista que los expone — para reactivarlos).",
+    ),
     session: AsyncSession = Depends(get_session),
     _: CurrentUser = Depends(require_roles(RolUsuario.super_admin)),
 ):
-    """List active restaurantes. Super-admin only."""
-    return await admin_service.list_restaurantes(session)
+    """List restaurantes (PLAT-02 + PLAT-05). Default: solo activos;
+    ``?incluir_inactivos=true`` revela también los desactivados. Super-admin
+    only."""
+    return await admin_service.list_restaurantes(session, incluir_inactivos)
+
+
+# --- PLAT-05: activar/desactivar restaurantes ---------------------------------
+
+
+@router.patch("/restaurantes/{restaurante_id}", response_model=RestauranteRead)
+async def set_restaurante_activo(
+    restaurante_id: int,
+    body: RestauranteActivoUpdate,
+    session: AsyncSession = Depends(get_session),
+    _: CurrentUser = Depends(require_roles(RolUsuario.super_admin)),
+):
+    """PLAT-05: desactivar (``activo=false``) o reactivar un restaurante.
+
+    - 200 RestauranteRead con el nuevo estado del flag.
+    - 404 restaurante inexistente (existence hiding uniforme).
+    - 403 staff (solo super_admin — un admin_restaurante jamás desactiva
+      su propio tenant) / 422 body sin ``activo``.
+    - Efecto: desactivar OCULTA el restaurante de /public y del listado
+      activo. ALCANCE v1: el staff con token vigente SIGUE operando (el
+      bloqueo operacional es PLT2 futuro).
+    """
+    return await admin_service.set_restaurante_activo(
+        session, restaurante_id, body.activo
+    )
 
 
 # --- PLAT-03: super-admin creates staff assigned to a restaurante ------------

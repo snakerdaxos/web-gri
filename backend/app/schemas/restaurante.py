@@ -37,6 +37,14 @@ class RestauranteRead(BaseModel):
     created_at: dt.datetime
 
 
+class RestauranteActivoUpdate(BaseModel):
+    """PATCH /admin/restaurantes/{id} body (PLAT-05) — ``activo`` es requerido:
+    el endpoint hace UNA cosa (toggle) y el body vacío es un error del caller
+    (422), no un no-op silencioso."""
+
+    activo: bool
+
+
 class StaffRole(str, enum.Enum):
     """The ONLY roles assignable via POST /admin/restaurantes/{id}/staff.
 

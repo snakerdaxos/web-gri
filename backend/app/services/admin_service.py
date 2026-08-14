@@ -39,19 +39,45 @@ async def create_restaurante(
     return RestauranteRead.model_validate(restaurante)
 
 
-async def list_restaurantes(session: AsyncSession) -> list[RestauranteRead]:
-    """List ACTIVE restaurantes ordered by id.
+async def list_restaurantes(
+    session: AsyncSession, incluir_inactivos: bool = False
+) -> list[RestauranteRead]:
+    """List restaurantes ordered by id (PLAT-02 + PLAT-05).
 
-    Only active for now (consistency with get_restaurante_for_staff); managing
-    inactive ones is Phase 8 (PLAT-05).
+    Default: solo activos (consistencia con get_restaurante_for_staff). Con
+    ``incluir_inactivos=True`` (super_admin) también devuelve los
+    desactivados — es la ÚNICA forma de verlos para reactivarlos (los
+    inactivos están ocultos de /public y de todo endpoint /staff vía
+    _resolve_rid).
     """
-    stmt = (
-        select(Restaurante)
-        .where(Restaurante.activo.is_(True))
-        .order_by(Restaurante.id)
-    )
-    rows = (await session.execute(stmt)).scalars().all()
+    stmt = select(Restaurante)
+    if not incluir_inactivos:
+        stmt = stmt.where(Restaurante.activo.is_(True))
+    rows = (await session.execute(stmt.order_by(Restaurante.id))).scalars().all()
     return [RestauranteRead.model_validate(r) for r in rows]
+
+
+async def set_restaurante_activo(
+    session: AsyncSession, restaurante_id: int, activo: bool
+) -> RestauranteRead:
+    """PLAT-05: desactivar/reactivar un restaurante (super_admin only — el
+    router lo fuerza con require_roles).
+
+    - El get NO filtra por activo: REACTIVAR debe encontrar inactivos (si
+      filtrara como los reads, un restaurante desactivado sería irrecuperable).
+    - 404 uniforme si no existe (existence hiding).
+    - Desactivar oculta el restaurante de /public y del listado activo SIN
+      tocar public_service (el filtro ``activo`` ya existe en todos los
+      reads públicos). ALCANCE v1 (locked): el staff con token vigente
+      SIGUE operando — bloqueo operacional es PLT2 futuro.
+    """
+    restaurante = await session.get(Restaurante, restaurante_id)
+    if restaurante is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Restaurante no encontrado")
+    restaurante.activo = activo
+    await session.commit()
+    await session.refresh(restaurante)
+    return RestauranteRead.model_validate(restaurante)
 
 
 async def create_staff(
