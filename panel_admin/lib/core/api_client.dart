@@ -9,6 +9,8 @@ import '../models/dashboard_stats.dart';
 import '../models/mesa.dart';
 import '../models/pedido_staff.dart';
 import '../models/producto_staff.dart';
+import '../models/reporte.dart';
+import '../models/reserva.dart';
 import '../models/restaurante.dart';
 import '../models/token_pair.dart';
 import '../models/user.dart';
@@ -335,13 +337,102 @@ class ApiClient {
     ];
   }
 
+  // ── Reportes (REPO-01/02, 08-02) ──────────────────────────────────────
+
+  /// `GET /staff/reportes/ventas` — total/num_pedidos/por_dia del rango
+  /// (venta = servido|pagado, decision locked 08-02). Sin [desde]/[hasta]
+  /// el server aplica su default DB-side (últimos 7 días); la respuesta
+  /// SIEMPRE trae el rango efectivo. 422 si desde > hasta (la UI valida
+  /// client-side ANTES de llamar — threat model 08-05).
+  Future<VentasReporte> getReporteVentas({
+    String? desde,
+    String? hasta,
+    int? restauranteId,
+  }) async {
+    final r = await _dio.get<Map<String, dynamic>>(
+      '/staff/reportes/ventas',
+      queryParameters: {
+        'desde': ?desde,
+        'hasta': ?hasta,
+        'restaurante_id': ?restauranteId,
+      },
+    );
+    return VentasReporte.fromJson(r.data!);
+  }
+
+  /// `GET /staff/reportes/top-platos` — top-N platos por SUM(cantidad) DESC.
+  /// [limit] default server 10 (1..50). Vacío → `[]` (sin ventas en rango).
+  Future<List<TopPlato>> getTopPlatos({
+    String? desde,
+    String? hasta,
+    int? limit,
+    int? restauranteId,
+  }) async {
+    final r = await _dio.get<List<dynamic>>(
+      '/staff/reportes/top-platos',
+      queryParameters: {
+        'desde': ?desde,
+        'hasta': ?hasta,
+        'limit': ?limit,
+        'restaurante_id': ?restauranteId,
+      },
+    );
+    return [
+      for (final e in r.data ?? const <dynamic>[])
+        TopPlato.fromJson(e as Map<String, dynamic>),
+    ];
+  }
+
+  // ── Reservas (RESV-05, endpoint F5 existente) ─────────────────────────
+
+  /// `GET /staff/reservas?fecha=YYYY-MM-DD` — reservas del día (incluye
+  /// canceladas — el campo `estado` discrimina; orden por hora_inicio).
+  /// Sin [fecha] el server usa hoy (computado DB-side).
+  Future<List<Reserva>> getReservas({
+    String? fecha,
+    int? restauranteId,
+  }) async {
+    final r = await _dio.get<List<dynamic>>(
+      '/staff/reservas',
+      queryParameters: {
+        'fecha': ?fecha,
+        'restaurante_id': ?restauranteId,
+      },
+    );
+    return [
+      for (final e in r.data ?? const <dynamic>[])
+        Reserva.fromJson(e as Map<String, dynamic>),
+    ];
+  }
+
   /// `GET /admin/restaurantes` — lista para el selector del super_admin.
-  Future<List<Restaurante>> listRestaurantes() async {
-    final r = await _dio.get<List<dynamic>>('/admin/restaurantes');
+  /// [incluirInactivos] es la ÚNICA vista que expone restaurantes
+  /// desactivados (PLAT-05, 08-02) — la usa el tab 'Restaurantes' de
+  /// Configuración para el toggle de reactivación.
+  Future<List<Restaurante>> listRestaurantes({
+    bool incluirInactivos = false,
+  }) async {
+    final r = await _dio.get<List<dynamic>>(
+      '/admin/restaurantes',
+      queryParameters:
+          incluirInactivos ? {'incluir_inactivos': 'true'} : null,
+    );
     return [
       for (final e in r.data ?? const <dynamic>[])
         Restaurante.fromJson(e as Map<String, dynamic>),
     ];
+  }
+
+  /// `PATCH /admin/restaurantes/{id}` `{activo}` — desactivar/reactivar
+  /// (PLAT-05). Super_admin only (staff → 403). Desactivar oculta el
+  /// restaurante de /public; el staff con token vigente SIGUE operando
+  /// (alcance v1 del backend — 08-02).
+  Future<Restaurante> patchRestauranteActivo(int id, bool activo) async {
+    final r = await _dio.patch<Map<String, dynamic>>(
+      '/admin/restaurantes/$id',
+      data: {'activo': activo},
+    );
+    return Restaurante.fromJson(r.data!);
   }
 
   /// `GET /admin/restaurantes/{id}` — nombre del restaurante para el topbar

@@ -14,9 +14,10 @@ import '../dashboard/restaurantes_list_provider.dart';
 /// del ShellRoute + [location] (path actual, para derivar el ítem activo).
 /// Layout:
 ///  * Sidebar 250px fijo (responsive: <750px colapsa a 70px con solo iconos).
-///    Logo GRI + 7 ítems del mockup. Dashboard y Pedidos (→ /cocina, Phase 6)
-///    navegan; los otros 5 muestran SnackBar "Próximamente" (Phase 8).
-///  * TopBar: título "Dashboard" + subtítulo. A la derecha: si super_admin,
+///    Logo GRI + 7 ítems, TODOS navegables (7/7 activos desde 08-05:
+///    Dashboard, Mesas, Pedidos→/cocina, Reservas, Clientes, Reportes,
+///    Configuración — el flujo placeholder fue eliminado).
+///  * TopBar: título dinámico + subtítulo. A la derecha: si super_admin,
 ///    DropdownButton de restaurantes (cambia currentRestauranteIdProvider);
 ///    si staff, texto nombre+rol. Avatar con iniciales.
 ///  * Body: child (la ruta activa).
@@ -56,15 +57,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     ref.read(currentRestauranteIdProvider.notifier).set(firstActive.id);
   }
 
-  void _showProximamente() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Próximamente'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authStateProvider).value;
@@ -82,7 +74,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                 width: sidebarWidth,
                 collapsed: collapsed,
                 location: widget.location,
-                onProximamente: _showProximamente,
               ),
               Expanded(
                 child: Column(
@@ -94,7 +85,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                       isSuperAdmin: isSuperAdmin,
                       userName: user?.nombre ?? 'Usuario',
                       userRole: _roleLabel(user?.role),
-                      onProximamente: _showProximamente,
                     ),
                     const Divider(height: 1, color: Color(0xFFEEEEEE)),
                     Expanded(child: widget.child),
@@ -129,7 +119,6 @@ class _Sidebar extends StatelessWidget {
     required this.width,
     required this.collapsed,
     required this.location,
-    required this.onProximamente,
   });
 
   final double width;
@@ -137,8 +126,6 @@ class _Sidebar extends StatelessWidget {
 
   /// Path de la ruta activa ('/' | '/cocina' | …) — deriva el índice activo.
   final String location;
-
-  final VoidCallback onProximamente;
 
   static const _items = <(String, String)>[
     ('🏠', 'Dashboard'),
@@ -150,17 +137,19 @@ class _Sidebar extends StatelessWidget {
     ('⚙️', 'Configuración'),
   ];
 
-  /// Ruta navegable por índice (null = Phase 8). '📋 Pedidos' abre la vista
-  /// cocina (ADMN-05); '🪑 Mesas' la gestión de mesas + QR (08-03, MESA-01);
-  /// '👥 Clientes' la tabla + historial (08-04, ADMN-03); '⚙️ Configuración'
-  /// el hub Menú/Restaurante (08-04, MENU-01/02).
-  static const _routes = <String?>[
+  /// Ruta navegable por índice — 7/7 activos (08-05): '📋 Pedidos' abre la
+  /// vista cocina (ADMN-05); '🪑 Mesas' la gestión de mesas + QR (08-03);
+  /// '📅 Reservas' las del día con marcar-ocupada (08-05); '👥 Clientes' la
+  /// tabla + historial (08-04, ADMN-03); '📊 Reportes' ventas y top platos
+  /// (08-05, REPO-01/02); '⚙️ Configuración' el hub Menú/Restaurante/
+  /// Restaurantes (08-04/08-05).
+  static const _routes = <String>[
     '/',
     '/mesas',
     '/cocina',
-    null,
+    '/reservas',
     '/clientes',
-    null,
+    '/reportes',
     '/configuracion',
   ];
 
@@ -225,13 +214,9 @@ class _Sidebar extends StatelessWidget {
                   label: item.$2,
                   active: isActive,
                   collapsed: collapsed,
-                  // Ítem con ruta navega (el activo queda deshabilitado);
-                  // los de Phase 8 muestran "Próximamente".
-                  onTap: route == null
-                      ? onProximamente
-                      : isActive
-                          ? null
-                          : () => context.go(route),
+                  // Todos los ítems navegan (7/7); el activo queda
+                  // deshabilitado (no tiene sentido re-navegar).
+                  onTap: isActive ? null : () => context.go(route),
                 );
               },
             ),
@@ -304,7 +289,6 @@ class _TopBar extends ConsumerWidget {
     required this.isSuperAdmin,
     required this.userName,
     required this.userRole,
-    required this.onProximamente,
   });
 
   /// Path activo ('/' | '/mesas' | '/cocina' | …) — decide título/subtítulo.
@@ -314,7 +298,6 @@ class _TopBar extends ConsumerWidget {
   final bool isSuperAdmin;
   final String userName;
   final String userRole;
-  final VoidCallback onProximamente;
 
   /// Título + subtítulo por path (los 7 del sidebar). Default: Dashboard.
   static const _titles = <String, (String, String)>{

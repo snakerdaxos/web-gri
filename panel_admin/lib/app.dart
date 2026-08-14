@@ -10,6 +10,8 @@ import 'features/cocina/cocina_screen.dart';
 import 'features/configuracion/configuracion_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/mesas/mesas_screen.dart';
+import 'features/reportes/reportes_screen.dart';
+import 'features/reservas/reservas_screen.dart';
 import 'features/shared/app_shell.dart';
 
 /// GoRouter con auth guard (T-04-08) + ShellRoute (sidebar persistente).
@@ -49,10 +51,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const ClientesScreen(),
           ),
           GoRoute(
+            path: '/reservas',
+            builder: (_, _) => const ReservasScreen(),
+          ),
+          GoRoute(
+            path: '/reportes',
+            builder: (_, _) => const ReportesScreen(),
+          ),
+          GoRoute(
             path: '/configuracion',
             builder: (_, _) => const ConfiguracionScreen(),
           ),
-          // Phase 8: /reservas (08-05), /reportes.
         ],
       ),
     ],
