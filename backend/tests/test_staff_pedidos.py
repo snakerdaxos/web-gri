@@ -203,14 +203,22 @@ async def test_transicion_invalida_409(async_client, db_session):
         retro = await _avanzar(async_client, cocina, pid, "aceptado")
         assert retro.status_code == 409, retro.text
 
-        # Terminal: rechazado→aceptado.
-        nuevo = await _setup_pedido(async_client, db_session, nombre="Terminal Test")
-        term = await _avanzar(async_client, cocina, nuevo[4]["id"], "rechazado")
-        assert term.status_code == 200, term.text
-        terminal = await _avanzar(async_client, cocina, nuevo[4]["id"], "aceptado")
-        assert terminal.status_code == 409, terminal.text
-        await _borrar_pedidos_usuario(db_session, nuevo[0]["id"])
-        await _cerrar_sesiones_usuario(db_session, nuevo[0]["id"])
+        # Terminal: rechazado→aceptado (cleanup anidado: el finally externo
+        # no conoce a `nuevo` si un assert falla antes).
+        nuevo_user_id = None
+        try:
+            nuevo = await _setup_pedido(
+                async_client, db_session, nombre="Terminal Test"
+            )
+            nuevo_user_id = nuevo[0]["id"]
+            term = await _avanzar(async_client, cocina, nuevo[4]["id"], "rechazado")
+            assert term.status_code == 200, term.text
+            terminal = await _avanzar(async_client, cocina, nuevo[4]["id"], "aceptado")
+            assert terminal.status_code == 409, terminal.text
+        finally:
+            if nuevo_user_id is not None:
+                await _borrar_pedidos_usuario(db_session, nuevo_user_id)
+                await _cerrar_sesiones_usuario(db_session, nuevo_user_id)
     finally:
         await _borrar_pedidos_usuario(db_session, user["id"])
         await _cerrar_sesiones_usuario(db_session, user["id"])
