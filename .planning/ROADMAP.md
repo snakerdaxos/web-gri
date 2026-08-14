@@ -88,8 +88,11 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃ³vil 
   3. El cliente puede reservar mesa indicando fecha, hora y nÃºmero de personas; el sistema rechaza reservas que exceden capacidad o solapan horarios, incluso bajo peticiones concurrentes (sin sobre-reservas)
   4. El cliente puede consultar sus reservas (prÃ³ximas y pasadas, con estado) y cancelar una reserva futura
   5. El admin ve las reservas del dÃ­a en el panel y puede marcar la mesa como ocupada al llegar el cliente; los estados de mesa (disponible/reservada/ocupada/limpieza) solo cambian por transiciones vÃ¡lidas y las invÃ¡lidas son rechazadas
-**Notas**: La protecciÃ³n anti concurrencia vive en la BD (UNIQUE mesa/fecha/slot + SELECT ... FOR UPDATE) segÃºn PITFALLS del research. Decisiones abiertas para el SPEC: auto-confirm vs aprobaciÃ³n manual, polÃ­tica de cancelaciÃ³n.
-**Plans**: TBD
+**Notas**: La protecciÃ³n anti concurrencia vive en la BD (UNIQUE mesa/fecha/slot + SELECT ... FOR UPDATE) segÃºn PITFALLS del research. Decisiones cerradas: auto-confirm (reservas nacen confirmadas, sin aprobaciÃ³n manual), slots horarios de 60min (:00), asignaciÃ³n de mesa automÃ¡tica (server elige), cancelaciÃ³n reverte mesa solo si estaba reservada. Web-first dev en Chrome :5174 (sin Android SDK).
+**Plans**: 3 plans
+- [ ] 05-01-PLAN.md â€” Vertical Slice Backend Core: migraciÃ³n 0003 (UNIQUE slot) + /public/* (descubrimiento) + /cliente/* (perfil PATCH + reservas create/list/cancel con FOR UPDATE) + HARD GATE test_reserva_concurrency.py (AUTH-05, REST-01, REST-02, RESV-01, RESV-02, RESV-03, RESV-04)
+- [ ] 05-02-PLAN.md â€” Vertical Slice Backend Staff: EXTENDER /staff/reservas + POST /staff/mesas/{id}/estado (MESA_TRANSITIONS vÃ­a validar_transicion) + tests tenant isolation (RESV-05, MESA-04)
+- [ ] 05-03-PLAN.md â€” Vertical Slice Flutter app_cliente: scaffold + copia lib/core de panel_admin + 4 tabs StatefulShellRoute.indexedStack + features auth/restaurantes/reservas/perfil + widget tests (AUTH-05, REST-01, REST-02, RESV-01, RESV-03 UI)
 
 ### Phase 6: App Cliente â€” Pedido por QR (REST) y Vista Cocina
 **Goal**: El core value funciona de punta a punta sin tiempo real: sentarse, escanear el QR, pedir del menÃº, seguir el estado del pedido y pedir la cuenta
@@ -154,7 +157,7 @@ Phases execute in numeric order: 1 â†’ 2 â†’ 3 â†’ 4 â†’ 5 �
 | 2. AutenticaciÃ³n, Roles y Multi-tenant | 2/2 | Complete   | 2026-08-13 |
 | 3. Modelo de Dominio y Seed Demo | 2/2 | Complete | 2026-08-13 |
 | 4. Panel Admin â€” Login, Dashboard y Mapa (Solo Lectura) | 2/2 | Complete | 2026-08-14 |
-| 5. App Cliente â€” Descubrimiento y Reservas | 0/? | Not started | - |
+| 5. App Cliente â€” Descubrimiento y Reservas | 0/3 | Not started | - |
 | 6. App Cliente â€” Pedido por QR (REST) y Vista Cocina | 0/? | Not started | - |
 | 7. Tiempo Real â€” WebSockets | 0/? | Not started | - |
 | 8. Panel Admin â€” GestiÃ³n Completa y Reportes | 0/? | Not started | - |
