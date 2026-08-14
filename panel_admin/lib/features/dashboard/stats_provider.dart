@@ -27,6 +27,12 @@ part 'stats_provider.g.dart';
 ///
 /// Si super_admin sin selección (rid null) → emite Stream vacío hasta que se
 /// setee el default (dashboard_screen muestra estado "Selecciona restaurante").
+///
+/// Estructura riverpod-3-safe (lección 07-03): TODO el uso de `ref` ocurre
+/// ANTES del primer await/yield — un rebuild con el generator suspendido
+/// desmonta el ref y un `ref.watch` tardío lanza UnmountedRefException. Los
+/// eventos que llegan durante el GET inicial quedan bufferizados en el
+/// controller single-subscription.
 @riverpod
 Stream<DashboardStats> stats(Ref ref) async* {
   final user = ref.watch(authStateProvider).value;
@@ -44,17 +50,18 @@ Stream<DashboardStats> stats(Ref ref) async* {
   final queryRid = user?.isSuperAdmin == true ? rid : null;
   final client = ref.read(apiClientProvider);
 
-  // Snapshot inicial inmediato (UX: spinner solo durante el 1er fetch).
-  yield await client.getStats(restauranteId: queryRid);
-
+  // Suscripciones y teardown REGISTRADAS ANTES del primer await (gotcha
+  // riverpod 3.4 post-await). El controller single-subscription bufferiza
+  // los refresh que lleguen mientras se entrega el snapshot inicial.
   final controller = StreamController<DashboardStats>();
   Future<void> refresh() async {
     try {
-      controller.add(await client.getStats(restauranteId: queryRid));
+      final stats = await client.getStats(restauranteId: queryRid);
+      if (!controller.isClosed) controller.add(stats);
     } catch (e) {
       // No rompemos el stream: el error va al AsyncValue pero el siguiente
       // evento puede recuperar. El dashboard lo renderiza con retry.
-      controller.addError(e);
+      if (!controller.isClosed) controller.addError(e);
     }
   }
 
@@ -78,5 +85,8 @@ Stream<DashboardStats> stats(Ref ref) async* {
     timer.cancel();
     controller.close();
   });
+
+  // Snapshot inicial inmediato (UX: spinner solo durante el 1er fetch).
+  yield await client.getStats(restauranteId: queryRid);
   yield* controller.stream;
 }
