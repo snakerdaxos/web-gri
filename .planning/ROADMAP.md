@@ -62,7 +62,7 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃ³vil 
 **Notas**: Las tablas de dominio (mesa, categoria, producto, pedido, pedido_item, reserva, pago, calificacion) se crean aquÃ­ con FKs e Ã­ndices compuestos por restaurante. Las transiciones de MESA_TRANSITIONS y PEDIDO_TRANSITIONS se implementan con el schema (research ligero/SPEC recomendado antes de planear).
 **Plans**: 2 plans
 - [x] 03-01-PLAN.md â€” Vertical Slice Models + State Machines + MigraciÃ³n 0002 + tests DB-direct (MESA-02, mitad INFR-03 migraciones) â€” âœ… 53/53 tests, 9 tablas, 5 state machines
-- [ ] 03-02-PLAN.md â€” Vertical Slice Seed Demo + Lifespan Wiring + verify_seed.sh (PLAT-04, mitad INFR-03 seed)
+- [x] 03-02-PLAN.md â€” Vertical Slice Seed Demo + Lifespan Wiring + verify_seed.sh (PLAT-04, mitad INFR-03 seed)
 
 ### Phase 4: Panel Admin â€” Login, Dashboard y Mapa (Solo Lectura)
 **Goal**: El staff (admin restaurante y super-admin) inicia sesiÃ³n en el panel web y ve dashboard con estadÃ­sticas y mapa de mesas con la identidad visual del mockup
@@ -74,7 +74,7 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃ³vil 
   2. El dashboard muestra estadÃ­sticas del restaurante con datos reales: mesas disponibles/ocupadas, reservas del dÃ­a y pedidos activos
   3. El mapa de mesas muestra cada mesa con su estado codificado por color (verde/rojo/amarillo/azul del mockup) y refleja cambios de la BD al refrescar (polling corto â€” deuda temporal; el tiempo real llega en Phase 7)
 **Plans**: 2 plans
-- [ ] 04-01-PLAN.md - Vertical Slice Backend: CORSMiddleware + GET /staff/mesas + GET /staff/stats (tenant-scoped) + tests aislamiento + tests CORS (ADMN-01, ADMN-02)
+- [x] 04-01-PLAN.md - Vertical Slice Backend: CORSMiddleware + GET /staff/mesas + GET /staff/stats (tenant-scoped) + tests aislamiento + tests CORS (ADMN-01, ADMN-02)
 - [ ] 04-02-PLAN.md - Vertical Slice Panel Admin Flutter Web: scaffold + auth (login/persistencia/refresh interceptor/go_router guard) + dashboard (4 stat cards + mapa coloreado + sidebar) + polling 10s + widget tests (PLAT-01, ADMN-01, ADMN-02)
 
 ### Phase 5: App Cliente â€” Descubrimiento y Reservas
@@ -152,8 +152,8 @@ Phases execute in numeric order: 1 â†’ 2 â†’ 3 â†’ 4 â†’ 5 �
 |-------|----------------|--------|-----------|
 | 1. FundaciÃ³n e Infraestructura | 1/1 | Complete | 2026-08-13 |
 | 2. AutenticaciÃ³n, Roles y Multi-tenant | 2/2 | Complete   | 2026-08-13 |
-| 3. Modelo de Dominio y Seed Demo | 0/2 | Planned | - |
-| 4. Panel Admin â€” Login, Dashboard y Mapa (Solo Lectura) | 0/? | Not started | - |
+| 3. Modelo de Dominio y Seed Demo | 2/2 | Complete | 2026-08-13 |
+| 4. Panel Admin â€” Login, Dashboard y Mapa (Solo Lectura) | 1/2 | In Progress | - |
 | 5. App Cliente â€” Descubrimiento y Reservas | 0/? | Not started | - |
 | 6. App Cliente â€” Pedido por QR (REST) y Vista Cocina | 0/? | Not started | - |
 | 7. Tiempo Real â€” WebSockets | 0/? | Not started | - |
