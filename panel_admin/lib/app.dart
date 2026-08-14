@@ -6,6 +6,7 @@ import 'core/theme.dart';
 import 'core/token_provider.dart';
 import 'features/auth/login_screen.dart';
 import 'features/cocina/cocina_screen.dart';
+import 'features/configuracion/configuracion_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/mesas/mesas_screen.dart';
 import 'features/shared/app_shell.dart';
@@ -42,7 +43,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/', builder: (_, _) => const DashboardScreen()),
           GoRoute(path: '/mesas', builder: (_, _) => const MesasScreen()),
           GoRoute(path: '/cocina', builder: (_, _) => const CocinaScreen()),
-          // Phase 8: /reservas, /clientes, /reportes, /configuracion.
+          GoRoute(
+            path: '/configuracion',
+            builder: (_, _) => const ConfiguracionScreen(),
+          ),
+          // Phase 8: /reservas, /clientes (08-04), /reportes.
         ],
       ),
     ],
