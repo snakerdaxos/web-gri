@@ -7,12 +7,16 @@ immutability surfaces to the client. ``password`` is optional: when present
 the service hashes + stores it; when absent the stored hash is untouched.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PerfilUpdate(BaseModel):
     """PATCH /cliente/perfil body. ``nombre`` required; ``password`` optional.
-    Email immutable (not in this schema)."""
+    Email immutable — declared via ``extra="forbid"`` so any extra field
+    (notably ``email``) is rejected with 422, surfacing the immutability to
+    the client instead of silently ignoring it."""
+
+    model_config = ConfigDict(extra="forbid")
 
     nombre: str = Field(min_length=1, max_length=150)
     password: str | None = Field(default=None, min_length=8, max_length=64)

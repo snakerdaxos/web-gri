@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import admin, auth, health, public, staff
+from app.api import admin, auth, cliente, health, public, staff
 from app.core.config import settings
 from app.core.db import async_session_maker, engine
 from app.services.bootstrap import ensure_super_admin
@@ -53,6 +53,7 @@ app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(staff.router)
 app.include_router(public.router)
+app.include_router(cliente.router)
 
 
 @app.get("/")
