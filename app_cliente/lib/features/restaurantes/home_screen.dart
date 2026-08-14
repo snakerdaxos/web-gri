@@ -5,14 +5,17 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../core/token_provider.dart';
 import '../../models/reserva.dart';
+import '../../models/sesion_mesa.dart';
 import '../reservas/mis_reservas_screen.dart' show EstadoChip;
 import '../reservas/reservas_provider.dart';
+import '../sesion_qr/sesion_provider.dart';
 import 'restaurantes_provider.dart';
 
 /// Tab Inicio — réplica del mockup indexcliente.html:
-/// header blanco (logo GRI + botón QR placeholder Phase 6), welcome con el
-/// nombre del user, tarjeta del primer restaurante, grid de 2 acciones y
-/// card "Próxima reserva" (si hay alguna futura confirmada).
+/// header blanco (logo GRI + botón QR → scanner real, Phase 6), welcome
+/// con el nombre del user, banner "Estás en la Mesa X" si hay sesión
+/// activa, tarjeta del primer restaurante, grid de 2 acciones y card
+/// "Próxima reserva" (si hay alguna futura confirmada).
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -28,6 +31,7 @@ class HomeScreen extends ConsumerWidget {
     final user = ref.watch(authStateProvider).value;
     final restaurantesAsync = ref.watch(restaurantesListProvider);
     final reservasAsync = ref.watch(reservasProvider);
+    final sesion = ref.watch(sesionProvider).value;
 
     final primera = restaurantesAsync.value?.firstOrNull;
     final proxima = _proximaReserva(reservasAsync.value);
@@ -56,9 +60,8 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              // QR es Phase 6 — placeholder no funcional.
               _QrButton(
-                onTap: () => _proximamente(context),
+                onTap: () => context.push('/sesion/scan'),
               ),
             ],
           ),
@@ -69,6 +72,12 @@ class HomeScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Banner de sesión activa (MESA-06 UI) ────────────────────
+              if (sesion != null) ...[
+                _SesionBanner(sesion: sesion),
+                const SizedBox(height: 20),
+              ],
+
               // ── Welcome ──────────────────────────────────────────────────
               Text(
                 '¡Hola, ${user?.nombre ?? ''}! 👋',
@@ -108,7 +117,7 @@ class HomeScreen extends ConsumerWidget {
                       emoji: '📷',
                       titulo: 'Escanear mesa',
                       subtitulo: 'Ordena desde tu celular',
-                      onTap: () => _proximamente(context),
+                      onTap: () => context.push('/sesion/scan'),
                     ),
                   ),
                   const SizedBox(width: 15),
@@ -146,10 +155,111 @@ class HomeScreen extends ConsumerWidget {
           '${a.fecha} ${a.horaInicio}'.compareTo('${b.fecha} ${b.horaInicio}'));
     return candidatas.firstOrNull;
   }
+}
 
-  void _proximamente(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Próximamente'), duration: Duration(seconds: 2)),
+/// Banner "Estás en la Mesa X" (sesión QR activa) — acceso directo al menú
+/// de la mesa, a los pedidos y reflejo de la cuenta solicitada.
+class _SesionBanner extends StatelessWidget {
+  const _SesionBanner({required this.sesion});
+
+  final SesionMesa sesion;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFF6B35), Color(0xFFFF9B5A)],
+        ),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('🪑', style: TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Estás en la Mesa ${sesion.mesaNumero}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '📍 ${sesion.restauranteNombre}',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          if (sesion.solicitaCuenta) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Cuenta solicitada ✓',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: () => context.push('/mesa'),
+                    borderRadius: BorderRadius.circular(10),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Text(
+                        'Ver menú',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: GriColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Material(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: () => context.push('/mesa/pedidos'),
+                    borderRadius: BorderRadius.circular(10),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Text(
+                        'Mis pedidos',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

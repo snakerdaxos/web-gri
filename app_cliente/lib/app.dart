@@ -6,12 +6,15 @@ import 'core/theme.dart';
 import 'core/token_provider.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/register_screen.dart';
+import 'features/pedidos/menu_mesa_screen.dart';
+import 'features/pedidos/pedido_estado_screen.dart';
 import 'features/perfil/perfil_screen.dart';
 import 'features/restaurantes/home_screen.dart';
 import 'features/restaurantes/restaurante_detalle_screen.dart';
 import 'features/restaurantes/restaurantes_list_screen.dart';
 import 'features/reservas/mis_reservas_screen.dart';
 import 'features/reservas/reserva_wizard_screen.dart';
+import 'features/sesion_qr/scan_screen.dart';
 import 'features/shared/app_shell.dart';
 
 /// GoRouter con auth guard + navegación inferior de 4 tabs.
@@ -49,6 +52,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/register', builder: (_, _) => const RegisterScreen()),
 
       // Push fullscreen (sin bottom nav).
+      GoRoute(path: '/sesion/scan', builder: (_, _) => const ScanScreen()),
+      GoRoute(path: '/mesa', builder: (_, _) => const MenuMesaScreen()),
+      GoRoute(
+        path: '/mesa/pedidos',
+        builder: (_, _) => const PedidoEstadoScreen(),
+      ),
       GoRoute(
         path: '/restaurantes/:id',
         builder: (_, state) => RestauranteDetalleScreen(
