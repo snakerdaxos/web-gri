@@ -1,0 +1,47 @@
+name: gri_cliente
+description: "GRI App Cliente (Flutter, web-first en Chrome) — descubrimiento y reservas."
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State + DI (stack LOCKED — idéntico a panel_admin 04-02)
+  flutter_riverpod: '>=3.0.0 <4.0.0'
+  riverpod_annotation: '>=3.0.0 <5.0.0'
+
+  # HTTP + routing + storage + config
+  dio: ^5.11.0
+  go_router: ^17.5.0
+  flutter_secure_storage: ^11.0.0
+  flutter_dotenv: ^5.2.1
+  intl: ^0.19.0
+
+  # Modelos inmutables + JSON
+  freezed_annotation: '>=3.0.0 <4.0.0'
+  json_annotation: ^4.12.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+  build_runner: '>=2.4.0 <5.0.0'
+  riverpod_generator: '>=3.0.0 <5.0.0'
+  # 3.2.6-dev.1 genera `required final List<T>` inválido en modelos con List.
+  # Prerelease 4.0.0-dev.3 (único rango compatible con json_serializable
+  # 6.14.1 / analyzer >=10) — verificar codegen de List fields.
+  freezed: '4.0.0-dev.3'
+  json_serializable: '>=6.8.0 <7.0.0'
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/.env

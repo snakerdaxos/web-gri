@@ -1,0 +1,18 @@
+include: package:flutter_lints/flutter.yaml
+
+# Nota: riverpod_lint + custom_lint quedan FUERA — el pairing publicado de
+# custom_lint es incompatible con el riverpod_lint que aparea riverpod 3.3.x+
+# (misma decisión documentada en 04-02-SUMMARY.md).
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - web/**
+    - ios/**
+    - windows/**
+    - macos/**
+    - linux/**
+
+linter:
+  rules:
+    avoid_print: true
