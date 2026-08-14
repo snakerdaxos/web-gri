@@ -7,6 +7,7 @@ import '../models/reserva.dart';
 import '../models/reserva_create.dart';
 import '../models/restaurante.dart';
 import '../models/restaurante_detalle.dart';
+import '../models/sesion_mesa.dart';
 import '../models/token_pair.dart';
 import '../models/user.dart';
 import 'auth_storage.dart';
@@ -129,6 +130,42 @@ class ApiClient {
       },
     );
     return User.fromJson(r.data!);
+  }
+
+  // ── Sesión de mesa (Phase 6 — QR / cuenta) ─────────────────────────────
+
+  /// `POST /cliente/sesiones` — abre (o re-abre idempotente: 201 Y 200 son
+  /// éxito) la sesión de la mesa con ese código QR.
+  /// Errores esperados: 404 QR/restaurante · 409 mesa ocupada / limpieza /
+  /// usuario con sesión en otra mesa (detail del server describe el caso).
+  Future<SesionMesa> abrirSesion(String codigoQr) async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/cliente/sesiones',
+      data: {'codigo_qr': codigoQr},
+    );
+    return SesionMesa.fromJson(r.data!);
+  }
+
+  /// `GET /cliente/sesiones/actual` — la sesión activa del usuario, o null
+  /// si no tiene ninguna (404 → null, no error).
+  Future<SesionMesa?> getSesionActual() async {
+    try {
+      final r =
+          await _dio.get<Map<String, dynamic>>('/cliente/sesiones/actual');
+      return SesionMesa.fromJson(r.data!);
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// `POST /cliente/sesiones/actual/cuenta` — marca solicita_cuenta=true.
+  /// Idempotente server-side (doble tap seguro, PAGO-01).
+  Future<SesionMesa> pedirCuenta() async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/cliente/sesiones/actual/cuenta',
+    );
+    return SesionMesa.fromJson(r.data!);
   }
 }
 

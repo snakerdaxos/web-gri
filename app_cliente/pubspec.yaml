@@ -22,6 +22,10 @@ dependencies:
   flutter_dotenv: ^5.2.1
   intl: ^0.19.0
 
+  # QR scanner (Phase 6 — MESA-05). Web OK en localhost:5174 (secure
+  # context); el input manual GRI-MESA-XXX es vía de primera clase.
+  mobile_scanner: ^7.4.0
+
   # Modelos inmutables + JSON
   freezed_annotation: '>=3.0.0 <4.0.0'
   json_annotation: ^4.12.0
