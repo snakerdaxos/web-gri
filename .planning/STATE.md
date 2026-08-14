@@ -1,9 +1,9 @@
 ﻿---
-status: Phase 4 COMPLETA - Panel admin login + dashboard + mapa solo lectura entregado (PLAT-01, ADMN-01, ADMN-02). Siguiente: Fase 5 (App Cliente - Descubrimiento y Reservas)
-stopped_at: "Completed 04-02-PLAN.md (panel_admin Flutter Web: login + dashboard + sidebar + polling)"
-current_phase: 4
+status: Phase 5 EN PROGRESO - backend completo (05-01 core + 05-02 staff extensions, 105/105 tests); 05-03 app_cliente Flutter en progreso (agente paralelo)
+stopped_at: "Completed 05-02-PLAN.md (backend staff: GET /staff/reservas + POST /staff/mesas/{id}/estado)"
+current_phase: 5
 updated: 2026-08-14
-last_activity: 2026-08-14 - Plan 04-02 ejecutado completo (3 tasks, 5 commits); Fase 4 cerrada; proximo: planear Fase 5
+last_activity: 2026-08-14 - Plan 05-02 ejecutado completo (2 tasks TDD, 4 commits); RESV-05 + MESA-04 cerrados; suite 105/105
 ---
 
 # STATE
@@ -13,9 +13,23 @@ last_activity: 2026-08-14 - Plan 04-02 ejecutado completo (3 tasks, 5 commits); 
 See: .planning/PROJECT.md (updated 2026-08-13)
 
 **Core value:** Un cliente puede sentarse en una mesa, escanear su QR, pedir del menu y recibir su comida en tiempo real sin intermediarios.
-**Current focus:** Phase 4 COMPLETE - Panel Admin Solo Lectura (login staff + dashboard + mapa de mesas). Siguiente: Phase 5 (App Cliente - Descubrimiento y Reservas)
+**Current focus:** Phase 5 IN PROGRESS - App Cliente (Descubrimiento y Reservas). Backend completo (05-01 + 05-02, 105/105 tests); 05-03 (app_cliente Flutter) en ejecución paralela
 
 ## Recent Activity
+
+### 2026-08-14 — Plan 05-02 completo (Wave 2 backend staff extensions)
+- GET /staff/reservas?fecha= tenant-scoped via _resolve_rid (param ignorado staff; super_admin 400 sin param / 404 inválido); default hoy con func.curdate() DB-side (Pitfall 6); joins display Restaurante.nombre + Mesa.numero; incluye canceladas (estado discrimina)
+- POST /staff/mesas/{id}/estado (RESV-05 marcar + MESA-04): validar_transicion("mesa", ...) como ÚNICA fuente de verdad → TransicionInvalidaError → 409 en router; existence hiding cross-tenant (mesa ajena → 404 idéntico a inexistente); sin drift en rechazos
+- MesaEstadoUpdate schema (estado destino validado contra enum → 422 unknown)
+- Suite: 95 → 105 tests (4 staff reservas + 6 mesa estado), 0 regresiones, 2 runs consecutivos sin residuo
+- Commits: 34f6793 (RED reservas), b5e5948 (GREEN reservas), 0454d35 (RED mesa), da8ec8e (GREEN mesa)
+- Desviaciones: Rule 1 — gotcha identity map en tests (lección 05-01 "rollback+get" incompleta: solo refresca con tx activa; expire_all() es determinístico); restores siempre a disponible (invariant seed, auto-repara residuo)
+- REQUISITOS: RESV-05, MESA-04 marcados completos
+
+### 2026-08-14 — Plan 05-01 completo (Wave 1 backend core)
+- /public/* (restaurantes + detalle con menú, precio float) + /cliente/* (reservas FOR UPDATE + auto-confirm + cancel Pitfall 4 + perfil PATCH email immutable)
+- Migración 0003 UNIQUE (mesa_id, fecha, hora_inicio); HARD GATE concurrencia (10 POSTs → 1x201 + 9x409)
+- Suite: 70 → 95 tests. Commits: a3b853f, 9795b6a, c441b37
 
 ### 2026-08-14 — Plan 04-02 completo (Wave 2 panel Flutter Web)
 - panel_admin/ Flutter Web (package gri_panel_admin) con deps locked (riverpod 3.4.2, go_router 17.5.0, dio 5.11.0, secure_storage 11.0.0)
@@ -45,14 +59,15 @@ See: .planning/PROJECT.md (updated 2026-08-13)
 
 ## Progress
 
-Status: Phase 4 COMPLETE (2/2 planes); siguiente fase pendiente de planeación
+Status: Phase 5 IN PROGRESS (backend 2/2 planes completo; 05-03 app_cliente en progreso por agente paralelo)
 
 ### Phases
 - Phase 1: COMPLETE (verified passed)
 - Phase 2: COMPLETE (verified passed)
 - Phase 3: EXECUTED (verification pending)
 - Phase 4: COMPLETE - 04-01 (backend staff endpoints + CORS) + 04-02 (panel Flutter Web) ejecutados; PLAT-01, ADMN-01, ADMN-02 cerrados
-- Phase 5-9: Not started
+- Phase 5: IN PROGRESS - 05-01 (backend core) + 05-02 (backend staff) COMPLETOS (105/105 tests); 05-03 (app_cliente Flutter) en ejecución paralela
+- Phase 6-9: Not started
 
 ## Gotchas para futuras sesiones
 
@@ -61,6 +76,7 @@ Status: Phase 4 COMPLETE (2/2 planes); siguiente fase pendiente de planeación
 - build_runner: NO usar `--delete-conflicting-outputs` (removido); el runner nuevo maneja conflictos solo.
 - flutter_secure_storage 11.0 en Web = WebCrypto + LocalStorage (NO Keystore/Keychain); "obfuscado, no cifrado" — solo aceptable sobre HTTPS (T-04-05).
 - La BD dev acumula residuo GRI-TEST-* (mesas/pedidos borrador) porque test_domain_constraints commitea sin cleanup: NUNCA asertar counts absolutos sobre la BD compartida; usar subset seed (patron GRI-MESA-\d{3}), invariantes o DB cross-check.
+- Tests que leen efectos de commits del API tras commitear su propia sesión: `rollback + get` SOLO refresca si hay tx activa (gotcha identity map, expire_on_commit=False). Usar `db_session.expire_all()` + get — determinístico. Y restaurar SIEMPRE al estado invariant (disponible), no al estado de entrada (auto-repara residuo).
 - El contenedor api NO tiene volume mount: todo cambio de codigo/test requiere docker compose up -d --build api antes de pytest.
 - PowerShell 5.1 no tiene Get-Date -AsUTC; usar [DateTimeOffset]::UtcNow.
 - login() de conftest retorna (access, refresh) — desempaquetar al reves manda el refresh token y da 401 "Tipo de token incorrecto" (guard PITFALL 6).

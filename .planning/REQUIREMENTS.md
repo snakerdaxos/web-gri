@@ -1,4 +1,4 @@
-﻿# Requirements: GRI — Gestión y Reservas de Restaurantes
+# Requirements: GRI — Gestión y Reservas de Restaurantes
 
 **Defined:** 2026-08-13
 **Core Value:** Un cliente puede sentarse en una mesa, escanear su QR, pedir del menú y recibir su comida — con el pedido fluyendo en tiempo real hacia cocina — sin intermediarios.
@@ -35,7 +35,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **MESA-01**: Admin restaurante puede crear y editar mesas con número y capacidad
 - [x] **MESA-02**: Cada mesa tiene un código QR único que la identifica (formato GRI-MESA-XXX o URL)
 - [ ] **MESA-03**: Admin restaurante puede ver e imprimir el QR de una mesa
-- [ ] **MESA-04**: Mesa tiene 4 estados: disponible, reservada, ocupada, limpieza — con transiciones válidas controladas
+- [x] **MESA-04**: Mesa tiene 4 estados: disponible, reservada, ocupada, limpieza — con transiciones válidas controladas
 - [ ] **MESA-05**: Cliente puede escanear el QR de una mesa desde la app con la cámara del teléfono
 - [ ] **MESA-06**: Al escanear un QR válido, el cliente queda vinculado a la mesa (sesión de mesa) y ve el menú
 
@@ -45,7 +45,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **RESV-02**: El sistema valida disponibilidad real (capacidad de mesa y solapamiento de reservas) sin sobre-reservas por concurrencia
 - [ ] **RESV-03**: Cliente puede consultar sus reservas (próximas y pasadas) y su estado (confirmada, pendiente, cancelada)
 - [ ] **RESV-04**: Cliente puede cancelar una reserva futura
-- [ ] **RESV-05**: Admin restaurante ve las reservas del día y puede marcar mesa como ocupada al llegar el cliente (reserva → mesa ocupada)
+- [x] **RESV-05**: Admin restaurante ve las reservas del día y puede marcar mesa como ocupada al llegar el cliente (reserva → mesa ocupada)
 
 ### Pedidos
 
@@ -152,14 +152,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MESA-01 | Fase 8 | Pending |
 | MESA-02 | Fase 3 | Done |
 | MESA-03 | Fase 8 | Pending |
-| MESA-04 | Fase 5 | Pending |
+| MESA-04 | Fase 5 | Complete (05-02) |
 | MESA-05 | Fase 6 | Pending |
 | MESA-06 | Fase 6 | Pending |
 | RESV-01 | Fase 5 | Pending |
 | RESV-02 | Fase 5 | Pending |
 | RESV-03 | Fase 5 | Pending |
 | RESV-04 | Fase 5 | Pending |
-| RESV-05 | Fase 5 | Pending |
+| RESV-05 | Fase 5 | Complete (05-02) |
 | PEDI-01 | Fase 6 | Pending |
 | PEDI-02 | Fase 6 | Pending |
 | PEDI-03 | Fase 6 | Pending |

@@ -90,8 +90,8 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃ³vil 
   5. El admin ve las reservas del dÃ­a en el panel y puede marcar la mesa como ocupada al llegar el cliente; los estados de mesa (disponible/reservada/ocupada/limpieza) solo cambian por transiciones vÃ¡lidas y las invÃ¡lidas son rechazadas
 **Notas**: La protecciÃ³n anti concurrencia vive en la BD (UNIQUE mesa/fecha/slot + SELECT ... FOR UPDATE) segÃºn PITFALLS del research. Decisiones cerradas: auto-confirm (reservas nacen confirmadas, sin aprobaciÃ³n manual), slots horarios de 60min (:00), asignaciÃ³n de mesa automÃ¡tica (server elige), cancelaciÃ³n reverte mesa solo si estaba reservada. Web-first dev en Chrome :5174 (sin Android SDK).
 **Plans**: 3 plans
-- [ ] 05-01-PLAN.md â€” Vertical Slice Backend Core: migraciÃ³n 0003 (UNIQUE slot) + /public/* (descubrimiento) + /cliente/* (perfil PATCH + reservas create/list/cancel con FOR UPDATE) + HARD GATE test_reserva_concurrency.py (AUTH-05, REST-01, REST-02, RESV-01, RESV-02, RESV-03, RESV-04)
-- [ ] 05-02-PLAN.md â€” Vertical Slice Backend Staff: EXTENDER /staff/reservas + POST /staff/mesas/{id}/estado (MESA_TRANSITIONS vÃ­a validar_transicion) + tests tenant isolation (RESV-05, MESA-04)
+- [x] 05-01-PLAN.md â€” Vertical Slice Backend Core: migraciÃ³n 0003 (UNIQUE slot) + /public/* (descubrimiento) + /cliente/* (perfil PATCH + reservas create/list/cancel con FOR UPDATE) + HARD GATE test_reserva_concurrency.py (AUTH-05, REST-01, REST-02, RESV-01, RESV-02, RESV-03, RESV-04) Ã¢ DONE 2026-08-14 (suite 95/95)
+- [x] 05-02-PLAN.md â€” Vertical Slice Backend Staff: EXTENDER /staff/reservas + POST /staff/mesas/{id}/estado (MESA_TRANSITIONS vÃ­a validar_transicion) + tests tenant isolation (RESV-05, MESA-04) Ã¢ DONE 2026-08-14 (suite 105/105)
 - [ ] 05-03-PLAN.md â€” Vertical Slice Flutter app_cliente: scaffold + copia lib/core de panel_admin + 4 tabs StatefulShellRoute.indexedStack + features auth/restaurantes/reservas/perfil + widget tests (AUTH-05, REST-01, REST-02, RESV-01, RESV-03 UI)
 
 ### Phase 6: App Cliente â€” Pedido por QR (REST) y Vista Cocina
