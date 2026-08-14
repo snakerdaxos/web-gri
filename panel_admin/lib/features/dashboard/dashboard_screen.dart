@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../mesas/mesa_actions_sheet.dart';
 import 'mesas_provider.dart';
 import 'stats_provider.dart';
 import 'widgets/mesa_legend.dart';
@@ -177,7 +178,19 @@ class DashboardScreen extends ConsumerWidget {
                           // MesaTile minHeight 130 + padding interno.
                           childAspectRatio: 1.1,
                           children: [
-                            for (final m in mesas) MesaTile(mesa: m),
+                            // Mapa operacional (ADMN-04): tap → sheet con
+                            // SOLO transiciones válidas + Ver QR (la
+                            // edición vive en /mesas → showEdit false).
+                            for (final m in mesas)
+                              MesaTile(
+                                mesa: m,
+                                onTap: () => showMesaActionsSheet(
+                                  context,
+                                  ref,
+                                  m,
+                                  showEdit: false,
+                                ),
+                              ),
                           ],
                         );
                       },
