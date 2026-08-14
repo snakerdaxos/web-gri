@@ -16,7 +16,7 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃ³vil 
 - [x] **Phase 2: AutenticaciÃ³n, Roles y Multi-tenant** - JWT multi-rol con aislamiento por restaurante; el super-admin crea restaurantes y staff (completed 2026-08-13)
 - [x] **Phase 3: Modelo de Dominio y Seed Demo** - Todas las tablas de negocio, state machines y restaurante demo sembrado
 - [x] **Phase 4: Panel Admin â€” Login, Dashboard y Mapa (Solo Lectura)** - El staff inicia sesiÃ³n y ve estadÃ­sticas y mapa de mesas con los colores del mockup
-- [ ] **Phase 5: App Cliente â€” Descubrimiento y Reservas** - El cliente descubre restaurantes y completa el ciclo de reserva de principio a fin
+- [x] **Phase 5: App Cliente â€” Descubrimiento y Reservas** - El cliente descubre restaurantes y completa el ciclo de reserva de principio a fin
 - [ ] **Phase 6: App Cliente â€” Pedido por QR (REST) y Vista Cocina** - El core value end-to-end: escanear, pedir, seguir el estado y pedir la cuenta (sin tiempo real aÃºn)
 - [ ] **Phase 7: Tiempo Real â€” WebSockets** - Pedidos y mesas en vivo en cocina, mesero, cliente y panel sin refrescar
 - [ ] **Phase 8: Panel Admin â€” GestiÃ³n Completa y Reportes** - CRUD de mesas/menÃº/clientes, reportes de ventas y gestiÃ³n de plataforma
@@ -166,4 +166,5 @@ Phases execute in numeric order: 1 â†’ 2 â†’ 3 â†’ 4 â†’ 5 �
 ---
 *Coverage: 50/50 requisitos v1 mapeados (PLAT 5, AUTH 5, REST 2, MENU 2, MESA 6, RESV 5, PEDI 6, RT 3, PAGO 4, CALI 2, ADMN 5, REPO 2, INFR 3). Nota: REQUIREMENTS.md decÃ­a "47 total" por error aritmÃ©tico; el conteo real de IDs es 50.*
 *Created: 2026-08-13*
+
 
