@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import 'mesas_provider.dart';
@@ -24,8 +25,13 @@ class DashboardScreen extends ConsumerWidget {
     final statsAsync = ref.watch(statsProvider);
     final mesasAsync = ref.watch(mesasProvider);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
+    // Material ancestor: en producción lo provee el Scaffold del AppShell,
+    // pero la pantalla debe ser fiel también standalone (tests/pumps
+    // directos) — el InkWell de los MesaTile (08-03) lo exige.
+    return Material(
+      color: GriColors.background,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
         // Responsive crossAxisCount del grid de stat cards (4/2/1).
         final statCrossAxis = constraints.maxWidth >= 1100
             ? 4
@@ -121,9 +127,10 @@ class DashboardScreen extends ConsumerWidget {
                             color: GriColors.text,
                           ),
                         ),
-                        // Placeholder visual del mockup — Phase 8 lo habilita.
+                        // El alta vive en la pantalla de gestión (08-03):
+                        // desde el mapa solo se navega a /mesas.
                         ElevatedButton.icon(
-                          onPressed: null,
+                          onPressed: () => context.go('/mesas'),
                           icon: const Text('+'),
                           label: const Text('Nueva mesa'),
                           style: ElevatedButton.styleFrom(
@@ -179,10 +186,11 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
             ],
-          ),
-        );
-      },
-    );
+          ), // Column (mapa de mesas)
+        ); // SingleChildScrollView
+      }, // builder
+      ), // LayoutBuilder (child: de Material)
+    ); // Material
   }
 }
 

@@ -82,6 +82,64 @@ class ApiClient {
     ];
   }
 
+  /// `POST /staff/mesas` — crea una mesa con QR determinista autogenerado
+  /// por el server (`GRI-MESA-R{rid}-{numero:03d}`, 08-02). 409 si ya existe
+  /// una mesa con ese número en el tenant. [restauranteId] SOLO lo manda el
+  /// caller para super_admin (patrón [getMesas]).
+  Future<Mesa> createMesa(
+    int numero,
+    int capacidad, {
+    int? restauranteId,
+  }) async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/staff/mesas',
+      data: {'numero': numero, 'capacidad': capacidad},
+      queryParameters: restauranteId == null
+          ? null
+          : {'restaurante_id': restauranteId},
+    );
+    return Mesa.fromJson(r.data!);
+  }
+
+  /// `PATCH /staff/mesas/{id}` — update parcial. Cambiar `numero` REGENERA
+  /// el QR en el server (el impreso anterior queda obsoleto — la UI avisa
+  /// antes de guardar). Solo los campos no-null viajan en el body.
+  Future<Mesa> updateMesa(
+    int mesaId, {
+    int? numero,
+    int? capacidad,
+    int? restauranteId,
+  }) async {
+    final r = await _dio.patch<Map<String, dynamic>>(
+      '/staff/mesas/$mesaId',
+      // Null-aware elements: claves omitidas si el valor es null (PATCH
+      // parcial — solo los campos modificados viajan).
+      data: {'numero': ?numero, 'capacidad': ?capacidad},
+      queryParameters: restauranteId == null
+          ? null
+          : {'restaurante_id': restauranteId},
+    );
+    return Mesa.fromJson(r.data!);
+  }
+
+  /// `POST /staff/mesas/{id}/estado` — transición de estado de la mesa.
+  /// El server es la autoridad: 409 si la transición no es válida (carrera
+  /// entre dos staff), 404 cross-tenant (existence hiding).
+  Future<Mesa> setMesaEstado(
+    int mesaId,
+    String estado, {
+    int? restauranteId,
+  }) async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/staff/mesas/$mesaId/estado',
+      data: {'estado': estado},
+      queryParameters: restauranteId == null
+          ? null
+          : {'restaurante_id': restauranteId},
+    );
+    return Mesa.fromJson(r.data!);
+  }
+
   Future<DashboardStats> getStats({int? restauranteId}) async {
     final r = await _dio.get<Map<String, dynamic>>(
       '/staff/stats',

@@ -10,12 +10,15 @@ import '../../../models/mesa.dart';
 /// de `theme.dart`), texto centrado con número grande + label de estado +
 /// capacidad.
 ///
-/// El tile es no-interactivo en Phase 4 (onTap real llega en Phase 8 con
-/// mutation endpoints). El cursor click se deja para indicar affordance.
+/// Tap del tile (08-03): abre el actions sheet de la mesa (transiciones
+/// de estado + QR). null = no interactivo (mantiene el comportamiento
+/// pre-08-03); el InkWell es aditivo — los tests de color no cambian.
 class MesaTile extends StatelessWidget {
-  const MesaTile({super.key, required this.mesa});
+  const MesaTile({super.key, required this.mesa, this.onTap});
 
   final Mesa mesa;
+
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +27,10 @@ class MesaTile extends StatelessWidget {
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: Container(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Container(
         key: ValueKey('mesa-tile-${mesa.numero}'),
         constraints: const BoxConstraints(minHeight: 130),
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
@@ -60,6 +66,7 @@ class MesaTile extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );
