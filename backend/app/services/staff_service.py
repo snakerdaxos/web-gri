@@ -13,6 +13,7 @@ cross-tenant reads structurally impossible).
 """
 
 import datetime as dt
+from collections import defaultdict
 from decimal import Decimal
 
 from fastapi import HTTPException, status
@@ -25,10 +26,12 @@ from app.core.state_machines import validar_transicion
 from app.deps.auth import TenantScope
 from app.models.menu import Categoria, Producto
 from app.models.mesa import EstadoMesa, Mesa
-from app.models.pedido import EstadoPedido, Pedido
+from app.models.pedido import EstadoPedido, Pedido, PedidoItem
 from app.models.reserva import EstadoReserva, Reserva
 from app.models.restaurante import Restaurante
 from app.models.sesion_mesa import EstadoSesion, SesionMesa
+from app.models.usuario import Usuario
+from app.schemas.cliente import ClienteResumen
 from app.schemas.dashboard import DashboardStats
 from app.schemas.menu import (
     CategoriaCreate,
@@ -39,6 +42,7 @@ from app.schemas.menu import (
     ProductoUpdate,
 )
 from app.schemas.mesa import MesaEstadoUpdate
+from app.schemas.pedido import PedidoItemRead, PedidoStaffRead
 from app.schemas.reserva import ReservaRead
 
 # The "active" pedido states for the dashboard card: everything after envio
@@ -456,3 +460,145 @@ async def update_producto(
     await session.commit()
     await session.refresh(prod)
     return prod
+
+
+# --- Phase 8 (ADMN-03): clientes del restaurante --------------------------------
+#
+# "Cliente del restaurante" = usuario CON pedidos en el tenant (JOIN
+# pedido→usuario, decisión v1 del research: un usuario que solo reservó NO
+# aparece). La tabla usuario es GLOBAL — el único acceso seguro es a través
+# del JOIN filtrado por ``Pedido.restaurant_id == rid``; JAMÁS se expone la
+# tabla global de usuarios.
+
+
+async def list_clientes(
+    session: AsyncSession, scope: TenantScope, restaurante_id: int | None
+) -> list[ClienteResumen]:
+    """ADMN-03: clientes del tenant con num_pedidos, total_gastado y
+    ultimo_pedido_at (una sola query GROUP BY), orden total_gastado DESC.
+
+    count/SUM sobre TODOS los pedidos del tenant, CUALQUIER estado (incluye
+    rechazados — decisión documentada: el listado describe el comportamiento
+    del cliente, no la facturación; los reportes de ventas REPO-01 filtran
+    por estado en su propio endpoint).
+    """
+    rid = await _resolve_rid(session, scope, restaurante_id)
+    stmt = (
+        select(
+            Usuario.id,
+            Usuario.nombre,
+            Usuario.email,
+            func.count(Pedido.id).label("num_pedidos"),
+            func.sum(Pedido.total).label("total_gastado"),
+            func.max(Pedido.created_at).label("ultimo_pedido_at"),
+        )
+        .join(Pedido, Pedido.usuario_id == Usuario.id)
+        .where(Pedido.restaurant_id == rid)
+        .group_by(Usuario.id, Usuario.nombre, Usuario.email)
+        .order_by(func.sum(Pedido.total).desc())
+    )
+    rows = (await session.execute(stmt)).all()
+    return [
+        ClienteResumen(
+            usuario_id=usuario_id,
+            nombre=nombre,
+            email=email,
+            num_pedidos=num_pedidos,
+            total_gastado=total_gastado,  # Decimal → float en el serializer
+            ultimo_pedido_at=ultimo_pedido_at,
+        )
+        for usuario_id, nombre, email, num_pedidos, total_gastado, ultimo_pedido_at in rows
+    ]
+
+
+async def get_cliente_historial(
+    session: AsyncSession,
+    scope: TenantScope,
+    usuario_id: int,
+    restaurante_id: int | None,
+) -> list[PedidoStaffRead]:
+    """ADMN-03: pedidos del usuario EN el tenant (todos los estados),
+    newest first, reusando PedidoStaffRead (F6) sin modificarlo — items con
+    producto.nombre, mesa_numero y usuario_nombre vía joins en batch.
+
+    Usuario sin pedidos en el tenant → 404 "Cliente no encontrado"
+    (existence hiding RELACIONAL: la relación usuario↔tenant no existe,
+    aunque el usuario exista en la tabla global).
+    """
+    rid = await _resolve_rid(session, scope, restaurante_id)
+    pedidos = (
+        await session.execute(
+            select(Pedido)
+            .where(
+                Pedido.restaurant_id == rid, Pedido.usuario_id == usuario_id
+            )
+            .order_by(Pedido.created_at.desc(), Pedido.id.desc())
+        )
+    ).scalars().all()
+    if not pedidos:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Cliente no encontrado")
+
+    # --- joins display en batch (patrón cola_activos — sin N+1) ---
+    item_rows = (
+        await session.execute(
+            select(PedidoItem, Producto.nombre)
+            .join(Producto, Producto.id == PedidoItem.producto_id)
+            .where(PedidoItem.pedido_id.in_([p.id for p in pedidos]))
+            .order_by(PedidoItem.id)
+        )
+    ).all()
+    items_by_pedido: dict[int, list[PedidoItemRead]] = defaultdict(list)
+    for item, nombre in item_rows:
+        items_by_pedido[item.pedido_id].append(
+            PedidoItemRead(
+                producto_id=item.producto_id,
+                nombre=nombre,
+                cantidad=item.cantidad,
+                precio_unitario=item.precio_unitario,
+                subtotal=item.subtotal,
+            )
+        )
+
+    mesas = (
+        await session.execute(
+            select(Mesa).where(Mesa.id.in_({p.mesa_id for p in pedidos}))
+        )
+    ).scalars().all()
+    mesa_by_id = {m.id: m for m in mesas}
+
+    usuario = await session.get(Usuario, usuario_id)
+
+    sesion_ids = {p.sesion_id for p in pedidos if p.sesion_id is not None}
+    sesiones: dict[int, SesionMesa] = {}
+    if sesion_ids:
+        rows = (
+            await session.execute(
+                select(SesionMesa).where(SesionMesa.id.in_(sesion_ids))
+            )
+        ).scalars().all()
+        sesiones = {s.id: s for s in rows}
+
+    return [
+        PedidoStaffRead(
+            id=p.id,
+            sesion_id=p.sesion_id,
+            mesa_numero=mesa_by_id[p.mesa_id].numero if p.mesa_id in mesa_by_id else 0,
+            estado=p.estado,
+            total=p.total,
+            notas=p.notas,
+            created_at=p.created_at,
+            items=items_by_pedido[p.id],
+            usuario_nombre=usuario.nombre if usuario else "",
+            solicita_cuenta=(
+                bool(sesiones[p.sesion_id].solicita_cuenta)
+                if p.sesion_id in sesiones
+                else False
+            ),
+            solicitada_en=(
+                sesiones[p.sesion_id].solicitada_en
+                if p.sesion_id in sesiones
+                else None
+            ),
+        )
+        for p in pedidos
+    ]

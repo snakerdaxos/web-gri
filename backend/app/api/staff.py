@@ -41,6 +41,7 @@ from app.deps.auth import (
     require_roles,
 )
 from app.models.usuario import RolUsuario
+from app.schemas.cliente import ClienteResumen
 from app.schemas.dashboard import DashboardStats
 from app.schemas.menu import (
     CategoriaCreate,
@@ -338,4 +339,53 @@ async def update_producto(
     """
     return await staff_service.update_producto(
         session, scope, producto_id, body, restaurante_id
+    )
+
+
+# --- Phase 8 (ADMN-03): clientes del restaurante --------------------------------
+
+
+@router.get("/clientes", response_model=list[ClienteResumen])
+async def list_clientes(
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff (el "
+        "tenant sale del token).",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+):
+    """ADMN-03 (lista): clientes del tenant = usuarios CON pedidos ahí
+    (JOIN pedido→usuario; quien solo reservó NO aparece — decisión v1).
+    num_pedidos + total_gastado (JSON number) + ultimo_pedido_at, orden por
+    total_gastado DESC. count/SUM sobre TODOS los estados.
+
+    Read abierto a todo el staff. 400 super_admin sin ?restaurante_id= /
+    404 restaurante desconocido / 403 cliente.
+    """
+    return await staff_service.list_clientes(session, scope, restaurante_id)
+
+
+@router.get(
+    "/clientes/{usuario_id}/historial", response_model=list[PedidoStaffRead]
+)
+async def get_cliente_historial(
+    usuario_id: int,
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff.",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+):
+    """ADMN-03 (historial): pedidos del usuario EN el tenant (todos los
+    estados, newest first) reusando el schema F6 — items con nombre,
+    mesa_numero, usuario_nombre.
+
+    - 404 si el usuario no tiene pedidos en el tenant (existence hiding
+      RELACIONAL — no revela que el usuario_id existe globalmente).
+    - 400 super_admin sin ?restaurante_id= / 403 cliente.
+    """
+    return await staff_service.get_cliente_historial(
+        session, scope, usuario_id, restaurante_id
     )
