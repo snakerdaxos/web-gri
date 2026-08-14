@@ -152,13 +152,14 @@ class _Sidebar extends StatelessWidget {
 
   /// Ruta navegable por índice (null = Phase 8). '📋 Pedidos' abre la vista
   /// cocina (ADMN-05); '🪑 Mesas' la gestión de mesas + QR (08-03, MESA-01);
-  /// '⚙️ Configuración' el hub Menú/Restaurante (08-04, MENU-01/02).
+  /// '👥 Clientes' la tabla + historial (08-04, ADMN-03); '⚙️ Configuración'
+  /// el hub Menú/Restaurante (08-04, MENU-01/02).
   static const _routes = <String?>[
     '/',
     '/mesas',
     '/cocina',
     null,
-    null,
+    '/clientes',
     null,
     '/configuracion',
   ];
