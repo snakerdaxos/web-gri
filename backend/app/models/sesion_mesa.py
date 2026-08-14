@@ -17,6 +17,7 @@ import enum
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Computed,
     DateTime,
     Enum,
@@ -25,6 +26,7 @@ from sqlalchemy import (
     Integer,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -41,6 +43,12 @@ class SesionMesa(Base):
     __tablename__ = "sesion_mesa"
     __table_args__ = (
         UniqueConstraint("mesa_id", "activo_flag", name="uq_sesion_mesa_activa"),
+        # Phase 6 (migración 0004): una sesión activa por USUARIO — misma
+        # técnica de columna computada NULL-able. Un cliente no puede tener
+        # sesión abierta en dos mesas a la vez.
+        UniqueConstraint(
+            "usuario_id", "activo_flag", name="uq_sesion_mesa_usuario_activa"
+        ),
         Index("ix_sesion_mesa_usuario", "usuario_id"),
     )
 
@@ -63,6 +71,14 @@ class SesionMesa(Base):
         DateTime(timezone=False), server_default=func.now(), nullable=False
     )
     cerrada_en: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
+    )
+    # Phase 6 (PAGO-01): el cliente pidió la cuenta. Idempotente en el
+    # service (solicitar_cuenta NO re-escribe solicitada_en si ya es True).
+    solicita_cuenta: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("0")
+    )
+    solicitada_en: Mapped[dt.datetime | None] = mapped_column(
         DateTime(timezone=False), nullable=True
     )
     # Generated column: 1 while session is open, NULL once closed.

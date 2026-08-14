@@ -56,6 +56,10 @@ class Pedido(Base):
         Index("ix_pedido_restaurante_estado", "restaurant_id", "estado"),
         Index("ix_pedido_mesa", "mesa_id"),
         Index("ix_pedido_usuario", "usuario_id"),
+        # Phase 6 (migración 0004): relación explícita pedido↔sesión — el
+        # service SIEMPRE la escribe (inferir por mesa+usuario+timestamps
+        # sería frágil). Nullable para no romper filas previas.
+        Index("ix_pedido_sesion", "sesion_id"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -67,6 +71,9 @@ class Pedido(Base):
     )
     usuario_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("usuario.id"), nullable=False
+    )
+    sesion_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("sesion_mesa.id"), nullable=True
     )
     estado: Mapped[EstadoPedido] = mapped_column(
         Enum(EstadoPedido, name="estado_pedido"),

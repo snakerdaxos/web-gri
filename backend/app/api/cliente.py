@@ -9,7 +9,7 @@ Existence hiding (RESV-04): cancelar reserva ajena → 404 (no 403, no 200).
 TransicionInvalidaError → 409 (estado terminal o transición inválida).
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
@@ -19,7 +19,8 @@ from app.models.usuario import RolUsuario
 from app.schemas.auth import UserRead
 from app.schemas.perfil import PerfilUpdate
 from app.schemas.reserva import ReservaCreate, ReservaRead
-from app.services import cliente_service, reserva_service
+from app.schemas.sesion import SesionCreate, SesionRead
+from app.services import cliente_service, reserva_service, sesion_service
 
 router = APIRouter(prefix="/cliente", tags=["cliente"])
 
@@ -93,3 +94,51 @@ async def cancelar_reserva(
         raise HTTPException(
             status.HTTP_409_CONFLICT, "La reserva no puede cancelarse"
         )
+
+
+# --- MESA-05/06: sesión de mesa por QR --------------------------------------
+
+
+@router.post("/sesiones", response_model=SesionRead)
+async def abrir_sesion(
+    response: Response,
+    body: SesionCreate,
+    user: CurrentUser = Depends(require_roles(RolUsuario.cliente)),
+    session: AsyncSession = Depends(get_session),
+):
+    """MESA-05/06: abrir la sesión de la mesa escaneada (o re-escanear la
+    propia). La mesa pasa a ocupada AL ABRIR (decisión locked).
+
+    - 201 SesionRead (sesión nueva; mesa disponible/reservada → ocupada).
+    - 200 SesionRead (idempotencia: re-escaneo de MI sesión activa).
+    - 404 QR inexistente / restaurante inactivo.
+    - 409 sesión ajena en la mesa / ya tengo sesión activa en otra mesa /
+      mesa en limpieza (TransicionInvalidaError → aquí).
+    """
+    try:
+        read, created = await sesion_service.abrir_sesion(
+            session, user.id, body.codigo_qr
+        )
+    except TransicionInvalidaError as exc:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"La mesa no puede ocuparse en su estado actual: {exc}",
+        ) from exc
+    response.status_code = (
+        status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    )
+    return read
+
+
+@router.get("/sesiones/actual", response_model=SesionRead)
+async def get_sesion_actual(
+    user: CurrentUser = Depends(require_roles(RolUsuario.cliente)),
+    session: AsyncSession = Depends(get_session),
+):
+    """La sesión activa del cliente (joins display) o 404 si no tiene."""
+    read = await sesion_service.sesion_actual(session, user.id)
+    if read is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, "No tienes una sesión activa"
+        )
+    return read
