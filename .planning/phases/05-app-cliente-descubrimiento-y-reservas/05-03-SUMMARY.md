@@ -47,7 +47,7 @@ decisions:
   - "Wizard sin preselect (FAB +): step 0 'Restaurante' extra con dropdown de /public/restaurantes"
   - "Logout en Perfil (Rule 2): sin él no había forma de cerrar sesión en la app"
 metrics:
-  duration: "~50 min"
+  duration: "~23 min"
   tasks: 3
   tests-new: 19 (5 auth + 3 restaurantes + 5 wizard + 3 mis_reservas + 3 perfil)
   completed: 2026-08-14
