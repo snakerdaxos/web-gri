@@ -43,6 +43,7 @@ from app.schemas.menu import (
 )
 from app.schemas.mesa import MesaCreate, MesaEstadoUpdate, MesaUpdate
 from app.schemas.pedido import PedidoItemRead, PedidoStaffRead
+from app.schemas.reporte import TopPlato, VentaDia, VentasReporte
 from app.schemas.reserva import ReservaRead
 
 # The "active" pedido states for the dashboard card: everything after envio
@@ -726,4 +727,151 @@ async def get_cliente_historial(
             ),
         )
         for p in pedidos
+    ]
+
+
+# --- Phase 8 (REPO-01/02): reportes de ventas + top platos ----------------------
+#
+# Decisión LOCKED (threat model): venta = pedido en estado ``servido`` O
+# ``pagado``. PROHIBIDO filtrar solo por pagado — en v1 casi ningún pedido
+# llega a pagado (el pago online entra en F9) y los reportes saldrían
+# vacíos. Todas las agregaciones son SQL (GROUP BY / SUM), JAMÁS Python;
+# SIEMPRE filtradas por el rid resuelto (Pedido.restaurant_id /
+# PedidoItem.restaurant_id denormalizado — un staff jamás ve ventas ajenas).
+
+# Los estados que cuentan como "venta" para los reportes (ver nota arriba).
+_VENTAS_ESTADOS = [EstadoPedido.servido, EstadoPedido.pagado]
+
+
+async def _rango_reportes(
+    session: AsyncSession, desde: dt.date | None, hasta: dt.date | None
+) -> tuple[dt.datetime, dt.datetime, dt.date, dt.date]:
+    """Normaliza el rango del reporte → (desde_dt, hasta_dt_exclusive,
+    desde, hasta).
+
+    - Defaults DB-side (Pitfall 3): "hoy" sale de ``func.curdate()`` — la
+      misma BD que guardó los rows computa la fecha (America/Bogotá);
+      NUNCA ``date.today()`` Python (el TZ del contenedor puede divergir).
+      Default desde = hoy-6 (semana móvil), hasta = hoy.
+    - desde > hasta → 422 (rango invertido es error del caller, no vacío).
+    - Boundaries INCLUSIVOS: [desde 00:00:00, hasta+1d 00:00:00) — un
+      pedido de las 23:59 del hasta cuenta, uno de las 00:00 del día
+      siguiente no.
+    """
+    if desde is None or hasta is None:
+        hoy = (await session.execute(select(func.curdate()))).scalar_one()
+        if hasta is None:
+            hasta = hoy
+        if desde is None:
+            desde = hoy - dt.timedelta(days=6)
+    if desde > hasta:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "desde no puede ser mayor que hasta",
+        )
+    desde_dt = dt.datetime.combine(desde, dt.time.min)
+    hasta_dt = dt.datetime.combine(hasta + dt.timedelta(days=1), dt.time.min)
+    return desde_dt, hasta_dt, desde, hasta
+
+
+async def get_reporte_ventas(
+    session: AsyncSession,
+    scope: TenantScope,
+    restaurante_id: int | None,
+    desde: dt.date | None,
+    hasta: dt.date | None,
+) -> VentasReporte:
+    """REPO-01: ventas por día del tenant en [desde, hasta] — total,
+    num_pedidos y desglose ``por_dia`` (agrupación ``func.date(created_at)``
+    DB-side, orden por fecha). venta = servido|pagado (ver _VENTAS_ESTADOS).
+
+    Los totales generales son la suma de los rows del GROUP BY (0.0 / 0 si
+    el rango no tiene ventas) — una sola query, cero procesamiento Python
+    de los pedidos individuales.
+    """
+    rid = await _resolve_rid(session, scope, restaurante_id)
+    desde_dt, hasta_dt, desde, hasta = await _rango_reportes(session, desde, hasta)
+    rows = (
+        await session.execute(
+            select(
+                func.date(Pedido.created_at).label("fecha"),
+                func.count().label("num_pedidos"),
+                func.sum(Pedido.total).label("total"),
+            )
+            .where(
+                Pedido.restaurant_id == rid,
+                Pedido.estado.in_(_VENTAS_ESTADOS),
+                Pedido.created_at >= desde_dt,
+                Pedido.created_at < hasta_dt,
+            )
+            .group_by("fecha")
+            .order_by("fecha")
+        )
+    ).all()
+    por_dia = [
+        VentaDia(fecha=fecha, total=total or 0, num_pedidos=num_pedidos)
+        for fecha, num_pedidos, total in rows
+    ]
+    return VentasReporte(
+        desde=desde,
+        hasta=hasta,
+        # dia.total ya es float (Pydantic coercea el Decimal del SUM al
+        # validar VentaDia) — sumar desde 0.0, no Decimal (TypeError mixto).
+        total=sum((dia.total for dia in por_dia), start=0.0),
+        num_pedidos=sum(dia.num_pedidos for dia in por_dia),
+        por_dia=por_dia,
+    )
+
+
+async def get_top_platos(
+    session: AsyncSession,
+    scope: TenantScope,
+    restaurante_id: int | None,
+    desde: dt.date | None,
+    hasta: dt.date | None,
+    limit: int,
+) -> list[TopPlato]:
+    """REPO-02: top ``limit`` platos por cantidad vendida en el rango.
+
+    Agregación sobre ``PedidoItem`` (restaurant_id denormalizado → index
+    ix_pedido_item_restaurante_producto) con JOIN a ``Pedido`` SOLO para el
+    filtro de estado (venta = servido|pagado) y a ``Producto`` para el
+    nombre. SUM(cantidad) DESC.
+
+    Nota (Open Question 3 del research, documentada): ``nombre`` es el
+    nombre ACTUAL del producto (pedido_item no tiene snapshot de nombre);
+    los MONTOS sí son exactos porque viajan por el snapshot de
+    precio_unitario/subtotal del item.
+    """
+    rid = await _resolve_rid(session, scope, restaurante_id)
+    desde_dt, hasta_dt, _desde, _hasta = await _rango_reportes(session, desde, hasta)
+    rows = (
+        await session.execute(
+            select(
+                PedidoItem.producto_id,
+                Producto.nombre,
+                func.sum(PedidoItem.cantidad).label("cantidad"),
+                func.sum(PedidoItem.subtotal).label("total"),
+            )
+            .join(Pedido, Pedido.id == PedidoItem.pedido_id)
+            .join(Producto, Producto.id == PedidoItem.producto_id)
+            .where(
+                PedidoItem.restaurant_id == rid,
+                Pedido.estado.in_(_VENTAS_ESTADOS),
+                Pedido.created_at >= desde_dt,
+                Pedido.created_at < hasta_dt,
+            )
+            .group_by(PedidoItem.producto_id, Producto.nombre)
+            .order_by(func.sum(PedidoItem.cantidad).desc())
+            .limit(limit)
+        )
+    ).all()
+    return [
+        TopPlato(
+            producto_id=producto_id,
+            nombre=nombre,
+            cantidad=cantidad,
+            total=total or 0,
+        )
+        for producto_id, nombre, cantidad, total in rows
     ]

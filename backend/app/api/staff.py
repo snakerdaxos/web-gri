@@ -60,6 +60,7 @@ from app.schemas.mesa import (
     MesaUpdate,
 )
 from app.schemas.pedido import PedidoEstadoUpdate, PedidoStaffRead
+from app.schemas.reporte import TopPlato, VentasReporte
 from app.schemas.reserva import ReservaRead
 from app.services import pedido_service, staff_service
 
@@ -446,4 +447,65 @@ async def get_cliente_historial(
     """
     return await staff_service.get_cliente_historial(
         session, scope, usuario_id, restaurante_id
+    )
+
+
+# --- Phase 8 (REPO-01/02): reportes de ventas + top platos -----------------------
+
+
+@router.get("/reportes/ventas", response_model=VentasReporte)
+async def get_reporte_ventas(
+    desde: dt.date | None = Query(
+        default=None, description="Default: hoy-6 (computado DB-side)."
+    ),
+    hasta: dt.date | None = Query(
+        default=None, description="Default: hoy (func.curdate DB-side)."
+    ),
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff.",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+):
+    """REPO-01: ventas por día del tenant en [desde, hasta] (inclusivo) —
+    total, num_pedidos y por_dia. venta = pedido ``servido`` O ``pagado``
+    (decisión locked: JAMÁS solo pagado — ver docstring del service).
+
+    - 200 VentasReporte (total float — JSON number).
+    - 422 desde > hasta / formato de fecha inválido.
+    - 400 super_admin sin ?restaurante_id= / 404 restaurante desconocido.
+    - Read abierto a todo el staff.
+    """
+    return await staff_service.get_reporte_ventas(
+        session, scope, restaurante_id, desde, hasta
+    )
+
+
+@router.get("/reportes/top-platos", response_model=list[TopPlato])
+async def get_top_platos(
+    desde: dt.date | None = Query(
+        default=None, description="Default: hoy-6 (computado DB-side)."
+    ),
+    hasta: dt.date | None = Query(
+        default=None, description="Default: hoy (func.curdate DB-side)."
+    ),
+    limit: int = Query(default=10, ge=1, le=50),
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff.",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+):
+    """REPO-02: top-N platos por cantidad vendida (SUM DESC) en el rango,
+    sobre pedido_item (tenant denormalizado). ``nombre`` = nombre ACTUAL
+    del producto; montos exactos por snapshot de precio.
+
+    - 200 list[TopPlato] (vacío si el rango no tiene ventas).
+    - 422 desde > hasta / limit fuera de [1, 50].
+    - 400 super_admin sin ?restaurante_id= / 404 restaurante desconocido.
+    """
+    return await staff_service.get_top_platos(
+        session, scope, restaurante_id, desde, hasta, limit
     )
