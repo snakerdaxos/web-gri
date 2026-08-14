@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/pedido.dart';
 import '../models/reserva.dart';
 import '../models/reserva_create.dart';
 import '../models/restaurante.dart';
@@ -166,6 +167,42 @@ class ApiClient {
       '/cliente/sesiones/actual/cuenta',
     );
     return SesionMesa.fromJson(r.data!);
+  }
+
+  // ── Pedidos de la sesión (Phase 6) ─────────────────────────────────────
+
+  /// `GET /cliente/pedidos/actual` — TODOS los pedidos de mi sesión activa
+  /// (cualquier estado, newest first). 404 sin sesión: el provider que lo
+  /// consume lo evita guardando en sesionProvider.
+  Future<List<Pedido>> getPedidosActuales() async {
+    final r = await _dio.get<List<dynamic>>('/cliente/pedidos/actual');
+    return [
+      for (final e in r.data ?? const <dynamic>[])
+        Pedido.fromJson(e as Map<String, dynamic>),
+    ];
+  }
+
+  /// `POST /cliente/pedidos` — crea el pedido en estado `enviado`.
+  ///
+  /// Sin `sesion_id` en el body: el backend usa la sesión ACTIVA del
+  /// usuario (contrato 06-01). El total se calcula server-side con
+  /// snapshot de precio — el total del carrito es solo informativo.
+  /// Errores: 404 sin sesión/producto cross-restaurante · 409 agotado.
+  Future<Pedido> createPedido({
+    required List<({int productoId, int cantidad})> items,
+    String? notas,
+  }) async {
+    final r = await _dio.post<Map<String, dynamic>>(
+      '/cliente/pedidos',
+      data: {
+        'items': [
+          for (final i in items)
+            {'producto_id': i.productoId, 'cantidad': i.cantidad},
+        ],
+        if (notas != null && notas.isNotEmpty) 'notas': notas,
+      },
+    );
+    return Pedido.fromJson(r.data!);
   }
 }
 

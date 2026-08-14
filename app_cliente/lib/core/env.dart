@@ -17,4 +17,9 @@ class Env {
   static String get apiBaseUrl => _ready
       ? (dotenv.env['API_BASE_URL'] ?? 'http://localhost:8000')
       : 'http://localhost:8000';
+
+  /// Intervalo de polling de pedidos de la sesión (Phase 6, PEDI-04).
+  /// Phase 7 lo reemplaza por WebSocket — las screens nunca hardcodean
+  /// este valor.
+  static int get pollSeconds => 10;
 }
