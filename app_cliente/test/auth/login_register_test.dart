@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -59,7 +58,9 @@ class _FakeAuthStorage extends AuthStorage {
   }
 
   @override
-  Future<void> clear() => Future.value(_store.clear());
+  Future<void> clear() async {
+    _store.clear();
+  }
 }
 
 Widget _wrap({
@@ -123,7 +124,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(RegisterScreen), findsOneWidget);
-    expect(find.text('Crear cuenta'), findsOneWidget);
+    // "Crear cuenta" aparece en el AppBar y en el botón.
+    expect(find.text('Crear cuenta'), findsWidgets);
   });
 
   testWidgets(

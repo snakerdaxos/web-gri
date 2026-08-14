@@ -27,14 +27,22 @@ const _user = User(
   restaurantId: null,
 );
 
+/// Fake del AuthState — siempre logueado como [_user] (class-based provider
+/// → se overrida con overrideWith, no overrideWithValue).
+class _FakeAuthState extends AuthState {
+  @override
+  Future<User?> build() async => _user;
+}
+
 Widget _wrap({required ApiClient client}) {
   return ProviderScope(
     overrides: [
       apiClientProvider.overrideWithValue(client),
-      // authState con User mockeado (AsyncData no-null = logueado).
-      authStateProvider.overrideWithValue(const AsyncData(_user)),
+      authStateProvider.overrideWith(_FakeAuthState.new),
     ],
-    child: const MaterialApp(home: PerfilScreen()),
+    // Scaffold: en producción lo provee el AppShell; el SnackBar del
+    // guardado necesita uno en el árbol del test.
+    child: const MaterialApp(home: Scaffold(body: PerfilScreen())),
   );
 }
 

@@ -43,8 +43,9 @@ void main() {
 
     expect(find.text('Restaurante Demo GRI'), findsOneWidget);
     expect(find.text('Sushi Kai'), findsOneWidget);
-    expect(find.text('Comida colombiana'), findsOneWidget);
-    expect(find.text('Japonesa'), findsOneWidget);
+    // tipo_cocina · direccion (combinados en una línea, estilo mockup).
+    expect(find.text('Comida colombiana · Calle 100'), findsOneWidget);
+    expect(find.text('Japonesa · Cra 15'), findsOneWidget);
     // calificacion null → "—" (una por card).
     expect(find.text('—'), findsNWidgets(2));
   });
