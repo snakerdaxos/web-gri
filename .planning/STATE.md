@@ -1,9 +1,9 @@
 ﻿---
-status: Phase 6 EN PROGRESO - 06-01 backend core value COMPLETO (sesion QR + pedidos + cola staff + cuenta, 141/141 tests); 06-02 (app_cliente) y 06-03 (panel cocina) pendientes
-stopped_at: "Completed 06-01-PLAN.md (backend: migración 0004 + sesión QR + pedidos + cola staff + HARD GATE concurrencia)"
+status: Phase 6 EN PROGRESO - 06-01 backend + 06-02 app_cliente + 06-03 panel cocina COMPLETOS (141 backend + 34 cliente + 17 panel); pendiente actualizar 06-02 en STATE por su agente
+stopped_at: "Completed 06-03-PLAN.md (panel_admin: vista cocina + sidebar Pedidos activo, suite 17/17)"
 current_phase: 6
 updated: 2026-08-14
-last_activity: 2026-08-14 - Plan 06-01 ejecutado completo (3 tasks TDD, 7 commits); MESA-05/06 + PEDI-01..06 + PAGO-01 cerrados; suite 141/141
+last_activity: 2026-08-14 - Plan 06-03 ejecutado completo (2 tasks, commits 5afda4b/8cd2aba); ADMN-05 cerrado; suite panel 17/17 + analyze 0 + build web OK
 ---
 
 # STATE
@@ -13,9 +13,21 @@ last_activity: 2026-08-14 - Plan 06-01 ejecutado completo (3 tasks TDD, 7 commit
 See: .planning/PROJECT.md (updated 2026-08-13)
 
 **Core value:** Un cliente puede sentarse en una mesa, escanear su QR, pedir del menu y recibir su comida en tiempo real sin intermediarios.
-**Current focus:** Phase 6 IN PROGRESS - App Cliente Pedido por QR (REST) y Vista Cocina. 06-01 (backend core value) COMPLETO con HARD GATE de concurrencia verificado; 06-02 (app_cliente) y 06-03 (panel_admin cocina) pendientes
+**Current focus:** Phase 6 IN PROGRESS - 06-01 (backend), 06-02 (app_cliente) y 06-03 (panel cocina) COMPLETOS; UAT manual pendiente (no bloqueante)
 
 ## Recent Activity
+
+### 2026-08-14 — Plan 06-03 completo (Wave 2 panel cocina)
+- feature cocina/ en panel_admin: CocinaScreen (AsyncValue loading/error/vacío + SnackBars 409/403 accionables + invalidate SIEMPRE) + PedidoCard (borde/chip color estado, items ×cantidad con subtotal, total formatCOP, notas itálicas, usuario, badge amarillo "🍽️ pidió la cuenta") + pedidosStaffProvider polling 10s (clon mesas_provider: queryRid solo super_admin + Timer.periodic + ref.onDispose)
+- PedidoStaff/PedidoStaffItem freezed + nextActions(rol): espejo client-side de TRANSITION_ROLES (cocina/admin/super_admin todo; mesero solo servido con label "Marcar servido"); server es la autoridad
+- ApiClient: getPedidosActivos (activos=true + queryRid condicional) + avanzarPedido (POST /staff/pedidos/{id}/estado con restaurante_id solo super_admin)
+- Sidebar: "📋 Pedidos" navega a /cocina (GoRoute dentro del ShellRoute); isActive derivado del path (mapa _routes ruta→índice); Dashboard navega a '/'; resto sigue Phase 8
+- core/format.dart formatCOP (es_CO) creado — el plan lo asumía existente
+- Suite panel: 11 → 17 (6 widget tests: render cards/badge/totales, botones cocina, vacío, tap Aceptar→avanzarPedido(7,'aceptado')+invalidate espía, mesero restringido); flutter analyze 0; build web --release OK
+- Commits: 5afda4b (T1 feature), 8cd2aba (T2 sidebar/ruta/tests)
+- Desviaciones x7 (Rule 3 x3: format.dart faltante, freezed 3.2.6-dev.1 genera 'required final List<T>' inválido → pin 4.0.0-dev.3 igual que app_cliente; Rule 1 x4: flag --build-dir inexistente, Override no exportado por riverpod 3.4.2 (inlinear ProviderScope), índice sidebar '/cocina'→2 no 1 (plan olvidó Mesas), fallback style 48px sin Material ancestor → Material wrapper en CocinaScreen)
+- REQUISITOS: ADMN-05 marcado completo (PEDI-05/06/PAGO-01 ya completos de 06-01)
+- UAT manual NO bloqueante documentado en SUMMARY (login cocina@demo.gri.dev → cola → avanzar estados; mesero solo Marcar servido; badge cuenta)
 
 ### 2026-08-14 — Plan 06-01 completo (Wave 1 backend core value)
 - Migración 0004 ÚNICA: sesion_mesa.solicita_cuenta/solicitada_en + UNIQUE(usuario_id, activo_flag) uq_sesion_mesa_usuario_activa + pedido.sesion_id FK + ix_pedido_sesion (alembic current = 0004)
@@ -72,7 +84,7 @@ See: .planning/PROJECT.md (updated 2026-08-13)
 
 ## Progress
 
-Status: Phase 6 IN PROGRESS (06-01 backend core value COMPLETO; 06-02 app_cliente y 06-03 panel cocina pendientes)
+Status: Phase 6 IN PROGRESS (06-01 + 06-02 + 06-03 COMPLETOS; UAT manual pendiente no bloqueante)
 
 ### Phases
 - Phase 1: COMPLETE (verified passed)
@@ -80,7 +92,7 @@ Status: Phase 6 IN PROGRESS (06-01 backend core value COMPLETO; 06-02 app_client
 - Phase 3: EXECUTED (verification pending)
 - Phase 4: COMPLETE - 04-01 (backend staff endpoints + CORS) + 04-02 (panel Flutter Web) ejecutados; PLAT-01, ADMN-01, ADMN-02 cerrados
 - Phase 5: EXECUTED - 05-01 + 05-02 (backend) + 05-03 (app_cliente Flutter) completos
-- Phase 6: IN PROGRESS - 06-01 (backend core value: sesión QR + pedidos + cola staff + cuenta) COMPLETO (141/141 tests, HARD GATE concurrencia); 06-02 (app_cliente) + 06-03 (panel cocina) pendientes
+- Phase 6: IN PROGRESS - 06-01 (backend core value) + 06-02 (app_cliente) + 06-03 (panel cocina: vista cola + badge cuenta + matriz rol×transición + sidebar Pedidos activo) COMPLETOS (141 backend + 34 cliente + 17 panel tests)
 - Phase 7-9: Not started
 
 ## Gotchas para futuras sesiones
@@ -99,3 +111,7 @@ Status: Phase 6 IN PROGRESS (06-01 backend core value COMPLETO; 06-02 app_client
 - PowerShell 5.1 no tiene Get-Date -AsUTC; usar [DateTimeOffset]::UtcNow.
 - login() de conftest retorna (access, refresh) — desempaquetar al reves manda el refresh token y da 401 "Tipo de token incorrecto" (guard PITFALL 6).
 - Flutter SDK en `C:\src\flutter\bin` (NO en PATH global): cada comando flutter/dart requiere `$env:Path += ";C:\src\flutter\bin"` en PowerShell.
+- freezed 3.2.6-dev.1 (y presumiblemente el dev line 3.2.x) genera `required final List<T>` INVÁLIDO para campos List — pin `freezed: '4.0.0-dev.3'` en ambos paquetes Flutter (mismo pin, ya validado).
+- Riverpod 3.4.2 NO exporta el tipo `Override`: en widget tests inlinear el ProviderScope por test (patrón stats_render_test) en vez de helper tipado.
+- Screens bombeadas fuera de Scaffold (MaterialApp home directo en tests): envolver en Material(color: bg) — sin Material ancestor Flutter inyecta fallback style 48px amarillo subrayado a los Text sin fontSize explícito.
+- ListView lazy en widget tests: cards fuera del viewport default (800×600) no se buildan — `tester.view.physicalSize = Size(800, 1800)` + `devicePixelRatio = 1.0` + `addTearDown(tester.view.reset)`.

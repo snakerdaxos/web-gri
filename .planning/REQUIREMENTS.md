@@ -80,7 +80,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **ADMN-02**: Panel muestra mapa de mesas con su estado codificado por color (verde/rojo/amarillo/azul) y actualizaciÃ³n en vivo
 - [ ] **ADMN-03**: Admin restaurante puede gestionar clientes (ver lista e historial)
 - [ ] **ADMN-04**: Admin puede cambiar estado de mesa (marcar en limpieza, liberar) desde el mapa
-- [ ] **ADMN-05**: Panel incluye vista de cocina: cola de pedidos con estado y capacidad de avanzarlos
+- [x] **ADMN-05**: Panel incluye vista de cocina: cola de pedidos con estado y capacidad de avanzarlos
 
 ### Reportes
 
@@ -179,7 +179,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ADMN-02 | Fase 4 | Complete |
 | ADMN-03 | Fase 8 | Pending |
 | ADMN-04 | Fase 8 | Pending |
-| ADMN-05 | Fase 6 | Pending |
+| ADMN-05 | Fase 6 | Complete |
 | REPO-01 | Fase 8 | Pending |
 | REPO-02 | Fase 8 | Pending |
 | INFR-01 | Fase 1 | Complete |

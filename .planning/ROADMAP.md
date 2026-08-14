@@ -109,7 +109,7 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃ³vil 
 **Plans**: 3 plans
 - [x] 06-01-PLAN.md — Vertical Slice Backend: migración 0004 (pedido.sesion_id + cuenta solicitada + UNIQUE sesión activa por usuario) + /cliente/sesiones|pedidos|cuenta + /staff/pedidos (cola + matriz rol×transición + anti-zombi limpieza) + 4 suites tests con HARD GATE concurrencia (MESA-05, MESA-06, PEDI-01..06, PAGO-01 backend)
 - [ ] 06-02-PLAN.md — Vertical Slice App Cliente: sesion_qr (mobile_scanner + input manual primera clase) + pedidos (carrito, envío, estado polling 10s, cuenta) + banner "Estás en la Mesa X" + widget tests (MESA-05, MESA-06, PEDI-01, PEDI-02, PEDI-04, PAGO-01 UI)
-- [ ] 06-03-PLAN.md — Vertical Slice Panel Cocina: cola de pedidos con cards (mesa/items/total/badge cuenta), botones según matriz rol×estado, polling 10s, sidebar "Pedidos" activo (ADMN-05, PEDI-05, PEDI-06, PAGO-01 UI)
+- [x] 06-03-PLAN.md — Vertical Slice Panel Cocina: cola de pedidos con cards (mesa/items/total/badge cuenta), botones según matriz rol×estado, polling 10s, sidebar "Pedidos" activo (ADMN-05, PEDI-05, PEDI-06, PAGO-01 UI) — DONE 2026-08-14 (panel suite 17/17, analyze 0, build web OK)
 
 ### Phase 7: Tiempo Real â€” WebSockets
 **Goal**: Pedidos y estados de mesa llegan en vivo a cocina, mesero, cliente y panel sin refrescar, con recuperaciÃ³n ante desconexiones
