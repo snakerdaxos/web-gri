@@ -105,6 +105,35 @@ def auth_header(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+# --- Phase 6: sesión QR + staff demo helpers -------------------------------
+
+
+async def abrir_sesion(
+    client: httpx.AsyncClient, token: str, codigo_qr: str
+) -> httpx.Response:
+    """POST /cliente/sesiones with auth (MESA-05/06 helper).
+
+    Deliberately NO raise_for_status: the caller asserts which status is
+    expected (201 created / 200 idempotente propio / 404 QR inexistente /
+    409 conflicto).
+    """
+    return await client.post(
+        "/cliente/sesiones",
+        json={"codigo_qr": codigo_qr},
+        headers=auth_header(token),
+    )
+
+
+async def login_staff_demo(client: httpx.AsyncClient, email: str) -> str:
+    """Access token for a seed-demo staff account (password Demo!1234).
+
+    Seed staff (restaurant_id=1): admin@demo.gri.dev, mesero@demo.gri.dev,
+    cocina@demo.gri.dev.
+    """
+    access, _ = await login(client, email, "Demo!1234")
+    return access
+
+
 @pytest_asyncio.fixture
 async def super_admin_token(async_client: httpx.AsyncClient) -> str:
     """Login as the bootstrap super-admin; skip if SUPER_ADMIN_* unset."""
