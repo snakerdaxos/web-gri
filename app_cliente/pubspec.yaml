@@ -30,6 +30,9 @@ dependencies:
   freezed_annotation: '>=3.0.0 <4.0.0'
   json_annotation: ^4.12.0
 
+  # WebSocket tiempo real (Phase 7 — RT-01/03); oficial Dart team.
+  web_socket_channel: ^3.0.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

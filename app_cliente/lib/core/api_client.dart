@@ -39,15 +39,26 @@ class ApiClient {
                 receiveTimeout: const Duration(seconds: 15),
               ),
             ) {
-    _dio.interceptors.add(AuthInterceptor(_dio, _storage, this));
+    _auth = AuthInterceptor(_dio, _storage, this);
+    _dio.interceptors.add(_auth);
   }
 
   final Dio _dio;
   final AuthStorage _storage;
+  late final AuthInterceptor _auth;
 
   /// Lo cablea `AuthState.build` (token_provider.dart): refresh fallido →
   /// logout upstream → goRouter redirect a /login.
   void Function()? onSessionExpired;
+
+  /// Refresh público para el [WsClient] (Phase 7): ante un close 4401 del
+  /// WS el cliente refresca tokens y reintenta SIN logout. Reusa el
+  /// Completer compartido del interceptor (anti refresh-storm: N 401s
+  /// HTTP + un 4401 WS simultáneos derivan en UN solo POST /auth/refresh).
+  ///
+  /// Retorna el nuevo access token, o null si el refresh falló (sesión
+  /// muerta — el WS delega al logout existente, no reconecta).
+  Future<String?> refreshTokens() => _auth._refreshOnce();
 
   Future<TokenPair> login(String email, String password) async {
     final r = await _dio.post<Map<String, dynamic>>(
