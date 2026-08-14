@@ -181,11 +181,12 @@ async def test_snapshot_precio(async_client, db_session):
     user, token, headers, sesion_id = await _setup_sesion(async_client, db_session)
     prods = await _productos_demo(db_session)
     x = prods["Bandeja Paisa"]
-    original = x.precio
+    x_id, original = x.id, x.precio  # capturar ANTES de expire_all (PK de
+    # objeto expirado dispara lazy-load síncrono → MissingGreenlet)
     try:
         resp = await async_client.post(
             "/cliente/pedidos",
-            json=_payload(sesion_id, [{"producto_id": x.id, "cantidad": 1}]),
+            json=_payload(sesion_id, [{"producto_id": x_id, "cantidad": 1}]),
             headers=headers,
         )
         assert resp.status_code == 201, resp.text
@@ -194,7 +195,7 @@ async def test_snapshot_precio(async_client, db_session):
         # Mutar el precio del producto y commitear.
         await db_session.rollback()
         db_session.expire_all()
-        prod_db = await db_session.get(Producto, x.id)
+        prod_db = await db_session.get(Producto, x_id)
         prod_db.precio = Decimal("99999.00")
         await db_session.commit()
 
@@ -209,7 +210,7 @@ async def test_snapshot_precio(async_client, db_session):
     finally:
         await db_session.rollback()
         db_session.expire_all()
-        prod_db = await db_session.get(Producto, x.id)
+        prod_db = await db_session.get(Producto, x_id)
         prod_db.precio = original
         await db_session.commit()
         await _borrar_pedidos_usuario(db_session, user["id"])
@@ -291,24 +292,24 @@ async def test_producto_agotado_409(async_client, db_session):
     """producto.disponible=False → 409 (no silencioso)."""
     user, token, headers, sesion_id = await _setup_sesion(async_client, db_session)
     prods = await _productos_demo(db_session)
-    x = prods["Bandeja Paisa"]
+    x_id = prods["Bandeja Paisa"].id  # capturar ANTES de expire_all
     try:
         await db_session.rollback()
         db_session.expire_all()
-        prod_db = await db_session.get(Producto, x.id)
+        prod_db = await db_session.get(Producto, x_id)
         prod_db.disponible = False
         await db_session.commit()
 
         resp = await async_client.post(
             "/cliente/pedidos",
-            json=_payload(sesion_id, [{"producto_id": x.id, "cantidad": 1}]),
+            json=_payload(sesion_id, [{"producto_id": x_id, "cantidad": 1}]),
             headers=headers,
         )
         assert resp.status_code == 409, resp.text
     finally:
         await db_session.rollback()
         db_session.expire_all()
-        prod_db = await db_session.get(Producto, x.id)
+        prod_db = await db_session.get(Producto, x_id)
         prod_db.disponible = True
         await db_session.commit()
         await _cerrar_sesiones_usuario(db_session, user["id"])

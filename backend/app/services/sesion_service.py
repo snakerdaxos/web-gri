@@ -22,7 +22,7 @@ True, retorna SIN tocar ``solicitada_en`` (doble tap seguro).
 """
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -149,4 +149,39 @@ async def sesion_actual(
     if row is None:
         return None
     sesion, restaurante, mesa = row
+    return _to_read(sesion, restaurante, mesa)
+
+
+async def solicitar_cuenta(
+    session: AsyncSession, usuario_id: int
+) -> SesionRead:
+    """PAGO-01: marcar solicita_cuenta=True + solicitada_en=now (200).
+
+    IDEMPOTENTE (doble tap seguro): si ya es True, retorna SIN tocar
+    solicitada_en — el timestamp original queda como evidencia del primer
+    aviso al mesero.
+    """
+    row = (
+        await session.execute(
+            select(SesionMesa, Restaurante, Mesa)
+            .join(Restaurante, Restaurante.id == SesionMesa.restaurant_id)
+            .join(Mesa, Mesa.id == SesionMesa.mesa_id)
+            .where(
+                SesionMesa.usuario_id == usuario_id,
+                SesionMesa.cerrada_en.is_(None),
+            )
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, "No tienes una sesión activa"
+        )
+    sesion, restaurante, mesa = row
+
+    if not sesion.solicita_cuenta:
+        sesion.solicita_cuenta = True
+        sesion.solicitada_en = func.now()
+        await session.commit()
+        await session.refresh(sesion)  # carga el valor real de solicitada_en
+
     return _to_read(sesion, restaurante, mesa)

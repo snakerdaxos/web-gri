@@ -18,9 +18,15 @@ from app.deps.auth import CurrentUser, require_roles
 from app.models.usuario import RolUsuario
 from app.schemas.auth import UserRead
 from app.schemas.perfil import PerfilUpdate
+from app.schemas.pedido import PedidoCreate, PedidoRead
 from app.schemas.reserva import ReservaCreate, ReservaRead
 from app.schemas.sesion import SesionCreate, SesionRead
-from app.services import cliente_service, reserva_service, sesion_service
+from app.services import (
+    cliente_service,
+    pedido_service,
+    reserva_service,
+    sesion_service,
+)
 
 router = APIRouter(prefix="/cliente", tags=["cliente"])
 
@@ -142,3 +148,42 @@ async def get_sesion_actual(
             status.HTTP_404_NOT_FOUND, "No tienes una sesión activa"
         )
     return read
+
+
+@router.post("/sesiones/actual/cuenta", response_model=SesionRead)
+async def pedir_cuenta(
+    user: CurrentUser = Depends(require_roles(RolUsuario.cliente)),
+    session: AsyncSession = Depends(get_session),
+):
+    """PAGO-01: solicitar la cuenta — marca solicita_cuenta=true +
+    solicitada_en (idempotente: doble tap seguro). El staff lo ve como badge
+    en la cola de pedidos."""
+    return await sesion_service.solicitar_cuenta(session, user.id)
+
+
+# --- PEDI-01/02/04: pedidos del cliente --------------------------------------
+
+
+@router.post(
+    "/pedidos", response_model=PedidoRead, status_code=status.HTTP_201_CREATED
+)
+async def crear_pedido(
+    body: PedidoCreate,
+    user: CurrentUser = Depends(require_roles(RolUsuario.cliente)),
+    session: AsyncSession = Depends(get_session),
+):
+    """PEDI-01/02: crear pedido en estado=enviado. Total SIEMPRE server-side
+    (precio del producto al POST, snapshot en pedido_item); el body NO
+    acepta precios. 404 sesión inexistente/ajena/producto cross-restaurante;
+    409 sesión inactiva/producto agotado; 422 items vacío/cantidad≤0."""
+    return await pedido_service.crear_pedido(session, user.id, body)
+
+
+@router.get("/pedidos/actual", response_model=list[PedidoRead])
+async def list_pedidos_actual(
+    user: CurrentUser = Depends(require_roles(RolUsuario.cliente)),
+    session: AsyncSession = Depends(get_session),
+):
+    """PEDI-04: TODOS los pedidos de mi sesión activa (cualquier estado),
+    newest first — el cliente hace polling 10s (WS llega en Phase 7)."""
+    return await pedido_service.pedidos_de_sesion(session, user.id)
