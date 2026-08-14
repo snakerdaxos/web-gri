@@ -21,18 +21,22 @@ frame post-accept (A) — para el WsClient de 07-02/07-03 son el MISMO caso
 """
 
 import asyncio
+from decimal import Decimal
 from uuid import uuid4
 
+import pytest
 from httpx_ws import aconnect_ws
 from sqlalchemy import delete, select
 
-from app.models.menu import Producto
+from app.models.menu import Categoria, Producto
 from app.models.mesa import EstadoMesa, Mesa
 from app.models.pedido import Pedido, PedidoItem
+from app.models.restaurante import Restaurante
 from app.models.sesion_mesa import SesionMesa
 
 from .conftest import (
     API_BASE,
+    abrir_sesion,
     auth_header,
     login,
     login_staff_demo,
@@ -177,6 +181,19 @@ async def _cleanup_cliente(db_session, user_id: int, mesa_id: int | None = None)
     await db_session.commit()
 
 
+async def _cleanup_restaurante(db_session, restaurant_id: int) -> None:
+    """Borra el restaurante de test 13 con su menú (orden por FKs)."""
+    await db_session.rollback()
+    await db_session.execute(
+        delete(Producto).where(Producto.restaurant_id == restaurant_id)
+    )
+    await db_session.execute(
+        delete(Categoria).where(Categoria.restaurant_id == restaurant_id)
+    )
+    await db_session.execute(delete(Restaurante).where(Restaurante.id == restaurant_id))
+    await db_session.commit()
+
+
 # --- Task 1: conexión OK ------------------------------------------------------
 
 
@@ -219,3 +236,285 @@ async def test_super_admin_sin_restaurante_4400(async_client, super_admin_token)
     """Test 6: super_admin SIN ?restaurante_id= en /ws/staff → 4400 (param
     explícito requerido — mirror de _resolve_rid)."""
     await _expect_ws_rejected(f"{WS_BASE}/ws/staff?token={super_admin_token}", 4400)
+
+
+# --- Task 2: eventos end-to-end (RT-01/02) -------------------------------------
+#
+# Setup común: cliente DEDICADO por test (UNIQUE 0004), mesa propia
+# GRI-TEST-WS-*+uuid (nunca mesas del seed), sesión por el flujo real
+# (POST /cliente/sesiones) y cleanup en finally (gotcha: assert fallido antes
+# del cleanup filtra filas).
+
+
+async def test_staff_recibe_pedido_creado(async_client, db_session):
+    """Test 8 (RT-01): POST /cliente/pedidos → staff conectado recibe
+    pedido.creado con pedido_id/estado/mesa_id y seq int (<1s esperado)."""
+    user, token, headers = await _crear_cliente(async_client)
+    mesa_id, qr = await _crear_mesa_ws(db_session)
+    producto_id = await _producto_demo(db_session)
+    cocina = await login_staff_demo(async_client, "cocina@demo.gri.dev")
+    try:
+        resp = await abrir_sesion(async_client, token, qr)
+        assert resp.status_code == 201, resp.text
+        sesion_id = resp.json()["id"]
+
+        async with aconnect_ws(f"{WS_BASE}/ws/staff?token={cocina}") as ws:
+            await asyncio.sleep(_JOIN_SETTLE)
+            pedido = await async_client.post(
+                "/cliente/pedidos",
+                json={
+                    "sesion_id": sesion_id,
+                    "items": [{"producto_id": producto_id, "cantidad": 1}],
+                },
+                headers=headers,
+            )
+            assert pedido.status_code == 201, pedido.text
+            async with asyncio.timeout(2):
+                event = await ws.receive_json()
+
+        assert event["type"] == "pedido.creado"
+        assert event["restaurante_id"] == 1
+        assert event["data"]["pedido_id"] == pedido.json()["id"]
+        assert event["data"]["estado"] == "enviado"
+        assert event["data"]["mesa_id"] == mesa_id
+        assert isinstance(event["seq"], int)
+        assert isinstance(event["ts"], str)
+    finally:
+        await _cleanup_cliente(db_session, user["id"], mesa_id)
+
+
+async def test_cliente_recibe_pedido_estado(async_client, db_session):
+    """Test 9 (RT-01): transición staff → el CLIENTE dueño recibe
+    pedido.estado en su user room con restaurante_id=None (contrato)."""
+    user, token, headers = await _crear_cliente(async_client)
+    mesa_id, qr = await _crear_mesa_ws(db_session)
+    producto_id = await _producto_demo(db_session)
+    cocina = await login_staff_demo(async_client, "cocina@demo.gri.dev")
+    try:
+        resp = await abrir_sesion(async_client, token, qr)
+        assert resp.status_code == 201, resp.text
+        sesion_id = resp.json()["id"]
+        pedido_id = await _crear_pedido(async_client, headers, sesion_id, producto_id)
+
+        async with aconnect_ws(f"{WS_BASE}/ws/cliente?token={token}") as ws:
+            await asyncio.sleep(_JOIN_SETTLE)
+            assert await _avanzar(async_client, cocina, pedido_id, "aceptado") == 200
+            async with asyncio.timeout(2):
+                event = await ws.receive_json()
+
+        assert event["type"] == "pedido.estado"
+        assert event["restaurante_id"] is None  # user room → null por contrato
+        assert event["data"]["estado"] == "aceptado"
+        assert event["data"]["pedido_id"] == pedido_id
+    finally:
+        await _cleanup_cliente(db_session, user["id"], mesa_id)
+
+
+async def test_mesa_estado_eventos(async_client, db_session):
+    """Test 10 (RT-02): mesa.estado al abrir sesión (QR → ocupada) y al
+    transicionar desde el panel (ocupada → limpieza)."""
+    user, token, _ = await _crear_cliente(async_client)
+    mesa_id, qr = await _crear_mesa_ws(db_session)
+    cocina = await login_staff_demo(async_client, "cocina@demo.gri.dev")
+    try:
+        async with aconnect_ws(f"{WS_BASE}/ws/staff?token={cocina}") as ws:
+            await asyncio.sleep(_JOIN_SETTLE)
+
+            resp = await abrir_sesion(async_client, token, qr)  # → ocupada
+            assert resp.status_code == 201, resp.text
+            async with asyncio.timeout(2):
+                e1 = await ws.receive_json()
+            assert e1["type"] == "mesa.estado"
+            assert e1["data"]["estado"] == "ocupada"
+            assert e1["data"]["mesa_id"] == mesa_id
+
+            r = await async_client.post(
+                f"/staff/mesas/{mesa_id}/estado",
+                json={"estado": "limpieza"},
+                headers=auth_header(cocina),
+            )
+            assert r.status_code == 200, r.text
+            async with asyncio.timeout(2):
+                e2 = await ws.receive_json()
+            assert e2["type"] == "mesa.estado"
+            assert e2["data"]["estado"] == "limpieza"
+    finally:
+        await _cleanup_cliente(db_session, user["id"], mesa_id)
+
+
+async def test_sesion_cuenta_evento(async_client, db_session):
+    """Test 11 (RT-01): POST cuenta → staff recibe sesion.cuenta (y el dueño
+    su ACK en user room); segundo POST NO emite (idempotencia de emisión)."""
+    user, token, headers = await _crear_cliente(async_client)
+    mesa_id, qr = await _crear_mesa_ws(db_session)
+    cocina = await login_staff_demo(async_client, "cocina@demo.gri.dev")
+    try:
+        resp = await abrir_sesion(async_client, token, qr)
+        assert resp.status_code == 201, resp.text
+        sesion_id = resp.json()["id"]
+
+        async with (
+            aconnect_ws(f"{WS_BASE}/ws/staff?token={cocina}") as ws_staff,
+            aconnect_ws(f"{WS_BASE}/ws/cliente?token={token}") as ws_cliente,
+        ):
+            await asyncio.sleep(_JOIN_SETTLE)
+            r1 = await async_client.post(
+                "/cliente/sesiones/actual/cuenta", headers=headers
+            )
+            assert r1.status_code == 200, r1.text
+            async with asyncio.timeout(2):
+                e_staff = await ws_staff.receive_json()
+                e_cliente = await ws_cliente.receive_json()
+            assert e_staff["type"] == "sesion.cuenta"
+            assert e_staff["data"]["sesion_id"] == sesion_id
+            assert e_staff["data"]["mesa_id"] == mesa_id
+            assert e_staff["restaurante_id"] == 1
+            assert e_cliente["type"] == "sesion.cuenta"  # ACK al dueño
+
+            # Idempotencia (PAGO-01): el segundo POST NO emite NADA.
+            r2 = await async_client.post(
+                "/cliente/sesiones/actual/cuenta", headers=headers
+            )
+            assert r2.status_code == 200, r2.text
+            with pytest.raises(TimeoutError):
+                async with asyncio.timeout(0.8):
+                    await ws_staff.receive_json()
+    finally:
+        await _cleanup_cliente(db_session, user["id"], mesa_id)
+
+
+async def test_sesion_cerrada_user_room(async_client, db_session):
+    """Test 12 (RT-03): anti-zombi — mesa→limpieza cierra la sesión y el
+    CLIENTE recibe sesion.cerrada en su user room."""
+    user, token, _ = await _crear_cliente(async_client)
+    mesa_id, qr = await _crear_mesa_ws(db_session)
+    cocina = await login_staff_demo(async_client, "cocina@demo.gri.dev")
+    try:
+        resp = await abrir_sesion(async_client, token, qr)
+        assert resp.status_code == 201, resp.text
+
+        async with aconnect_ws(f"{WS_BASE}/ws/cliente?token={token}") as ws:
+            await asyncio.sleep(_JOIN_SETTLE)
+            r = await async_client.post(
+                f"/staff/mesas/{mesa_id}/estado",
+                json={"estado": "limpieza"},
+                headers=auth_header(cocina),
+            )
+            assert r.status_code == 200, r.text
+            async with asyncio.timeout(2):
+                event = await ws.receive_json()
+
+        assert event["type"] == "sesion.cerrada"
+        assert event["restaurante_id"] is None
+        assert event["data"]["mesa_id"] == mesa_id
+    finally:
+        await _cleanup_cliente(db_session, user["id"], mesa_id)
+
+
+async def test_cross_tenant_aislamiento(async_client, db_session):
+    """Test 13 (RT-03): pedido del restaurante 2 → 201 con emisión a SUS
+    rooms; staff del restaurante 1 (demo) NO recibe NADA (rooms aisladas)."""
+    user, token, headers = await _crear_cliente(async_client)
+    # Restaurante 2 completo propio (cleanup finally).
+    r2 = Restaurante(nombre=f"WS Cross {uuid4().hex[:6]}")
+    db_session.add(r2)
+    await db_session.flush()
+    cat2 = Categoria(restaurant_id=r2.id, nombre="Test WS", orden=1)
+    db_session.add(cat2)
+    await db_session.flush()
+    p2 = Producto(
+        restaurant_id=r2.id,
+        categoria_id=cat2.id,
+        nombre="Plato WS",
+        precio=Decimal("1000.00"),
+    )
+    db_session.add(p2)
+    await db_session.commit()
+    r2_id, p2_id = r2.id, p2.id  # ints planos (lección MissingGreenlet)
+    mesa_id, qr = await _crear_mesa_ws(db_session, restaurant_id=r2_id)
+    cocina = await login_staff_demo(async_client, "cocina@demo.gri.dev")  # rest. 1
+    try:
+        resp = await abrir_sesion(async_client, token, qr)
+        assert resp.status_code == 201, resp.text
+        sesion_id = resp.json()["id"]
+
+        async with aconnect_ws(f"{WS_BASE}/ws/staff?token={cocina}") as ws:
+            await asyncio.sleep(_JOIN_SETTLE)
+            pedido = await async_client.post(
+                "/cliente/pedidos",
+                json={
+                    "sesion_id": sesion_id,
+                    "items": [{"producto_id": p2_id, "cantidad": 1}],
+                },
+                headers=headers,
+            )
+            assert pedido.status_code == 201, pedido.text  # emitió a r2 + user
+            # El staff del restaurante 1 NO recibe NADA: timeout = esperado.
+            with pytest.raises(TimeoutError):
+                async with asyncio.timeout(1):
+                    await ws.receive_json()
+    finally:
+        await _cleanup_cliente(db_session, user["id"], mesa_id)
+        await _cleanup_restaurante(db_session, r2_id)
+
+
+async def test_seq_monotonico(async_client, db_session):
+    """Test 14 (RT-03): dos transiciones consecutivas de un pedido → seq
+    e1 < e2 en el MISMO room (dedup/orden client-side)."""
+    user, token, headers = await _crear_cliente(async_client)
+    mesa_id, qr = await _crear_mesa_ws(db_session)
+    producto_id = await _producto_demo(db_session)
+    cocina = await login_staff_demo(async_client, "cocina@demo.gri.dev")
+    try:
+        resp = await abrir_sesion(async_client, token, qr)
+        assert resp.status_code == 201, resp.text
+        sesion_id = resp.json()["id"]
+        pedido_id = await _crear_pedido(async_client, headers, sesion_id, producto_id)
+
+        async with aconnect_ws(f"{WS_BASE}/ws/staff?token={cocina}") as ws:
+            await asyncio.sleep(_JOIN_SETTLE)
+            assert await _avanzar(async_client, cocina, pedido_id, "aceptado") == 200
+            async with asyncio.timeout(2):
+                e1 = await ws.receive_json()
+            assert await _avanzar(async_client, cocina, pedido_id, "en_preparacion") == 200
+            async with asyncio.timeout(2):
+                e2 = await ws.receive_json()
+
+        assert e1["type"] == "pedido.estado"
+        assert e2["type"] == "pedido.estado"
+        assert isinstance(e1["seq"], int) and isinstance(e2["seq"], int)
+        assert e1["seq"] < e2["seq"]
+    finally:
+        await _cleanup_cliente(db_session, user["id"], mesa_id)
+
+
+async def test_transicion_invalida_no_emite(async_client, db_session):
+    """Test 15 (PITFALL 3): transición inválida (servido→aceptado) → 409 SIN
+    ningún evento — la emisión es estrictamente post-commit."""
+    user, token, headers = await _crear_cliente(async_client)
+    mesa_id, qr = await _crear_mesa_ws(db_session)
+    producto_id = await _producto_demo(db_session)
+    cocina = await login_staff_demo(async_client, "cocina@demo.gri.dev")
+    try:
+        resp = await abrir_sesion(async_client, token, qr)
+        assert resp.status_code == 201, resp.text
+        sesion_id = resp.json()["id"]
+        pedido_id = await _crear_pedido(async_client, headers, sesion_id, producto_id)
+        # Cadena completa PRE-conexión (esos eventos no llegan al socket).
+        assert await _avanzar(async_client, cocina, pedido_id, "aceptado") == 200
+        assert await _avanzar(async_client, cocina, pedido_id, "en_preparacion") == 200
+        assert await _avanzar(async_client, cocina, pedido_id, "servido") == 200
+
+        async with aconnect_ws(f"{WS_BASE}/ws/staff?token={cocina}") as ws:
+            await asyncio.sleep(_JOIN_SETTLE)
+            r = await async_client.post(
+                f"/staff/pedidos/{pedido_id}/estado",
+                json={"estado": "aceptado"},  # servido→aceptado inválido
+                headers=auth_header(cocina),
+            )
+            assert r.status_code == 409, r.text
+            with pytest.raises(TimeoutError):
+                async with asyncio.timeout(1):
+                    await ws.receive_json()
+    finally:
+        await _cleanup_cliente(db_session, user["id"], mesa_id)
