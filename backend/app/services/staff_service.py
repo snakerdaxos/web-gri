@@ -41,7 +41,7 @@ from app.schemas.menu import (
     ProductoStaff,
     ProductoUpdate,
 )
-from app.schemas.mesa import MesaEstadoUpdate
+from app.schemas.mesa import MesaCreate, MesaEstadoUpdate, MesaUpdate
 from app.schemas.pedido import PedidoItemRead, PedidoStaffRead
 from app.schemas.reserva import ReservaRead
 
@@ -218,6 +218,131 @@ async def set_mesa_estado(
             usuario_id=zombi_usuario_id,
             data={"mesa_id": mesa.id},
         )
+    return mesa
+
+
+# --- Phase 8 (MESA-01): mesas CRUD con QR determinista -------------------------
+#
+# Formato locked (Pattern 1 del research): GRI-MESA-R{rid}-{numero:03d}
+# (~22 chars máx → cabe en String(32)). Collision-free por construcción:
+# rid distinto ⇒ prefijo distinto (la uq_mesa_codigo_qr GLOBAL nunca se
+# viola); dentro del tenant uq_mesa_restaurante_numero impide numeros
+# repetidos ⇒ el par (rid, numero) — y por ende el QR — es único. Convive
+# con el seed GRI-MESA-001..008 (rid=1 sin prefijo R1-) sin colisión.
+
+
+def _codigo_qr(rid: int, numero: int) -> str:
+    """QR determinista de la mesa — derivado de (rid, numero), jamás input
+    del cliente. PATCH que cambia numero lo REGENERA (ver update_mesa)."""
+    return f"GRI-MESA-R{rid}-{numero:03d}"
+
+
+async def _mesa_numero_dup(session: AsyncSession, rid: int, numero: int) -> bool:
+    """Pre-check amigable del unique (restaurant_id, numero) — la constraint
+    ``uq_mesa_restaurante_numero`` es la autoridad (IntegrityError en el
+    commit es la red de seguridad contra la carrera check-vs-INSERT, Pitfall 7)."""
+    dup = await session.execute(
+        select(func.count())
+        .select_from(Mesa)
+        .where(Mesa.restaurant_id == rid, Mesa.numero == numero)
+    )
+    return bool(dup.scalar_one())
+
+
+async def create_mesa(
+    session: AsyncSession,
+    scope: TenantScope,
+    body: MesaCreate,
+    restaurante_id: int | None,
+) -> Mesa:
+    """MESA-01: crear mesa en el tenant resuelto con QR autogenerado.
+
+    - 400 super_admin sin ?restaurante_id= / 404 restaurante (via _resolve_rid).
+    - 409 numero duplicado en el tenant (pre-check + IntegrityError safety net).
+    - estado nace disponible (server también lo defaultea; explícito aquí
+      para el emit post-commit).
+    """
+    rid = await _resolve_rid(session, scope, restaurante_id)
+    if await _mesa_numero_dup(session, rid, body.numero):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, f"La mesa {body.numero} ya existe"
+        )
+    mesa = Mesa(
+        restaurant_id=rid,
+        numero=body.numero,
+        capacidad=body.capacidad,
+        codigo_qr=_codigo_qr(rid, body.numero),
+        estado=EstadoMesa.disponible,
+    )
+    session.add(mesa)
+    try:
+        await session.commit()
+    except IntegrityError as exc:  # carrera del pre-check (Pitfall 7)
+        await session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, f"La mesa {body.numero} ya existe"
+        ) from exc
+    await session.refresh(mesa)
+    # Emisión SIEMPRE post-commit (Pitfall 4): kick-to-refetch del mapa —
+    # mismo evento mesa.estado que ya testa la suite WS (sin tipos nuevos).
+    await emit_event(
+        "mesa.estado",
+        restaurante_id=rid,
+        usuario_id=None,
+        data={"mesa_id": mesa.id, "estado": EstadoMesa.disponible.value},
+    )
+    return mesa
+
+
+async def update_mesa(
+    session: AsyncSession,
+    scope: TenantScope,
+    mesa_id: int,
+    body: MesaUpdate,
+    restaurante_id: int | None,
+) -> Mesa:
+    """MESA-01: editar mesa (numero/capacidad, parcial) con existence hiding
+    cross-tenant (ajena == inexistente → 404 idéntico).
+
+    Pitfall 6: si ``numero`` cambia, el QR se REGENERA — número y QR deben
+    corresponder (el QR impreso anterior queda obsoleto; el form del panel
+    advierte antes de dejar aplicar el cambio).
+    """
+    rid = await _resolve_rid(session, scope, restaurante_id)
+    mesa = await session.get(Mesa, mesa_id)
+    if mesa is None or mesa.restaurant_id != rid:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Mesa no encontrada")
+
+    changes = body.model_dump(exclude_unset=True)
+    if not changes:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "Nada que actualizar"
+        )
+    if "numero" in changes and changes["numero"] != mesa.numero:
+        if await _mesa_numero_dup(session, rid, changes["numero"]):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, f"La mesa {changes['numero']} ya existe"
+            )
+        # Regeneración (Pitfall 6) — antes del commit, junto al cambio de numero.
+        mesa.codigo_qr = _codigo_qr(rid, changes["numero"])
+    for field, value in changes.items():
+        setattr(mesa, field, value)
+    try:
+        await session.commit()
+    except IntegrityError as exc:  # safety net de la carrera
+        await session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"La mesa {changes.get('numero', mesa.numero)} ya existe",
+        ) from exc
+    await session.refresh(mesa)
+    # Post-commit: el mapa del panel refresca la mesa editada.
+    await emit_event(
+        "mesa.estado",
+        restaurante_id=rid,
+        usuario_id=None,
+        data={"mesa_id": mesa.id, "estado": mesa.estado.value},
+    )
     return mesa
 
 

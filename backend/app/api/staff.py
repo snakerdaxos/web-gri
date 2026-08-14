@@ -17,6 +17,8 @@ scope dep already rejects cliente with 403):
 |                             |                             | 400 (super_admin sin ?restaurante_id=) |
 |                             |                             | 404 (restaurante/mesa inexistente/ajena)|
 |                             |                             | 409 (transición MESA_TRANSITIONS inválida)|
+| POST /staff/mesas           | admin_rest. + super_admin*  | 403 (mesero/cocina) / 409 (numero dup) |
+| PATCH /staff/mesas/{id}     | admin_rest. + super_admin*  | 403 / 404 / 409 / 422 (body vacío)    |
 
 * super_admin MUST pass ?restaurante_id= (a hint, validated 404-if-unknown);
   for staff the param is IGNORED — the tenant always comes from the token
@@ -51,17 +53,22 @@ from app.schemas.menu import (
     ProductoStaff,
     ProductoUpdate,
 )
-from app.schemas.mesa import MesaEstadoUpdate, MesaRead
+from app.schemas.mesa import (
+    MesaCreate,
+    MesaEstadoUpdate,
+    MesaRead,
+    MesaUpdate,
+)
 from app.schemas.pedido import PedidoEstadoUpdate, PedidoStaffRead
 from app.schemas.reserva import ReservaRead
 from app.services import pedido_service, staff_service
 
 router = APIRouter(prefix="/staff", tags=["staff"])
 
-# Writes de menú (Phase 8): solo admin_restaurante/super_admin — los reads de
-# menú/clientes quedan abiertos a todo el staff (un mesero ver el menú es
-# correcto; la configuración es del admin).
-_menu_write_roles = Depends(
+# Writes de menú/mesas (Phase 8): solo admin_restaurante/super_admin — los
+# reads de menú/clientes/reportes quedan abiertos a todo el staff (un mesero
+# ver el menú o los reportes es correcto; la configuración es del admin).
+_staff_write_roles = Depends(
     require_roles(RolUsuario.admin_restaurante, RolUsuario.super_admin)
 )
 
@@ -149,6 +156,57 @@ async def set_mesa_estado(
             f"Transición de estado no permitida: {exc}",
         ) from exc
     return MesaRead.model_validate(mesa)
+
+
+# --- Phase 8 (MESA-01): mesas CRUD con QR determinista --------------------------
+
+
+@router.post("/mesas", response_model=MesaRead, status_code=status.HTTP_201_CREATED)
+async def create_mesa(
+    body: MesaCreate,
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff.",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+    _: CurrentUser = _staff_write_roles,
+):
+    """MESA-01 (crear): mesa del tenant con codigo_qr autogenerado
+    determinista ``GRI-MESA-R{rid}-{numero:03d}`` (jamás input del cliente)
+    y estado ``disponible``.
+
+    - 201 MesaRead (QR incluido — el panel lo imprime con qr_flutter).
+    - 409 numero duplicado en el tenant (uq_mesa_restaurante_numero).
+    - 400 super_admin sin ?restaurante_id= / 404 restaurante inexistente.
+    - 403 mesero/cocina/cliente (solo admin_restaurante/super_admin).
+    """
+    return await staff_service.create_mesa(session, scope, body, restaurante_id)
+
+
+@router.patch("/mesas/{mesa_id}", response_model=MesaRead)
+async def update_mesa(
+    mesa_id: int,
+    body: MesaUpdate,
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff.",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+    _: CurrentUser = _staff_write_roles,
+):
+    """MESA-01 (editar): numero/capacidad (parcial). Si ``numero`` cambia, el
+    codigo_qr se REGENERA al nuevo número — el QR impreso anterior queda
+    obsoleto (el form del panel lo advierte antes de aplicar).
+
+    - 200 MesaRead actualizada (QR regenerado si tocó numero).
+    - 404 mesa inexistente O de otro tenant (existence hiding).
+    - 409 numero duplicado / 422 body vacío / 403 mesero/cocina.
+    """
+    return await staff_service.update_mesa(
+        session, scope, mesa_id, body, restaurante_id
+    )
 
 
 # --- PEDI-06 + PEDI-03/05: cola de pedidos + transiciones (Phase 6) ----------
@@ -253,7 +311,7 @@ async def create_categoria(
     ),
     session: AsyncSession = Depends(get_session),
     scope: TenantScope = Depends(get_tenant_scope),
-    _: CurrentUser = _menu_write_roles,
+    _: CurrentUser = _staff_write_roles,
 ):
     """MENU-01 (crear): categoría del tenant.
 
@@ -277,7 +335,7 @@ async def update_categoria(
     ),
     session: AsyncSession = Depends(get_session),
     scope: TenantScope = Depends(get_tenant_scope),
-    _: CurrentUser = _menu_write_roles,
+    _: CurrentUser = _staff_write_roles,
 ):
     """MENU-01 (editar): nombre/orden/activo (parcial — PATCH). ``activo=false``
     es el soft-delete: desaparece de /public, la fila y su historia viven.
@@ -302,7 +360,7 @@ async def create_producto(
     ),
     session: AsyncSession = Depends(get_session),
     scope: TenantScope = Depends(get_tenant_scope),
-    _: CurrentUser = _menu_write_roles,
+    _: CurrentUser = _staff_write_roles,
 ):
     """MENU-02 (crear): producto bajo una categoría DEL tenant.
 
@@ -326,7 +384,7 @@ async def update_producto(
     ),
     session: AsyncSession = Depends(get_session),
     scope: TenantScope = Depends(get_tenant_scope),
-    _: CurrentUser = _menu_write_roles,
+    _: CurrentUser = _staff_write_roles,
 ):
     """MENU-02 (editar): nombre/descripción/precio/imagen_url/disponible/activo
     (parcial). Semántica de los toggles: ``disponible=false`` = agotado
