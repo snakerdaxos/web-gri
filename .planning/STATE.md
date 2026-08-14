@@ -1,9 +1,9 @@
 ﻿---
-status: Phase 6 EN PROGRESO - 06-01 backend + 06-02 app_cliente + 06-03 panel cocina COMPLETOS (141 backend + 34 cliente + 17 panel); pendiente actualizar 06-02 en STATE por su agente
-stopped_at: "Completed 06-03-PLAN.md (panel_admin: vista cocina + sidebar Pedidos activo, suite 17/17)"
-current_phase: 6
+status: Phase 7 EN PROGRESO - 07-01 backend realtime COMPLETO (Broadcaster + /ws/staff + /ws/cliente + 6 emisiones post-commit; suite backend 155); pendientes 07-02 (panel) y 07-03 (app cliente)
+stopped_at: "Completed 07-01-PLAN.md (backend tiempo real: broadcaster rooms+seq, endpoints WS auth manual, 6 emisiones, test_ws.py 14/14)"
+current_phase: 7
 updated: 2026-08-14
-last_activity: 2026-08-14 - Plan 06-03 ejecutado completo (2 tasks, commits 5afda4b/8cd2aba); ADMN-05 cerrado; suite panel 17/17 + analyze 0 + build web OK
+last_activity: 2026-08-14 - Plan 07-01 ejecutado completo (2 tasks TDD, commits a3cd75d/323a588/09d62f7/6e66e00); suite 141 -> 155; RT-01/02/03 backend cubierto (requisitos end-to-end quedan pending hasta 07-02/07-03)
 ---
 
 # STATE
@@ -13,9 +13,19 @@ last_activity: 2026-08-14 - Plan 06-03 ejecutado completo (2 tasks, commits 5afd
 See: .planning/PROJECT.md (updated 2026-08-13)
 
 **Core value:** Un cliente puede sentarse en una mesa, escanear su QR, pedir del menu y recibir su comida en tiempo real sin intermediarios.
-**Current focus:** Phase 6 IN PROGRESS - 06-01 (backend), 06-02 (app_cliente) y 06-03 (panel cocina) COMPLETOS; UAT manual pendiente (no bloqueante)
+**Current focus:** Phase 7 IN PROGRESS - 07-01 (backend realtime) COMPLETO; 07-02 (panel WsClient+kick-to-refetch) y 07-03 (app cliente WsClient) pendientes
 
 ## Recent Activity
+
+### 2026-08-14 — Plan 07-01 completo (Wave 1 backend tiempo real)
+- core/broadcaster.py: Broadcaster Protocol (Redis-ready PLT2-02) + InMemoryBroadcaster (rooms dict restaurant:{id}/user:{id}, _seq por room, asyncio.Lock defensivo, publish itera list() copia + dead-socket cleanup) + emit_event dual-room ({type, restaurante_id, seq, ts, data}; null en user room) con awaits SECUENCIALES (sin create_task) — advertencia 1-worker en módulo y docker-compose
+- api/ws.py: /ws/staff (rid del TOKEN para staff; super_admin requiere ?restaurante_id= → 4400; cliente → 4401) + /ws/cliente (room user:{id}); _ws_user con decode completo + type=access + usuario activo, sesion async_session_maker() CORTA (grep negativo Depends(get_session) = 0 ocurrencias); receive loop descarta entrante; heartbeat protocol-level uvicorn (sin app-level)
+- 6 emisiones POST-commit en services: pedido.creado/pedido.estado (crear_pedido/transicionar, rooms staff+dueño), mesa.estado+sesion.abierta (abrir_sesion SOLO created=True; re-escaneo NO emite), sesion.cuenta (dentro del if idempotente — doble tap no re-emite), mesa.estado+sesion.cerrada (set_mesa_estado; zombi_usuario_id capturado ANTES del UPDATE anti-zombi — MySQL sin RETURNING)
+- Wave 0 resuelta: rechazo pre-accept OBSERVADO como handshake HTTP 403 (uvicorn 0.52.3+websockets — el close code NO viaja pre-handshake); helper _assert_ws_rejected acepta ambas formas y documenta; diseño intacto (4401/4400 siguen como contrato)
+- Suite: 141 → 155 (14 nuevos: 6 conexión/auth + 8 eventos end-to-end: pedido.creado <1s, pedido.estado user room, mesa.estado doble fuente, sesion.cuenta+idempotencia, sesion.cerrada anti-zombi, cross-tenant aislamiento, seq monotónico, 409-no-emite); 2 runs consecutivos; residuo BD 0
+- Commits: a3cd75d/323a588 (T1), 09d62f7/6e66e00 (T2)
+- Desviaciones: Rule 1 x1 (.value en payloads — str() de enum mixin da "EstadoPedido.enviado"); Rule 2 x1 (_listen try/finally + sub malformado → 4401); ruff B904/UP017 en código nuevo; B904 pre-existente de Phase 6 en sesion_service → deferred-items.md
+- REQUISITOS: RT-01/02/03 quedan Pending a propósito — son end-to-end, 07-02/07-03 cierran el lado cliente
 
 ### 2026-08-14 — Plan 06-03 completo (Wave 2 panel cocina)
 - feature cocina/ en panel_admin: CocinaScreen (AsyncValue loading/error/vacío + SnackBars 409/403 accionables + invalidate SIEMPRE) + PedidoCard (borde/chip color estado, items ×cantidad con subtotal, total formatCOP, notas itálicas, usuario, badge amarillo "🍽️ pidió la cuenta") + pedidosStaffProvider polling 10s (clon mesas_provider: queryRid solo super_admin + Timer.periodic + ref.onDispose)
@@ -84,7 +94,7 @@ See: .planning/PROJECT.md (updated 2026-08-13)
 
 ## Progress
 
-Status: Phase 6 IN PROGRESS (06-01 + 06-02 + 06-03 COMPLETOS; UAT manual pendiente no bloqueante)
+Status: Phase 7 IN PROGRESS (07-01 backend realtime COMPLETO; 07-02 panel + 07-03 app cliente pendientes)
 
 ### Phases
 - Phase 1: COMPLETE (verified passed)
@@ -92,11 +102,17 @@ Status: Phase 6 IN PROGRESS (06-01 + 06-02 + 06-03 COMPLETOS; UAT manual pendien
 - Phase 3: EXECUTED (verification pending)
 - Phase 4: COMPLETE - 04-01 (backend staff endpoints + CORS) + 04-02 (panel Flutter Web) ejecutados; PLAT-01, ADMN-01, ADMN-02 cerrados
 - Phase 5: EXECUTED - 05-01 + 05-02 (backend) + 05-03 (app_cliente Flutter) completos
-- Phase 6: IN PROGRESS - 06-01 (backend core value) + 06-02 (app_cliente) + 06-03 (panel cocina: vista cola + badge cuenta + matriz rol×transición + sidebar Pedidos activo) COMPLETOS (141 backend + 34 cliente + 17 panel tests)
-- Phase 7-9: Not started
+- Phase 6: EXECUTED - 06-01 + 06-02 + 06-03 completos (141 backend + 34 cliente + 17 panel tests)
+- Phase 7: IN PROGRESS - 07-01 (backend realtime: broadcaster + /ws + 6 emisiones + test_ws 14/14) COMPLETO, suite backend 155
+- Phase 8-9: Not started
 
 ## Gotchas para futuras sesiones
 
+- Tests host con db_session: exportar DB_PASSWORD antes de pytest (`$env:DB_PASSWORD = <MYSQL_APP_PASSWORD del .env raíz>`) — settings lee env_file=".env" relativo a backend/ donde NO existe (documentado desde 01-01, resurfó en 07-01).
+- Payloads JSON de eventos/enum: usar `.value` SIEMPRE — `str()` de un enum mixin (str, Enum) retorna "EstadoPedido.enviado", no "enviado" (json.dumps del miembro sí da el valor, pero ser explícito).
+- WS rechazo pre-accept (WebSocketException antes de accept): uvicorn 0.52.3+websockets entrega HTTP 403 en el handshake — el close code 4401/4400 NO viaja pre-handshake. Tests: helper _assert_ws_rejected (test_ws.py) acepta ambas formas; WsClient de 07-02/03 debe tratarlas igual.
+- WS endpoints: PROHIBIDO Depends(get_session) (sesión viviría toda la conexión → pool agotado); usar async_session_maker() en async with corto (patrón _ws_user en api/ws.py).
+- Emisiones WS: SIEMPRE post-commit, await directo (nunca create_task ni dentro de la tx); para UPDATEs anti-zombi capturar usuario_id ANTES del update (MySQL sin RETURNING) en variable plana.
 - Riverpod 3.4.2 API: `AsyncValue.value` ya es nullable (NO `.valueOrNull`); `StateProvider` deprecado → `NotifierProvider` con clase Notifier<T> custom.
 - GoRouter 17: callbacks `GoRoute.builder` ahora `(_, _)` (wildcards Dart 3.7), `ShellRoute.builder` `(_, _, child)`.
 - build_runner: NO usar `--delete-conflicting-outputs` (removido); el runner nuevo maneja conflictos solo.

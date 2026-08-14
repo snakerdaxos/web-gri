@@ -122,7 +122,7 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃ³vil 
   3. Tras una desconexiÃ³n (p.ej. wifi perdido), la app se reconecta y re-sincroniza el estado al reconectar (sin eventos duplicados ni pantallas desactualizadas)
 **Notas**: Research de fase obligatorio antes de planear (patrÃ³n de reconexiÃ³n Flutter, replay con sequence numbers, heartbeat). La abstracciÃ³n `Broadcaster` entra aquÃ­ desde el dÃ­a 1 (in-memory v1, Redis-ready).
 **Plans**: 3 plans
-- [ ] 07-01-PLAN.md — Vertical Slice Backend: Broadcaster (rooms + seq, Redis-ready) + /ws/staff + /ws/cliente (auth JWT manual 4401, sin Depends(get_session)) + 6 emisiones post-commit en services + suite test_ws.py contra stack vivo con httpx-ws (RT-01/02/03 backend)
+- [x] 07-01-PLAN.md — Vertical Slice Backend: Broadcaster (rooms + seq, Redis-ready) + /ws/staff + /ws/cliente (auth JWT manual 4401, sin Depends(get_session)) + 6 emisiones post-commit en services + suite test_ws.py contra stack vivo con httpx-ws (RT-01/02/03 backend)
 - [ ] 07-02-PLAN.md — Vertical Slice Panel Admin: WsClient (backoff+jitter, token fresco, 4401→refresh, dedup seq, resync) + kick-to-refetch en mesas/stats/pedidosStaff + safety net 60s + widget tests (RT-01/02/03 panel) — depende de 07-01
 - [ ] 07-03-PLAN.md — Vertical Slice App Cliente: WsClient (copia) + pedidos de la sesion en vivo + manejo sesion.cerrada (anti-zombi) + tests dedup/reconexion/4401 (RT-01/03 cliente) — depende de 07-01, paralelo con 07-02
 
@@ -163,9 +163,9 @@ Phases execute in numeric order: 1 â†’ 2 â†’ 3 â†’ 4 â†’ 5 �
 | 2. AutenticaciÃ³n, Roles y Multi-tenant | 2/2 | Complete   | 2026-08-13 |
 | 3. Modelo de Dominio y Seed Demo | 2/2 | Complete | 2026-08-13 |
 | 4. Panel Admin â€” Login, Dashboard y Mapa (Solo Lectura) | 2/2 | Complete | 2026-08-14 |
-| 5. App Cliente â€” Descubrimiento y Reservas | 0/3 | Not started | - |
-| 6. App Cliente â€” Pedido por QR (REST) y Vista Cocina | 0/3 | Not started | - |
-| 7. Tiempo Real â€” WebSockets | 0/3 | Not started | - |
+| 5. App Cliente â€” Descubrimiento y Reservas | 3/3 | Complete | 2026-08-14 |
+| 6. App Cliente â€” Pedido por QR (REST) y Vista Cocina | 3/3 | Complete | 2026-08-14 |
+| 7. Tiempo Real â€” WebSockets | 1/3 | In progress | - |
 | 8. Panel Admin â€” GestiÃ³n Completa y Reportes | 0/? | Not started | - |
 | 9. Pagos, Calificaciones y Deploy | 0/? | Not started | - |
 
