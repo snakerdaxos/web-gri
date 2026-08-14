@@ -40,19 +40,24 @@ class _FixedRid extends CurrentRestauranteId {
   int? build() => rid;
 }
 
+/// ApiClient contador cuyo snapshot DISTINGUE cada llamada (id/estado por
+/// nº de GET) — Riverpod dedupe AsyncValues idénticos y no notificaría a
+/// los listeners si el fake retornara siempre la misma lista const.
 class _CountingMesasClient extends ApiClient {
   int mesasCalls = 0;
 
   @override
   Future<List<Mesa>> getMesas({int? restauranteId}) async {
     mesasCalls++;
-    return const [
+    return [
       Mesa(
-        id: 1,
+        id: mesasCalls,
         numero: 1,
         capacidad: 4,
         codigoQr: 'GRI-MESA-001',
-        estado: EstadoMesa.disponible,
+        estado: mesasCalls == 1
+            ? EstadoMesa.disponible
+            : EstadoMesa.ocupada,
       ),
     ];
   }
@@ -99,6 +104,10 @@ void main() {
     await container.read(mesasProvider.future); // primer valor → 1 GET
     expect(client.mesasCalls, 1);
 
+    // Deja que el generador reanude tras el yield y subscribe los streams
+    // (un broadcast sin listener aún pierde el evento).
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+
     // El evento SOLO es señal: el mapa no se muta localmente con el payload.
     events.add(
       const WsEvent(
@@ -132,7 +141,7 @@ void main() {
     await container.read(authStateProvider.future);
 
     // Listener que mantiene vivo el autoDispose provider (read solo no).
-    container.listen(mesasProvider, (_, __) {});
+    container.listen(mesasProvider, (_, _) {});
     await container.read(mesasProvider.future);
     expect(client.mesasCalls, 1);
 
@@ -171,6 +180,9 @@ void main() {
     });
     await container.read(mesasProvider.future);
     expect(client.mesasCalls, 1);
+
+    // Deja que el generador reanude tras el yield y subscribe los streams.
+    await Future<void>.delayed(const Duration(milliseconds: 100));
 
     resync.add(null); // reconexión restablecida → snapshot autoritativo
     await segundo.future.timeout(const Duration(seconds: 2));

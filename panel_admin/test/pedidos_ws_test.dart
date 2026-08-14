@@ -16,13 +16,13 @@ import 'package:gri_panel_admin/models/user.dart';
 /// sesion.cuenta/mesa.estado disparan un GET refresh (el evento JAMÁS muta
 /// la cola local). Tipos irrelevantes (sesion.abierta) no hacen nada.
 ///
-/// Nota: mesa.estado SÍ refresca la cola (plan 07-02 <action> + research
+/// Nota: mesa.estado SÍ refresca la cola (acción del plan 07-02 + research
 /// Pattern 6: la cola re-ordena si la mesa cambia). Sesión.abierta llega al
 /// room staff pero no afecta la cola → irrelevante.
 ///
-/// Andamiaje sin red (patrón cola_test + mesas_ws_test): ApiClient contador
-/// + fake AuthState + rid fijo + streams WS controlados. NUNCA sockets
-/// reales. Riverpod 3.4.2 no exporta `Override` → ProviderContainer inline.
+/// Andamiaje sin red (patrón cola_test): ApiClient contador + fake AuthState
+/// + rid fijo + streams WS controlados. NUNCA sockets reales. Riverpod 3.4.2
+/// no exporta `Override` → ProviderContainer inline.
 
 class _FakeAuthState extends AuthState {
   _FakeAuthState(this.user);
@@ -42,13 +42,16 @@ class _FixedRid extends CurrentRestauranteId {
   int? build() => rid;
 }
 
+/// ApiClient contador — retorna una lista FRESCA por llamada (dos `[]` son
+/// instancias distintas para ==, así Riverpod no dedupe el AsyncValue y los
+/// listeners sí se notifican por cada re-fetch).
 class _CountingPedidosClient extends ApiClient {
   int pedidosCalls = 0;
 
   @override
   Future<List<PedidoStaff>> getPedidosActivos({int? restauranteId}) async {
     pedidosCalls++;
-    return const [];
+    return [];
   }
 }
 
@@ -91,6 +94,10 @@ void main() {
     });
     await container.read(pedidosStaffProvider.future); // 1er valor → 1 GET
     expect(client.pedidosCalls, 1);
+
+    // Deja que el generador reanude tras el yield y subscribe los streams
+    // (un broadcast sin listener aún pierde el evento).
+    await Future<void>.delayed(const Duration(milliseconds: 100));
 
     events.add(
       const WsEvent(type: 'pedido.creado', seq: 1, data: {'pedido_id': 10}),
@@ -135,7 +142,7 @@ void main() {
     await container.read(authStateProvider.future);
 
     // Listener que mantiene vivo el autoDispose provider (read solo no).
-    container.listen(pedidosStaffProvider, (_, __) {});
+    container.listen(pedidosStaffProvider, (_, _) {});
     await container.read(pedidosStaffProvider.future);
     expect(client.pedidosCalls, 1);
 

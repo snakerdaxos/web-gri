@@ -5,15 +5,20 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/api_client.dart';
 import '../../core/env.dart';
 import '../../core/token_provider.dart';
+import '../../core/ws_client.dart';
 import '../../models/dashboard_stats.dart';
 import 'restaurante_provider.dart';
 
 part 'stats_provider.g.dart';
 
-/// Stream de DashboardStats con polling 10s (deuda Phase 7: WS).
+/// Stream de DashboardStats EN VIVO (RT-01/02, 07-02): WS push con
+/// kick-to-refetch — antes polling 10s.
 ///
-/// Emite el fetch inicial inmediatamente, luego Timer.periodic cada
-/// Env.pollSeconds (default 10). El timer se cancela en ref.onDispose.
+/// Emite el fetch inicial inmediato, luego cada evento WS relevante
+/// (`mesa.estado`, `pedido.creado`, `pedido.estado` — dashboard completo en
+/// vivo) dispara un GET refresh (el evento SOLO es señal). `wsResyncProvider`
+/// (reconexión restablecida) → re-sync total; Timer de 60s como safety net
+/// de un WS muerto silencioso.
 ///
 /// Filtra por restaurante:
 ///  * staff → restaurante_id=null (backend usa el tenant del token; Plan 04-01
@@ -39,22 +44,38 @@ Stream<DashboardStats> stats(Ref ref) async* {
   final queryRid = user?.isSuperAdmin == true ? rid : null;
   final client = ref.read(apiClientProvider);
 
-  // Emite el primer valor de inmediato (UX: spinner solo durante el 1er fetch).
+  // Snapshot inicial inmediato (UX: spinner solo durante el 1er fetch).
   yield await client.getStats(restauranteId: queryRid);
 
   final controller = StreamController<DashboardStats>();
-  Timer? timer;
-  timer = Timer.periodic(Duration(seconds: Env.pollSeconds), (_) async {
+  Future<void> refresh() async {
     try {
       controller.add(await client.getStats(restauranteId: queryRid));
     } catch (e) {
       // No rompemos el stream: el error va al AsyncValue pero el siguiente
-      // tick puede recuperar. El dashboard lo renderiza con retry.
+      // evento puede recuperar. El dashboard lo renderiza con retry.
       controller.addError(e);
     }
-  });
+  }
+
+  // 1) Eventos WS relevantes → kick-to-refetch (NO mutar estado local).
+  const relevantes = {'mesa.estado', 'pedido.creado', 'pedido.estado'};
+  final sub1 = ref
+      .watch(wsEventsProvider)
+      .where((e) => relevantes.contains(e.type))
+      .listen((_) => refresh());
+  // 2) Reconexión restablecida → re-sync total (RT-03).
+  final sub2 = ref.watch(wsResyncProvider).listen((_) => refresh());
+  // 3) Safety net: polling lento 60s (cubre bugs de WS; barato).
+  final timer = Timer.periodic(
+    Duration(seconds: Env.pollSafetyNetSeconds),
+    (_) => refresh(),
+  );
+
   ref.onDispose(() {
-    timer?.cancel();
+    sub1.cancel();
+    sub2.cancel();
+    timer.cancel();
     controller.close();
   });
   yield* controller.stream;
