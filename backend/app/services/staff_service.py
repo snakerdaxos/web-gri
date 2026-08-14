@@ -15,7 +15,7 @@ cross-tenant reads structurally impossible).
 import datetime as dt
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.state_machines import validar_transicion
@@ -24,6 +24,7 @@ from app.models.mesa import EstadoMesa, Mesa
 from app.models.pedido import EstadoPedido, Pedido
 from app.models.reserva import EstadoReserva, Reserva
 from app.models.restaurante import Restaurante
+from app.models.sesion_mesa import EstadoSesion, SesionMesa
 from app.schemas.dashboard import DashboardStats
 from app.schemas.mesa import MesaEstadoUpdate
 from app.schemas.reserva import ReservaRead
@@ -158,6 +159,19 @@ async def set_mesa_estado(
     validar_transicion("mesa", mesa.estado, body.estado)
 
     mesa.estado = body.estado
+    if body.estado == EstadoMesa.limpieza:
+        # Anti-zombi (06-01 Task 3): mesa→limpieza cierra la sesión activa
+        # de esa mesa EN LA MISMA tx (estado=cerrada, cerrada_en=now). Sin
+        # esto, una sesión abierta bloquearía la mesa para siempre (no hay
+        # cierre de sesión cliente en v1 — el cierre al pagar llega en F9).
+        # UPDATE de 0 filas es no-op: no rompe el caso sin sesión.
+        await session.execute(
+            update(SesionMesa)
+            .where(
+                SesionMesa.mesa_id == mesa.id, SesionMesa.cerrada_en.is_(None)
+            )
+            .values(estado=EstadoSesion.cerrada, cerrada_en=func.now())
+        )
     await session.commit()
     await session.refresh(mesa)
     return mesa

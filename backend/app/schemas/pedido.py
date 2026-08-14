@@ -76,3 +76,27 @@ class PedidoEstadoUpdate(BaseModel):
     transición la decide PEDIDO_TRANSITIONS en el service (409)."""
 
     estado: EstadoPedido
+
+
+class PedidoStaffRead(BaseModel):
+    """Pedido para la cola de cocina/mesero (PEDI-06) — PedidoRead plano +
+    ``usuario_nombre`` (join Usuario) y ``solicita_cuenta``/``solicitada_en``
+    (join sesion_mesa via pedido.sesion_id — el badge "pidió la cuenta" vive
+    en cada card de la cola)."""
+
+    id: int
+    sesion_id: int | None
+    mesa_numero: int
+    estado: EstadoPedido
+    total: float
+    notas: str | None
+    created_at: dt.datetime
+    items: list[PedidoItemRead]
+    usuario_nombre: str
+    solicita_cuenta: bool = False
+    solicitada_en: dt.datetime | None = None
+
+    @field_serializer("total")
+    def _coerce_total(self, v: float | Decimal | Any) -> float:
+        """Force float on the wire (Pitfall 3)."""
+        return float(v)

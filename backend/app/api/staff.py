@@ -33,11 +33,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
 from app.core.state_machines import TransicionInvalidaError
-from app.deps.auth import TenantScope, get_tenant_scope
+from app.deps.auth import (
+    CurrentUser,
+    TenantScope,
+    get_current_user,
+    get_tenant_scope,
+)
 from app.schemas.dashboard import DashboardStats
 from app.schemas.mesa import MesaEstadoUpdate, MesaRead
+from app.schemas.pedido import PedidoEstadoUpdate, PedidoStaffRead
 from app.schemas.reserva import ReservaRead
-from app.services import staff_service
+from app.services import pedido_service, staff_service
 
 router = APIRouter(prefix="/staff", tags=["staff"])
 
@@ -125,3 +131,70 @@ async def set_mesa_estado(
             f"Transición de estado no permitida: {exc}",
         ) from exc
     return MesaRead.model_validate(mesa)
+
+
+# --- PEDI-06 + PEDI-03/05: cola de pedidos + transiciones (Phase 6) ----------
+
+
+@router.get("/pedidos", response_model=list[PedidoStaffRead])
+async def list_pedidos_cola(
+    activos: bool = Query(
+        default=True,
+        description="Solo ?activos=true está soportado en v1 (la cola "
+        "excluye terminales pagado/rechazado).",
+    ),
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff (el "
+        "tenant sale del token).",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+):
+    """PEDI-06: cola de pedidos activos del tenant (FIFO por etapa de
+    preparación: FIELD(estado,'enviado','aceptado','en_preparacion',
+    'servido'), created_at ASC) con items, total, notas, usuario_nombre y el
+    badge solicita_cuenta (PAGO-01).
+
+    - 400 super_admin sin ?restaurante_id= (patrón list_mesas).
+    - 403 cliente (get_tenant_scope).
+    - Cross-tenant: ausente de la lista (existence hiding).
+    """
+    if not activos:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Solo ?activos=true está soportado en v1",
+        )
+    return await pedido_service.cola_activos(session, scope, restaurante_id)
+
+
+@router.post("/pedidos/{pedido_id}/estado", response_model=PedidoStaffRead)
+async def set_pedido_estado(
+    pedido_id: int,
+    body: PedidoEstadoUpdate,
+    restaurante_id: int | None = Query(
+        default=None,
+        description="Requerido para super_admin; IGNORADO para staff (el "
+        "tenant sale del token).",
+    ),
+    session: AsyncSession = Depends(get_session),
+    scope: TenantScope = Depends(get_tenant_scope),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """PEDI-03/05: avanzar el estado de un pedido (matriz rol×transición).
+
+    - 200 PedidoStaffRead (transición válida + rol autorizado).
+    - 404 pedido inexistente O de otro tenant (existence hiding).
+    - 409 transición inválida (PEDIDO_TRANSITIONS) — evaluada ANTES que la
+      matriz de roles (un rol no autorizado con salto inválido recibe 409).
+    - 403 rol no autorizado para ESA transición (mesero solo puede servido).
+    """
+    try:
+        return await pedido_service.transicionar(
+            session, scope, user, pedido_id, body.estado, restaurante_id
+        )
+    except TransicionInvalidaError as exc:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Transición de estado no permitida: {exc}",
+        ) from exc

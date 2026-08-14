@@ -18,14 +18,56 @@ from collections import defaultdict
 from decimal import Decimal
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.state_machines import validar_transicion
+from app.deps.auth import CurrentUser, TenantScope
 from app.models.menu import Producto
 from app.models.mesa import Mesa
 from app.models.pedido import EstadoPedido, Pedido, PedidoItem
 from app.models.sesion_mesa import SesionMesa
-from app.schemas.pedido import PedidoCreate, PedidoItemRead, PedidoRead
+from app.models.usuario import RolUsuario, Usuario
+from app.schemas.pedido import (
+    PedidoCreate,
+    PedidoItemRead,
+    PedidoRead,
+    PedidoStaffRead,
+)
+from app.services import staff_service
+
+# Estados "activos" de la cola (mismo criterio que staff_service.get_stats):
+# servido sigue siendo activo — el terminal real es pagado/rechazado (F9).
+_PEDIDOS_ACTIVOS = staff_service._PEDIDOS_ACTIVOS
+
+# Matriz rol×transición (PEDI-05 — decision locked del research):
+# cocina/admin/super_admin hacen TODO; el mesero SOLO marca servido (entrega
+# física en mesa). El orden de checks vive en ``transicionar``: PRIMERO la
+# validez de la transición (409), DESPUÉS la matriz (403) — la validez nunca
+# se filtra por rol.
+TRANSITION_ROLES: dict[EstadoPedido, set[RolUsuario]] = {
+    EstadoPedido.aceptado: {
+        RolUsuario.cocina,
+        RolUsuario.admin_restaurante,
+        RolUsuario.super_admin,
+    },
+    EstadoPedido.rechazado: {
+        RolUsuario.cocina,
+        RolUsuario.admin_restaurante,
+        RolUsuario.super_admin,
+    },
+    EstadoPedido.en_preparacion: {
+        RolUsuario.cocina,
+        RolUsuario.admin_restaurante,
+        RolUsuario.super_admin,
+    },
+    EstadoPedido.servido: {
+        RolUsuario.cocina,
+        RolUsuario.mesero,
+        RolUsuario.admin_restaurante,
+        RolUsuario.super_admin,
+    },
+}
 
 
 async def _sesion_activa(
@@ -216,3 +258,196 @@ async def pedidos_de_sesion(
         )
         for p in pedidos
     ]
+
+
+# --- PEDI-06: cola staff -----------------------------------------------------
+
+
+async def cola_activos(
+    session: AsyncSession,
+    scope: TenantScope,
+    restaurante_id: int | None,
+) -> list[PedidoStaffRead]:
+    """PEDI-06: cola de pedidos activos del tenant resuelto (FIFO).
+
+    Orden: ``FIELD(estado, 'enviado','aceptado','en_preparacion','servido')``
+    + created_at ASC — los recién enviados primero (la cocina despacha en
+    orden de llegada dentro de cada etapa). Para cada pedido carga items
+    (con producto.nombre), usuario_nombre y la sesión (badge
+    solicita_cuenta) vía joins en batch (sin N+1).
+    """
+    rid = await staff_service._resolve_rid(session, scope, restaurante_id)
+
+    pedidos = (
+        await session.execute(
+            select(Pedido)
+            .where(Pedido.restaurant_id == rid, Pedido.estado.in_(_PEDIDOS_ACTIVOS))
+            .order_by(
+                func.field(
+                    Pedido.estado,
+                    EstadoPedido.enviado,
+                    EstadoPedido.aceptado,
+                    EstadoPedido.en_preparacion,
+                    EstadoPedido.servido,
+                ),
+                Pedido.created_at.asc(),
+                Pedido.id.asc(),
+            )
+        )
+    ).scalars().all()
+    if not pedidos:
+        return []
+
+    # --- joins display en batch (3 queries, N agnóstico) ---
+    item_rows = (
+        await session.execute(
+            select(PedidoItem, Producto.nombre)
+            .join(Producto, Producto.id == PedidoItem.producto_id)
+            .where(PedidoItem.pedido_id.in_([p.id for p in pedidos]))
+            .order_by(PedidoItem.id)
+        )
+    ).all()
+    items_by_pedido: dict[int, list[PedidoItemRead]] = defaultdict(list)
+    for item, nombre in item_rows:
+        items_by_pedido[item.pedido_id].append(
+            _to_item_read(
+                item.producto_id, nombre, item.cantidad,
+                item.precio_unitario, item.subtotal,
+            )
+        )
+
+    usuarios = (
+        await session.execute(
+            select(Usuario.id, Usuario.nombre).where(
+                Usuario.id.in_({p.usuario_id for p in pedidos})
+            )
+        )
+    ).all()
+    nombre_by_usuario = dict(usuarios)
+
+    mesas = (
+        await session.execute(
+            select(Mesa).where(Mesa.id.in_({p.mesa_id for p in pedidos}))
+        )
+    ).scalars().all()
+    mesa_by_id = {m.id: m for m in mesas}
+
+    sesion_ids = {p.sesion_id for p in pedidos if p.sesion_id is not None}
+    sesiones: dict[int, SesionMesa] = {}
+    if sesion_ids:
+        rows = (
+            await session.execute(
+                select(SesionMesa).where(SesionMesa.id.in_(sesion_ids))
+            )
+        ).scalars().all()
+        sesiones = {s.id: s for s in rows}
+
+    return [
+        PedidoStaffRead(
+            id=p.id,
+            sesion_id=p.sesion_id,
+            mesa_numero=mesa_by_id[p.mesa_id].numero if p.mesa_id in mesa_by_id else 0,
+            estado=p.estado,
+            total=p.total,
+            notas=p.notas,
+            created_at=p.created_at,
+            items=items_by_pedido[p.id],
+            usuario_nombre=nombre_by_usuario.get(p.usuario_id, ""),
+            solicita_cuenta=(
+                bool(sesiones[p.sesion_id].solicita_cuenta)
+                if p.sesion_id in sesiones
+                else False
+            ),
+            solicitada_en=(
+                sesiones[p.sesion_id].solicitada_en
+                if p.sesion_id in sesiones
+                else None
+            ),
+        )
+        for p in pedidos
+    ]
+
+
+async def _staff_read(
+    session: AsyncSession, pedido: Pedido
+) -> PedidoStaffRead:
+    """Construye el PedidoStaffRead de UN pedido (joins display)."""
+    item_rows = (
+        await session.execute(
+            select(PedidoItem, Producto.nombre)
+            .join(Producto, Producto.id == PedidoItem.producto_id)
+            .where(PedidoItem.pedido_id == pedido.id)
+            .order_by(PedidoItem.id)
+        )
+    ).all()
+    usuario = await session.get(Usuario, pedido.usuario_id)
+    mesa = await session.get(Mesa, pedido.mesa_id)
+    sesion = (
+        await session.get(SesionMesa, pedido.sesion_id)
+        if pedido.sesion_id is not None
+        else None
+    )
+    return PedidoStaffRead(
+        id=pedido.id,
+        sesion_id=pedido.sesion_id,
+        mesa_numero=mesa.numero if mesa else 0,
+        estado=pedido.estado,
+        total=pedido.total,
+        notas=pedido.notas,
+        created_at=pedido.created_at,
+        items=[
+            _to_item_read(
+                item.producto_id, nombre, item.cantidad,
+                item.precio_unitario, item.subtotal,
+            )
+            for item, nombre in item_rows
+        ],
+        usuario_nombre=usuario.nombre if usuario else "",
+        solicita_cuenta=bool(sesion.solicita_cuenta) if sesion else False,
+        solicitada_en=sesion.solicitada_en if sesion else None,
+    )
+
+
+# --- PEDI-03/05: transiciones con matriz rol×estado ---------------------------
+
+
+async def transicionar(
+    session: AsyncSession,
+    scope: TenantScope,
+    user: CurrentUser,
+    pedido_id: int,
+    nuevo_estado: EstadoPedido,
+    restaurante_id: int | None,
+) -> PedidoStaffRead:
+    """PEDI-03/05: avanzar el estado de un pedido del tenant.
+
+    Orden de las validaciones (threat model #5 — NO filtrar la validez por
+    rol):
+
+    1. ``_resolve_rid`` — 400 super_admin sin param / 404 restaurante.
+    2. Existence hiding cross-tenant: pedido inexistente O ajeno → 404.
+    3. ``validar_transicion("pedido", ...)`` — PEDIDO_TRANSITIONS es la
+       ÚNICA fuente de verdad; ``TransicionInvalidaError`` sube al router
+       → 409 (ANTES del check de rol).
+    4. ``TRANSITION_ROLES[nuevo]`` — 403 si el rol no está autorizado para
+       ESA transición.
+    5. Mutación + commit solo si todo pasó (sin drift en rechazos).
+    """
+    rid = await staff_service._resolve_rid(session, scope, restaurante_id)
+
+    pedido = await session.get(Pedido, pedido_id)
+    if pedido is None or pedido.restaurant_id != rid:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido no encontrado")
+
+    validar_transicion("pedido", pedido.estado, nuevo_estado)
+
+    if user.role not in TRANSITION_ROLES[nuevo_estado]:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Rol no autorizado para esta transición",
+        )
+
+    pedido.estado = nuevo_estado
+    await session.commit()
+    await session.refresh(pedido)
+    return await _staff_read(session, pedido)
