@@ -1,9 +1,9 @@
 ﻿---
-status: Phase 7 EN PROGRESO - 07-01 backend realtime COMPLETO (Broadcaster + /ws/staff + /ws/cliente + 6 emisiones post-commit; suite backend 155); pendientes 07-02 (panel) y 07-03 (app cliente)
-stopped_at: "Completed 07-01-PLAN.md (backend tiempo real: broadcaster rooms+seq, endpoints WS auth manual, 6 emisiones, test_ws.py 14/14)"
+status: Phase 7 EN PROGRESO - 07-01 backend realtime COMPLETO (suite 155); 07-03 app cliente realtime COMPLETO (WsClient + pedidos en vivo + sesion.cerrada; suite 41); pendiente 07-02 (panel, en ejecución paralela)
+stopped_at: "Completed 07-03-PLAN.md (app cliente: ws_client.dart resiliente + pedidosSession kick-to-refetch + safety net 60s + sesion.cerrada→invalidate; suite 34→41)"
 current_phase: 7
 updated: 2026-08-14
-last_activity: 2026-08-14 - Plan 07-01 ejecutado completo (2 tasks TDD, commits a3cd75d/323a588/09d62f7/6e66e00); suite 141 -> 155; RT-01/02/03 backend cubierto (requisitos end-to-end quedan pending hasta 07-02/07-03)
+last_activity: 2026-08-14 - Plan 07-03 ejecutado completo (2 tasks, commits 80ea89b/cc7073e/030b69e); RT-01 cliente + RT-03 lado app cliente cubiertos (end-to-end cierra con 07-02 + UAT de fase)
 ---
 
 # STATE
@@ -16,6 +16,15 @@ See: .planning/PROJECT.md (updated 2026-08-13)
 **Current focus:** Phase 7 IN PROGRESS - 07-01 (backend realtime) COMPLETO; 07-02 (panel WsClient+kick-to-refetch) y 07-03 (app cliente WsClient) pendientes
 
 ## Recent Activity
+
+### 2026-08-14 — Plan 07-03 completo (Wave 2 app cliente realtime)
+- core/ws_client.dart: WsEvent.fromJson (contrato {type, restaurante_id, seq, ts, data}) + WsClient (token FRESCO readAccess() por intento, channel.ready, backoff 1→30s ×2+jitter DENTRO del builder por defecto, dedup seq<=lastSeq con reset al reconectar, resync solo tras fallo previo, closeCode 4401→api.refreshTokens()→retry inmediato | null→sin reconnect, disconnect mantiene controllers, dispose final) + providers manuales wsClient/wsConnection (watchea SOLO authStateProvider, room user:{id})/wsEvents/wsResync broadcast
+- ApiClient.refreshTokens() PÚBLICO: wrapper de _refreshOnce() del AuthInterceptor (mismo Completer anti refresh-storm — la clase ahora guarda _auth); Env.pollSafetyNetSeconds default 60 defensivo
+- pedidosSession (PEDI-04) polling 10s → kick-to-refetch: eventos pedido.creado/pedido.estado/sesion.cuenta/sesion.abierta/sesion.cerrada → GET refresh (idempotente, nunca muta lista); sesion.cerrada → ref.invalidate(sesionProvider) (banner fuera, provider colapsa a Stream.empty) + refresh; safety net Timer 60s; consumers intactos (Stream<List<Pedido>>)
+- Suite cliente: 34 → 41 (5 ws_client_test: dedup/reconnect+resync/4401-refresh-retry/refresh-null/token-null con FakeWebSocketChannel implements + StreamChannelMixin, backoffBuilder 1ms; 2 pedidos_ws_test ProviderContainer inline: pedido.estado→GET extra, sesion.cerrada→invalidate + colapso); analyze 0
+- Commits: 80ea89b (T1), cc7073e (riverpod-3-safe restructure), 030b69e (T2 tests + stream_channel dev)
+- Desviaciones: Rule 2 x1 (ref post-await hazard riverpod 3.4 — TODO ref antes del primer await + guard isClosed en controller.add, destapado por test 7); Rule 3 x1 (stream_channel dev-dep para StreamChannelMixin del fake); Rule 1 x1 (caret ^3.0.3)
+- REQUISITOS: RT-01/RT-03 requieren 07-02 + UAT end-to-end para marcar completos
 
 ### 2026-08-14 — Plan 07-01 completo (Wave 1 backend tiempo real)
 - core/broadcaster.py: Broadcaster Protocol (Redis-ready PLT2-02) + InMemoryBroadcaster (rooms dict restaurant:{id}/user:{id}, _seq por room, asyncio.Lock defensivo, publish itera list() copia + dead-socket cleanup) + emit_event dual-room ({type, restaurante_id, seq, ts, data}; null en user room) con awaits SECUENCIALES (sin create_task) — advertencia 1-worker en módulo y docker-compose
@@ -103,7 +112,7 @@ Status: Phase 7 IN PROGRESS (07-01 backend realtime COMPLETO; 07-02 panel + 07-0
 - Phase 4: COMPLETE - 04-01 (backend staff endpoints + CORS) + 04-02 (panel Flutter Web) ejecutados; PLAT-01, ADMN-01, ADMN-02 cerrados
 - Phase 5: EXECUTED - 05-01 + 05-02 (backend) + 05-03 (app_cliente Flutter) completos
 - Phase 6: EXECUTED - 06-01 + 06-02 + 06-03 completos (141 backend + 34 cliente + 17 panel tests)
-- Phase 7: IN PROGRESS - 07-01 (backend realtime: broadcaster + /ws + 6 emisiones + test_ws 14/14) COMPLETO, suite backend 155
+- Phase 7: IN PROGRESS - 07-01 (backend realtime: broadcaster + /ws + 6 emisiones + test_ws 14/14) COMPLETO, suite backend 155; 07-03 (app cliente WsClient + pedidos en vivo) COMPLETO, suite cliente 41; 07-02 (panel) en ejecución paralela
 - Phase 8-9: Not started
 
 ## Gotchas para futuras sesiones
@@ -129,5 +138,7 @@ Status: Phase 7 IN PROGRESS (07-01 backend realtime COMPLETO; 07-02 panel + 07-0
 - Flutter SDK en `C:\src\flutter\bin` (NO en PATH global): cada comando flutter/dart requiere `$env:Path += ";C:\src\flutter\bin"` en PowerShell.
 - freezed 3.2.6-dev.1 (y presumiblemente el dev line 3.2.x) genera `required final List<T>` INVÁLIDO para campos List — pin `freezed: '4.0.0-dev.3'` en ambos paquetes Flutter (mismo pin, ya validado).
 - Riverpod 3.4.2 NO exporta el tipo `Override`: en widget tests inlinear el ProviderScope por test (patrón stats_render_test) en vez de helper tipado.
+- Riverpod 3.4 `ref` post-await: `mounted => !_element._disposed && identical(_element.ref, this)` — usar ref.watch/read/onDispose DESPUÉS de un await dentro de un provider lanza UnmountedRefException si hubo rebuild. En generators: TODO el uso de ref ANTES del primer await (suscripciones tempranas + buffer del controller single-subscription). Y guard `isClosed` antes de controller.add en refresh() async (race dispose-vs-GET-en-vuelo al invalidar).
+- web_socket_channel 3.0.3: `WebSocketChannel.connect(uri)` es MÉTODO ESTÁTICO (no constructor) y la clase es `abstract interface class` (no extensible). Fakes: `extends StreamChannelMixin<dynamic> implements WebSocketChannel` (requiere stream_channel ^2.1.4 como dev-dep — NO la re-exporta) + WebSocketSink fake propio (interface = StreamSink + close con args). closeCode se setea en el fake ANTES de cerrar el inbound.
 - Screens bombeadas fuera de Scaffold (MaterialApp home directo en tests): envolver en Material(color: bg) — sin Material ancestor Flutter inyecta fallback style 48px amarillo subrayado a los Text sin fontSize explícito.
 - ListView lazy en widget tests: cards fuera del viewport default (800×600) no se buildan — `tester.view.physicalSize = Size(800, 1800)` + `devicePixelRatio = 1.0` + `addTearDown(tester.view.reset)`.
