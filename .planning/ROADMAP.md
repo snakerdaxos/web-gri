@@ -137,7 +137,12 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃ³vil 
   3. El admin puede cambiar el estado de una mesa desde el mapa (marcar en limpieza, liberar) y gestionar clientes (lista e historial)
   4. El admin puede ver reportes de ventas por dÃ­a/rango (total, nÃºmero de pedidos) y los platos mÃ¡s vendidos
   5. El super-admin puede ver la lista de restaurantes y desactivarlos desde el panel
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 08-01-PLAN.md — Vertical Slice Backend: migración 0005 (activo en categoria/producto + filtro público) + menú CRUD (/staff/menu, categorías, productos) + clientes e historial (MENU-01, MENU-02, ADMN-03)
+- [ ] 08-02-PLAN.md — Vertical Slice Backend: mesas CRUD con QR determinista GRI-MESA-R{rid}-{numero:03d} + reportes ventas/top-platos (venta=servido|pagado) + PLAT-05 PATCH activo + incluir_inactivos (MESA-01, REPO-01, REPO-02, PLAT-05) — depende de 08-01
+- [ ] 08-03-PLAN.md — Vertical Slice Panel: gestión de mesas + QR dialog imprimible (qr_flutter/web) + mapa interactivo ADMN-04 con solo transiciones válidas + sidebar Mesas + TopBar dinámico (MESA-01, MESA-03, ADMN-04) — depende de 08-02
+- [ ] 08-04-PLAN.md — Vertical Slice Panel: menú CRUD en Configuración (tabs) + clientes DataTable2 con historial (MENU-01, MENU-02, ADMN-03) — depende de 08-03
+- [ ] 08-05-PLAN.md — Vertical Slice Panel: reportes por rango + reservas del día (marcar ocupada) + tab Restaurantes super-admin (PLAT-05) + sidebar 7/7 (REPO-01, REPO-02, PLAT-05) — depende de 08-04
 
 ### Phase 9: Pagos, Calificaciones y Deploy
 **Goal**: El ciclo financiero cierra: pago en lÃ­nea idempotente que libera la mesa, calificaciÃ³n post-pago visible en discover, y despliegue a producciÃ³n en Ubuntu Server
@@ -166,7 +171,7 @@ Phases execute in numeric order: 1 â†’ 2 â†’ 3 â†’ 4 â†’ 5 �
 | 5. App Cliente â€” Descubrimiento y Reservas | 3/3 | Complete | 2026-08-14 |
 | 6. App Cliente â€” Pedido por QR (REST) y Vista Cocina | 3/3 | Complete | 2026-08-14 |
 | 7. Tiempo Real â€” WebSockets | 2/3 | In progress | - |
-| 8. Panel Admin â€” GestiÃ³n Completa y Reportes | 0/? | Not started | - |
+| 8. Panel Admin - Gestion Completa y Reportes | 0/5 | Planned | - |
 | 9. Pagos, Calificaciones y Deploy | 0/? | Not started | - |
 
 ---
