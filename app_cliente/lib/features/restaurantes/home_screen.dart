@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../core/token_provider.dart';
 import '../../models/reserva.dart';
+import '../reservas/mis_reservas_screen.dart' show EstadoChip;
 import '../reservas/reservas_provider.dart';
 import 'restaurantes_provider.dart';
 
@@ -373,7 +374,7 @@ class _ProximaReservaCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              _EstadoChip(estado: reserva.estado),
+              EstadoChip(estado: reserva.estado),
             ],
           ),
           const SizedBox(height: 12),
@@ -389,26 +390,3 @@ class _ProximaReservaCard extends StatelessWidget {
   }
 }
 
-class _EstadoChip extends StatelessWidget {
-  const _EstadoChip({required this.estado});
-
-  final String estado;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: GriColors.estadoChipBg(estado),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        estado[0].toUpperCase() + estado.substring(1),
-        style: TextStyle(
-          fontSize: 12,
-          color: GriColors.estadoChipFg(estado),
-        ),
-      ),
-    );
-  }
-}

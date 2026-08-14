@@ -1,11 +1,8 @@
-import 'dart:async';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_cliente/core/api_client.dart';
-import 'package:gri_cliente/features/reservas/reserva_controller.dart';
 import 'package:gri_cliente/features/reservas/reserva_wizard_screen.dart';
 import 'package:gri_cliente/models/reserva.dart';
 import 'package:gri_cliente/models/reserva_create.dart';
@@ -90,12 +87,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(Stepper), findsOneWidget);
-    // El step activo muestra "Fecha"; los títulos del plan están en el
-    // stepper (los inactivos se renderizan también).
-    expect(find.text('Fecha'), findsOneWidget);
-    expect(find.text('Hora'), findsOneWidget);
-    expect(find.text('Personas'), findsOneWidget);
-    expect(find.text('Confirmar'), findsOneWidget);
+    // Títulos de los 4 steps (el resumen del step Confirmar repite algunos
+    // labels — findsWidgets, no findsOneWidget).
+    expect(find.text('Fecha'), findsWidgets);
+    expect(find.text('Hora'), findsWidgets);
+    expect(find.text('Personas'), findsWidgets);
+    expect(find.text('Confirmar'), findsWidgets);
   });
 
   testWidgets('hora picker SOLO ofrece slots :00 (12:00..21:00)', (tester) async {

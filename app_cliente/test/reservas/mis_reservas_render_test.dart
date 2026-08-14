@@ -81,11 +81,11 @@ void main() {
     expect(find.text('Próximas'), findsOneWidget);
     expect(find.text('Pasadas'), findsOneWidget);
 
-    // La futura y la de hoy están bajo Próximas (visibles); la pasada
-    // también se renderiza (lista separada).
-    expect(find.text('2099-01-01'), findsOneWidget);
-    expect(find.text(hoy), findsOneWidget);
-    expect(find.text('2020-01-01'), findsOneWidget);
+    // La futura y la de hoy están bajo Próximas; la pasada en su sección
+    // (fecha+hora combinadas estilo mockup → textContaining).
+    expect(find.textContaining('2099-01-01'), findsOneWidget);
+    expect(find.textContaining(hoy), findsOneWidget);
+    expect(find.textContaining('2020-01-01'), findsOneWidget);
   });
 
   testWidgets(
@@ -103,8 +103,8 @@ void main() {
     expect(find.text('Restaurante Demo GRI'), findsNWidgets(2));
     expect(find.textContaining('Mesa 1'), findsOneWidget);
     expect(find.textContaining('Mesa 2'), findsOneWidget);
-    expect(find.text('2099-01-01'), findsOneWidget);
-    expect(find.text('19:00'), findsNWidgets(2));
+    expect(find.textContaining('2099-01-01'), findsOneWidget);
+    expect(find.textContaining('19:00'), findsNWidgets(2));
     expect(find.textContaining('4 personas'), findsNWidgets(2));
 
     // Chips de estado: confirmada verde / cancelada roja (texto capitalizado).
