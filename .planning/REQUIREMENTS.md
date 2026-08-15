@@ -65,14 +65,14 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Cuenta y Pago
 
 - [x] **PAGO-01**: Cliente puede solicitar la cuenta desde la app y el mesero/mesero-panel recibe el aviso
-- [ ] **PAGO-02**: Cliente puede pagar en lÃ­nea el total de su consumo (pasarela a definir: Wompi/PayU/Mercado Pago)
-- [ ] **PAGO-03**: El pago es idempotente: reintentos o webhooks duplicados no generan doble cobre ni estados corruptos
-- [ ] **PAGO-04**: Al confirmarse el pago, la mesa se libera (pasa a limpieza) y la sesiÃ³n de mesa se cierra
+- [x] **PAGO-02**: Cliente puede pagar en lÃ­nea el total de su consumo (pasarela a definir: Wompi/PayU/Mercado Pago)
+- [x] **PAGO-03**: El pago es idempotente: reintentos o webhooks duplicados no generan doble cobre ni estados corruptos
+- [x] **PAGO-04**: Al confirmarse el pago, la mesa se libera (pasa a limpieza) y la sesiÃ³n de mesa se cierra
 
 ### Calificaciones
 
-- [ ] **CALI-01**: Cliente puede calificar su experiencia (estrellas + comentario) despuÃ©s de un pedido pagado
-- [ ] **CALI-02**: La calificaciÃ³n promedio del restaurante es visible en la lista y detalle de restaurantes
+- [x] **CALI-01**: Cliente puede calificar su experiencia (estrellas + comentario) despuÃ©s de un pedido pagado
+- [x] **CALI-02**: La calificaciÃ³n promedio del restaurante es visible en la lista y detalle de restaurantes
 
 ### Panel Admin (Web)
 
@@ -170,11 +170,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RT-02 | Fase 7 | Done |
 | RT-03 | Fase 7 | Done |
 | PAGO-01 | Fase 6 | Complete |
-| PAGO-02 | Fase 9 | Pending |
-| PAGO-03 | Fase 9 | Pending |
-| PAGO-04 | Fase 9 | Pending |
-| CALI-01 | Fase 9 | Pending |
-| CALI-02 | Fase 9 | Pending |
+| PAGO-02 | Fase 9 | Done |
+| PAGO-03 | Fase 9 | Done |
+| PAGO-04 | Fase 9 | Done |
+| CALI-01 | Fase 9 | Done |
+| CALI-02 | Fase 9 | Done |
 | ADMN-01 | Fase 4 | Complete |
 | ADMN-02 | Fase 4 | Complete |
 | ADMN-03 | Fase 8 | Done |
