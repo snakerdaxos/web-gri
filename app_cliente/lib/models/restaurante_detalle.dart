@@ -16,6 +16,7 @@ abstract class RestauranteDetalle with _$RestauranteDetalle {
     String? descripcion,
     String? direccion,
     double? calificacion,
+    @JsonKey(name: 'total_calificaciones') @Default(0) int totalCalificaciones,
     required List<Categoria> categorias,
   }) = _RestauranteDetalle;
 
@@ -26,4 +27,10 @@ abstract class RestauranteDetalle with _$RestauranteDetalle {
 
   String get calificacionLabel =>
       calificacion == null ? '—' : calificacion!.toStringAsFixed(1);
+
+  /// "4.8 (245)" o "—" — mismo formato que la lista (CALI-02).
+  String get ratingLabel {
+    if (calificacion == null || totalCalificaciones <= 0) return '—';
+    return '${calificacion!.toStringAsFixed(1)} ($totalCalificaciones)';
+  }
 }

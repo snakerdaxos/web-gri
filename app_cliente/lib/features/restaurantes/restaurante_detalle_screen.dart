@@ -100,7 +100,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                                 style: TextStyle(
                                     color: Color(0xFFF5A623), fontSize: 14)),
                             Text(
-                              detalle.calificacionLabel,
+                              detalle.ratingLabel,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFFF5A623),

@@ -14,6 +14,7 @@ _RestauranteDetalle _$RestauranteDetalleFromJson(Map<String, dynamic> json) =>
       descripcion: json['descripcion'] as String?,
       direccion: json['direccion'] as String?,
       calificacion: (json['calificacion'] as num?)?.toDouble(),
+      totalCalificaciones: (json['total_calificaciones'] as num?)?.toInt() ?? 0,
       categorias: (json['categorias'] as List<dynamic>)
           .map((e) => Categoria.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -27,5 +28,6 @@ Map<String, dynamic> _$RestauranteDetalleToJson(_RestauranteDetalle instance) =>
       'descripcion': instance.descripcion,
       'direccion': instance.direccion,
       'calificacion': instance.calificacion,
+      'total_calificaciones': instance.totalCalificaciones,
       'categorias': instance.categorias,
     };

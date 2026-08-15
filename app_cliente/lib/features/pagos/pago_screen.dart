@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
+import 'calificacion_sheet.dart';
 import 'pago_controller.dart';
 
 /// Pantalla de pago de la cuenta (PAGO-02 UI): resumen con el total
@@ -61,8 +62,21 @@ class _PagoScreenState extends ConsumerState<PagoScreen>
   Future<void> _reiniciar() =>
       ref.read(pagoControllerProvider.notifier).iniciar();
 
-  /// Task 2 conecta aquí el CalificacionSheet (post-pago).
-  void _abrirCalificacion() {}
+  /// Abre el sheet de calificación post-pago con el ÚLTIMO pedido pagado
+  /// de pago.pedido_ids (Pitfall 6: la sesión ya está cerrada — estos ids
+  /// son la única vía). El CTA permanece disponible si se descarta el
+  /// sheet: calificar no es obligatorio.
+  void _abrirCalificacion() {
+    final pedidoIds =
+        ref.read(pagoControllerProvider).ultimoEstado?.pedidoIds ??
+            const <int>[];
+    if (pedidoIds.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => CalificacionSheet(pedidoId: pedidoIds.last),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

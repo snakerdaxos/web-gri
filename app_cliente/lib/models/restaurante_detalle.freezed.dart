@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$RestauranteDetalle {
 
- int get id; String get nombre;@JsonKey(name: 'tipo_cocina') String? get tipoCocina; String? get descripcion; String? get direccion; double? get calificacion; List<Categoria> get categorias;
+ int get id; String get nombre;@JsonKey(name: 'tipo_cocina') String? get tipoCocina; String? get descripcion; String? get direccion; double? get calificacion;@JsonKey(name: 'total_calificaciones') int get totalCalificaciones; List<Categoria> get categorias;
 /// Create a copy of RestauranteDetalle
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $RestauranteDetalleCopyWith<RestauranteDetalle> get copyWith => _$RestauranteDet
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RestauranteDetalle&&(identical(other.id, id) || other.id == id)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.tipoCocina, tipoCocina) || other.tipoCocina == tipoCocina)&&(identical(other.descripcion, descripcion) || other.descripcion == descripcion)&&(identical(other.direccion, direccion) || other.direccion == direccion)&&(identical(other.calificacion, calificacion) || other.calificacion == calificacion)&&const DeepCollectionEquality().equals(other.categorias, categorias));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RestauranteDetalle&&(identical(other.id, id) || other.id == id)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.tipoCocina, tipoCocina) || other.tipoCocina == tipoCocina)&&(identical(other.descripcion, descripcion) || other.descripcion == descripcion)&&(identical(other.direccion, direccion) || other.direccion == direccion)&&(identical(other.calificacion, calificacion) || other.calificacion == calificacion)&&(identical(other.totalCalificaciones, totalCalificaciones) || other.totalCalificaciones == totalCalificaciones)&&const DeepCollectionEquality().equals(other.categorias, categorias));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,nombre,tipoCocina,descripcion,direccion,calificacion,const DeepCollectionEquality().hash(categorias));
+int get hashCode => Object.hash(runtimeType,id,nombre,tipoCocina,descripcion,direccion,calificacion,totalCalificaciones,const DeepCollectionEquality().hash(categorias));
 
 @override
 String toString() {
-  return 'RestauranteDetalle(id: $id, nombre: $nombre, tipoCocina: $tipoCocina, descripcion: $descripcion, direccion: $direccion, calificacion: $calificacion, categorias: $categorias)';
+  return 'RestauranteDetalle(id: $id, nombre: $nombre, tipoCocina: $tipoCocina, descripcion: $descripcion, direccion: $direccion, calificacion: $calificacion, totalCalificaciones: $totalCalificaciones, categorias: $categorias)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $RestauranteDetalleCopyWith<$Res>  {
   factory $RestauranteDetalleCopyWith(RestauranteDetalle value, $Res Function(RestauranteDetalle) _then) = _$RestauranteDetalleCopyWithImpl;
 @useResult
 $Res call({
- int id, String nombre,@JsonKey(name: 'tipo_cocina') String? tipoCocina, String? descripcion, String? direccion, double? calificacion, List<Categoria> categorias
+ int id, String nombre,@JsonKey(name: 'tipo_cocina') String? tipoCocina, String? descripcion, String? direccion, double? calificacion,@JsonKey(name: 'total_calificaciones') int totalCalificaciones, List<Categoria> categorias
 });
 
 
@@ -66,7 +66,7 @@ class _$RestauranteDetalleCopyWithImpl<$Res>
 
 /// Create a copy of RestauranteDetalle
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? nombre = null,Object? tipoCocina = freezed,Object? descripcion = freezed,Object? direccion = freezed,Object? calificacion = freezed,Object? categorias = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? nombre = null,Object? tipoCocina = freezed,Object? descripcion = freezed,Object? direccion = freezed,Object? calificacion = freezed,Object? totalCalificaciones = null,Object? categorias = null,}) {
   return _then(RestauranteDetalle(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
@@ -74,7 +74,8 @@ as String,tipoCocina: freezed == tipoCocina ? _self.tipoCocina : tipoCocina // i
 as String?,descripcion: freezed == descripcion ? _self.descripcion : descripcion // ignore: cast_nullable_to_non_nullable
 as String?,direccion: freezed == direccion ? _self.direccion : direccion // ignore: cast_nullable_to_non_nullable
 as String?,calificacion: freezed == calificacion ? _self.calificacion : calificacion // ignore: cast_nullable_to_non_nullable
-as double?,categorias: null == categorias ? _self.categorias : categorias // ignore: cast_nullable_to_non_nullable
+as double?,totalCalificaciones: null == totalCalificaciones ? _self.totalCalificaciones : totalCalificaciones // ignore: cast_nullable_to_non_nullable
+as int,categorias: null == categorias ? _self.categorias : categorias // ignore: cast_nullable_to_non_nullable
 as List<Categoria>,
   ));
 }
@@ -160,10 +161,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String nombre, @JsonKey(name: 'tipo_cocina')  String? tipoCocina,  String? descripcion,  String? direccion,  double? calificacion,  List<Categoria> categorias)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String nombre, @JsonKey(name: 'tipo_cocina')  String? tipoCocina,  String? descripcion,  String? direccion,  double? calificacion, @JsonKey(name: 'total_calificaciones')  int totalCalificaciones,  List<Categoria> categorias)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _RestauranteDetalle() when $default != null:
-return $default(_that.id,_that.nombre,_that.tipoCocina,_that.descripcion,_that.direccion,_that.calificacion,_that.categorias);case _:
+return $default(_that.id,_that.nombre,_that.tipoCocina,_that.descripcion,_that.direccion,_that.calificacion,_that.totalCalificaciones,_that.categorias);case _:
   return orElse();
 
 }
@@ -181,10 +182,10 @@ return $default(_that.id,_that.nombre,_that.tipoCocina,_that.descripcion,_that.d
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String nombre, @JsonKey(name: 'tipo_cocina')  String? tipoCocina,  String? descripcion,  String? direccion,  double? calificacion,  List<Categoria> categorias)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String nombre, @JsonKey(name: 'tipo_cocina')  String? tipoCocina,  String? descripcion,  String? direccion,  double? calificacion, @JsonKey(name: 'total_calificaciones')  int totalCalificaciones,  List<Categoria> categorias)  $default,) {final _that = this;
 switch (_that) {
 case _RestauranteDetalle():
-return $default(_that.id,_that.nombre,_that.tipoCocina,_that.descripcion,_that.direccion,_that.calificacion,_that.categorias);case _:
+return $default(_that.id,_that.nombre,_that.tipoCocina,_that.descripcion,_that.direccion,_that.calificacion,_that.totalCalificaciones,_that.categorias);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -201,10 +202,10 @@ return $default(_that.id,_that.nombre,_that.tipoCocina,_that.descripcion,_that.d
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String nombre, @JsonKey(name: 'tipo_cocina')  String? tipoCocina,  String? descripcion,  String? direccion,  double? calificacion,  List<Categoria> categorias)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String nombre, @JsonKey(name: 'tipo_cocina')  String? tipoCocina,  String? descripcion,  String? direccion,  double? calificacion, @JsonKey(name: 'total_calificaciones')  int totalCalificaciones,  List<Categoria> categorias)?  $default,) {final _that = this;
 switch (_that) {
 case _RestauranteDetalle() when $default != null:
-return $default(_that.id,_that.nombre,_that.tipoCocina,_that.descripcion,_that.direccion,_that.calificacion,_that.categorias);case _:
+return $default(_that.id,_that.nombre,_that.tipoCocina,_that.descripcion,_that.direccion,_that.calificacion,_that.totalCalificaciones,_that.categorias);case _:
   return null;
 
 }
@@ -216,7 +217,7 @@ return $default(_that.id,_that.nombre,_that.tipoCocina,_that.descripcion,_that.d
 @JsonSerializable()
 
 class _RestauranteDetalle extends RestauranteDetalle {
-  const _RestauranteDetalle({required this.id, required this.nombre, @JsonKey(name: 'tipo_cocina') this.tipoCocina, this.descripcion, this.direccion, this.calificacion, required  List<Categoria> categorias}): _categorias = categorias,super._();
+  const _RestauranteDetalle({required this.id, required this.nombre, @JsonKey(name: 'tipo_cocina') this.tipoCocina, this.descripcion, this.direccion, this.calificacion, @JsonKey(name: 'total_calificaciones') this.totalCalificaciones = 0, required  List<Categoria> categorias}): _categorias = categorias,super._();
   factory _RestauranteDetalle.fromJson(Map<String, dynamic> json) => _$RestauranteDetalleFromJson(json);
 
 @override final  int id;
@@ -225,6 +226,7 @@ class _RestauranteDetalle extends RestauranteDetalle {
 @override final  String? descripcion;
 @override final  String? direccion;
 @override final  double? calificacion;
+@override@JsonKey(name: 'total_calificaciones') final  int totalCalificaciones;
  final  List<Categoria> _categorias;
 @override List<Categoria> get categorias {
   if (_categorias is EqualUnmodifiableListView) return _categorias;
@@ -246,16 +248,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RestauranteDetalle&&(identical(other.id, id) || other.id == id)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.tipoCocina, tipoCocina) || other.tipoCocina == tipoCocina)&&(identical(other.descripcion, descripcion) || other.descripcion == descripcion)&&(identical(other.direccion, direccion) || other.direccion == direccion)&&(identical(other.calificacion, calificacion) || other.calificacion == calificacion)&&const DeepCollectionEquality().equals(other._categorias, _categorias));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RestauranteDetalle&&(identical(other.id, id) || other.id == id)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.tipoCocina, tipoCocina) || other.tipoCocina == tipoCocina)&&(identical(other.descripcion, descripcion) || other.descripcion == descripcion)&&(identical(other.direccion, direccion) || other.direccion == direccion)&&(identical(other.calificacion, calificacion) || other.calificacion == calificacion)&&(identical(other.totalCalificaciones, totalCalificaciones) || other.totalCalificaciones == totalCalificaciones)&&const DeepCollectionEquality().equals(other._categorias, _categorias));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,nombre,tipoCocina,descripcion,direccion,calificacion,const DeepCollectionEquality().hash(_categorias));
+int get hashCode => Object.hash(runtimeType,id,nombre,tipoCocina,descripcion,direccion,calificacion,totalCalificaciones,const DeepCollectionEquality().hash(_categorias));
 
 @override
 String toString() {
-  return 'RestauranteDetalle(id: $id, nombre: $nombre, tipoCocina: $tipoCocina, descripcion: $descripcion, direccion: $direccion, calificacion: $calificacion, categorias: $categorias)';
+  return 'RestauranteDetalle(id: $id, nombre: $nombre, tipoCocina: $tipoCocina, descripcion: $descripcion, direccion: $direccion, calificacion: $calificacion, totalCalificaciones: $totalCalificaciones, categorias: $categorias)';
 }
 
 
@@ -266,7 +268,7 @@ abstract mixin class _$RestauranteDetalleCopyWith<$Res> implements $RestauranteD
   factory _$RestauranteDetalleCopyWith(_RestauranteDetalle value, $Res Function(_RestauranteDetalle) _then) = __$RestauranteDetalleCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String nombre,@JsonKey(name: 'tipo_cocina') String? tipoCocina, String? descripcion, String? direccion, double? calificacion, List<Categoria> categorias
+ int id, String nombre,@JsonKey(name: 'tipo_cocina') String? tipoCocina, String? descripcion, String? direccion, double? calificacion,@JsonKey(name: 'total_calificaciones') int totalCalificaciones, List<Categoria> categorias
 });
 
 
@@ -283,7 +285,7 @@ class __$RestauranteDetalleCopyWithImpl<$Res>
 
 /// Create a copy of RestauranteDetalle
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? nombre = null,Object? tipoCocina = freezed,Object? descripcion = freezed,Object? direccion = freezed,Object? calificacion = freezed,Object? categorias = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? nombre = null,Object? tipoCocina = freezed,Object? descripcion = freezed,Object? direccion = freezed,Object? calificacion = freezed,Object? totalCalificaciones = null,Object? categorias = null,}) {
   return _then(_RestauranteDetalle(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
@@ -291,7 +293,8 @@ as String,tipoCocina: freezed == tipoCocina ? _self.tipoCocina : tipoCocina // i
 as String?,descripcion: freezed == descripcion ? _self.descripcion : descripcion // ignore: cast_nullable_to_non_nullable
 as String?,direccion: freezed == direccion ? _self.direccion : direccion // ignore: cast_nullable_to_non_nullable
 as String?,calificacion: freezed == calificacion ? _self.calificacion : calificacion // ignore: cast_nullable_to_non_nullable
-as double?,categorias: null == categorias ? _self._categorias : categorias // ignore: cast_nullable_to_non_nullable
+as double?,totalCalificaciones: null == totalCalificaciones ? _self.totalCalificaciones : totalCalificaciones // ignore: cast_nullable_to_non_nullable
+as int,categorias: null == categorias ? _self._categorias : categorias // ignore: cast_nullable_to_non_nullable
 as List<Categoria>,
   ));
 }

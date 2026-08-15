@@ -6,8 +6,9 @@ part 'restaurante.g.dart';
 /// Restaurante público (`RestaurantePublico` del backend) — item de la lista
 /// `GET /public/restaurantes`.
 ///
-/// [calificacion] es SIEMPRE null en Phase 5 (la UI muestra "—"); Phase 9
-/// la llena con el agregado de CALI-02.
+/// [calificacion] es el promedio (1 decimal) calculado server-side y
+/// [totalCalificaciones] el count de reseñas (CALI-02, 09-02). "—" cuando
+/// no hay reseñas.
 @freezed
 abstract class Restaurante with _$Restaurante {
   const factory Restaurante({
@@ -17,6 +18,7 @@ abstract class Restaurante with _$Restaurante {
     String? descripcion,
     String? direccion,
     double? calificacion,
+    @JsonKey(name: 'total_calificaciones') @Default(0) int totalCalificaciones,
   }) = _Restaurante;
 
   factory Restaurante.fromJson(Map<String, dynamic> json) =>
@@ -27,4 +29,11 @@ abstract class Restaurante with _$Restaurante {
   /// "4.8" o "—" (sin datos hasta Phase 9).
   String get calificacionLabel =>
       calificacion == null ? '—' : calificacion!.toStringAsFixed(1);
+
+  /// "4.8 (245)" o "—" — promedio + count reales (CALI-02). El número que
+  /// llega del backend YA es el promedio: sin lógica local.
+  String get ratingLabel {
+    if (calificacion == null || totalCalificaciones <= 0) return '—';
+    return '${calificacion!.toStringAsFixed(1)} ($totalCalificaciones)';
+  }
 }

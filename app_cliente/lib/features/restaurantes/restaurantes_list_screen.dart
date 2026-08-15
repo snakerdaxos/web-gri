@@ -142,7 +142,7 @@ class _RestauranteCard extends StatelessWidget {
                           style: TextStyle(
                               color: Color(0xFFF5A623), fontSize: 14)),
                       Text(
-                        restaurante.calificacionLabel,
+                        restaurante.ratingLabel,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Color(0xFFF5A623),

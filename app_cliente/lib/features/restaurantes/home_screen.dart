@@ -95,7 +95,7 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // ── Tarjeta del primer restaurante ───────────────────────────
-              if (primera != null) _RestauranteCard(id: primera.id, nombre: primera.nombre, tipoCocina: primera.tipoCocina, calificacionLabel: primera.calificacionLabel)
+              if (primera != null) _RestauranteCard(id: primera.id, nombre: primera.nombre, tipoCocina: primera.tipoCocina, calificacionLabel: primera.ratingLabel)
               else if (restaurantesAsync.isLoading)
                 const Center(child: Padding(
                   padding: EdgeInsets.all(24),

@@ -238,6 +238,24 @@ class ApiClient {
     final r = await _dio.get<Map<String, dynamic>>('/cliente/pagos/$pagoId');
     return PagoEstado.fromJson(r.data!);
   }
+
+  /// `POST /cliente/calificaciones` — califica un pedido PAGADO (CALI-01).
+  /// Errores esperados: 404 pedido ajeno/inexistente · 409 no pagado / ya
+  /// calificado · 422 estrellas fuera de rango (el backend revalida todo).
+  Future<void> crearCalificacion(
+    int pedidoId,
+    int estrellas, {
+    String? comentario,
+  }) async {
+    await _dio.post<Map<String, dynamic>>(
+      '/cliente/calificaciones',
+      data: {
+        'pedido_id': pedidoId,
+        'estrellas': estrellas,
+        if (comentario != null && comentario.isNotEmpty) 'comentario': comentario,
+      },
+    );
+  }
 }
 
 /// QueuedInterceptor: serializa errores concurrentes para que N 401s
