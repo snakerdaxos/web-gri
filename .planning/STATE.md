@@ -1,7 +1,7 @@
 ﻿---
-status: Phases 1-8 completas y verificadas - ejecutando Phase 9 (final)
-stopped_at: "Phase 9 planeada (4 planes, 3 waves). Ejecutar /gsd-execute-phase 9"
-current_phase: 9
+status: PROYECTO COMPLETO - las 9 fases del roadmap ejecutadas y verificadas
+stopped_at: "Roadmap v1 completo. 50/50 requisitos Done. Deploy real pendiente (guía deploy/README.md) + credenciales Wompi post-KYC"
+current_phase: 9 (completa)
 updated: 2026-08-14
 ---
 
@@ -12,25 +12,31 @@ updated: 2026-08-14
 See: .planning/PROJECT.md (updated 2026-08-13)
 
 **Core value:** Un cliente puede sentarse en una mesa, escanear su QR, pedir del menu y recibir su comida en tiempo real sin intermediarios.
-**Current focus:** Phase 9 - Pagos, Calificaciones y Deploy (FINAL)
+**Current focus:** PROYECTO COMPLETO — siguiente: milestone v1.0 (complete-milestone) o deploy real
 
 ## Progress
 
-Status: Phases 1-8 COMPLETE (verified passed). Phase 9 planeada.
+Status: TODAS las fases COMPLETE (verified passed)
 
 ### Phases
-- Phase 1: COMPLETE (verified) - Fundacion Docker+MySQL+FastAPI
-- Phase 2: COMPLETE (verified) - Auth multi-rol + multi-tenant
-- Phase 3: COMPLETE (verified) - Modelo dominio + seed demo
-- Phase 4: COMPLETE (verified) - Panel admin solo lectura
-- Phase 5: COMPLETE (verified) - App cliente + reservas anti-concurrencia
-- Phase 6: COMPLETE (verified) - Core value: QR + pedidos + cocina
-- Phase 7: COMPLETE (verified) - WebSockets tiempo real (backend 155, app 41, panel 28)
-- Phase 8: COMPLETE (verified) - Panel gestion completa + reportes (backend 181, panel 61)
-- Phase 9: PLANNED (4 planes: pagos backend, calificaciones, app cliente UI, deploy) - ejecutando
+- Phase 1: COMPLETE — Fundacion Docker+MySQL+FastAPI
+- Phase 2: COMPLETE — Auth multi-rol + multi-tenant
+- Phase 3: COMPLETE — Modelo dominio + seed demo
+- Phase 4: COMPLETE — Panel admin solo lectura
+- Phase 5: COMPLETE — App cliente + reservas anti-concurrencia
+- Phase 6: COMPLETE — Core value: QR + pedidos + cocina
+- Phase 7: COMPLETE — WebSockets tiempo real
+- Phase 8: COMPLETE — Panel gestion completa + reportes
+- Phase 9: COMPLETE — Pagos + calificaciones + deploy artifacts
 
-## Test Baselines
-- Backend: 181 passed (docker compose exec api)
-- App cliente: 41 passed
+## Test Baselines (final)
+- Backend: 215 passed
+- App cliente: 51 passed
 - Panel admin: 61 passed
-- BD dev: demo pristino (1 restaurante, 8 mesas, 16 productos, 6 usuarios)
+- flutter analyze: 0 issues ambas apps
+- BD dev: demo pristino
+
+## Pendientes post-v1 (documentados)
+- Deploy real Ubuntu Server (guía deploy/README.md 12 secciones)
+- Credenciales Wompi reales post-KYC (SANDBOX_MODE=false + env vars)
+- UAT visual en browser (pasos en cada VERIFICATION.md)

@@ -20,7 +20,7 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃƒÂ³
 - [ ] **Phase 6: App Cliente Ã¢â‚¬â€ Pedido por QR (REST) y Vista Cocina** - El core value end-to-end: escanear, pedir, seguir el estado y pedir la cuenta (sin tiempo real aÃƒÂºn)
 - [ ] **Phase 7: Tiempo Real Ã¢â‚¬â€ WebSockets** - Pedidos y mesas en vivo en cocina, mesero, cliente y panel sin refrescar
 - [x] **Phase 8: Panel Admin Ã¢â‚¬â€ GestiÃƒÂ³n Completa y Reportes** - CRUD de mesas/menÃƒÂº/clientes, reportes de ventas y gestiÃƒÂ³n de plataforma
-- [ ] **Phase 9: Pagos, Calificaciones y Deploy** - Pago en lÃƒÂ­nea idempotente, calificaciÃƒÂ³n post-pago y despliegue a Ubuntu Server
+- [x] **Phase 9: Pagos, Calificaciones y Deploy** - Pago en lÃƒÂ­nea idempotente, calificaciÃƒÂ³n post-pago y despliegue a Ubuntu Server
 
 ## Phase Details
 
@@ -156,10 +156,10 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃƒÂ³
   4. Tras un pedido pagado, el cliente puede calificar su experiencia (estrellas + comentario) y el promedio del restaurante es visible en la lista y detalle de restaurantes
 **Notas**: Research de fase MANDATORIO antes de planear (Wompi/PayU/Mercado Pago: webhooks, firma HMAC, sandbox, comisiones 2026). El deploy a Ubuntu Server (nginx + TLS + WS upgrade + DEMO_MODE=false) es la verificaciÃƒÂ³n final de INFR-01/02/03 en producciÃƒÂ³n.
 **Plans**: 4 plans
-- [ ] 09-01-PLAN.md — Vertical Slice Backend Pagos: migración 0006 (pago.sesion_id + transaction_id + pago_event dedup) + gateway abstracto (Sandbox/Wompi con firmas verificadas) + /cliente/pagos/intencion|estado + webhook público timing-safe + efectos atómicos (pedidos pagado, sesión cerrada, mesa limpieza) + sandbox checkout por el MISMO pipeline + e2e tests (PAGO-02, PAGO-03, PAGO-04)
-- [ ] 09-02-PLAN.md — Vertical Slice Backend Calificaciones: POST /cliente/calificaciones (solo pedidos pagados propios, 404/409/422) + promedio AVG/COUNT en /public lista y detalle (CALI-01, CALI-02) — depende de 09-01
-- [ ] 09-03-PLAN.md — Vertical Slice App Cliente: features/pagos (botón Pagar → url_launcher → polling → éxito) + calificacion_sheet (5 estrellas custom) + rating real en lista/detalle restaurantes + checkpoint e2e sandbox (PAGO-02 UI, CALI-01 UI, CALI-02 UI) — depende de 09-01 + 09-02
-- [ ] 09-04-PLAN.md — Vertical Slice Deploy: docker-compose.prod.yml (mysql:8.4.11 pin, sin puertos BD, 1 worker) + nginx HOST con WS upgrade/TLS/certbot + .env.production.example + README guía Ubuntu + verify_local.ps1 production-like (INFR-01/02/03 re-verificados) — depende de 09-01, paralelo con 09-03
+- [x] 09-01-PLAN.md — Vertical Slice Backend Pagos: migración 0006 (pago.sesion_id + transaction_id + pago_event dedup) + gateway abstracto (Sandbox/Wompi con firmas verificadas) + /cliente/pagos/intencion|estado + webhook público timing-safe + efectos atómicos (pedidos pagado, sesión cerrada, mesa limpieza) + sandbox checkout por el MISMO pipeline + e2e tests (PAGO-02, PAGO-03, PAGO-04)
+- [x] 09-02-PLAN.md — Vertical Slice Backend Calificaciones: POST /cliente/calificaciones (solo pedidos pagados propios, 404/409/422) + promedio AVG/COUNT en /public lista y detalle (CALI-01, CALI-02) — depende de 09-01
+- [x] 09-03-PLAN.md — Vertical Slice App Cliente: features/pagos (botón Pagar → url_launcher → polling → éxito) + calificacion_sheet (5 estrellas custom) + rating real en lista/detalle restaurantes + checkpoint e2e sandbox (PAGO-02 UI, CALI-01 UI, CALI-02 UI) — depende de 09-01 + 09-02
+- [x] 09-04-PLAN.md — Vertical Slice Deploy: docker-compose.prod.yml (mysql:8.4.11 pin, sin puertos BD, 1 worker) + nginx HOST con WS upgrade/TLS/certbot + .env.production.example + README guía Ubuntu + verify_local.ps1 production-like (INFR-01/02/03 re-verificados) — depende de 09-01, paralelo con 09-03
 
 ## Progress
 
@@ -181,6 +181,7 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
 ---
 *Coverage: 50/50 requisitos v1 mapeados (PLAT 5, AUTH 5, REST 2, MENU 2, MESA 6, RESV 5, PEDI 6, RT 3, PAGO 4, CALI 2, ADMN 5, REPO 2, INFR 3). Nota: REQUIREMENTS.md decÃƒÂ­a "47 total" por error aritmÃƒÂ©tico; el conteo real de IDs es 50.*
 *Created: 2026-08-13*
+
 
 
 
