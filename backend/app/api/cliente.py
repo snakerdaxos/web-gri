@@ -17,11 +17,13 @@ from app.core.state_machines import TransicionInvalidaError
 from app.deps.auth import CurrentUser, require_roles
 from app.models.usuario import RolUsuario
 from app.schemas.auth import UserRead
+from app.schemas.calificacion import CalificacionCreate, CalificacionRead
 from app.schemas.perfil import PerfilUpdate
 from app.schemas.pedido import PedidoCreate, PedidoRead
 from app.schemas.reserva import ReservaCreate, ReservaRead
 from app.schemas.sesion import SesionCreate, SesionRead
 from app.services import (
+    calificacion_service,
     cliente_service,
     pedido_service,
     reserva_service,
@@ -187,3 +189,23 @@ async def list_pedidos_actual(
     """PEDI-04: TODOS los pedidos de mi sesión activa (cualquier estado),
     newest first — el cliente hace polling 10s (WS llega en Phase 7)."""
     return await pedido_service.pedidos_de_sesion(session, user.id)
+
+
+# --- CALI-01: calificación post-pago -----------------------------------------
+
+
+@router.post(
+    "/calificaciones",
+    response_model=CalificacionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def crear_calificacion(
+    body: CalificacionCreate,
+    user: CurrentUser = Depends(require_roles(RolUsuario.cliente)),
+    session: AsyncSession = Depends(get_session),
+):
+    """CALI-01: calificar (1-5 estrellas + comentario opcional) un pedido
+    pagado propio — exactamente una vez. 404 ajeno/inexistente (existence
+    hiding, mismo detalle); 409 no pagado / ya calificado; 422 estrellas
+    fuera de rango o comentario > 1000."""
+    return await calificacion_service.crear_calificacion(session, user.id, body)
