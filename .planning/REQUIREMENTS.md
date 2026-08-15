@@ -17,8 +17,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### AutenticaciÃ³n y Roles
 
-- [ ] **AUTH-01**: Usuario puede registrarse como cliente con nombre, email y contraseÃ±a
-- [ ] **AUTH-02**: Usuario puede iniciar sesiÃ³n y su sesiÃ³n persiste (JWT con refresh)
+- [x] **AUTH-01**: Usuario puede registrarse como cliente con nombre, email y contraseÃ±a
+- [x] **AUTH-02**: Usuario puede iniciar sesiÃ³n y su sesiÃ³n persiste (JWT con refresh)
 - [x] **AUTH-03**: El sistema distingue 5 roles: super_admin, admin_restaurante, mesero, cocina, cliente
 - [x] **AUTH-04**: Un usuario staff solo puede acceder a los datos de su restaurante (aislamiento multi-tenant)
 - [x] **AUTH-05**: Cliente puede ver y editar su perfil
@@ -140,8 +140,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLAT-03 | Fase 2 | Complete |
 | PLAT-04 | Fase 3 | Done |
 | PLAT-05 | Fase 8 | Done |
-| AUTH-01 | Fase 2 | Pending |
-| AUTH-02 | Fase 2 | Pending |
+| AUTH-01 | Fase 2 | Done |
+| AUTH-02 | Fase 2 | Done |
 | AUTH-03 | Fase 2 | Complete |
 | AUTH-04 | Fase 2 | Complete |
 | AUTH-05 | Fase 5 | Done |
@@ -194,6 +194,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 *Requirements defined: 2026-08-13*
 *Last updated: 2026-08-13 after roadmap creation (9 fases)*
+
 
 
 
