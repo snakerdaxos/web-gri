@@ -1,6 +1,13 @@
 # Secrets — never commit. Copy from .env.example and fill real values.
 .env
 
+# Production secrets — never commit. The TEMPLATE (.env.production.example)
+# IS committed; everything else under .env.production.* is real secrets
+# (verify scripts create .env.production.local / .env.production.temp).
+.env.production
+.env.production.*
+!.env.production.example
+
 # Python / uv
 backend/.venv/
 **/__pycache__/

@@ -1,0 +1,99 @@
+# GRI — PRODUCTION stack (Phase 9, INFR-01/02/03).
+#
+# Versión ENDURECIDA de docker-compose.yml (dev). Diferencias deliberadas:
+#   - MySQL pinned a 8.4.11 EXACTO (dev usa el rolling 8.4) → reproducible.
+#   - SIN `ports` en mysql — A PROPÓSITO (threat model): 3306 solo existe
+#     dentro de la red interna de docker. Conexión administrativa: docker exec.
+#     (El compose dev SÍ publica 3306 para los tests db-direct — NO copiar
+#     esa sección de vuelta.)
+#   - API publica SOLO 127.0.0.1:8000 — el nginx del HOST (deploy/README.md)
+#     es el único cliente; nadie bypasea TLS/nginx.
+#   - Project name `gri-prod` distinto del dev → no colisionan contenedores,
+#     redes ni volúmenes, y ambos stacks pueden coexistir.
+#
+# USO — SIEMPRE con --env-file explícito (este archivo vive en deploy/ y no
+# hay .env default aquí):
+#   docker compose --env-file .env.production -f deploy/docker-compose.prod.yml up -d --build
+#
+# PROHIBIDO añadir --workers: el Broadcaster de WebSockets es IN-MEMORY
+# (backend/app/core/broadcaster.py) — multi-proceso rompe el broadcast
+# SILENCIOSAMENTE. El CMD del Dockerfile ya arranca 1 worker.
+# Las migraciones corren solas en el boot (CMD: alembic upgrade head &&
+# uvicorn) — INFR-03 en prod, idempotente en cada restart.
+
+name: gri-prod
+
+services:
+  mysql:
+    # PIN exacto del último patch de la rama 8.4 LTS (verificado Docker Hub
+    # Jul 2026). El dev usa `8.4` rolling; prod exige reproducibilidad.
+    image: mysql:8.4.11
+    container_name: gri-prod-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: gri
+      MYSQL_USER: gri_app
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
+      TZ: America/Bogota          # container OS TZ (MySQL time_zone=SYSTEM → esta)
+    # SIN `ports` — VER cabecera. La BD NO es alcanzable desde fuera del host
+    # ni desde otras redes docker. Backup: docker exec gri-prod-mysql mysqldump.
+    volumes:
+      - gri_prod_mysql_data:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=-05:00
+      # Bogotá = UTC-5 fijo (sin DST desde 1993). NO pasar
+      # --default-authentication-plugin (fue REMOVIDO en MySQL 8.4;
+      # caching_sha2_password ya es el default).
+    healthcheck:
+      # `$$` escapa a `$` literal: el contenedor resuelve SU PROPIA
+      # MYSQL_ROOT_PASSWORD al momento del healthcheck (no la del host).
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10            # primer boot de MySQL es lento; dar margen
+      start_period: 30s
+
+  api:
+    # Mismo Dockerfile que dev (el compose vive en deploy/ → contexto ../backend).
+    # El CMD ya corre `alembic upgrade head` antes de uvicorn.
+    build: ../backend
+    container_name: gri-prod-api
+    restart: unless-stopped
+    # 1 worker SIN --workers — PROHIBIDO, ver cabecera (broadcaster in-memory).
+    depends_on:
+      mysql:
+        condition: service_healthy   # la API no arranca hasta mysqladmin ping OK
+    environment:
+      DB_HOST: mysql                 # docker DNS name del servicio mysql
+      DB_PORT: "3306"
+      DB_USER: gri_app
+      DB_PASSWORD: ${MYSQL_APP_PASSWORD}
+      DB_NAME: gri
+      # --- PROD LOCKED: NO se interpolan del .env.production (defense-in-depth:
+      # editar mal el env file JAMÁS re-activa demo/sandbox en producción) ---
+      DEMO_MODE: "false"             # el seed demo NO corre en prod (gate 03-02)
+      ENVIRONMENT: production
+      SANDBOX_MODE: "false"          # /pagos/sandbox/* NO existe en prod (montaje condicional 09-01)
+      # --- Secretos (interpolados de .env.production vía --env-file) ---
+      JWT_SECRET: ${JWT_SECRET}
+      ACCESS_TTL_MIN: "15"
+      REFRESH_TTL_DAYS: "7"
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      # --- Phase 9: Wompi (placeholders hasta KYC; SANDBOX_MODE=false las
+      #     deja inertes — sin flujo de pago activo hasta credenciales reales) ---
+      WOMPI_PUBLIC_KEY: ${WOMPI_PUBLIC_KEY}
+      WOMPI_PRIVATE_KEY: ${WOMPI_PRIVATE_KEY}
+      WOMPI_EVENTS_SECRET: ${WOMPI_EVENTS_SECRET}
+      WOMPI_INTEGRITY_SECRET: ${WOMPI_INTEGRITY_SECRET}
+    ports:
+      # SOLO localhost — el nginx del HOST proxya (deploy/nginx/gri.conf).
+      # Desde fuera del server, 8000 es inalcanzable.
+      - "127.0.0.1:8000:8000"
+
+volumes:
+  gri_prod_mysql_data:      # named volume → los datos sobreviven `down` (sin -v)
