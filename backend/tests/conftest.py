@@ -18,6 +18,7 @@ Phase 3 additions:
   until Phase 4-6).
 """
 
+import datetime as dt
 import os
 from collections.abc import AsyncGenerator
 from pathlib import Path
@@ -33,6 +34,20 @@ from sqlalchemy.ext.asyncio import (
 )
 
 API_BASE = "http://localhost:8000"
+
+
+def hoy_db() -> dt.date:
+    """'Hoy' con la MISMA semántica que ``func.curdate()`` de la BD
+    (America/Bogotá = UTC-5 fijo, sin DST desde 1993 — igual que el
+    ``--default-time-zone=-05:00`` del compose).
+
+    El contenedor API corre en UTC: ``dt.date.today()`` diverge de
+    ``curdate()`` entre 19:00-24:00 Bogotá (00:00-05:00 UTC). 09-01 corrigió
+    el lado SERVICE (reserva_service con curdate()); este helper aplica la
+    misma doctrina (Pitfall 6) al lado TESTS: cualquier fecha que el test
+    espera ver validada/interpretada como 'hoy' o 'ayer' por la BD debe
+    calcularse con esta función."""
+    return dt.datetime.now(dt.timezone(dt.timedelta(hours=-5))).date()
 
 
 # --- Phase 3: shared .env parser -----------------------------------------

@@ -24,7 +24,7 @@ from sqlalchemy import select
 from app.models.mesa import EstadoMesa, Mesa
 from app.models.reserva import EstadoReserva, Reserva
 
-from .conftest import auth_header, login, register_cliente
+from .conftest import auth_header, hoy_db, login, register_cliente
 
 # Capacidad máxima del demo = 8 (la única mesa con capacidad >= 8). Usarla
 # en todos los tests de reserva garantiza UN solo candidato → determinismo.
@@ -118,9 +118,12 @@ async def test_crear_reserva_ok(async_client, db_session):
 
 @pytest.mark.asyncio
 async def test_past_date_400(async_client):
-    """fecha en pasado → 400. No se crea nada; sin cleanup."""
+    """fecha en pasado → 400. No se crea nada; sin cleanup.
+
+    ``hoy_db()`` (no ``date.today()``): el service valida contra curdate()
+    (Bogotá) y el contenedor corre en UTC — divergen 19:00-24:00 Bogotá."""
     headers, _ = await _crear_cliente_logueado(async_client)
-    ayer = dt.date.today() - dt.timedelta(days=1)
+    ayer = hoy_db() - dt.timedelta(days=1)
     resp = await async_client.post(
         "/cliente/reservas",
         json={
@@ -319,7 +322,7 @@ async def test_cancel_past_400(async_client, db_session):
             .limit(1)
         )
     ).scalar_one()
-    ayer = dt.date.today() - dt.timedelta(days=1)
+    ayer = hoy_db() - dt.timedelta(days=1)
     r_past = Reserva(
         restaurant_id=1,
         usuario_id=body["id"],

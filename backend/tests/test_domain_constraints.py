@@ -24,7 +24,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError, OperationalError
 
 from app.models.calificacion import Calificacion
@@ -261,26 +261,47 @@ async def test_check_estrellas_rango(db_session):
             await db_session.flush()
         await db_session.rollback()
 
-    # Valores válidos (1 y 5) — OK
-    for estrellas_validas in (1, 5):
-        ped = Pedido(
-            restaurant_id=r_id,
-            mesa_id=mesa_id,
-            usuario_id=u_id,
-            estado=EstadoPedido.borrador,
-            total=Decimal("0"),
-        )
-        db_session.add(ped)
-        await db_session.flush()
-        ped_id = ped.id
-        db_session.add(
-            Calificacion(
+    # Valores válidos (1 y 5) — OK. Cleanup OBLIGATORIO en finally: las filas
+    # van al restaurante DEMO (compartido) y desde 09-02 el agregado público
+    # (/public/restaurantes) las LEE — dejarlas contaminaría el promedio y
+    # rompería test_public_read (residuo verificado en la BD compartida).
+    creados: list[tuple[int, int]] = []  # (pedido_id, calificacion_id)
+    try:
+        for estrellas_validas in (1, 5):
+            ped = Pedido(
+                restaurant_id=r_id,
+                mesa_id=mesa_id,
+                usuario_id=u_id,
+                estado=EstadoPedido.borrador,
+                total=Decimal("0"),
+            )
+            db_session.add(ped)
+            await db_session.flush()
+            ped_id = ped.id
+            cal = Calificacion(
                 restaurant_id=r_id, usuario_id=u_id, pedido_id=ped_id,
                 estrellas=estrellas_validas,
             )
-        )
-        await db_session.flush()
+            db_session.add(cal)
+            await db_session.flush()
+            creados.append((ped_id, cal.id))
         await db_session.commit()
+    finally:
+        # IDs capturados antes del rollback (patrón del docstring del módulo:
+        # rollback expira TODO → jamás tocar atributos ORM post-rollback).
+        await db_session.rollback()
+        try:
+            await db_session.execute(
+                delete(Calificacion).where(
+                    Calificacion.id.in_(c for _, c in creados)
+                )
+            )
+            await db_session.execute(
+                delete(Pedido).where(Pedido.id.in_(p for p, _ in creados))
+            )
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
 
 
 async def test_check_reserva_num_personas(db_session):

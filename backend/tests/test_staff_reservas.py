@@ -31,7 +31,7 @@ from app.models.reserva import Reserva
 from app.models.restaurante import Restaurante
 from app.models.usuario import Usuario
 
-from .conftest import auth_header, login, register_cliente
+from .conftest import auth_header, hoy_db, login, register_cliente
 
 # Capacidad máxima del demo = 8 → único candidato → determinismo.
 _NUM_PERSONAS_TEST = 8
@@ -145,9 +145,11 @@ async def test_list_by_fecha(async_client, db_session):
 @pytest.mark.asyncio
 async def test_default_today(async_client, db_session):
     """GET /staff/reservas SIN ?fecha= ≡ ?fecha=hoy (func.curdate() DB-side,
-    Pitfall 6 — nunca date.today() Python-side)."""
+    Pitfall 6 — nunca date.today() Python-side). ``hoy_db()`` alinea el
+    arrange con el curdate() de la BD (el contenedor corre en UTC y diverge
+    19:00-24:00 Bogotá)."""
     headers_cliente, _ = await _crear_cliente_logueado(async_client)
-    hoy = dt.date.today()
+    hoy = hoy_db()
     reserva_id = None
     try:
         body = await _crear_reserva_api(
