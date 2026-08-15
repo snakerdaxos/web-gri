@@ -31,6 +31,7 @@ from app.models.calificacion import Calificacion
 from app.models.mesa import Mesa
 from app.models.menu import Categoria, Producto
 from app.models.pago import EstadoPago, Pago
+from app.models.pago_event import PagoEvent
 from app.models.pedido import EstadoPedido, Pedido, PedidoItem
 from app.models.reserva import Reserva
 from app.models.restaurante import Restaurante
@@ -320,15 +321,28 @@ async def test_check_reserva_num_personas(db_session):
 
 
 async def test_pago_referencia_unique(db_session):
-    """uq_pago_referencia: dos pagos con la misma referencia → IntegrityError."""
-    r, _, _, _, _, pedido = await _seed_chain(db_session)
-    r_id, pedido_id = r.id, pedido.id
+    """uq_pago_referencia: dos pagos con la misma referencia → IntegrityError.
+
+    Phase 9 (migración 0006): el pago es por SESIÓN — el test construye la
+    cadena mesa→sesión→pedido del seed y pasa ``sesion_id`` (``pedido_id``
+    quedó nullable retrocompatible y ya no se escribe en el flujo nuevo)."""
+    r, u, mesa, _, _, pedido = await _seed_chain(db_session)
+    r_id, u_id, mesa_id, pedido_id = r.id, u.id, mesa.id, pedido.id
+    sesion = SesionMesa(
+        restaurant_id=r_id, mesa_id=mesa_id, usuario_id=u_id,
+        estado=EstadoSesion.activa,
+    )
+    db_session.add(sesion)
+    await db_session.flush()
+    sesion_id = sesion.id
+    pedido.sesion_id = sesion_id
     await db_session.commit()
 
     ref = f"PAY-{uuid4().hex[:8]}"
     db_session.add(
         Pago(
-            restaurant_id=r_id, pedido_id=pedido_id, monto=Decimal("10000.00"),
+            restaurant_id=r_id, pedido_id=pedido_id, sesion_id=sesion_id,
+            monto=Decimal("10000.00"),
             referencia=ref, estado=EstadoPago.pendiente,
         )
     )
@@ -336,13 +350,38 @@ async def test_pago_referencia_unique(db_session):
 
     db_session.add(
         Pago(
-            restaurant_id=r_id, pedido_id=pedido_id, monto=Decimal("20000.00"),
+            restaurant_id=r_id, pedido_id=pedido_id, sesion_id=sesion_id,
+            monto=Decimal("20000.00"),
             referencia=ref, estado=EstadoPago.pendiente,
         )
     )
     with pytest.raises(IntegrityError):
         await db_session.flush()
     await db_session.rollback()
+
+
+# --- Dedup at-least-once del webhook (PAGO-03, migración 0006) --------------
+
+
+async def test_pago_event_event_key_unique(db_session):
+    """uq_pago_event_key: el mismo ``transaction_id:status`` dos veces →
+    IntegrityError (dedup at-least-once; el payload Wompi NO trae event.id —
+    clave derivada, verificado 09-RESEARCH). ``pago_id`` NULL es válido
+    (webhook con referencia desconocida → fila de auditoría)."""
+    payload = '{"event": "transaction.updated"}'
+    db_session.add(PagoEvent(event_key="txn-001:APPROVED", payload=payload))
+    await db_session.flush()
+
+    db_session.add(PagoEvent(event_key="txn-001:APPROVED", payload=payload))
+    with pytest.raises(IntegrityError):
+        await db_session.flush()
+    await db_session.rollback()
+
+    # pago_id NULL + segundo evento distinto — ambos válidos.
+    db_session.add(
+        PagoEvent(event_key="txn-002:DECLINED", payload=payload, pago_id=None)
+    )
+    await db_session.flush()
 
 
 # --- Unique de calificación por pedido (CALI-01) -------------------------
