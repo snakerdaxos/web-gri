@@ -4,6 +4,7 @@ Uses the modern lifespan context manager (NOT the deprecated @app.on_event).
 On shutdown the SQLAlchemy async engine pool is disposed cleanly.
 """
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -25,6 +26,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Phase 3: seed demo restaurante (PLAT-04). Gate inside the service;
         # no-op when DEMO_MODE=false (PITFALL 4 — defense-in-depth).
         await seed_if_demo_mode(session)
+    # Phase 9: sandbox activo en producción = cualquiera "aprueba" pagos sin
+    # dinero real. La combinación peligrosa se grita en el log (una línea).
+    if settings.ENVIRONMENT == "production" and settings.SANDBOX_MODE:
+        logging.warning(
+            "SANDBOX_MODE=true en PRODUCCION: /pagos/sandbox/* permite aprobar "
+            "pagos sin dinero real. Set SANDBOX_MODE=false."
+        )
     yield
     # --- shutdown: close the pool cleanly ---
     await engine.dispose()

@@ -64,6 +64,11 @@ services:
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
       # --- Phase 4: CORS (explicit origins, comma-separated; never "*") ---
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      # --- Phase 9: pagos (sandbox replica el pipeline del webhook) ---
+      # El default de WOMPI_EVENTS_SECRET DEBE ser exactamente "dev-events-secret"
+      # (los tests firman los eventos sandbox con este valor).
+      SANDBOX_MODE: ${SANDBOX_MODE:-true}
+      WOMPI_EVENTS_SECRET: ${WOMPI_EVENTS_SECRET:-dev-events-secret}
     ports:
       - "8000:8000"
 

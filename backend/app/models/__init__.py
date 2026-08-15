@@ -11,6 +11,7 @@ from app.models.calificacion import Calificacion
 from app.models.mesa import EstadoMesa, Mesa
 from app.models.menu import Categoria, Producto
 from app.models.pago import EstadoPago, Pago
+from app.models.pago_event import PagoEvent
 from app.models.pedido import EstadoPedido, Pedido, PedidoItem
 from app.models.reserva import EstadoReserva, Reserva
 from app.models.restaurante import Restaurante
@@ -42,6 +43,8 @@ __all__ = [
     # Phase 3 — pago
     "EstadoPago",
     "Pago",
+    # Phase 9 — pago_event (dedup at-least-once del webhook)
+    "PagoEvent",
     # Phase 3 — calificacion
     "Calificacion",
 ]

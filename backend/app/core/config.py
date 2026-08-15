@@ -47,6 +47,20 @@ class Settings(BaseSettings):
     # Phase 9 prod: set the panel's HTTPS domain(s), e.g. "https://panel.gri.com".
     CORS_ORIGINS: str = "http://localhost:5173"
 
+    # --- Phase 9: pagos (gateway abstracto Sandbox/Wompi — 09-01) ---
+    # v1 corre SIN credenciales reales (KYC pendiente): SANDBOX_MODE=true
+    # monta /pagos/sandbox/* que ejercita el MISMO pipeline del webhook con
+    # eventos firmados localmente. Prod: SANDBOX_MODE=false + keys reales
+    # (main.py advierte fuerte si la combinación peligrosa se da).
+    SANDBOX_MODE: bool = True
+    WOMPI_PUBLIC_KEY: str = "pub_test_dev"
+    WOMPI_PRIVATE_KEY: str = "prv_test_dev"
+    # Firma/verificación del webhook. El default del docker-compose dev DEBE
+    # ser exactamente "dev-events-secret" (los tests firman con este valor).
+    WOMPI_EVENTS_SECRET: str = "dev-events-secret"
+    # Firma de integridad del checkout (SHA256 concat — 09-RESEARCH).
+    WOMPI_INTEGRITY_SECRET: str = "dev-integrity-secret"
+
     @property
     def database_url(self) -> str:
         """SQLAlchemy async URL pointing at MySQL via asyncmy, utf8mb4 charset."""

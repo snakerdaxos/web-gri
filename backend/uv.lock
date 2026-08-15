@@ -581,6 +581,7 @@ dependencies = [
     { name = "cryptography" },
     { name = "email-validator" },
     { name = "fastapi", extra = ["standard"] },
+    { name = "httpx" },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
     { name = "sqlalchemy", extra = ["asyncio"] },
@@ -589,7 +590,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "httpx-ws" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -604,6 +604,7 @@ requires-dist = [
     { name = "cryptography", specifier = ">=43.0" },
     { name = "email-validator", specifier = ">=2.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.141.0" },
+    { name = "httpx", specifier = ">=0.28" },
     { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "pyjwt", specifier = ">=2.13.0" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.52" },
@@ -612,7 +613,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx", specifier = ">=0.28" },
     { name = "httpx-ws", specifier = ">=0.9.0" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
