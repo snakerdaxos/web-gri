@@ -24,7 +24,7 @@ reserva on the requested slot. Phase 5 Concurrency Design §3.
 import datetime as dt
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,11 +36,21 @@ from app.models.restaurante import Restaurante
 from app.schemas.reserva import ReservaCreate, ReservaRead
 
 
-def _validate_slot(fecha: dt.date, hora_inicio: dt.time) -> None:
+async def _hoy_db(session: AsyncSession) -> dt.date:
+    """"Hoy" según la BD (``func.curdate()`` — America/Bogota vía el TZ de
+    MySQL, Pitfall 6). NUNCA ``dt.date.today()`` Python-side: el contenedor
+    API corre en UTC y entre 00:00-05:00 UTC su fecha difiere de la de
+    Bogotá (bug time-bombed: reservas de "hoy" rechazadas como pasadas).
+    Mismo patrón que ``staff_service`` línea 762."""
+    return (await session.execute(select(func.curdate()))).scalar_one()
+
+
+def _validate_slot(fecha: dt.date, hora_inicio: dt.time, hoy: dt.date) -> None:
     """400 on past date or non-hourly slot (Phase 5 Concurrency Design §1 —
     hourly slots, 60-min turn). ``hora_inicio`` MUST be at ``:00`` (minute=0,
-    second=0) so the UNIQUE constraint alone prevents overlap."""
-    if fecha < dt.date.today():
+    second=0) so the UNIQUE constraint alone prevents overlap. ``hoy`` viene
+    DB-side (``_hoy_db``) — no ``dt.date.today()``."""
+    if fecha < hoy:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             "No se puede reservar en una fecha pasada",
@@ -90,7 +100,7 @@ async def crear_reserva(
         )
 
     # 2. Slot validation (past date / non-hourly).
-    _validate_slot(body.fecha, body.hora_inicio)
+    _validate_slot(body.fecha, body.hora_inicio, await _hoy_db(session))
 
     # 3. FOR UPDATE candidate mesas — locks rows until commit.
     cand_stmt = (
@@ -215,7 +225,7 @@ async def cancelar_reserva(
         # Existence hiding: nunca revelar que la reserva existe (404, no 403).
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Reserva no encontrada")
 
-    if reserva.fecha < dt.date.today():
+    if reserva.fecha < await _hoy_db(session):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             "No se puede cancelar una reserva pasada",
