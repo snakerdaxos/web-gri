@@ -134,6 +134,154 @@ async def login_staff_demo(client: httpx.AsyncClient, email: str) -> str:
     return access
 
 
+# --- Phase 9: pago helpers ----------------------------------------------------
+
+
+async def abrir_sesion_con_pedido_servido(
+    client: httpx.AsyncClient,
+    db_session,
+    *,
+    n_pedidos: int = 1,
+    items_por_pedido: int = 1,
+) -> dict:
+    """Cadena completa reproducible para tests de pago (09-01 Task 2).
+
+    (a) Mesa PROPIA por DB-direct INSERT (codigo_qr ``GRI-MESA-T``+uuid6,
+    numero aleatorio 900+, capacidad 4, restaurante 1) — NO depende de las
+    mesas del seed, que otros tests ocupan o dejan en estado sucio.
+    (b) register_cliente + login + abrir sesión via POST /cliente/sesiones.
+    (c) ``n_pedidos`` pedidos via POST /cliente/pedidos (``items_por_pedido``
+    × "Bandeja Paisa" del seed del restaurante 1 — precio conocido).
+    (d) Cada pedido avanzado enviado→aceptado→en_preparacion→servido con 3
+    POST /staff/pedidos/{id}/estado (cocina@demo.gri.dev puede avanzar todo).
+
+    Retorna dict: token, usuario, headers, mesa_id, codigo_qr, sesion_id,
+    pedido_ids, precio_producto (Decimal), total_esperado (float).
+    ``n_pedidos=0`` devuelve la cadena con la sesión abierta y sin pedidos.
+    """
+    from sqlalchemy import select as _select
+
+    from app.models.mesa import Mesa as _Mesa
+    from app.models.menu import Producto as _Producto
+
+    await db_session.rollback()
+    db_session.expire_all()
+    # (a) mesa propia — numero aleatorio 900+ (no colisiona con seed 1-8).
+    mesa = _Mesa(
+        restaurant_id=1,
+        numero=900 + abs(hash(uuid4().hex)) % 1000,
+        capacidad=4,
+        codigo_qr=f"GRI-MESA-T{uuid4().hex[:6]}",
+    )
+    db_session.add(mesa)
+    await db_session.commit()  # expire_on_commit=False → mesa.id queda cargado
+
+    # (b) cliente fresco + sesión sobre ESA mesa.
+    usuario = await register_cliente(client, nombre="Pago Test")
+    token, _ = await login(client, usuario["email"], usuario["_password"])
+    resp = await abrir_sesion(client, token, mesa.codigo_qr)
+    assert resp.status_code == 201, resp.text
+    sesion_id = resp.json()["id"]
+
+    # (c)+(d) pedidos → servidos (via API real de staff).
+    prod = (
+        await db_session.execute(
+            _select(_Producto).where(
+                _Producto.restaurant_id == 1,
+                _Producto.nombre == "Bandeja Paisa",
+            )
+        )
+    ).scalar_one()
+    headers = auth_header(token)
+    headers_staff = auth_header(await login_staff_demo(client, "cocina@demo.gri.dev"))
+    pedido_ids: list[int] = []
+    for _ in range(n_pedidos):
+        r = await client.post(
+            "/cliente/pedidos",
+            json={
+                "sesion_id": sesion_id,
+                "items": [{"producto_id": prod.id, "cantidad": items_por_pedido}],
+            },
+            headers=headers,
+        )
+        assert r.status_code == 201, r.text
+        pedido_id = r.json()["id"]
+        for estado in ("aceptado", "en_preparacion", "servido"):
+            rr = await client.post(
+                f"/staff/pedidos/{pedido_id}/estado",
+                json={"estado": estado},
+                headers=headers_staff,
+            )
+            assert rr.status_code == 200, rr.text
+        pedido_ids.append(pedido_id)
+
+    await db_session.rollback()
+    db_session.expire_all()
+    return {
+        "token": token,
+        "usuario": usuario,
+        "headers": headers,
+        "mesa_id": mesa.id,
+        "codigo_qr": mesa.codigo_qr,
+        "sesion_id": sesion_id,
+        "pedido_ids": pedido_ids,
+        "precio_producto": prod.precio,
+        "total_esperado": float(prod.precio) * n_pedidos * items_por_pedido,
+    }
+
+
+async def borrar_residuo_pago(db_session, ctx: dict) -> None:
+    """Borra TODO el residuo de un test de pago en ORDEN FK INVERSO:
+    calificacion → pago_event → pago → pedido_item → pedido → sesion_mesa →
+    mesa. Cada paso en try/except+rollback para que un fallo parcial NO
+    impida los demás (lección 06-01 — BD compartida, SIEMPRE limpiar).
+
+    ``ctx`` es el dict de ``abrir_sesion_con_pedido_servido`` (usa
+    usuario["id"], sesion_id, mesa_id).
+    """
+    from sqlalchemy import delete as _delete, select as _select
+
+    from app.models.calificacion import Calificacion as _Cal
+    from app.models.mesa import Mesa as _Mesa
+    from app.models.pago import Pago as _Pago
+    from app.models.pago_event import PagoEvent as _PagoEvent
+    from app.models.pedido import Pedido as _Pedido, PedidoItem as _PedidoItem
+    from app.models.sesion_mesa import SesionMesa as _Sesion
+
+    usuario_id = ctx["usuario"]["id"]
+    sesion_id = ctx["sesion_id"]
+    mesa_id = ctx["mesa_id"]
+
+    await db_session.rollback()
+    db_session.expire_all()
+
+    async def _paso(query) -> None:
+        try:
+            await db_session.execute(query)
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
+
+    await _paso(_delete(_Cal).where(_Cal.usuario_id == usuario_id))
+    await _paso(
+        _delete(_PagoEvent).where(
+            _PagoEvent.pago_id.in_(_select(_Pago.id).where(_Pago.sesion_id == sesion_id))
+        )
+    )
+    await _paso(_delete(_Pago).where(_Pago.sesion_id == sesion_id))
+    await _paso(
+        _delete(_PedidoItem).where(
+            _PedidoItem.pedido_id.in_(
+                _select(_Pedido.id).where(_Pedido.usuario_id == usuario_id)
+            )
+        )
+    )
+    await _paso(_delete(_Pedido).where(_Pedido.usuario_id == usuario_id))
+    await _paso(_delete(_Sesion).where(_Sesion.id == sesion_id))
+    await _paso(_delete(_Mesa).where(_Mesa.id == mesa_id))
+    await db_session.rollback()
+
+
 @pytest_asyncio.fixture
 async def super_admin_token(async_client: httpx.AsyncClient) -> str:
     """Login as the bootstrap super-admin; skip if SUPER_ADMIN_* unset."""
