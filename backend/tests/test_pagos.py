@@ -34,9 +34,9 @@ from .conftest import (
     auth_header,
     borrar_residuo_pago,
     login,
+    login_staff_demo,
     register_cliente,
 )
-
 
 # --- Unit: firma de integridad (vector del research) --------------------------
 
@@ -142,7 +142,7 @@ async def test_intencion_pedidos_en_curso_409(async_client, db_session):
     haya pedidos en curso (cocina aún trabaja)."""
     ctx = await abrir_sesion_con_pedido_servido(async_client, db_session, n_pedidos=1)
     headers_staff = auth_header(
-        await login(async_client, "cocina@demo.gri.dev", "Demo!1234")
+        await login_staff_demo(async_client, "cocina@demo.gri.dev")
     )
     try:
         # 2o pedido: queda en enviado → 409.
@@ -150,7 +150,7 @@ async def test_intencion_pedidos_en_curso_409(async_client, db_session):
             "/cliente/pedidos",
             json={
                 "sesion_id": ctx["sesion_id"],
-                "items": [{"producto_id": 1, "cantidad": 1}],
+                "items": [{"producto_id": ctx["producto_id"], "cantidad": 1}],
             },
             headers=ctx["headers"],
         )
@@ -184,14 +184,14 @@ async def test_intencion_rechazado_excluido(async_client, db_session):
     excluido del total y NO bloquea el pago)."""
     ctx = await abrir_sesion_con_pedido_servido(async_client, db_session, n_pedidos=1)
     headers_staff = auth_header(
-        await login(async_client, "cocina@demo.gri.dev", "Demo!1234")
+        await login_staff_demo(async_client, "cocina@demo.gri.dev")
     )
     try:
         segundo = await async_client.post(
             "/cliente/pedidos",
             json={
                 "sesion_id": ctx["sesion_id"],
-                "items": [{"producto_id": 1, "cantidad": 1}],
+                "items": [{"producto_id": ctx["producto_id"], "cantidad": 1}],
             },
             headers=ctx["headers"],
         )

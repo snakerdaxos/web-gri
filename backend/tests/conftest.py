@@ -161,8 +161,8 @@ async def abrir_sesion_con_pedido_servido(
     """
     from sqlalchemy import select as _select
 
-    from app.models.mesa import Mesa as _Mesa
     from app.models.menu import Producto as _Producto
+    from app.models.mesa import Mesa as _Mesa
 
     await db_session.rollback()
     db_session.expire_all()
@@ -175,6 +175,9 @@ async def abrir_sesion_con_pedido_servido(
     )
     db_session.add(mesa)
     await db_session.commit()  # expire_on_commit=False → mesa.id queda cargado
+    # Capturar en variables planas ANTES de cualquier rollback/expire_all
+    # (rollback expira TODO — acceso posterior = lazy-load sync → MissingGreenlet).
+    mesa_id, codigo_qr = mesa.id, mesa.codigo_qr
 
     # (b) cliente fresco + sesión sobre ESA mesa.
     usuario = await register_cliente(client, nombre="Pago Test")
@@ -192,6 +195,7 @@ async def abrir_sesion_con_pedido_servido(
             )
         )
     ).scalar_one()
+    prod_id, prod_precio = prod.id, prod.precio  # capturar ANTES de expire_all
     headers = auth_header(token)
     headers_staff = auth_header(await login_staff_demo(client, "cocina@demo.gri.dev"))
     pedido_ids: list[int] = []
@@ -200,7 +204,7 @@ async def abrir_sesion_con_pedido_servido(
             "/cliente/pedidos",
             json={
                 "sesion_id": sesion_id,
-                "items": [{"producto_id": prod.id, "cantidad": items_por_pedido}],
+                "items": [{"producto_id": prod_id, "cantidad": items_por_pedido}],
             },
             headers=headers,
         )
@@ -221,12 +225,13 @@ async def abrir_sesion_con_pedido_servido(
         "token": token,
         "usuario": usuario,
         "headers": headers,
-        "mesa_id": mesa.id,
-        "codigo_qr": mesa.codigo_qr,
+        "mesa_id": mesa_id,
+        "codigo_qr": codigo_qr,
         "sesion_id": sesion_id,
         "pedido_ids": pedido_ids,
-        "precio_producto": prod.precio,
-        "total_esperado": float(prod.precio) * n_pedidos * items_por_pedido,
+        "producto_id": prod_id,
+        "precio_producto": prod_precio,
+        "total_esperado": float(prod_precio) * n_pedidos * items_por_pedido,
     }
 
 
@@ -239,13 +244,15 @@ async def borrar_residuo_pago(db_session, ctx: dict) -> None:
     ``ctx`` es el dict de ``abrir_sesion_con_pedido_servido`` (usa
     usuario["id"], sesion_id, mesa_id).
     """
-    from sqlalchemy import delete as _delete, select as _select
+    from sqlalchemy import delete as _delete
+    from sqlalchemy import select as _select
 
     from app.models.calificacion import Calificacion as _Cal
     from app.models.mesa import Mesa as _Mesa
     from app.models.pago import Pago as _Pago
     from app.models.pago_event import PagoEvent as _PagoEvent
-    from app.models.pedido import Pedido as _Pedido, PedidoItem as _PedidoItem
+    from app.models.pedido import Pedido as _Pedido
+    from app.models.pedido import PedidoItem as _PedidoItem
     from app.models.sesion_mesa import SesionMesa as _Sesion
 
     usuario_id = ctx["usuario"]["id"]
