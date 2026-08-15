@@ -67,4 +67,28 @@ void main() {
     expect(find.textContaining('Error'), findsOneWidget);
     expect(find.text('Reintentar'), findsOneWidget);
   });
+
+  testWidgets(
+      'rating real (CALI-02): "4.8 (245)" con reseñas · "—" sin reseñas',
+      (tester) async {
+    final conResenas = <Restaurante>[
+      const Restaurante(
+        id: 3,
+        nombre: 'La Parrilla',
+        calificacion: 4.8,
+        totalCalificaciones: 245,
+      ),
+      const Restaurante(
+        id: 4,
+        nombre: 'El Rincón',
+        calificacion: null,
+        totalCalificaciones: 0,
+      ),
+    ];
+    await tester.pumpWidget(_wrap(AsyncData(conResenas)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('4.8 (245)'), findsOneWidget);
+    expect(find.text('—'), findsOneWidget);
+  });
 }
