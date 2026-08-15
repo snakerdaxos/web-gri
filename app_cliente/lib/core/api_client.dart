@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/pago.dart';
 import '../models/pedido.dart';
 import '../models/reserva.dart';
 import '../models/reserva_create.dart';
@@ -214,6 +215,28 @@ class ApiClient {
       },
     );
     return Pedido.fromJson(r.data!);
+  }
+
+  // ── Pago en línea (Phase 9 — PAGO-02) ──────────────────────────────────
+
+  /// `POST /cliente/pagos/intencion` — crea (o reutiliza idempotente: 201 Y
+  /// 200 son éxito) la intención de pago de la cuenta de la sesión activa.
+  /// El monto lo calcula el backend SERVER-SIDE (Σ pedidos servido) — el
+  /// body va vacío (threat: montos jamás vienen del cliente).
+  /// Errores esperados: 404 sin sesión · 409 pedidos en curso / sin pedidos.
+  Future<PagoIntencion> crearIntencionPago() async {
+    final r = await _dio.post<Map<String, dynamic>>('/cliente/pagos/intencion');
+    return PagoIntencion.fromJson(r.data!);
+  }
+
+  /// `GET /cliente/pagos/{pagoId}` — estado del pago para el polling
+  /// post-checkout. La UI JAMÁS marca un pago como aprobado por el
+  /// retorno del checkout: este endpoint (backend + webhook verificado)
+  /// es la única fuente de verdad (threat 1 del research 09).
+  /// 404 si el pago no es de este usuario (existence hiding).
+  Future<PagoEstado> getPagoEstado(int pagoId) async {
+    final r = await _dio.get<Map<String, dynamic>>('/cliente/pagos/$pagoId');
+    return PagoEstado.fromJson(r.data!);
   }
 }
 

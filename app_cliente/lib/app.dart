@@ -8,6 +8,7 @@ import 'features/auth/login_screen.dart';
 import 'features/auth/register_screen.dart';
 import 'features/pedidos/menu_mesa_screen.dart';
 import 'features/pedidos/pedido_estado_screen.dart';
+import 'features/pagos/pago_screen.dart';
 import 'features/perfil/perfil_screen.dart';
 import 'features/restaurantes/home_screen.dart';
 import 'features/restaurantes/restaurante_detalle_screen.dart';
@@ -57,6 +58,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/mesa/pedidos',
         builder: (_, _) => const PedidoEstadoScreen(),
+      ),
+      GoRoute(
+        path: '/mesa/pago',
+        builder: (_, _) => const PagoScreen(),
       ),
       GoRoute(
         path: '/restaurantes/:id',

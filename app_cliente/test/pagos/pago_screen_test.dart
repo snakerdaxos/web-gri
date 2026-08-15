@@ -192,7 +192,15 @@ void main() {
     await _pumpInicio(tester);
     await tester.pump(const Duration(milliseconds: 300)); // SnackBar anim
 
-    expect(find.text('Tienes pedidos en curso'), findsOneWidget);
+    // El detail del server llega por SnackBar (y persiste en la vista de
+    // error — por eso el matcher es descendant del SnackBar).
     expect(find.byType(SnackBar), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(SnackBar),
+        matching: find.text('Tienes pedidos en curso'),
+      ),
+      findsOneWidget,
+    );
   });
 }

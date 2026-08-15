@@ -156,22 +156,49 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
         child: yaPedida
-            ? Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: GriColors.chipConfirmadaBg,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(
-                  child: Text(
-                    'Cuenta solicitada ✓',
-                    style: TextStyle(
-                      color: GriColors.chipConfirmadaFg,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: GriColors.chipConfirmadaBg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'Cuenta solicitada ✓',
+                        style: TextStyle(
+                          color: GriColors.chipConfirmadaFg,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  // PAGO-02 UI: pagar la cuenta en línea desde acá.
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => context.push('/mesa/pago'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: GriColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      icon: const Icon(Icons.credit_card),
+                      label: const Text(
+                        'Pagar en línea 💳',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               )
             : SizedBox(
                 width: double.infinity,

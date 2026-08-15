@@ -70,6 +70,8 @@ void main() {
 
     expect(find.text('Pedir la cuenta'), findsOneWidget);
     expect(find.text('Cuenta solicitada ✓'), findsNothing);
+    // El botón de pago solo aparece cuando la cuenta ya está pedida.
+    expect(find.text('Pagar en línea 💳'), findsNothing);
   });
 
   testWidgets('tap → 1 llamada al backend + confirmación + botón reemplazado',
@@ -100,5 +102,17 @@ void main() {
     expect(find.text('Cuenta solicitada ✓'), findsOneWidget);
     expect(find.text('Pedir la cuenta'), findsNothing);
     expect(client.llamadas, 0);
+  });
+
+  testWidgets('cuenta pedida → botón "Pagar en línea" visible (PAGO-02)',
+      (tester) async {
+    final client = _CuentaClient();
+    await tester.pumpWidget(
+        _wrap(sesion: _sesion(solicitaCuenta: true), client: client));
+    await tester.pumpAndSettle();
+
+    // 09-03: con la cuenta pedida aparece el CTA de pago en línea.
+    expect(find.text('Pagar en línea 💳'), findsOneWidget);
+    // Sin cuenta pedida NO aparece (se valida en los tests 1 y 2).
   });
 }

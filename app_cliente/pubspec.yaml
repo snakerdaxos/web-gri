@@ -33,6 +33,10 @@ dependencies:
   # WebSocket tiempo real (Phase 7 — RT-01/03); oficial Dart team.
   web_socket_channel: ^3.0.3
 
+  # Checkout externo de pago (Phase 9 — PAGO-02). Launch SOLO desde user
+  # action (Pitfall 8 research 09); el launcher es inyectable para tests.
+  url_launcher: ^6.3.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
