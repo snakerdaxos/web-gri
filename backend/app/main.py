@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import admin, auth, cliente, health, pagos, public, staff, ws
+from app.api import admin, auth, cliente, health, pagos, public, staff, webhooks, ws
 from app.core.config import settings
 from app.core.db import async_session_maker, engine
 from app.services.bootstrap import ensure_super_admin
@@ -62,9 +62,14 @@ app.include_router(admin.router)
 app.include_router(staff.router)
 app.include_router(public.router)
 app.include_router(cliente.router)
-# Phase 9: pagos (intención/estado por sesión — SIEMPRE montado; el router
-# sandbox de la Task 3 es el que va condicional según SANDBOX_MODE).
+# Phase 9: pagos (intención/estado por sesión — SIEMPRE montado).
 app.include_router(pagos.router)
+# Phase 9: webhook público de pasarela (sin auth — firma timing-safe adentro).
+app.include_router(webhooks.router)
+# Phase 9: sandbox SOLO en modo sandbox (montaje condicional — Pitfall 3:
+# en prod las rutas NO EXISTEN; el guard por-request es la 2a defensa).
+if settings.SANDBOX_MODE:
+    app.include_router(pagos.sandbox_router)
 # Phase 7: WebSocket endpoints (/ws/staff + /ws/cliente — broadcaster in-memory).
 app.include_router(ws.router)
 

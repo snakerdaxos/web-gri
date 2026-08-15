@@ -27,9 +27,9 @@ import pytest
 from sqlalchemy import func, select
 
 from app.core.gateways.wompi_gateway import firmar_evento
-from app.models.pedido import Pedido
-from app.models.pago import Pago, EstadoPago
+from app.models.pago import EstadoPago, Pago
 from app.models.pago_event import PagoEvent
+from app.models.pedido import Pedido
 from app.models.sesion_mesa import SesionMesa
 
 from .conftest import (
@@ -166,21 +166,19 @@ async def test_dedup_mismo_evento_dos_veces(async_client, db_session):
         assert pago.estado == EstadoPago.aprobado
         assert pago.updated_at == updated_at_1, "re-entregas no tocan el pago"
 
-        # 1 fila por event_key; 2 event_keys (txn:APPROVED + otro:APPROVED).
-        keys = (
+        # 1 fila de dedup: la re-entrega exacta colisiona en el UNIQUE y la
+        # 3a (txn distinto sobre pago terminal) se revierte con la
+        # TransicionInvalidaError — ambas 200 no-op, ninguna deja fila.
+        keys = list(
             (
                 await db_session.execute(
-                    select(PagoEvent.event_key).where(
-                        PagoEvent.pago_id == pago_id
-                    )
+                    select(PagoEvent.event_key).where(PagoEvent.pago_id == pago_id)
                 )
             )
             .scalars()
             .all()
         )
-        assert sorted(keys) == sorted(
-            [f"txn-{pago.referencia}:APPROVED", f"otro-{pago.id}:APPROVED"]
-        )
+        assert keys == [f"txn-{pago.referencia}:APPROVED"]
 
         # Efectos exactamente 1 vez: pedidos pagado, sesión cerrada.
         pedidos = (
