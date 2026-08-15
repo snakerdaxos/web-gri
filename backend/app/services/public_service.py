@@ -8,12 +8,18 @@ on public endpoints — a scraper cannot enumerate which IDs are inactive).
 The menú detalle uses 3 separate queries (restaurante, categorias, productos)
 grouped in Python — NO N+1, no eager-load gymnastics. With ~4 categorias and
 ~16 productos in the demo, this is the simplest correct shape.
+
+Phase 9 (CALI-02): the aggregate de calificaciones (AVG round 1 decimal +
+COUNT) se resuelve con UNA query extra ``GROUP BY restaurant_id`` para toda
+la lista — sin N+1 por restaurante. /public expone SOLO avg y count; jamás
+comentarios ni usuarios (T-09-04 — los comentarios son solo del restaurante).
 """
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.calificacion import Calificacion
 from app.models.menu import Categoria, Producto
 from app.models.restaurante import Restaurante
 from app.schemas.menu import (
@@ -23,15 +29,44 @@ from app.schemas.menu import (
     RestaurantePublico,
 )
 
+# (avg redondeado a 1 decimal | None, count) por restaurant_id.
+Rating = tuple[float | None, int]
 
-def _to_public(r: Restaurante) -> RestaurantePublico:
+
+async def _ratings_por_restaurante(
+    session: AsyncSession, ids: list[int]
+) -> dict[int, Rating]:
+    """UNA query GROUP BY para todos los ids (sin N+1). Restaurantes sin
+    calificaciones quedan AUSENTES del dict → el caller aplica (None, 0)."""
+    if not ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(
+                Calificacion.restaurant_id,
+                func.avg(Calificacion.estrellas),
+                func.count(Calificacion.id),
+            )
+            .where(Calificacion.restaurant_id.in_(ids))
+            .group_by(Calificacion.restaurant_id)
+        )
+    ).all()
+    return {
+        restaurant_id: (round(float(avg), 1), int(count))
+        for restaurant_id, avg, count in rows
+    }
+
+
+def _to_public(r: Restaurante, rating: Rating = (None, 0)) -> RestaurantePublico:
+    avg, total = rating
     return RestaurantePublico(
         id=r.id,
         nombre=r.nombre,
         tipo_cocina=r.tipo_cocina,
         descripcion=r.descripcion,
         direccion=r.direccion,
-        calificacion=None,  # Phase 5: always None (Phase 9 / CALI-02 fills it)
+        calificacion=avg,
+        total_calificaciones=total,
     )
 
 
@@ -47,7 +82,8 @@ async def list_public_restaurantes(
         .order_by(Restaurante.id)
     )
     rows = (await session.execute(stmt)).scalars().all()
-    return [_to_public(r) for r in rows]
+    ratings = await _ratings_por_restaurante(session, [r.id for r in rows])
+    return [_to_public(r, ratings.get(r.id, (None, 0))) for r in rows]
 
 
 async def get_public_restaurante_detalle(
@@ -97,5 +133,6 @@ async def get_public_restaurante_detalle(
         for c in cat_rows
     ]
 
-    base = _to_public(r)
+    ratings = await _ratings_por_restaurante(session, [r.id])
+    base = _to_public(r, ratings.get(r.id, (None, 0)))
     return RestauranteDetalle(**base.model_dump(), categorias=categorias)

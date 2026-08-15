@@ -45,8 +45,11 @@ class CategoriaConProductos(BaseModel):
 
 
 class RestaurantePublico(BaseModel):
-    """Restaurante list item (REST-01). ``calificacion`` is always None in
-    Phase 5 (Phase 9 fills it with CALI-02 aggregate)."""
+    """Restaurante list item (REST-01). ``calificacion`` es el promedio REAL
+    de estrellas redondeado a 1 decimal (CALI-02, Phase 9) — ``None`` cuando
+    el restaurante no tiene calificaciones; ``total_calificaciones`` es el
+    COUNT real (0 si no hay). El agregado vive solo aquí: /public NUNCA
+    expone comentarios ni usuarios (T-09-04)."""
 
     id: int
     nombre: str
@@ -54,6 +57,7 @@ class RestaurantePublico(BaseModel):
     descripcion: str | None
     direccion: str | None
     calificacion: float | None = None
+    total_calificaciones: int = 0
 
 
 class RestauranteDetalle(RestaurantePublico):
