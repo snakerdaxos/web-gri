@@ -1,42 +1,30 @@
 ﻿---
-status: PROYECTO COMPLETO - las 9 fases del roadmap ejecutadas y verificadas
-stopped_at: "Roadmap v1 completo. 50/50 requisitos Done. Deploy real pendiente (guía deploy/README.md) + credenciales Wompi post-KYC"
-current_phase: 9 (completa)
-updated: 2026-08-14
+status: Roadmap v1 completo. Phase 10 agregada: Migracion a Firebase (Opcion B) - pendiente planear
+stopped_at: "Phase 10 agregada. Decision del usuario: reemplazar MySQL+FastAPI por Firebase directo (Auth + Firestore + listeners). Pendiente: confirmar web app en Firebase console + plan de pagos. Luego /gsd-plan-phase 10"
+current_phase: 10
+updated: 2026-08-16
 ---
 
 # STATE
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-13)
+See: .planning/PROJECT.md
 
 **Core value:** Un cliente puede sentarse en una mesa, escanear su QR, pedir del menu y recibir su comida en tiempo real sin intermediarios.
-**Current focus:** PROYECTO COMPLETO — siguiente: milestone v1.0 (complete-milestone) o deploy real
+**Current focus:** Phase 10 — Migracion a Firebase Opcion B (apps directas a Firestore)
+
+## Roadmap Evolution
+- Phase 10 added (2026-08-16): Migracion a Firebase Opcion B — decision del usuario tras crear proyecto Firebase p-gri-b5b40. Las apps Flutter (movil + panel web) pasan a hablar directo a Firebase Auth + Firestore con security rules; backend FastAPI (215 tests) se archiva como referencia. google-services.json (Android gri.app) en documentos/.
 
 ## Progress
 
-Status: TODAS las fases COMPLETE (verified passed)
+Status: Phases 1-9 COMPLETE (verified). Phase 10 NOT PLANNED.
 
-### Phases
-- Phase 1: COMPLETE — Fundacion Docker+MySQL+FastAPI
-- Phase 2: COMPLETE — Auth multi-rol + multi-tenant
-- Phase 3: COMPLETE — Modelo dominio + seed demo
-- Phase 4: COMPLETE — Panel admin solo lectura
-- Phase 5: COMPLETE — App cliente + reservas anti-concurrencia
-- Phase 6: COMPLETE — Core value: QR + pedidos + cocina
-- Phase 7: COMPLETE — WebSockets tiempo real
-- Phase 8: COMPLETE — Panel gestion completa + reportes
-- Phase 9: COMPLETE — Pagos + calificaciones + deploy artifacts
+### Pendientes previos a planear Phase 10 (decision usuario)
+1. Registrar Web app en Firebase console para panel_admin (solo existe Android gri.app)
+2. Pagos en la migracion: Firebase Functions (webhook Wompi) o diferir
 
-## Test Baselines (final)
-- Backend: 215 passed
-- App cliente: 51 passed
-- Panel admin: 61 passed
-- flutter analyze: 0 issues ambas apps
-- BD dev: demo pristino
-
-## Pendientes post-v1 (documentados)
-- Deploy real Ubuntu Server (guía deploy/README.md 12 secciones)
-- Credenciales Wompi reales post-KYC (SANDBOX_MODE=false + env vars)
-- UAT visual en browser (pasos en cada VERIFICATION.md)
+## Test Baselines (referencia MySQL — seran reemplazados)
+- Backend: 215 passed (FastAPI+MySQL, se archiva)
+- App cliente: 51 passed | Panel: 61 passed (UI se conserva, capa datos se reescribe)

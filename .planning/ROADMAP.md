@@ -178,6 +178,16 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
 | 8. Panel Admin - Gestion Completa y Reportes | 0/5 | Planned | - |
 | 9. Pagos, Calificaciones y Deploy | 0/4 | Planned | - |
 
+### Phase 10: Migracion a Firebase (Opcion B) — apps Flutter (movil y panel web) directas a Firebase Auth + Firestore con security rules, backend FastAPI archivado como referencia
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 9
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 10 to break down)
+
 ---
 *Coverage: 50/50 requisitos v1 mapeados (PLAT 5, AUTH 5, REST 2, MENU 2, MESA 6, RESV 5, PEDI 6, RT 3, PAGO 4, CALI 2, ADMN 5, REPO 2, INFR 3). Nota: REQUIREMENTS.md decÃƒÂ­a "47 total" por error aritmÃƒÂ©tico; el conteo real de IDs es 50.*
 *Created: 2026-08-13*
