@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -11,28 +11,28 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../helpers/firebase_fakes.dart';
 
-/// SesiÃ³n QR sobre Firestore (Task 1 de 10-04): abrirSesion tx determinista
+/// Sesión QR sobre Firestore (Task 1 de 10-04): abrirSesion tx determinista
 /// sobre sesiones/{mesaId}, concurrencia doble-apertura (MIGRA-06), y el
 /// stream del doc como banner vivo. Todo contra fakes in-memory.
 
 const _mesa = 'GRI-MESA-demo-001';
 
 /// Espera activa hasta que [cond] sea true (los snapshots de los fakes
-/// emiten en microtareas â€” polling breve en vez de tiempos fijos).
+/// emiten en microtareas — polling breve en vez de tiempos fijos).
 Future<void> _hasta(bool Function() cond) async {
   final fin = DateTime.now().add(const Duration(seconds: 5));
   while (!cond()) {
     if (DateTime.now().isAfter(fin)) {
-      fail('timeout esperando condiciÃ³n del stream');
+      fail('timeout esperando condición del stream');
     }
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
 }
 
 void main() {
-  // â”€â”€ Unidad: la tx de abrirSesion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Unidad: la tx de abrirSesion ─────────────────────────────────────────
 
-  test('mesa disponible â†’ sesiÃ³n activa con dueÃ±o y mesa pasa a ocupada',
+  test('mesa disponible → sesión activa con dueño y mesa pasa a ocupada',
       () async {
     final db = await buildFakeFirestoreConSeed();
 
@@ -41,7 +41,7 @@ void main() {
     expect(sesion.estado, 'activa');
     expect(sesion.usuarioId, 'uid-a');
     expect(sesion.mesaId, _mesa);
-    expect(sesion.mesaNumero, 1, reason: 'numero leÃ­do de la mesa en la tx');
+    expect(sesion.mesaNumero, 1, reason: 'numero leído de la mesa en la tx');
 
     final doc = await db.doc('sesiones/$_mesa').get();
     expect(doc.exists, isTrue);
@@ -54,7 +54,7 @@ void main() {
     expect(mesa.data()!['estado'], 'ocupada');
   });
 
-  test('CONCURRENCIA (MIGRA-06): dos abrirSesion simultÃ¡neos â†’ 1 gana, 1 "Mesa ocupada"',
+  test('CONCURRENCIA (MIGRA-06): dos abrirSesion simultáneos → 1 gana, 1 "Mesa ocupada"',
       () async {
     final db = await buildFakeFirestoreConSeed();
 
@@ -66,11 +66,11 @@ void main() {
           .then((_) => 'ok')
           .catchError((_) => 'error'),
     ]);
-    // .catchError tapa el mensaje â€” repetimos por separado para assertearlo.
+    // .catchError tapa el mensaje — repetimos por separado para assertearlo.
     final perdedor = abrirSesion(db, uid: 'uid-c', codigoQR: _mesa);
 
     expect(resultados.where((r) => r == 'ok').length, 1,
-        reason: 'exactamente UNA sesiÃ³n se crea');
+        reason: 'exactamente UNA sesión se crea');
     await expectLater(perdedor,
         throwsA(isA<SesionException>().having((e) => e.message, 'message', 'Mesa ocupada')));
 
@@ -81,7 +81,7 @@ void main() {
     expect(mesa.data()!['estado'], 'ocupada');
   });
 
-  test('mesa en limpieza â†’ TransicionInvalidaException (mensaje controlado en el controller)',
+  test('mesa en limpieza → TransicionInvalidaException (mensaje controlado en el controller)',
       () async {
     final db = await buildFakeFirestoreConSeed();
     await db.doc('mesas/$_mesa').update({'estado': 'limpieza'});
@@ -104,24 +104,24 @@ void main() {
         .then<Object?>((s) => s, onError: (Object e) => e);
     expect(error, isA<SesionException>());
     expect((error as SesionException).message,
-        'La mesa no estÃ¡ disponible en este momento');
+        'La mesa no está disponible en este momento');
   });
 
-  test('cÃ³digo inexistente (GRI-MESA-demo-999) â†’ "CÃ³digo de mesa invÃ¡lido"',
+  test('código inexistente (GRI-MESA-demo-999) → "Código de mesa inválido"',
       () async {
     final db = await buildFakeFirestoreConSeed();
 
     await expectLater(
       abrirSesion(db, uid: 'uid-a', codigoQR: 'GRI-MESA-demo-999'),
       throwsA(isA<SesionException>()
-          .having((e) => e.message, 'message', 'CÃ³digo de mesa invÃ¡lido')),
+          .having((e) => e.message, 'message', 'Código de mesa inválido')),
     );
 
     final sesiones = await db.collection('sesiones').get();
     expect(sesiones.docs, isEmpty, reason: 'sin doc creado');
   });
 
-  test('sesiÃ³n cerrada previa en esa mesa â†’ se permite re-abrir', () async {
+  test('sesión cerrada previa en esa mesa → se permite re-abrir', () async {
     final db = await buildFakeFirestoreConSeed();
     await db.doc('sesiones/GRI-MESA-demo-002').set({
       'restauranteId': 'demo',
@@ -140,7 +140,7 @@ void main() {
     expect(doc.data()!['estado'], 'activa');
     expect(doc.data()!['usuarioId'], 'uid-a');
     expect(doc.data()!['cuentaSolicitada'], false,
-        reason: 'el set reemplaza el doc (nueva sesiÃ³n limpia)');
+        reason: 'el set reemplaza el doc (nueva sesión limpia)');
     final mesa = await db.doc('mesas/GRI-MESA-demo-002').get();
     expect(mesa.data()!['estado'], 'ocupada');
   });
@@ -168,14 +168,14 @@ void main() {
         reason: 'enriquecido client-side (join)');
     expect(emisiones.last.mesaNumero, 1);
 
-    // Otro writer (staff/mesero flip) â€” el stream lo refleja solo.
+    // Otro writer (staff/mesero flip) — el stream lo refleja solo.
     await db.doc('sesiones/$_mesa').update({'cuentaSolicitada': true});
 
     await _hasta(() => emisiones.last.cuentaSolicitada);
     expect(emisiones.last.cuentaSolicitada, true);
   });
 
-  // â”€â”€ Widgets: ScanScreen (input manual de primera clase) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Widgets: ScanScreen (input manual de primera clase) ─────────────────
 
   Widget wrapFake(FakeTestFirestoreBuilder builder) {
     final router = GoRouter(
@@ -198,15 +198,15 @@ void main() {
     );
   }
 
-  testWidgets('render inicial: sin cÃ¡mara, input manual y hint del nuevo formato',
+  testWidgets('render inicial: sin cámara, input manual y hint del nuevo formato',
       (tester) async {
     final db = await buildFakeFirestoreConSeed();
     await tester.pumpWidget(wrapFake(FakeTestFirestoreBuilder(db: db)));
     await tester.pumpAndSettle();
 
     expect(find.byType(MobileScanner), findsNothing);
-    expect(find.text('Escanear con cÃ¡mara'), findsOneWidget);
-    expect(find.text('O escribe el cÃ³digo de la mesa'), findsOneWidget);
+    expect(find.text('Escanear con cámara'), findsOneWidget);
+    expect(find.text('O escribe el código de la mesa'), findsOneWidget);
     expect(find.text('GRI-MESA-demo-001'), findsOneWidget,
         reason: 'hint con slug de restaurante');
   });
@@ -222,11 +222,11 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('formato GRI-MESA-demo-001'), findsOneWidget);
-    // Sin navegaciÃ³n.
+    // Sin navegación.
     expect(find.text('MESA_PAGE'), findsNothing);
   });
 
-  testWidgets('GRI-MESA-demo-001 vÃ¡lido â†’ sesiÃ³n abierta (Mesa 1) + navegaciÃ³n',
+  testWidgets('GRI-MESA-demo-001 válido → sesión abierta (Mesa 1) + navegación',
       (tester) async {
     final db = await buildFakeFirestoreConSeed();
     await tester.pumpWidget(wrapFake(FakeTestFirestoreBuilder(db: db)));
@@ -245,7 +245,7 @@ void main() {
     expect(doc.data()!['usuarioId'], 'test-uid');
   });
 
-  testWidgets('mesa ocupada por sesiÃ³n ajena â†’ SnackBar "Mesa ocupada", sin navegar',
+  testWidgets('mesa ocupada por sesión ajena → SnackBar "Mesa ocupada", sin navegar',
       (tester) async {
     final db = await buildFakeFirestoreConSeed();
     await db.doc('sesiones/$_mesa').set({
@@ -270,7 +270,7 @@ void main() {
     expect(find.text('Abrir mesa'), findsOneWidget, reason: 'permite reintentar');
   });
 
-  testWidgets('mesa en limpieza â†’ mensaje controlado (sin crash ni navegaciÃ³n)',
+  testWidgets('mesa en limpieza → mensaje controlado (sin crash ni navegación)',
       (tester) async {
     final db = await buildFakeFirestoreConSeed();
     await db.doc('mesas/$_mesa').update({'estado': 'limpieza'});
@@ -285,12 +285,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(
-        find.text('La mesa no estÃ¡ disponible en este momento'), findsOneWidget);
+        find.text('La mesa no está disponible en este momento'), findsOneWidget);
     expect(find.text('MESA_PAGE'), findsNothing);
   });
 }
 
-/// Envoltorio mÃ­nimo para inyectar db+auth al _wrap de los widget tests.
+/// Envoltorio mínimo para inyectar db+auth al _wrap de los widget tests.
 class FakeTestFirestoreBuilder {
   FakeTestFirestoreBuilder({required this.db, this.auth});
 

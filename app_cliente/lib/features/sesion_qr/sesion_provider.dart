@@ -50,7 +50,56 @@ Future<SesionMesa> _abrirSesion(
   required String uid,
   required String codigoQR,
 }) {
-  throw UnimplementedError();
+  return db.runTransaction<SesionMesa>((tx) async {
+    // 1) La mesa debe existir — el código QR ES el doc ID (get O(1)).
+    final mesaRef = db.doc('mesas/$codigoQR');
+    final mesaSnap = await tx.get(mesaRef);
+    if (!mesaSnap.exists) {
+      throw const SesionException('Código de mesa inválido');
+    }
+    final mesaData = mesaSnap.data()!;
+    final mesaEstado = mesaData['estado'] as String? ?? 'disponible';
+
+    // 2) UNA sesión activa por mesa (doc ID determinista): si existe y está
+    //    activa — sea de quien sea — esta apertura pierde (MIGRA-06).
+    final sesionRef = db.doc('sesiones/$codigoQR');
+    final sesionSnap = await tx.get(sesionRef);
+    if (sesionSnap.exists && sesionSnap.data()?['estado'] == 'activa') {
+      throw const SesionException('Mesa ocupada');
+    }
+
+    // 3) Máquina de estados: disponible|reservada → ocupada; limpieza y
+    //    terminales lanzan TransicionInvalidaException (el controller la
+    //    traduce a mensaje controlado).
+    validarTransicion('mesa', mesaEstado, 'ocupada');
+
+    // 4) set (no update): una sesión cerrada/expirada previa se REEMPLAZA
+    //    por la nueva sesión limpia (cuentaSolicitada false).
+    tx.set(sesionRef, <String, dynamic>{
+      'restauranteId': mesaData['restauranteId'] as String? ?? '',
+      'mesaId': codigoQR,
+      'usuarioId': uid,
+      'estado': 'activa',
+      'cuentaSolicitada': false,
+      'inicioAt': FieldValue.serverTimestamp(),
+    });
+    tx.update(mesaRef, <String, dynamic>{
+      'estado': 'ocupada',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // Retorno YA enriquecido con el numero leído en la misma tx (el
+    // banner/menu lo muestran al instante, sin segunda lectura).
+    return SesionMesa(
+      id: codigoQR,
+      restauranteId: mesaData['restauranteId'] as String? ?? '',
+      mesaId: codigoQR,
+      usuarioId: uid,
+      estado: 'activa',
+      cuentaSolicitada: false,
+      mesaNumero: (mesaData['numero'] as num?)?.toInt() ?? 0,
+    );
+  });
 }
 
 /// Enriquece la sesión con `mesaNumero` y `restauranteNombre` (join
