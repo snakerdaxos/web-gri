@@ -21,5 +21,13 @@ backend/.venv/
 .DS_Store
 Thumbs.db
 
+# Firebase — secrets y artefactos locales (NUNCA commitear)
+serviceAccountKey.json
+emulator_data/
+scripts/node_modules/
+.firebase/
+firebase-debug.log
+ui-debug.log
+
 # Docker runtime artifacts
 *.log

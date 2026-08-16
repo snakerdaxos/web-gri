@@ -1,0 +1,291 @@
+rules_version = '2';
+
+// ============================================================================
+// GRI — Firestore Security Rules (Phase 10, Opción B)
+//
+// Reemplazo declarativo de TenantScope + require_roles (backend FastAPI).
+// La autorización es 100% por custom claims { role, rid } que viajan en
+// request.auth.token (los setea SOLO scripts/seed_firebase.mjs con Admin SDK).
+// El doc usuarios/{uid} es un ESPEJO de perfil: JAMÁS autoriza — ninguna regla
+// hace get() sobre usuarios/ (presupuesto de access-calls + anti-desync).
+//
+// Presupuesto de access-calls (límite: 10 por request de doc único, 20 por
+// multi-doc/tx; gets repetidos al mismo doc cuentan 1 vez — cacheado):
+//   sesiones create      → 1 doc (mesas)             = 1 access-call
+//   pedidos create       → 2 docs (sesiones, mesas)  = 2 access-calls (3 gets)
+//   reservas create      → 1 doc (mesas)             = 1 access-call
+//   calificaciones create→ 2 docs (pedidos, sesiones)= 2 access-calls (4 gets)
+// Máximo 3 por match. NO agregar más gets "por seguridad".
+//
+// Transiciones de mesa = MESA_TRANSITIONS de backend/app/core/state_machines.py
+// (disponible→[reservada,ocupada], reservada→[ocupada,disponible],
+//  ocupada→[limpieza], limpieza→[disponible]).
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Helpers de claims (0 access-calls — todo vive en el token) ----
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return request.auth.token.role;
+    }
+
+    function rid() {
+      return request.auth.token.rid;
+    }
+
+    function isSuper() {
+      return signedIn() && role() == 'super_admin';
+    }
+
+    // Auto-registrado no tiene claim role → se trata como cliente.
+    function isCliente() {
+      return signedIn()
+        && (!('role' in request.auth.token) || request.auth.token.role == 'cliente');
+    }
+
+    // Staff (admin/mesero/cocina) DEL restaurante indicado.
+    function staffOf(r) {
+      return signedIn() && r == rid()
+        && role() in ['admin_restaurante', 'mesero', 'cocina'];
+    }
+
+    // Quien administra el menú/fichas: super o admin del restaurante.
+    function menuStaffOf(r) {
+      return signedIn() && (isSuper()
+        || (r == rid() && role() == 'admin_restaurante'));
+    }
+
+    // Quien avanza pedidos en cocina: super, admin, cocina o mesero (servir).
+    function cocinaStaffOf(r) {
+      return signedIn() && (isSuper()
+        || (r == rid() && role() in ['admin_restaurante', 'cocina', 'mesero']));
+    }
+
+    // Update que solo toca estado + updatedAt (cambios de estado).
+    function soloEstado() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['estado', 'updatedAt']);
+    }
+
+    // MESA_TRANSITIONS 1:1 de backend/app/core/state_machines.py.
+    function transMesa(a, b) {
+      return (a == 'disponible' && b in ['reservada', 'ocupada'])
+          || (a == 'reservada'  && b in ['ocupada', 'disponible'])
+          || (a == 'ocupada'    && b == 'limpieza')
+          || (a == 'limpieza'   && b == 'disponible');
+    }
+
+    // ---- restaurantes (descubrimiento público) · 0 access-calls ----
+    match /restaurantes/{restId} {
+      // Lista pública (la query del cliente filtra activo == true).
+      allow read: if true;
+      allow create, delete: if isSuper();
+      // super: SOLO toggle de activo (paridad PLAT-05). Cliente: SOLO el
+      // agregado califProm/califCount que mantiene la tx de calificar.
+      // (Un update standalone de esas 2 keys sin calificación real es un gap
+      //  estructural aceptado en v1 — validación fuerte = Functions, DEFERRED.)
+      allow update: if (isSuper()
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['activo']))
+                    || (isCliente()
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['califProm', 'califCount'])
+                        && request.resource.data.califProm is number
+                        && request.resource.data.califCount is int);
+    }
+
+    // ---- categorias (menú) · 0 access-calls ----
+    // OJO (rules por-doc en queries): la query pública DEBE filtrar
+    // activo == true o un solo doc inactivo deniega toda la query.
+    match /categorias/{categoriaId} {
+      allow read: if resource.data.activo == true
+                  || menuStaffOf(resource.data.restauranteId);
+      // create valida contra el doc ENTRANTE (aún no existe resource).
+      allow create: if menuStaffOf(request.resource.data.restauranteId);
+      allow update: if menuStaffOf(resource.data.restauranteId)
+                    && request.resource.data.restauranteId
+                       == resource.data.restauranteId;
+      // delete valida contra el doc EXISTENTE (request.resource es null).
+      allow delete: if menuStaffOf(resource.data.restauranteId);
+    }
+
+    // ---- productos (menú) · 0 access-calls ----
+    // Query pública: filtrar activo == true AND disponible == true (por-doc).
+    match /productos/{productoId} {
+      allow read: if (resource.data.activo == true
+                      && resource.data.disponible == true)
+                  || menuStaffOf(resource.data.restauranteId);
+      allow create: if menuStaffOf(request.resource.data.restauranteId);
+      allow update: if menuStaffOf(resource.data.restauranteId)
+                    && request.resource.data.restauranteId
+                       == resource.data.restauranteId;
+      allow delete: if menuStaffOf(resource.data.restauranteId);
+    }
+
+    // ---- mesas (doc ID = código QR "GRI-MESA-{rid}-{num}") · 0 access-calls ----
+    match /mesas/{mesaId} {
+      // Leer la mesa no es sensible: staff la vigila y el cliente la abre
+      // tras escanear el QR.
+      allow read: if signedIn();
+      // create contra el doc ENTRANTE; delete contra el doc EXISTENTE
+      // (request.resource es null en delete — usar resource).
+      allow create: if menuStaffOf(request.resource.data.restauranteId);
+      allow delete: if menuStaffOf(resource.data.restauranteId);
+      // Edición de ficha (numero/capacidad): sin tocar estado, sin mover
+      // la mesa de restaurante.
+      allow update: if menuStaffOf(resource.data.restauranteId)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['numero', 'capacidad', 'updatedAt'])
+                    && request.resource.data.restauranteId
+                       == resource.data.restauranteId;
+      // Cambio de estado por staff (mapa de mesas / mesero): solo
+      // estado+updatedAt con transición válida.
+      allow update: if staffOf(resource.data.restauranteId)
+                    && soloEstado()
+                    && transMesa(resource.data.estado,
+                                 request.resource.data.estado);
+      // Cambio de estado por CLIENTE dentro de sus dos transacciones
+      // diseñadas: tx de reserva (disponible→reservada) y tx de abrir
+      // sesión (disponible|reservada→ocupada).
+      allow update: if isCliente()
+                    && soloEstado()
+                    && ((resource.data.estado == 'disponible'
+                         && request.resource.data.estado == 'reservada')
+                     || (resource.data.estado in ['disponible', 'reservada']
+                         && request.resource.data.estado == 'ocupada'));
+    }
+
+    // ---- usuarios (espejo de perfil — NUNCA autoriza) · 0 access-calls ----
+    match /usuarios/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isSuper());
+      // Auto-registro: SOLO cliente y sin restaurante. El rol real viaja en
+      // claims (el cliente no puede auto-ascenderse a staff).
+      allow create: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.role == 'cliente'
+                    && request.resource.data.restauranteId == null;
+      // El propio usuario solo puede cambiar su nombre; role y
+      // restauranteId quedan congelados (los cambia el seed/Admin SDK).
+      allow update: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['nombre']);
+      allow delete: if false;
+    }
+
+    // ---- sesiones (doc ID = mesaId → UNA sesión por mesa) · create 1 access-call ----
+    match /sesiones/{sesionId} {
+      allow read: if signedIn() && (resource.data.usuarioId == request.auth.uid
+                  || staffOf(resource.data.restauranteId) || isSuper());
+      // set() sobre doc existente se evalúa como UPDATE: "re-abrir" una
+      // sesión cerrada queda bloqueado ex profeso (no pasa por create).
+      allow create: if isCliente()
+                    && request.resource.data.estado == 'activa'
+                    && request.resource.data.usuarioId == request.auth.uid
+                    && request.resource.data.cuentaSolicitada == false
+                    && request.resource.data.mesaId == sesionId
+                    && get(/databases/$(database)/documents/mesas/$(sesionId)).data.estado
+                       in ['disponible', 'reservada']              // 1 access-call
+                    && get(/databases/$(database)/documents/mesas/$(sesionId)).data.restauranteId
+                       == request.resource.data.restauranteId;     // mismo doc: cacheado
+      allow update: if (resource.data.usuarioId == request.auth.uid  // dueño pide la cuenta
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['cuentaSolicitada', 'cuentaPedidaAt'])
+                        && request.resource.data.cuentaSolicitada == true)
+                    || (staffOf(resource.data.restauranteId)        // staff cierra/expira
+                        && soloEstado()
+                        && resource.data.estado == 'activa'
+                        && request.resource.data.estado
+                           in ['cerrada', 'expirada']);
+      allow delete: if false;
+    }
+
+    // ---- pedidos · create 2 access-calls (3 gets, sesiones cacheado) ----
+    match /pedidos/{pedidoId} {
+      allow read: if signedIn() && (resource.data.usuarioId == request.auth.uid
+                  || staffOf(resource.data.restauranteId) || isSuper());
+      // Snapshot de nombre/precio embebido por item (gap estructural v1:
+      // sin backend no hay validación fuerte de totales — Functions DEFERRED).
+      allow create: if isCliente()
+                    && request.resource.data.estado == 'enviado'
+                    && request.resource.data.usuarioId == request.auth.uid
+                    && request.resource.data.sesionId
+                       == request.resource.data.mesaId
+                    && get(/databases/$(database)/documents/sesiones/$(request.resource.data.sesionId)).data.usuarioId
+                       == request.auth.uid   // sesión PROPIA (anti-spoofing Phase 6)
+                    && get(/databases/$(database)/documents/sesiones/$(request.resource.data.sesionId)).data.estado
+                       == 'activa'           // sesión ACTIVA
+                    && get(/databases/$(database)/documents/mesas/$(request.resource.data.mesaId)).data.restauranteId
+                       == request.resource.data.restauranteId  // tenant consistente
+                    && request.resource.data.items is list
+                    && request.resource.data.items.size() >= 1
+                    && request.resource.data.items.size() <= 50
+                    && request.resource.data.total is int
+                    && request.resource.data.total >= 0;
+      // Avance de cocina: solo estado+updatedAt + matriz rol×transición
+      // (port de la matriz Phase 6). 'pagado' es inalcanzable en v1.
+      allow update: if cocinaStaffOf(resource.data.restauranteId)
+                    && soloEstado()
+                    && ((resource.data.estado == 'enviado'
+                         && request.resource.data.estado
+                            in ['aceptado', 'rechazado']
+                         && (role() in ['admin_restaurante', 'cocina']
+                             || isSuper()))
+                     || (resource.data.estado == 'aceptado'
+                         && request.resource.data.estado == 'en_preparacion'
+                         && (role() in ['admin_restaurante', 'cocina']
+                             || isSuper()))
+                     || (resource.data.estado == 'en_preparacion'
+                         && request.resource.data.estado == 'servido'));
+      allow delete: if false;
+    }
+
+    // ---- reservas (doc ID {mesaId}_{yyyyMMdd}_{HH} → 1 por slot) · create 1 access-call ----
+    match /reservas/{reservaId} {
+      allow read: if signedIn() && (resource.data.usuarioId == request.auth.uid
+                  || staffOf(resource.data.restauranteId) || isSuper());
+      allow create: if isCliente()
+                    && request.resource.data.usuarioId == request.auth.uid
+                    && request.resource.data.estado == 'confirmada'
+                    && request.resource.data.fecha > request.time  // slot futuro
+                    && request.resource.data.numPersonas >= 1
+                    && request.resource.data.numPersonas <= 20
+                    && get(/databases/$(database)/documents/mesas/$(request.resource.data.mesaId)).data.restauranteId
+                       == request.resource.data.restauranteId      // 1 access-call
+                    && request.resource.data.numPersonas
+                       <= get(/databases/$(database)/documents/mesas/$(request.resource.data.mesaId)).data.capacidad;
+                       // capacidad restaurada server-side (mismo doc: cacheado)
+      // Cancelar: dueño (futura) o staff (no-show). Solo estado+updatedAt.
+      allow update: if soloEstado()
+                    && request.resource.data.estado == 'cancelada'
+                    && ((resource.data.usuarioId == request.auth.uid
+                         && resource.data.fecha > request.time)
+                     || staffOf(resource.data.restauranteId));
+      allow delete: if false;
+    }
+
+    // ---- calificaciones (doc ID = pedidoId → 1:1) · create 2 access-calls (4 gets) ----
+    match /calificaciones/{pedidoId} {
+      allow read: if true;  // visible en discover
+      allow create: if isCliente()
+                    && get(/databases/$(database)/documents/pedidos/$(pedidoId)).data.usuarioId
+                       == request.auth.uid      // pedido PROPIO
+                    && get(/databases/$(database)/documents/pedidos/$(pedidoId)).data.estado
+                       == 'servido'             // pedido SERVIDO
+                    && get(/databases/$(database)/documents/sesiones/$(get(/databases/$(database)/documents/pedidos/$(pedidoId)).data.sesionId)).data.estado
+                       == 'cerrada'             // sesión CERRADA (pagos diferidos)
+                    && request.resource.data.pedidoId == pedidoId
+                    && request.resource.data.usuarioId == request.auth.uid
+                    && request.resource.data.restauranteId
+                       == get(/databases/$(database)/documents/pedidos/$(pedidoId)).data.restauranteId
+                    && request.resource.data.estrellas is int
+                    && request.resource.data.estrellas >= 1
+                    && request.resource.data.estrellas <= 5;
+      allow update, delete: if false;  // inmutable
+    }
+  }
+}
