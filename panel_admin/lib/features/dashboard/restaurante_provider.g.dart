@@ -122,22 +122,37 @@ final class RestauranteActivoProvider
 
 String _$restauranteActivoHash() => r'746bf3b7121a8de72fc562f494bc6c9ca7aa9cbb';
 
-/// FutureProvider que resuelve el [Restaurante] a mostrar (REST legacy).
+/// Ficha COMPLETA del restaurante activo (10-06): stream del doc
+/// `restaurantes/{rid}` — la alimenta el tab 'Restaurante' de
+/// /configuracion (read-only en v1).
+///
+/// Sin rid (super sin selección) o doc inexistente → error controlado
+/// ('No hay restaurante seleccionado') — la UI ya lo trata.
 
 @ProviderFor(restaurante)
 final restauranteProvider = RestauranteProvider._();
 
-/// FutureProvider que resuelve el [Restaurante] a mostrar (REST legacy).
+/// Ficha COMPLETA del restaurante activo (10-06): stream del doc
+/// `restaurantes/{rid}` — la alimenta el tab 'Restaurante' de
+/// /configuracion (read-only en v1).
+///
+/// Sin rid (super sin selección) o doc inexistente → error controlado
+/// ('No hay restaurante seleccionado') — la UI ya lo trata.
 
 final class RestauranteProvider
     extends
         $FunctionalProvider<
           AsyncValue<Restaurante>,
           Restaurante,
-          FutureOr<Restaurante>
+          Stream<Restaurante>
         >
-    with $FutureModifier<Restaurante>, $FutureProvider<Restaurante> {
-  /// FutureProvider que resuelve el [Restaurante] a mostrar (REST legacy).
+    with $FutureModifier<Restaurante>, $StreamProvider<Restaurante> {
+  /// Ficha COMPLETA del restaurante activo (10-06): stream del doc
+  /// `restaurantes/{rid}` — la alimenta el tab 'Restaurante' de
+  /// /configuracion (read-only en v1).
+  ///
+  /// Sin rid (super sin selección) o doc inexistente → error controlado
+  /// ('No hay restaurante seleccionado') — la UI ya lo trata.
   RestauranteProvider._()
     : super(
         from: null,
@@ -154,14 +169,14 @@ final class RestauranteProvider
 
   @$internal
   @override
-  $FutureProviderElement<Restaurante> $createElement(
+  $StreamProviderElement<Restaurante> $createElement(
     $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
+  ) => $StreamProviderElement(pointer);
 
   @override
-  FutureOr<Restaurante> create(Ref ref) {
+  Stream<Restaurante> create(Ref ref) {
     return restaurante(ref);
   }
 }
 
-String _$restauranteHash() => r'c69884d90a2827b4db4f9247df4d4b245ed16d90';
+String _$restauranteHash() => r'3ad8716840c65e6c103bb10fdb9d5e95900bd978';

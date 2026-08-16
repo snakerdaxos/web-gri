@@ -12,33 +12,32 @@ part of 'restaurante.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
-
 /// @nodoc
 mixin _$Restaurante {
 
- int get id; String get nombre; String? get descripcion;@JsonKey(name: 'tipo_cocina') String? get tipoCocina; String? get direccion; bool get activo;@JsonKey(name: 'created_at') DateTime? get createdAt;
+/// Slug (doc ID) — ej. `demo`.
+ String get id; String get nombre; String? get descripcion; String? get tipoCocina; String? get direccion; bool get activo;/// Agregado de calificaciones (lo mantiene la tx de calificar).
+ double get califProm; int get califCount;
 /// Create a copy of Restaurante
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $RestauranteCopyWith<Restaurante> get copyWith => _$RestauranteCopyWithImpl<Restaurante>(this as Restaurante, _$identity);
 
-  /// Serializes this Restaurante to a JSON map.
-  Map<String, dynamic> toJson();
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Restaurante&&(identical(other.id, id) || other.id == id)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.descripcion, descripcion) || other.descripcion == descripcion)&&(identical(other.tipoCocina, tipoCocina) || other.tipoCocina == tipoCocina)&&(identical(other.direccion, direccion) || other.direccion == direccion)&&(identical(other.activo, activo) || other.activo == activo)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Restaurante&&(identical(other.id, id) || other.id == id)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.descripcion, descripcion) || other.descripcion == descripcion)&&(identical(other.tipoCocina, tipoCocina) || other.tipoCocina == tipoCocina)&&(identical(other.direccion, direccion) || other.direccion == direccion)&&(identical(other.activo, activo) || other.activo == activo)&&(identical(other.califProm, califProm) || other.califProm == califProm)&&(identical(other.califCount, califCount) || other.califCount == califCount));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
-int get hashCode => Object.hash(runtimeType,id,nombre,descripcion,tipoCocina,direccion,activo,createdAt);
+int get hashCode => Object.hash(runtimeType,id,nombre,descripcion,tipoCocina,direccion,activo,califProm,califCount);
 
 @override
 String toString() {
-  return 'Restaurante(id: $id, nombre: $nombre, descripcion: $descripcion, tipoCocina: $tipoCocina, direccion: $direccion, activo: $activo, createdAt: $createdAt)';
+  return 'Restaurante(id: $id, nombre: $nombre, descripcion: $descripcion, tipoCocina: $tipoCocina, direccion: $direccion, activo: $activo, califProm: $califProm, califCount: $califCount)';
 }
 
 
@@ -49,7 +48,7 @@ abstract mixin class $RestauranteCopyWith<$Res>  {
   factory $RestauranteCopyWith(Restaurante value, $Res Function(Restaurante) _then) = _$RestauranteCopyWithImpl;
 @useResult
 $Res call({
- int id, String nombre, String? descripcion,@JsonKey(name: 'tipo_cocina') String? tipoCocina, String? direccion, bool activo,@JsonKey(name: 'created_at') DateTime? createdAt
+ String id, String nombre, String? descripcion, String? tipoCocina, String? direccion, bool activo, double califProm, int califCount
 });
 
 
@@ -66,16 +65,17 @@ class _$RestauranteCopyWithImpl<$Res>
 
 /// Create a copy of Restaurante
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? nombre = null,Object? descripcion = freezed,Object? tipoCocina = freezed,Object? direccion = freezed,Object? activo = null,Object? createdAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? nombre = null,Object? descripcion = freezed,Object? tipoCocina = freezed,Object? direccion = freezed,Object? activo = null,Object? califProm = null,Object? califCount = null,}) {
   return _then(Restaurante(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
+as String,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
 as String,descripcion: freezed == descripcion ? _self.descripcion : descripcion // ignore: cast_nullable_to_non_nullable
 as String?,tipoCocina: freezed == tipoCocina ? _self.tipoCocina : tipoCocina // ignore: cast_nullable_to_non_nullable
 as String?,direccion: freezed == direccion ? _self.direccion : direccion // ignore: cast_nullable_to_non_nullable
 as String?,activo: null == activo ? _self.activo : activo // ignore: cast_nullable_to_non_nullable
-as bool,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as bool,califProm: null == califProm ? _self.califProm : califProm // ignore: cast_nullable_to_non_nullable
+as double,califCount: null == califCount ? _self.califCount : califCount // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
@@ -160,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String nombre,  String? descripcion, @JsonKey(name: 'tipo_cocina')  String? tipoCocina,  String? direccion,  bool activo, @JsonKey(name: 'created_at')  DateTime? createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String nombre,  String? descripcion,  String? tipoCocina,  String? direccion,  bool activo,  double califProm,  int califCount)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Restaurante() when $default != null:
-return $default(_that.id,_that.nombre,_that.descripcion,_that.tipoCocina,_that.direccion,_that.activo,_that.createdAt);case _:
+return $default(_that.id,_that.nombre,_that.descripcion,_that.tipoCocina,_that.direccion,_that.activo,_that.califProm,_that.califCount);case _:
   return orElse();
 
 }
@@ -181,10 +181,10 @@ return $default(_that.id,_that.nombre,_that.descripcion,_that.tipoCocina,_that.d
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String nombre,  String? descripcion, @JsonKey(name: 'tipo_cocina')  String? tipoCocina,  String? direccion,  bool activo, @JsonKey(name: 'created_at')  DateTime? createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String nombre,  String? descripcion,  String? tipoCocina,  String? direccion,  bool activo,  double califProm,  int califCount)  $default,) {final _that = this;
 switch (_that) {
 case _Restaurante():
-return $default(_that.id,_that.nombre,_that.descripcion,_that.tipoCocina,_that.direccion,_that.activo,_that.createdAt);case _:
+return $default(_that.id,_that.nombre,_that.descripcion,_that.tipoCocina,_that.direccion,_that.activo,_that.califProm,_that.califCount);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -201,10 +201,10 @@ return $default(_that.id,_that.nombre,_that.descripcion,_that.tipoCocina,_that.d
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String nombre,  String? descripcion, @JsonKey(name: 'tipo_cocina')  String? tipoCocina,  String? direccion,  bool activo, @JsonKey(name: 'created_at')  DateTime? createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String nombre,  String? descripcion,  String? tipoCocina,  String? direccion,  bool activo,  double califProm,  int califCount)?  $default,) {final _that = this;
 switch (_that) {
 case _Restaurante() when $default != null:
-return $default(_that.id,_that.nombre,_that.descripcion,_that.tipoCocina,_that.direccion,_that.activo,_that.createdAt);case _:
+return $default(_that.id,_that.nombre,_that.descripcion,_that.tipoCocina,_that.direccion,_that.activo,_that.califProm,_that.califCount);case _:
   return null;
 
 }
@@ -213,19 +213,22 @@ return $default(_that.id,_that.nombre,_that.descripcion,_that.tipoCocina,_that.d
 }
 
 /// @nodoc
-@JsonSerializable()
+
 
 class _Restaurante implements Restaurante {
-  const _Restaurante({required this.id, required this.nombre, this.descripcion, @JsonKey(name: 'tipo_cocina') this.tipoCocina, this.direccion, required this.activo, @JsonKey(name: 'created_at') this.createdAt});
-  factory _Restaurante.fromJson(Map<String, dynamic> json) => _$RestauranteFromJson(json);
+  const _Restaurante({required this.id, required this.nombre, this.descripcion, this.tipoCocina, this.direccion, required this.activo, this.califProm = 0.0, this.califCount = 0});
+  
 
-@override final  int id;
+/// Slug (doc ID) — ej. `demo`.
+@override final  String id;
 @override final  String nombre;
 @override final  String? descripcion;
-@override@JsonKey(name: 'tipo_cocina') final  String? tipoCocina;
+@override final  String? tipoCocina;
 @override final  String? direccion;
 @override final  bool activo;
-@override@JsonKey(name: 'created_at') final  DateTime? createdAt;
+/// Agregado de calificaciones (lo mantiene la tx de calificar).
+@override@JsonKey() final  double califProm;
+@override@JsonKey() final  int califCount;
 
 /// Create a copy of Restaurante
 /// with the given fields replaced by the non-null parameter values.
@@ -233,23 +236,20 @@ class _Restaurante implements Restaurante {
 @pragma('vm:prefer-inline')
 _$RestauranteCopyWith<_Restaurante> get copyWith => __$RestauranteCopyWithImpl<_Restaurante>(this, _$identity);
 
-@override
-Map<String, dynamic> toJson() {
-  return _$RestauranteToJson(this, );
-}
+
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Restaurante&&(identical(other.id, id) || other.id == id)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.descripcion, descripcion) || other.descripcion == descripcion)&&(identical(other.tipoCocina, tipoCocina) || other.tipoCocina == tipoCocina)&&(identical(other.direccion, direccion) || other.direccion == direccion)&&(identical(other.activo, activo) || other.activo == activo)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Restaurante&&(identical(other.id, id) || other.id == id)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.descripcion, descripcion) || other.descripcion == descripcion)&&(identical(other.tipoCocina, tipoCocina) || other.tipoCocina == tipoCocina)&&(identical(other.direccion, direccion) || other.direccion == direccion)&&(identical(other.activo, activo) || other.activo == activo)&&(identical(other.califProm, califProm) || other.califProm == califProm)&&(identical(other.califCount, califCount) || other.califCount == califCount));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
-int get hashCode => Object.hash(runtimeType,id,nombre,descripcion,tipoCocina,direccion,activo,createdAt);
+int get hashCode => Object.hash(runtimeType,id,nombre,descripcion,tipoCocina,direccion,activo,califProm,califCount);
 
 @override
 String toString() {
-  return 'Restaurante(id: $id, nombre: $nombre, descripcion: $descripcion, tipoCocina: $tipoCocina, direccion: $direccion, activo: $activo, createdAt: $createdAt)';
+  return 'Restaurante(id: $id, nombre: $nombre, descripcion: $descripcion, tipoCocina: $tipoCocina, direccion: $direccion, activo: $activo, califProm: $califProm, califCount: $califCount)';
 }
 
 
@@ -260,7 +260,7 @@ abstract mixin class _$RestauranteCopyWith<$Res> implements $RestauranteCopyWith
   factory _$RestauranteCopyWith(_Restaurante value, $Res Function(_Restaurante) _then) = __$RestauranteCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String nombre, String? descripcion,@JsonKey(name: 'tipo_cocina') String? tipoCocina, String? direccion, bool activo,@JsonKey(name: 'created_at') DateTime? createdAt
+ String id, String nombre, String? descripcion, String? tipoCocina, String? direccion, bool activo, double califProm, int califCount
 });
 
 
@@ -277,16 +277,17 @@ class __$RestauranteCopyWithImpl<$Res>
 
 /// Create a copy of Restaurante
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? nombre = null,Object? descripcion = freezed,Object? tipoCocina = freezed,Object? direccion = freezed,Object? activo = null,Object? createdAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? nombre = null,Object? descripcion = freezed,Object? tipoCocina = freezed,Object? direccion = freezed,Object? activo = null,Object? califProm = null,Object? califCount = null,}) {
   return _then(_Restaurante(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
+as String,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
 as String,descripcion: freezed == descripcion ? _self.descripcion : descripcion // ignore: cast_nullable_to_non_nullable
 as String?,tipoCocina: freezed == tipoCocina ? _self.tipoCocina : tipoCocina // ignore: cast_nullable_to_non_nullable
 as String?,direccion: freezed == direccion ? _self.direccion : direccion // ignore: cast_nullable_to_non_nullable
 as String?,activo: null == activo ? _self.activo : activo // ignore: cast_nullable_to_non_nullable
-as bool,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime?,
+as bool,califProm: null == califProm ? _self.califProm : califProm // ignore: cast_nullable_to_non_nullable
+as double,califCount: null == califCount ? _self.califCount : califCount // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 

@@ -8,9 +8,26 @@ part of 'pedidos_staff_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
+/// Cola de cocina EN VIVO (MIGRA-05): `pedidos where restauranteId == rid
+/// where estado in [enviado, aceptado, en_preparacion] orderBy createdAt
+/// ASC → snapshots()` (índice compuesto 10-01). Un pedido que pasa a
+/// `servido`/`rechazado` desaparece del stream SOLO — sin invalidate ni
+/// refetch (el server es la fuente de verdad).
+///
+/// El rid viene de [ridActivoProvider] (claims/selección — nunca input
+/// libre; Pitfall 4). Watches ANTES del primer await (lección 07-03).
 
 @ProviderFor(pedidosStaff)
 final pedidosStaffProvider = PedidosStaffProvider._();
+
+/// Cola de cocina EN VIVO (MIGRA-05): `pedidos where restauranteId == rid
+/// where estado in [enviado, aceptado, en_preparacion] orderBy createdAt
+/// ASC → snapshots()` (índice compuesto 10-01). Un pedido que pasa a
+/// `servido`/`rechazado` desaparece del stream SOLO — sin invalidate ni
+/// refetch (el server es la fuente de verdad).
+///
+/// El rid viene de [ridActivoProvider] (claims/selección — nunca input
+/// libre; Pitfall 4). Watches ANTES del primer await (lección 07-03).
 
 final class PedidosStaffProvider
     extends
@@ -22,6 +39,14 @@ final class PedidosStaffProvider
     with
         $FutureModifier<List<PedidoStaff>>,
         $StreamProvider<List<PedidoStaff>> {
+  /// Cola de cocina EN VIVO (MIGRA-05): `pedidos where restauranteId == rid
+  /// where estado in [enviado, aceptado, en_preparacion] orderBy createdAt
+  /// ASC → snapshots()` (índice compuesto 10-01). Un pedido que pasa a
+  /// `servido`/`rechazado` desaparece del stream SOLO — sin invalidate ni
+  /// refetch (el server es la fuente de verdad).
+  ///
+  /// El rid viene de [ridActivoProvider] (claims/selección — nunca input
+  /// libre; Pitfall 4). Watches ANTES del primer await (lección 07-03).
   PedidosStaffProvider._()
     : super(
         from: null,
@@ -48,10 +73,20 @@ final class PedidosStaffProvider
   }
 }
 
-String _$pedidosStaffHash() => r'3c234d91b985b043f682d665d6d8a9713b7c942d';
+String _$pedidosStaffHash() => r'54251b25f744c875c7a2326921362e8edb7b1690';
+
+/// Avisos de cuenta EN VIVO para el badge de cocina: `sesiones where
+/// restauranteId == rid where cuentaSolicitada == true where estado ==
+/// 'activa' → snapshots()`. Cuando el mesero entrega la cuenta la sesión
+/// pasa a `cerrada` y el aviso desaparece solo.
 
 @ProviderFor(avisoCuenta)
 final avisoCuentaProvider = AvisoCuentaProvider._();
+
+/// Avisos de cuenta EN VIVO para el badge de cocina: `sesiones where
+/// restauranteId == rid where cuentaSolicitada == true where estado ==
+/// 'activa' → snapshots()`. Cuando el mesero entrega la cuenta la sesión
+/// pasa a `cerrada` y el aviso desaparece solo.
 
 final class AvisoCuentaProvider
     extends
@@ -63,6 +98,10 @@ final class AvisoCuentaProvider
     with
         $FutureModifier<List<AvisoCuenta>>,
         $StreamProvider<List<AvisoCuenta>> {
+  /// Avisos de cuenta EN VIVO para el badge de cocina: `sesiones where
+  /// restauranteId == rid where cuentaSolicitada == true where estado ==
+  /// 'activa' → snapshots()`. Cuando el mesero entrega la cuenta la sesión
+  /// pasa a `cerrada` y el aviso desaparece solo.
   AvisoCuentaProvider._()
     : super(
         from: null,
@@ -89,4 +128,4 @@ final class AvisoCuentaProvider
   }
 }
 
-String _$avisoCuentaHash() => r'1f619cf2b60b8bf1987aa42f05907b6da9835aeb';
+String _$avisoCuentaHash() => r'1a29e5641a3029f59dcec1001a94ae177b5aa684';

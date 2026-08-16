@@ -12,33 +12,34 @@ part of 'cliente_resumen.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format off
 T _$identity<T>(T value) => value;
-
 /// @nodoc
 mixin _$ClienteResumen {
 
-@JsonKey(name: 'usuario_id') int get usuarioId; String get nombre; String get email;@JsonKey(name: 'num_pedidos') int get numPedidos;@JsonKey(name: 'total_gastado') double get totalGastado;@JsonKey(name: 'ultimo_pedido_at') DateTime? get ultimoPedidoAt;
+/// UID de Firebase del cliente.
+ String get usuarioId;/// Nombre denormalizado del ÚLTIMO pedido (snapshot).
+ String get clienteNombre; int get nPedidos;/// Σ totals int COP.
+ int get totalConsumo;/// createdAt del pedido más reciente.
+ DateTime? get ultimoPedido;
 /// Create a copy of ClienteResumen
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $ClienteResumenCopyWith<ClienteResumen> get copyWith => _$ClienteResumenCopyWithImpl<ClienteResumen>(this as ClienteResumen, _$identity);
 
-  /// Serializes this ClienteResumen to a JSON map.
-  Map<String, dynamic> toJson();
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ClienteResumen&&(identical(other.usuarioId, usuarioId) || other.usuarioId == usuarioId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.email, email) || other.email == email)&&(identical(other.numPedidos, numPedidos) || other.numPedidos == numPedidos)&&(identical(other.totalGastado, totalGastado) || other.totalGastado == totalGastado)&&(identical(other.ultimoPedidoAt, ultimoPedidoAt) || other.ultimoPedidoAt == ultimoPedidoAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ClienteResumen&&(identical(other.usuarioId, usuarioId) || other.usuarioId == usuarioId)&&(identical(other.clienteNombre, clienteNombre) || other.clienteNombre == clienteNombre)&&(identical(other.nPedidos, nPedidos) || other.nPedidos == nPedidos)&&(identical(other.totalConsumo, totalConsumo) || other.totalConsumo == totalConsumo)&&(identical(other.ultimoPedido, ultimoPedido) || other.ultimoPedido == ultimoPedido));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
-int get hashCode => Object.hash(runtimeType,usuarioId,nombre,email,numPedidos,totalGastado,ultimoPedidoAt);
+int get hashCode => Object.hash(runtimeType,usuarioId,clienteNombre,nPedidos,totalConsumo,ultimoPedido);
 
 @override
 String toString() {
-  return 'ClienteResumen(usuarioId: $usuarioId, nombre: $nombre, email: $email, numPedidos: $numPedidos, totalGastado: $totalGastado, ultimoPedidoAt: $ultimoPedidoAt)';
+  return 'ClienteResumen(usuarioId: $usuarioId, clienteNombre: $clienteNombre, nPedidos: $nPedidos, totalConsumo: $totalConsumo, ultimoPedido: $ultimoPedido)';
 }
 
 
@@ -49,7 +50,7 @@ abstract mixin class $ClienteResumenCopyWith<$Res>  {
   factory $ClienteResumenCopyWith(ClienteResumen value, $Res Function(ClienteResumen) _then) = _$ClienteResumenCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'usuario_id') int usuarioId, String nombre, String email,@JsonKey(name: 'num_pedidos') int numPedidos,@JsonKey(name: 'total_gastado') double totalGastado,@JsonKey(name: 'ultimo_pedido_at') DateTime? ultimoPedidoAt
+ String usuarioId, String clienteNombre, int nPedidos, int totalConsumo, DateTime? ultimoPedido
 });
 
 
@@ -66,14 +67,13 @@ class _$ClienteResumenCopyWithImpl<$Res>
 
 /// Create a copy of ClienteResumen
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? usuarioId = null,Object? nombre = null,Object? email = null,Object? numPedidos = null,Object? totalGastado = null,Object? ultimoPedidoAt = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? usuarioId = null,Object? clienteNombre = null,Object? nPedidos = null,Object? totalConsumo = null,Object? ultimoPedido = freezed,}) {
   return _then(ClienteResumen(
 usuarioId: null == usuarioId ? _self.usuarioId : usuarioId // ignore: cast_nullable_to_non_nullable
-as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
-as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
-as String,numPedidos: null == numPedidos ? _self.numPedidos : numPedidos // ignore: cast_nullable_to_non_nullable
-as int,totalGastado: null == totalGastado ? _self.totalGastado : totalGastado // ignore: cast_nullable_to_non_nullable
-as double,ultimoPedidoAt: freezed == ultimoPedidoAt ? _self.ultimoPedidoAt : ultimoPedidoAt // ignore: cast_nullable_to_non_nullable
+as String,clienteNombre: null == clienteNombre ? _self.clienteNombre : clienteNombre // ignore: cast_nullable_to_non_nullable
+as String,nPedidos: null == nPedidos ? _self.nPedidos : nPedidos // ignore: cast_nullable_to_non_nullable
+as int,totalConsumo: null == totalConsumo ? _self.totalConsumo : totalConsumo // ignore: cast_nullable_to_non_nullable
+as int,ultimoPedido: freezed == ultimoPedido ? _self.ultimoPedido : ultimoPedido // ignore: cast_nullable_to_non_nullable
 as DateTime?,
   ));
 }
@@ -159,10 +159,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'usuario_id')  int usuarioId,  String nombre,  String email, @JsonKey(name: 'num_pedidos')  int numPedidos, @JsonKey(name: 'total_gastado')  double totalGastado, @JsonKey(name: 'ultimo_pedido_at')  DateTime? ultimoPedidoAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String usuarioId,  String clienteNombre,  int nPedidos,  int totalConsumo,  DateTime? ultimoPedido)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ClienteResumen() when $default != null:
-return $default(_that.usuarioId,_that.nombre,_that.email,_that.numPedidos,_that.totalGastado,_that.ultimoPedidoAt);case _:
+return $default(_that.usuarioId,_that.clienteNombre,_that.nPedidos,_that.totalConsumo,_that.ultimoPedido);case _:
   return orElse();
 
 }
@@ -180,10 +180,10 @@ return $default(_that.usuarioId,_that.nombre,_that.email,_that.numPedidos,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'usuario_id')  int usuarioId,  String nombre,  String email, @JsonKey(name: 'num_pedidos')  int numPedidos, @JsonKey(name: 'total_gastado')  double totalGastado, @JsonKey(name: 'ultimo_pedido_at')  DateTime? ultimoPedidoAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String usuarioId,  String clienteNombre,  int nPedidos,  int totalConsumo,  DateTime? ultimoPedido)  $default,) {final _that = this;
 switch (_that) {
 case _ClienteResumen():
-return $default(_that.usuarioId,_that.nombre,_that.email,_that.numPedidos,_that.totalGastado,_that.ultimoPedidoAt);case _:
+return $default(_that.usuarioId,_that.clienteNombre,_that.nPedidos,_that.totalConsumo,_that.ultimoPedido);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +200,10 @@ return $default(_that.usuarioId,_that.nombre,_that.email,_that.numPedidos,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'usuario_id')  int usuarioId,  String nombre,  String email, @JsonKey(name: 'num_pedidos')  int numPedidos, @JsonKey(name: 'total_gastado')  double totalGastado, @JsonKey(name: 'ultimo_pedido_at')  DateTime? ultimoPedidoAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String usuarioId,  String clienteNombre,  int nPedidos,  int totalConsumo,  DateTime? ultimoPedido)?  $default,) {final _that = this;
 switch (_that) {
 case _ClienteResumen() when $default != null:
-return $default(_that.usuarioId,_that.nombre,_that.email,_that.numPedidos,_that.totalGastado,_that.ultimoPedidoAt);case _:
+return $default(_that.usuarioId,_that.clienteNombre,_that.nPedidos,_that.totalConsumo,_that.ultimoPedido);case _:
   return null;
 
 }
@@ -212,18 +212,21 @@ return $default(_that.usuarioId,_that.nombre,_that.email,_that.numPedidos,_that.
 }
 
 /// @nodoc
-@JsonSerializable()
+
 
 class _ClienteResumen implements ClienteResumen {
-  const _ClienteResumen({@JsonKey(name: 'usuario_id') required this.usuarioId, required this.nombre, required this.email, @JsonKey(name: 'num_pedidos') required this.numPedidos, @JsonKey(name: 'total_gastado') required this.totalGastado, @JsonKey(name: 'ultimo_pedido_at') required this.ultimoPedidoAt});
-  factory _ClienteResumen.fromJson(Map<String, dynamic> json) => _$ClienteResumenFromJson(json);
+  const _ClienteResumen({required this.usuarioId, required this.clienteNombre, required this.nPedidos, required this.totalConsumo, this.ultimoPedido});
+  
 
-@override@JsonKey(name: 'usuario_id') final  int usuarioId;
-@override final  String nombre;
-@override final  String email;
-@override@JsonKey(name: 'num_pedidos') final  int numPedidos;
-@override@JsonKey(name: 'total_gastado') final  double totalGastado;
-@override@JsonKey(name: 'ultimo_pedido_at') final  DateTime? ultimoPedidoAt;
+/// UID de Firebase del cliente.
+@override final  String usuarioId;
+/// Nombre denormalizado del ÚLTIMO pedido (snapshot).
+@override final  String clienteNombre;
+@override final  int nPedidos;
+/// Σ totals int COP.
+@override final  int totalConsumo;
+/// createdAt del pedido más reciente.
+@override final  DateTime? ultimoPedido;
 
 /// Create a copy of ClienteResumen
 /// with the given fields replaced by the non-null parameter values.
@@ -231,23 +234,20 @@ class _ClienteResumen implements ClienteResumen {
 @pragma('vm:prefer-inline')
 _$ClienteResumenCopyWith<_ClienteResumen> get copyWith => __$ClienteResumenCopyWithImpl<_ClienteResumen>(this, _$identity);
 
-@override
-Map<String, dynamic> toJson() {
-  return _$ClienteResumenToJson(this, );
-}
+
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ClienteResumen&&(identical(other.usuarioId, usuarioId) || other.usuarioId == usuarioId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.email, email) || other.email == email)&&(identical(other.numPedidos, numPedidos) || other.numPedidos == numPedidos)&&(identical(other.totalGastado, totalGastado) || other.totalGastado == totalGastado)&&(identical(other.ultimoPedidoAt, ultimoPedidoAt) || other.ultimoPedidoAt == ultimoPedidoAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ClienteResumen&&(identical(other.usuarioId, usuarioId) || other.usuarioId == usuarioId)&&(identical(other.clienteNombre, clienteNombre) || other.clienteNombre == clienteNombre)&&(identical(other.nPedidos, nPedidos) || other.nPedidos == nPedidos)&&(identical(other.totalConsumo, totalConsumo) || other.totalConsumo == totalConsumo)&&(identical(other.ultimoPedido, ultimoPedido) || other.ultimoPedido == ultimoPedido));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
-int get hashCode => Object.hash(runtimeType,usuarioId,nombre,email,numPedidos,totalGastado,ultimoPedidoAt);
+int get hashCode => Object.hash(runtimeType,usuarioId,clienteNombre,nPedidos,totalConsumo,ultimoPedido);
 
 @override
 String toString() {
-  return 'ClienteResumen(usuarioId: $usuarioId, nombre: $nombre, email: $email, numPedidos: $numPedidos, totalGastado: $totalGastado, ultimoPedidoAt: $ultimoPedidoAt)';
+  return 'ClienteResumen(usuarioId: $usuarioId, clienteNombre: $clienteNombre, nPedidos: $nPedidos, totalConsumo: $totalConsumo, ultimoPedido: $ultimoPedido)';
 }
 
 
@@ -258,7 +258,7 @@ abstract mixin class _$ClienteResumenCopyWith<$Res> implements $ClienteResumenCo
   factory _$ClienteResumenCopyWith(_ClienteResumen value, $Res Function(_ClienteResumen) _then) = __$ClienteResumenCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'usuario_id') int usuarioId, String nombre, String email,@JsonKey(name: 'num_pedidos') int numPedidos,@JsonKey(name: 'total_gastado') double totalGastado,@JsonKey(name: 'ultimo_pedido_at') DateTime? ultimoPedidoAt
+ String usuarioId, String clienteNombre, int nPedidos, int totalConsumo, DateTime? ultimoPedido
 });
 
 
@@ -275,14 +275,13 @@ class __$ClienteResumenCopyWithImpl<$Res>
 
 /// Create a copy of ClienteResumen
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? usuarioId = null,Object? nombre = null,Object? email = null,Object? numPedidos = null,Object? totalGastado = null,Object? ultimoPedidoAt = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? usuarioId = null,Object? clienteNombre = null,Object? nPedidos = null,Object? totalConsumo = null,Object? ultimoPedido = freezed,}) {
   return _then(_ClienteResumen(
 usuarioId: null == usuarioId ? _self.usuarioId : usuarioId // ignore: cast_nullable_to_non_nullable
-as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
-as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
-as String,numPedidos: null == numPedidos ? _self.numPedidos : numPedidos // ignore: cast_nullable_to_non_nullable
-as int,totalGastado: null == totalGastado ? _self.totalGastado : totalGastado // ignore: cast_nullable_to_non_nullable
-as double,ultimoPedidoAt: freezed == ultimoPedidoAt ? _self.ultimoPedidoAt : ultimoPedidoAt // ignore: cast_nullable_to_non_nullable
+as String,clienteNombre: null == clienteNombre ? _self.clienteNombre : clienteNombre // ignore: cast_nullable_to_non_nullable
+as String,nPedidos: null == nPedidos ? _self.nPedidos : nPedidos // ignore: cast_nullable_to_non_nullable
+as int,totalConsumo: null == totalConsumo ? _self.totalConsumo : totalConsumo // ignore: cast_nullable_to_non_nullable
+as int,ultimoPedido: freezed == ultimoPedido ? _self.ultimoPedido : ultimoPedido // ignore: cast_nullable_to_non_nullable
 as DateTime?,
   ));
 }

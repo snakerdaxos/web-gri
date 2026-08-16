@@ -8,20 +8,36 @@ part of 'clientes_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Clientes del restaurante (usuarios con pedidos en el tenant, ADMN-03).
+/// Clientes del restaurante (ADMN-03) — DERIVADOS de pedidos.
 ///
-/// Sin WS (decisión research 08): la tabla vive de este FutureProvider y la
-/// UI lo invalida cuando corresponde. rid null (super_admin sin selección)
-/// → `[]` (patrón mesasProvider).
+/// Las rules no permiten al staff leer `usuarios/` ajenos, así que la
+/// lista se pliega desde pedidos: `pedidos where restauranteId == rid`
+/// (equality-only: sin orderBy compuesto — los índices de campo simple
+/// bastan y no exige un índice nuevo) + orden client-side por createdAt
+/// DESC + fold distinct por `usuarioId` usando el `clienteNombre`
+/// denormalizado de cada doc. Cero lecturas de `usuarios/`.
+///
+/// NOTA de coste (diseño planner): v1 demo = get + fold en cliente;
+/// agregaciones formales server-side = fase futura.
+///
+/// rid null (super_admin sin selección) → `[]` (patrón mesasProvider).
 
 @ProviderFor(clientes)
 final clientesProvider = ClientesProvider._();
 
-/// Clientes del restaurante (usuarios con pedidos en el tenant, ADMN-03).
+/// Clientes del restaurante (ADMN-03) — DERIVADOS de pedidos.
 ///
-/// Sin WS (decisión research 08): la tabla vive de este FutureProvider y la
-/// UI lo invalida cuando corresponde. rid null (super_admin sin selección)
-/// → `[]` (patrón mesasProvider).
+/// Las rules no permiten al staff leer `usuarios/` ajenos, así que la
+/// lista se pliega desde pedidos: `pedidos where restauranteId == rid`
+/// (equality-only: sin orderBy compuesto — los índices de campo simple
+/// bastan y no exige un índice nuevo) + orden client-side por createdAt
+/// DESC + fold distinct por `usuarioId` usando el `clienteNombre`
+/// denormalizado de cada doc. Cero lecturas de `usuarios/`.
+///
+/// NOTA de coste (diseño planner): v1 demo = get + fold en cliente;
+/// agregaciones formales server-side = fase futura.
+///
+/// rid null (super_admin sin selección) → `[]` (patrón mesasProvider).
 
 final class ClientesProvider
     extends
@@ -33,11 +49,19 @@ final class ClientesProvider
     with
         $FutureModifier<List<ClienteResumen>>,
         $FutureProvider<List<ClienteResumen>> {
-  /// Clientes del restaurante (usuarios con pedidos en el tenant, ADMN-03).
+  /// Clientes del restaurante (ADMN-03) — DERIVADOS de pedidos.
   ///
-  /// Sin WS (decisión research 08): la tabla vive de este FutureProvider y la
-  /// UI lo invalida cuando corresponde. rid null (super_admin sin selección)
-  /// → `[]` (patrón mesasProvider).
+  /// Las rules no permiten al staff leer `usuarios/` ajenos, así que la
+  /// lista se pliega desde pedidos: `pedidos where restauranteId == rid`
+  /// (equality-only: sin orderBy compuesto — los índices de campo simple
+  /// bastan y no exige un índice nuevo) + orden client-side por createdAt
+  /// DESC + fold distinct por `usuarioId` usando el `clienteNombre`
+  /// denormalizado de cada doc. Cero lecturas de `usuarios/`.
+  ///
+  /// NOTA de coste (diseño planner): v1 demo = get + fold en cliente;
+  /// agregaciones formales server-side = fase futura.
+  ///
+  /// rid null (super_admin sin selección) → `[]` (patrón mesasProvider).
   ClientesProvider._()
     : super(
         from: null,
@@ -64,24 +88,22 @@ final class ClientesProvider
   }
 }
 
-String _$clientesHash() => r'9dcf1092e54c6c499d8ac3bcbea1b197a6b08248';
+String _$clientesHash() => r'3243b121521f0d6dc26ad75f22bb3bcc4c7cc537';
 
-/// Historial de pedidos de un cliente EN el tenant (family, ADMN-03) —
-/// misma shape que la cola de pedidos (`PedidoStaffRead` reusado, 08-01).
+/// Historial de pedidos de un cliente EN el tenant (family, ADMN-03).
 ///
-/// 404 existence hiding relacional cuando el usuario no tiene pedidos aquí:
-/// el dialog lo traduce a 'Sin pedidos en este restaurante' (el error y el
-/// vacío son indistinguibles por diseño).
+/// `pedidos where restauranteId == rid where usuarioId == uid`
+/// (dos igualdades: zigzag merge sobre índices simples, sin índice
+/// compuesto) + orden DESC client-side por createdAt.
 
 @ProviderFor(clienteHistorial)
 final clienteHistorialProvider = ClienteHistorialFamily._();
 
-/// Historial de pedidos de un cliente EN el tenant (family, ADMN-03) —
-/// misma shape que la cola de pedidos (`PedidoStaffRead` reusado, 08-01).
+/// Historial de pedidos de un cliente EN el tenant (family, ADMN-03).
 ///
-/// 404 existence hiding relacional cuando el usuario no tiene pedidos aquí:
-/// el dialog lo traduce a 'Sin pedidos en este restaurante' (el error y el
-/// vacío son indistinguibles por diseño).
+/// `pedidos where restauranteId == rid where usuarioId == uid`
+/// (dos igualdades: zigzag merge sobre índices simples, sin índice
+/// compuesto) + orden DESC client-side por createdAt.
 
 final class ClienteHistorialProvider
     extends
@@ -93,15 +115,14 @@ final class ClienteHistorialProvider
     with
         $FutureModifier<List<PedidoStaff>>,
         $FutureProvider<List<PedidoStaff>> {
-  /// Historial de pedidos de un cliente EN el tenant (family, ADMN-03) —
-  /// misma shape que la cola de pedidos (`PedidoStaffRead` reusado, 08-01).
+  /// Historial de pedidos de un cliente EN el tenant (family, ADMN-03).
   ///
-  /// 404 existence hiding relacional cuando el usuario no tiene pedidos aquí:
-  /// el dialog lo traduce a 'Sin pedidos en este restaurante' (el error y el
-  /// vacío son indistinguibles por diseño).
+  /// `pedidos where restauranteId == rid where usuarioId == uid`
+  /// (dos igualdades: zigzag merge sobre índices simples, sin índice
+  /// compuesto) + orden DESC client-side por createdAt.
   ClienteHistorialProvider._({
     required ClienteHistorialFamily super.from,
-    required int super.argument,
+    required String super.argument,
   }) : super(
          retry: null,
          name: r'clienteHistorialProvider',
@@ -128,7 +149,7 @@ final class ClienteHistorialProvider
 
   @override
   FutureOr<List<PedidoStaff>> create(Ref ref) {
-    final argument = this.argument as int;
+    final argument = this.argument as String;
     return clienteHistorial(ref, argument);
   }
 
@@ -143,17 +164,16 @@ final class ClienteHistorialProvider
   }
 }
 
-String _$clienteHistorialHash() => r'4b1bc33a70d5492918511145be21870539b029c2';
+String _$clienteHistorialHash() => r'a5d709a149030f37f0c5d2135766089e18eee2d6';
 
-/// Historial de pedidos de un cliente EN el tenant (family, ADMN-03) —
-/// misma shape que la cola de pedidos (`PedidoStaffRead` reusado, 08-01).
+/// Historial de pedidos de un cliente EN el tenant (family, ADMN-03).
 ///
-/// 404 existence hiding relacional cuando el usuario no tiene pedidos aquí:
-/// el dialog lo traduce a 'Sin pedidos en este restaurante' (el error y el
-/// vacío son indistinguibles por diseño).
+/// `pedidos where restauranteId == rid where usuarioId == uid`
+/// (dos igualdades: zigzag merge sobre índices simples, sin índice
+/// compuesto) + orden DESC client-side por createdAt.
 
 final class ClienteHistorialFamily extends $Family
-    with $FunctionalFamilyOverride<FutureOr<List<PedidoStaff>>, int> {
+    with $FunctionalFamilyOverride<FutureOr<List<PedidoStaff>>, String> {
   ClienteHistorialFamily._()
     : super(
         retry: null,
@@ -163,14 +183,13 @@ final class ClienteHistorialFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// Historial de pedidos de un cliente EN el tenant (family, ADMN-03) —
-  /// misma shape que la cola de pedidos (`PedidoStaffRead` reusado, 08-01).
+  /// Historial de pedidos de un cliente EN el tenant (family, ADMN-03).
   ///
-  /// 404 existence hiding relacional cuando el usuario no tiene pedidos aquí:
-  /// el dialog lo traduce a 'Sin pedidos en este restaurante' (el error y el
-  /// vacío son indistinguibles por diseño).
+  /// `pedidos where restauranteId == rid where usuarioId == uid`
+  /// (dos igualdades: zigzag merge sobre índices simples, sin índice
+  /// compuesto) + orden DESC client-side por createdAt.
 
-  ClienteHistorialProvider call(int usuarioId) =>
+  ClienteHistorialProvider call(String usuarioId) =>
       ClienteHistorialProvider._(argument: usuarioId, from: this);
 
   @override

@@ -9,23 +9,25 @@ part of 'restaurantes_admin_provider.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// Lista COMPLETA de restaurantes — activos E inactivos — para el tab
-/// 'Restaurantes' del super_admin (PLAT-05, 08-05): `GET /admin/restaurantes
-/// ?incluir_inactivos=true` (única vista que expone inactivos).
+/// 'Restaurantes' del super_admin (PLAT-05): `get()` de TODOS los docs de
+/// `restaurantes` (super lee todo por rules — un `where activo == true`
+/// escondería los inactivos y no se podrían re-activar).
 ///
-/// El toggle de activo de la UI refresca invalidando aquí. Watch de
-/// authState para reactividad al login/logout (el tab solo lo watch-ea
-/// super_admin, pero el watch hace al provider re-construirse con la sesión).
+/// Defense in depth (patrón restaurantesListProvider): si un staff lo
+/// llega a leer, lanza claro — las rules igualmente le denegarían.
+/// El toggle de la UI refresca invalidando aquí.
 
 @ProviderFor(restaurantesAdmin)
 final restaurantesAdminProvider = RestaurantesAdminProvider._();
 
 /// Lista COMPLETA de restaurantes — activos E inactivos — para el tab
-/// 'Restaurantes' del super_admin (PLAT-05, 08-05): `GET /admin/restaurantes
-/// ?incluir_inactivos=true` (única vista que expone inactivos).
+/// 'Restaurantes' del super_admin (PLAT-05): `get()` de TODOS los docs de
+/// `restaurantes` (super lee todo por rules — un `where activo == true`
+/// escondería los inactivos y no se podrían re-activar).
 ///
-/// El toggle de activo de la UI refresca invalidando aquí. Watch de
-/// authState para reactividad al login/logout (el tab solo lo watch-ea
-/// super_admin, pero el watch hace al provider re-construirse con la sesión).
+/// Defense in depth (patrón restaurantesListProvider): si un staff lo
+/// llega a leer, lanza claro — las rules igualmente le denegarían.
+/// El toggle de la UI refresca invalidando aquí.
 
 final class RestaurantesAdminProvider
     extends
@@ -38,12 +40,13 @@ final class RestaurantesAdminProvider
         $FutureModifier<List<Restaurante>>,
         $FutureProvider<List<Restaurante>> {
   /// Lista COMPLETA de restaurantes — activos E inactivos — para el tab
-  /// 'Restaurantes' del super_admin (PLAT-05, 08-05): `GET /admin/restaurantes
-  /// ?incluir_inactivos=true` (única vista que expone inactivos).
+  /// 'Restaurantes' del super_admin (PLAT-05): `get()` de TODOS los docs de
+  /// `restaurantes` (super lee todo por rules — un `where activo == true`
+  /// escondería los inactivos y no se podrían re-activar).
   ///
-  /// El toggle de activo de la UI refresca invalidando aquí. Watch de
-  /// authState para reactividad al login/logout (el tab solo lo watch-ea
-  /// super_admin, pero el watch hace al provider re-construirse con la sesión).
+  /// Defense in depth (patrón restaurantesListProvider): si un staff lo
+  /// llega a leer, lanza claro — las rules igualmente le denegarían.
+  /// El toggle de la UI refresca invalidando aquí.
   RestaurantesAdminProvider._()
     : super(
         from: null,
@@ -70,4 +73,4 @@ final class RestaurantesAdminProvider
   }
 }
 
-String _$restaurantesAdminHash() => r'719cdd6a0b7e19d3dfb0d15d1884171a1ced9d27';
+String _$restaurantesAdminHash() => r'cccf15c8c13a6ddc058722d2e927eecf3d698d3d';
