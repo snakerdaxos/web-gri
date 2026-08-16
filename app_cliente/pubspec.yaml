@@ -33,6 +33,12 @@ dependencies:
   # WebSocket tiempo real (Phase 7 — RT-01/03); oficial Dart team.
   web_socket_channel: ^3.0.3
 
+  # Firebase (Phase 10 — Opción B: apps hablan directo a Firebase).
+  # Pins EXACTOS del research (release train 2026-08-03 verificado pub.dev).
+  firebase_core: 4.13.0
+  firebase_auth: 6.5.7
+  cloud_firestore: 6.8.0
+
   # Checkout externo de pago (Phase 9 — PAGO-02). Launch SOLO desde user
   # action (Pitfall 8 research 09); el launcher es inyectable para tests.
   url_launcher: ^6.3.2
@@ -51,6 +57,11 @@ dev_dependencies:
   freezed: '4.0.0-dev.3'
   json_serializable: '>=6.8.0 <7.0.0'
   stream_channel: 2.1.4
+
+  # Fakes Firebase para tests (Phase 10 — emuladores no funcionan en
+  # `flutter test`; ver research "Alternatives Considered").
+  fake_cloud_firestore: 4.2.0
+  firebase_auth_mocks: 0.15.2
 
 flutter:
   uses-material-design: true
