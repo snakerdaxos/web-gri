@@ -1,229 +1,214 @@
-import 'package:data_table_2/data_table_2.dart';
-import 'package:dio/dio.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gri_panel_admin/core/api_client.dart';
+import 'package:gri_panel_admin/core/firebase_providers.dart';
 import 'package:gri_panel_admin/core/format.dart';
-import 'package:gri_panel_admin/core/token_provider.dart';
+import 'package:gri_panel_admin/features/reportes/reportes_provider.dart';
 import 'package:gri_panel_admin/features/reportes/reportes_screen.dart';
-import 'package:gri_panel_admin/models/reporte.dart';
-import 'package:gri_panel_admin/models/user.dart';
 
-/// Tests de /reportes (REPO-01/02): consulta default sin params (el server
-/// aplica últimos 7 días), render de cards+tabla por día+top platos con
-/// formatCOP, validación client-side desde>hasta SIN llamada API, 422 del
-/// server y estado vacío.
-///
-/// Overrides sin red (patrón cola_test): apiClientProvider → fake con
-/// espías; authStateProvider class-based → overrideWith(Fake).
+import '../helpers/firebase_fakes.dart';
 
-/// Fake del AuthState (class-based) — evita secure storage en el runner.
-class _FakeAuthState extends AuthState {
-  _FakeAuthState(this.user);
+/// Tests de /reportes sobre Firestore (REPO-01/02, 10-06): fold EN CLIENTE
+/// de pedidos SERVIDOS en el rango (fuera de rango y no-servidos NO
+/// computan), top platos desde el snapshot de items (Σ cantidad, Σ venta)
+/// ordenado por cantidad DESC, validación de rango client-side y estado
+/// vacío.
 
-  final User? user;
-
-  @override
-  Future<User?> build() async => user;
+Future<void> _pedido(
+  FakeFirebaseFirestore db, {
+  required String estado,
+  required DateTime createdAt,
+  required int total,
+  List<Map<String, Object>> items = const [],
+  String rid = 'demo',
+}) {
+  return db.collection('pedidos').add({
+    'restauranteId': rid,
+    'mesaId': 'GRI-MESA-$rid-002',
+    'sesionId': 'GRI-MESA-$rid-002',
+    'usuarioId': 'uid-ana',
+    'clienteNombre': 'Ana Torres',
+    'estado': estado,
+    'items': items,
+    'total': total,
+    'createdAt': Timestamp.fromDate(createdAt),
+    'updatedAt': Timestamp.fromDate(createdAt),
+  });
 }
 
-/// Fake del ApiClient que registra las llamadas a los 2 endpoints de
-/// reportes (espías de params exactos del wire).
-class _FakeApiClient extends ApiClient {
-  _FakeApiClient({this.ventas, this.top = const [], this.ventasError});
-
-  final List<Map<String, dynamic>> ventasCalls = [];
-  final List<Map<String, dynamic>> topCalls = [];
-
-  VentasReporte? ventas;
-  List<TopPlato> top;
-  final DioException? ventasError;
-
-  @override
-  Future<VentasReporte> getReporteVentas({
-    String? desde,
-    String? hasta,
-    int? restauranteId,
-  }) async {
-    ventasCalls.add({
-      'desde': desde,
-      'hasta': hasta,
-      'restaurante_id': restauranteId,
-    });
-    if (ventasError != null) throw ventasError!;
-    return ventas!;
-  }
-
-  @override
-  Future<List<TopPlato>> getTopPlatos({
-    String? desde,
-    String? hasta,
-    int? limit,
-    int? restauranteId,
-  }) async {
-    topCalls.add({
-      'desde': desde,
-      'hasta': hasta,
-      'limit': limit,
-      'restaurante_id': restauranteId,
-    });
-    return top;
-  }
+/// 2 servidos en rango + 1 servido FUERA + 1 enviado en rango + 1 servido
+/// en rango de OTRO tenant (NO computa).
+Future<void> _seed(FakeFirebaseFirestore db) async {
+  await _pedido(db,
+      estado: 'servido',
+      createdAt: DateTime(2026, 8, 12, 13, 0),
+      total: 57000,
+      items: [
+        {'productoId': 'p1', 'nombre': 'Pizza Hawaiana', 'precio': 16000, 'cantidad': 2},
+        {'productoId': 'p2', 'nombre': 'Limonada', 'precio': 5000, 'cantidad': 5},
+      ]);
+  await _pedido(db,
+      estado: 'servido',
+      createdAt: DateTime(2026, 8, 15, 20, 30),
+      total: 16000,
+      items: [
+        {'productoId': 'p1', 'nombre': 'Pizza Hawaiana', 'precio': 16000, 'cantidad': 1},
+      ]);
+  await _pedido(db,
+      estado: 'servido',
+      createdAt: DateTime(2026, 8, 1, 13, 0),
+      total: 99000,
+      items: [
+        {'productoId': 'p3', 'nombre': 'Bandeja paisa', 'precio': 33000, 'cantidad': 3},
+      ]);
+  await _pedido(db,
+      estado: 'enviado',
+      createdAt: DateTime(2026, 8, 14, 12, 0),
+      total: 40000,
+      items: [
+        {'productoId': 'p1', 'nombre': 'Pizza Hawaiana', 'precio': 20000, 'cantidad': 2},
+      ]);
+  await _pedido(db,
+      estado: 'servido',
+      createdAt: DateTime(2026, 8, 13, 19, 0),
+      total: 88000,
+      rid: 'norte',
+      items: [
+        {'productoId': 'p4', 'nombre': 'Salmón', 'precio': 44000, 'cantidad': 2},
+      ]);
 }
 
-const _adminUser = User(
-  id: 2,
-  nombre: 'Admin Demo',
-  email: 'admin@demo.gri.dev',
-  role: 'admin_restaurante',
-  restaurantId: 1,
-);
-
-VentasReporte _fixtureVentas() => const VentasReporte(
-      desde: '2026-08-08',
-      hasta: '2026-08-14',
-      total: 245000,
-      numPedidos: 7,
-      porDia: [
-        VentaDia(fecha: '2026-08-13', total: 45000, numPedidos: 2),
-        VentaDia(fecha: '2026-08-14', total: 200000, numPedidos: 5),
-      ],
-    );
-
-const _fixtureTop = [
-  TopPlato(productoId: 5, nombre: 'Patacón', cantidad: 12, total: 186000),
-  TopPlato(productoId: 2, nombre: 'Pizza Hawaiana', cantidad: 7, total: 175000),
-  TopPlato(productoId: 9, nombre: 'Limonada', cantidad: 3, total: 19500),
-];
-
-Future<void> _pump(
-  WidgetTester tester,
-  _FakeApiClient client, {
-  User user = _adminUser,
-}) async {
-  // Viewport alto: el ListView de resultados es lazy (patrón cola_test).
-  tester.view.physicalSize = const Size(800, 1800);
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.reset);
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        apiClientProvider.overrideWithValue(client),
-        authStateProvider.overrideWith(() => _FakeAuthState(user)),
-      ],
-      // Scaffold: SnackBar exige un Scaffold ancestor.
-      child: const MaterialApp(home: Scaffold(body: ReportesScreen())),
-    ),
+Widget _screen(FakeFirebaseFirestore db) {
+  return ProviderScope(
+    overrides: [
+      firestoreProvider.overrideWithValue(db),
+      claimsProvider.overrideWith(
+        (ref) async => (role: 'admin_restaurante', rid: 'demo'),
+      ),
+    ],
+    child: const MaterialApp(home: Scaffold(body: ReportesScreen())),
   );
-  await tester.pumpAndSettle();
 }
 
 void main() {
+  final desde = DateTime(2026, 8, 10);
+  final hasta = DateTime(2026, 8, 20, 23, 59, 59, 999);
+
+  test(
+    'fold: solo servidos-en-rango computan; top platos por cantidad DESC',
+    () async {
+      final db = await buildFakeFirestoreConSeed();
+      await _seed(db);
+
+      final container = ProviderContainer(overrides: [
+        firestoreProvider.overrideWithValue(db),
+        claimsProvider.overrideWith(
+          (ref) async => (role: 'admin_restaurante', rid: 'demo'),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      final reporte =
+          await container.read(reporteProvider(desde, hasta).future);
+
+      // 2 servidos en rango (57k + 16k); fuera-de-rango, enviado y norte
+      // quedan afuera.
+      expect(reporte.numeroPedidos, 2);
+      expect(reporte.totalVentas, 73000);
+
+      // Top platos desde snapshots, orden por cantidad DESC: Limonada
+      // 5× (25000) primero; Pizza 3× (2+1 = 48000) después.
+      expect(reporte.topPlatos, hasLength(2));
+      expect(reporte.topPlatos[0].nombre, 'Limonada');
+      expect(reporte.topPlatos[0].cantidad, 5);
+      expect(reporte.topPlatos[0].venta, 25000);
+      expect(reporte.topPlatos[1].nombre, 'Pizza Hawaiana');
+      expect(reporte.topPlatos[1].cantidad, 3);
+      expect(reporte.topPlatos[1].venta, 48000);
+    },
+  );
+
   test('validarRango: invertido → mensaje; válido/partial → null', () {
     expect(
-      ReportesScreenState.validarRango(DateTime(2026, 8, 20), DateTime(2026, 8, 10)),
+      ReportesScreenState.validarRango(
+          DateTime(2026, 8, 20), DateTime(2026, 8, 10)),
       'La fecha inicial no puede ser mayor que la final',
     );
-    expect(ReportesScreenState.validarRango(DateTime(2026, 8, 10), DateTime(2026, 8, 20)), isNull);
+    expect(
+      ReportesScreenState.validarRango(
+          DateTime(2026, 8, 10), DateTime(2026, 8, 20)),
+      isNull,
+    );
     expect(ReportesScreenState.validarRango(DateTime(2026, 8, 20), null), isNull);
     expect(ReportesScreenState.validarRango(null, DateTime(2026, 8, 10)), isNull);
   });
 
-  testWidgets(
-    '(a) Consultar sin tocar pickers → espías llamados SIN desde/hasta (default server)',
-    (tester) async {
-      final client = _FakeApiClient(
-        ventas: _fixtureVentas(),
-        top: _fixtureTop,
-      );
-      await _pump(tester, client);
-
-      await tester.tap(find.text('Consultar'));
-      await tester.pumpAndSettle();
-
-      // Wire exacto: 0 params — el server aplica su default DB-side.
-      expect(client.ventasCalls, [
-        {'desde': null, 'hasta': null, 'restaurante_id': null},
-      ]);
-      expect(client.topCalls, [
-        {'desde': null, 'hasta': null, 'limit': null, 'restaurante_id': null},
-      ]);
-    },
-  );
-
-  testWidgets('(b) cards con total COP + pedidos + filas de los 2 días', (
+  testWidgets('(a) Consultar con rango → cards total/pedidos + top platos', (
     tester,
   ) async {
-    final client = _FakeApiClient(
-      ventas: _fixtureVentas(),
-      top: _fixtureTop,
+    final db = await buildFakeFirestoreConSeed();
+    await _seed(db);
+
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_screen(db));
+    await tester.pumpAndSettle();
+
+    // Rango fijado vía el setter @visibleForTesting (alternativa al manejo
+    // frágil de los pickers en widget tests).
+    final state = tester.state<ReportesScreenState>(
+      find.byType(ReportesScreen),
     );
-    await _pump(tester, client);
+    state.debugSetFechas(DateTime(2026, 8, 10), DateTime(2026, 8, 20));
+    await tester.pump();
 
     await tester.tap(find.text('Consultar'));
     await tester.pumpAndSettle();
 
-    // Cards resumen (formatCOP es la única vía — Pitfall 3).
+    // Cards resumen: total (2 servidos en rango) y count — formatCOP.
     expect(find.text('Total vendido'), findsOneWidget);
-    expect(find.text(formatCOP(245000)), findsOneWidget);
+    expect(find.text(formatCOP(73000)), findsOneWidget);
     expect(find.text('Pedidos'), findsOneWidget);
-    expect(find.text('7'), findsOneWidget);
-    // Tabla por día: fechas + totales/pedidos por fila (descendant: los
-    // numerales de los avatares del top también son '2'/'3' — el bare
-    // find.text colisionaría).
-    final tabla = find.byType(DataTable2);
-    expect(find.text('2026-08-13'), findsOneWidget);
-    expect(find.text('2026-08-14'), findsOneWidget);
-    expect(find.descendant(of: tabla, matching: find.text(formatCOP(45000))), findsOneWidget);
-    expect(find.descendant(of: tabla, matching: find.text(formatCOP(200000))), findsOneWidget);
-    expect(find.descendant(of: tabla, matching: find.text('2')), findsOneWidget);
-    expect(find.descendant(of: tabla, matching: find.text('5')), findsOneWidget);
-  });
-
-  testWidgets('(c) top platos numerados 1..3 con ×12 en el primero', (
-    tester,
-  ) async {
-    final client = _FakeApiClient(
-      ventas: _fixtureVentas(),
-      top: _fixtureTop,
-    );
-    await _pump(tester, client);
-
-    await tester.tap(find.text('Consultar'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Platos más vendidos'), findsOneWidget);
-    expect(find.text('Patacón'), findsOneWidget);
-    expect(find.text('×12'), findsOneWidget);
-    expect(find.text('×7'), findsOneWidget);
-    expect(find.text('×3'), findsOneWidget);
-    // Numeración 1..3 en los CircleAvatar leading (descendant para no
-    // chocar con los numPedidos '2'/'5' de la tabla).
+    // '2' vive en DOS lugares: el value del card Pedidos y el número del
+    // avatar del 2º plato del top.
     final avatars = find.byType(CircleAvatar);
-    expect(avatars, findsNWidgets(3));
-    expect(find.descendant(of: avatars, matching: find.text('1')), findsOneWidget);
+    expect(avatars, findsNWidgets(2));
     expect(find.descendant(of: avatars, matching: find.text('2')), findsOneWidget);
-    expect(find.descendant(of: avatars, matching: find.text('3')), findsOneWidget);
-    // Orden por cantidad DESC: Patacón(12) encima de Pizza(7).
+    expect(find.text('2'), findsNWidgets(2));
+
+    // Top platos: ×5 Limonada y ×3 Pizza (orden cantidad DESC).
+    expect(find.text('Platos más vendidos'), findsOneWidget);
+    expect(find.text('Limonada'), findsOneWidget);
+    expect(find.text('Pizza Hawaiana'), findsOneWidget);
+    expect(find.text('×5'), findsOneWidget);
+    expect(find.text('×3'), findsOneWidget);
+    // Ventas por plato desde snapshots.
+    expect(find.text(formatCOP(25000)), findsOneWidget);
+    expect(find.text(formatCOP(48000)), findsOneWidget);
+
+    // Orden por cantidad DESC: Limonada(5) encima de Pizza(3).
     expect(
-      tester.getTopLeft(find.text('Patacón')).dy
+      tester.getTopLeft(find.text('Limonada')).dy
           < tester.getTopLeft(find.text('Pizza Hawaiana')).dy,
       isTrue,
     );
   });
 
   testWidgets(
-    '(d) desde > hasta → SnackBar visible Y espías NO llamados',
+    '(b) desde > hasta → SnackBar visible y sin resultados',
     (tester) async {
-      final client = _FakeApiClient(
-        ventas: _fixtureVentas(),
-        top: _fixtureTop,
-      );
-      await _pump(tester, client);
+      final db = await buildFakeFirestoreConSeed();
+      await _seed(db);
 
-      // Rango invertido fijado vía el setter @visibleForTesting (el plan
-      // habilita esta vía como alternativa a manejar los pickers).
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_screen(db));
+      await tester.pumpAndSettle();
+
       final state = tester.state<ReportesScreenState>(
         find.byType(ReportesScreen),
       );
@@ -237,54 +222,33 @@ void main() {
         find.text('La fecha inicial no puede ser mayor que la final'),
         findsOneWidget,
       );
-      expect(client.ventasCalls, isEmpty, reason: 'no debe llamar la API');
-      expect(client.topCalls, isEmpty, reason: 'no debe llamar la API');
+      expect(find.text('Total vendido'), findsNothing,
+          reason: 'no debe consultarse nada');
     },
   );
 
-  testWidgets('(e) fixture vacío → Sin ventas en el rango', (tester) async {
-    final client = _FakeApiClient(
-      ventas: const VentasReporte(
-        desde: '2020-01-01',
-        hasta: '2020-01-07',
-        total: 0,
-        numPedidos: 0,
-        porDia: [],
-      ),
-      top: const [],
+  testWidgets('(c) rango sin servidos → "Sin ventas en el rango"', (
+    tester,
+  ) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _seed(db);
+
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_screen(db));
+    await tester.pumpAndSettle();
+
+    final state = tester.state<ReportesScreenState>(
+      find.byType(ReportesScreen),
     );
-    await _pump(tester, client);
+    // Rango donde solo hay un servido FUERA (agosto 1) — nada computa.
+    state.debugSetFechas(DateTime(2026, 8, 2), DateTime(2026, 8, 8));
+    await tester.pump();
 
     await tester.tap(find.text('Consultar'));
     await tester.pumpAndSettle();
 
     expect(find.text('Sin ventas en el rango'), findsOneWidget);
-  });
-
-  testWidgets('(f) 422 del server → SnackBar con el detail del backend', (
-    tester,
-  ) async {
-    final client = _FakeApiClient(
-      ventas: _fixtureVentas(),
-      top: _fixtureTop,
-      ventasError: DioException(
-        requestOptions: RequestOptions(path: '/staff/reportes/ventas'),
-        response: Response(
-          requestOptions: RequestOptions(path: '/staff/reportes/ventas'),
-          statusCode: 422,
-          data: {'detail': 'desde no puede ser mayor que hasta'},
-        ),
-      ),
-    );
-    await _pump(tester, client);
-
-    await tester.tap(find.text('Consultar'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('desde no puede ser mayor que hasta'),
-      findsOneWidget,
-    );
-    expect(find.text('Total vendido'), findsNothing);
   });
 }

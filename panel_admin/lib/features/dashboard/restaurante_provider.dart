@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/firebase_providers.dart';
-import '../../core/token_provider.dart' show authStateProvider;
 import '../../models/restaurante.dart';
 
 part 'restaurante_provider.g.dart';
@@ -98,29 +97,3 @@ Stream<Restaurante> restaurante(Ref ref) async* {
     return Restaurante.fromDoc(snap);
   });
 }
-
-// ════════════════ LEGACY (era REST — vivo hasta el purge 10-06) ═══════════
-// Consumido SOLO por ws_client (core legacy que se elimina en 10-06 Task 3).
-// NO tocar: el purge lo elimina junto al api_client/token_provider.
-
-/// Restaurante activo en el panel: staff siempre su tenant; super_admin el
-/// que elija en el dropdown del AppShell (default al primero activo).
-///
-/// Notifier custom (Riverpod 3.x: StateProvider se deprecó en favor de
-/// NotifierProvider). El estado se setea vía [set] desde el AppShell.
-class CurrentRestauranteId extends Notifier<int?> {
-  @override
-  int? build() {
-    final user = ref.read(authStateProvider).value;
-    return user?.restaurantId;
-  }
-
-  void set(int? id) {
-    state = id;
-  }
-}
-
-final currentRestauranteIdProvider =
-    NotifierProvider<CurrentRestauranteId, int?>(
-  CurrentRestauranteId.new,
-);

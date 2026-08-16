@@ -1,30 +1,22 @@
-import 'package:data_table_2/data_table_2.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/api_client.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
-import '../../core/token_provider.dart';
 import '../../models/reporte.dart';
-import '../dashboard/restaurante_provider.dart';
+import 'reportes_provider.dart';
 
-/// Pantalla /reportes (REPO-01/02): ventas por rango + top platos.
+/// Pantalla /reportes (REPO-01/02, 10-06): ventas por rango + top platos,
+/// computados EN EL CLIENTE desde pedidos `servido` (fold — sin backend).
 ///
-/// **Estado LOCAL del screen** (decisión plan 08-05, desviación menor del
-/// research): son consultas one-shot por rango — no datos vivos que un
-/// provider deba cachear/invalidar. 'Consultar' dispara `getReporteVentas`
-/// + `getTopPlatos` en paralelo (`Future.wait`).
+/// **Rango**: pickers Inicio/Fin + 'Consultar' dispara la consulta del
+/// [reporteProvider] family (rango efectivo: sin fechas aplica últimos 7
+/// días). Validación desde<=hasta ANTES de consultar (SnackBar, sin query).
 ///
-/// **Rango**: si el usuario no fija fechas NO viajan params y el server
-/// aplica su default DB-side (últimos 7 días — el Pitfall 3 de TZ queda
-/// del lado del server, threat model 08-05). Validación desde<=hasta
-/// ANTES de llamar (ahorra el 422); el 422 del server también se maneja.
-///
-/// DataTable2 SIEMPRE en bounds finitos (regla data_table_2): alto
-/// computado por fila — jamás en un contexto de altura infinita.
+/// **Estado LOCAL del screen** (decisión plan 08-05): consultas one-shot
+/// por rango — el family cachea por (desde, hasta) y la pantalla decide
+/// cuándo mostrar la sección de resultados.
 class ReportesScreen extends ConsumerStatefulWidget {
   const ReportesScreen({super.key});
 
@@ -35,15 +27,11 @@ class ReportesScreen extends ConsumerStatefulWidget {
 class ReportesScreenState extends ConsumerState<ReportesScreen> {
   DateTime? _desde;
   DateTime? _hasta;
-  VentasReporte? _ventas;
-  List<TopPlato>? _top;
-  bool _cargando = false;
+
+  /// Rango efectivo de la ÚLTIMA consulta (null = nunca consultado).
+  ({DateTime desde, DateTime hasta})? _consulta;
 
   static final DateFormat _fmt = DateFormat('dd/MM/yyyy');
-
-  /// YYYY-MM-DD o null (null = clave omitida del query — default server).
-  String? get _desdeQ => _desde?.toIso8601String().substring(0, 10);
-  String? get _hastaQ => _hasta?.toIso8601String().substring(0, 10);
 
   /// Valida el rango client-side (threat model 08-05): mensaje de error o
   /// null si es válido. Estático/público para testearlo sin pickers.
@@ -87,62 +75,39 @@ class ReportesScreenState extends ConsumerState<ReportesScreen> {
     });
   }
 
-  Future<void> _consultar() async {
+  /// Rango efectivo: fechas elegidas o default últimos 7 días (paridad
+  /// con el default server-side de la era REST). Inicio a medianoche,
+  /// fin a fin de día (todo el día terminal computa).
+  ({DateTime desde, DateTime hasta}) _rangoEfectivo() {
+    final hoy = DateTime.now();
+    if (_desde != null || _hasta != null) {
+      final desde = _desde ?? _hasta!;
+      final hasta = _hasta ?? _desde!;
+      return (
+        desde: DateTime(desde.year, desde.month, desde.day),
+        hasta: DateTime(hasta.year, hasta.month, hasta.day, 23, 59, 59, 999),
+      );
+    }
+    final inicioHoy = DateTime(hoy.year, hoy.month, hoy.day);
+    return (
+      desde: inicioHoy.subtract(const Duration(days: 6)),
+      hasta: DateTime(hoy.year, hoy.month, hoy.day, 23, 59, 59, 999),
+    );
+  }
+
+  void _consultar() {
     final error = validarRango(_desde, _hasta);
     if (error != null) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(error)));
-      return; // SIN llamada a la API (ahorra el 422 server-side).
+      return; // SIN consulta (ahorra la query).
     }
-
-    setState(() => _cargando = true);
-    try {
-      // queryRid como en cocina: super_admin manda el tenant del dropdown;
-      // staff viaja sin param (el tenant sale del token).
-      final user = ref.read(authStateProvider).value;
-      final selectedRid = ref.read(currentRestauranteIdProvider);
-      final rid = selectedRid ?? user?.restaurantId;
-      final queryRid = user?.isSuperAdmin == true ? rid : null;
-
-      final client = ref.read(apiClientProvider);
-      final results = await Future.wait<dynamic>([
-        client.getReporteVentas(
-          desde: _desdeQ,
-          hasta: _hastaQ,
-          restauranteId: queryRid,
-        ),
-        client.getTopPlatos(
-          desde: _desdeQ,
-          hasta: _hastaQ,
-          restauranteId: queryRid,
-        ),
-      ]);
-      if (!mounted) return;
-      setState(() {
-        _ventas = results[0] as VentasReporte;
-        _top = results[1] as List<TopPlato>;
-      });
-    } on DioException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(_dioMsg(e))));
-    } finally {
-      if (mounted) setState(() => _cargando = false);
-    }
-  }
-
-  /// detail del backend: los HTTPException viajan como string (p.ej. el
-  /// 422 'desde no puede ser mayor que hasta' de _rango_reportes, 08-02).
-  static String _dioMsg(DioException e) {
-    final data = e.response?.data;
-    final detail = data is Map ? data['detail'] : null;
-    return detail is String ? detail : 'Error al consultar los reportes';
+    setState(() => _consulta = _rangoEfectivo());
   }
 
   @override
   Widget build(BuildContext context) {
-    final ventas = _ventas;
-    final top = _top;
+    final consulta = _consulta;
 
     return Material(
       // Material ancestor: en producción lo provee el Scaffold del AppShell;
@@ -168,17 +133,13 @@ class ReportesScreenState extends ConsumerState<ReportesScreen> {
                 OutlinedButton.icon(
                   onPressed: _pickHasta,
                   icon: const Text('📅'),
-                  label: Text(_hasta != null ? _fmt.format(_hasta!) : 'Fin'),
+                  label: Text(
+                    _hasta != null ? _fmt.format(_hasta!) : 'Fin',
+                  ),
                 ),
                 ElevatedButton(
-                  onPressed: _cargando ? null : _consultar,
-                  child: _cargando
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Consultar'),
+                  onPressed: _consultar,
+                  child: const Text('Consultar'),
                 ),
                 TextButton(
                   onPressed: (_desde == null && _hasta == null)
@@ -193,19 +154,22 @@ class ReportesScreenState extends ConsumerState<ReportesScreen> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Sin rango: el servidor usa los últimos 7 días por defecto',
+              'Sin rango: se consultan los últimos 7 días',
               style: TextStyle(color: GriColors.gray, fontSize: 12),
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: ventas == null || top == null
+              child: consulta == null
                   ? const Center(
                       child: Text(
                         'Elige un rango de fechas y presiona Consultar',
                         style: TextStyle(color: GriColors.gray),
                       ),
                     )
-                  : _Resultados(ventas: ventas, top: top),
+                  : _Resultados(
+                      desde: consulta.desde,
+                      hasta: consulta.hasta,
+                    ),
             ),
           ],
         ),
@@ -214,18 +178,64 @@ class ReportesScreenState extends ConsumerState<ReportesScreen> {
   }
 }
 
-/// Resultados: cards resumen + tabla por día + top platos.
-class _Resultados extends StatelessWidget {
-  const _Resultados({required this.ventas, required this.top});
+/// Resultados: watches del [reporteProvider] con el rango consultado.
+class _Resultados extends ConsumerWidget {
+  const _Resultados({required this.desde, required this.hasta});
 
-  final VentasReporte ventas;
-  final List<TopPlato> top;
+  final DateTime desde;
+  final DateTime hasta;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reporteAsync = ref.watch(reporteProvider(desde, hasta));
+
+    return reporteAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Error al consultar los reportes',
+              style: TextStyle(color: GriColors.gray),
+            ),
+            TextButton(
+              onPressed: () => ref.invalidate(reporteProvider(desde, hasta)),
+              child: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      ),
+      data: (reporte) => _Contenido(
+        reporte: reporte,
+        desde: desde,
+        hasta: hasta,
+      ),
+    );
+  }
+}
+
+class _Contenido extends StatelessWidget {
+  const _Contenido({
+    required this.reporte,
+    required this.desde,
+    required this.hasta,
+  });
+
+  final Reporte reporte;
+  final DateTime desde;
+  final DateTime hasta;
+
+  static final DateFormat _fmt = DateFormat('dd/MM/yyyy');
 
   @override
   Widget build(BuildContext context) {
-    if (ventas.porDia.isEmpty && top.isEmpty) {
+    if (reporte.numeroPedidos == 0) {
       return const Center(
-        child: Text('Sin ventas en el rango', style: TextStyle(color: GriColors.gray)),
+        child: Text(
+          'Sin ventas en el rango',
+          style: TextStyle(color: GriColors.gray),
+        ),
       );
     }
 
@@ -237,7 +247,7 @@ class _Resultados extends StatelessWidget {
               child: _ResumenCard(
                 emoji: '💵',
                 label: 'Total vendido',
-                value: formatCOP(ventas.total),
+                value: formatCOP(reporte.totalVentas),
               ),
             ),
             const SizedBox(width: 12),
@@ -245,14 +255,14 @@ class _Resultados extends StatelessWidget {
               child: _ResumenCard(
                 emoji: '🧾',
                 label: 'Pedidos',
-                value: '${ventas.numPedidos}',
+                value: '${reporte.numeroPedidos}',
               ),
             ),
           ],
         ),
         const SizedBox(height: 16),
         Text(
-          'Ventas por día (${ventas.desde} → ${ventas.hasta})',
+          'Pedidos servidos (${_fmt.format(desde)} → ${_fmt.format(hasta)})',
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -260,58 +270,29 @@ class _Resultados extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        if (ventas.porDia.isEmpty)
+        if (reporte.topPlatos.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
-            child: Text('Sin ventas en el rango', style: TextStyle(color: GriColors.gray)),
+            child: Text(
+              'Sin ventas en el rango',
+              style: TextStyle(color: GriColors.gray),
+            ),
           )
-        else
-          Card(
-            margin: EdgeInsets.zero,
-            clipBehavior: Clip.antiAlias,
-            // Bounds finitos (regla data_table_2): alto computado — header
-            // 48 + filas 48 + margen inferior.
-            child: SizedBox(
-              height: 48 + 48.0 * ventas.porDia.length + 8,
-              child: DataTable2(
-                minWidth: 500,
-                headingRowHeight: 48,
-                dataRowHeight: 48,
-                columnSpacing: 12,
-                columns: const [
-                  DataColumn2(label: Text('Fecha'), size: ColumnSize.L),
-                  DataColumn2(label: Text('Nº pedidos'), numeric: true),
-                  DataColumn2(label: Text('Total'), numeric: true),
-                ],
-                rows: [
-                  for (final d in ventas.porDia)
-                    DataRow(cells: [
-                      DataCell(Text(d.fecha)),
-                      DataCell(Text('${d.numPedidos}')),
-                      DataCell(Text(formatCOP(d.total))),
-                    ]),
-                ],
-              ),
+        else ...[
+          const Text(
+            'Platos más vendidos',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: GriColors.text,
             ),
           ),
-        const SizedBox(height: 24),
-        const Text(
-          'Platos más vendidos',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: GriColors.text,
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (top.isEmpty)
-          const Text('Sin ventas en el rango', style: TextStyle(color: GriColors.gray))
-        else
+          const SizedBox(height: 8),
           Card(
             margin: EdgeInsets.zero,
             child: Column(
               children: [
-                for (var i = 0; i < top.length; i++)
+                for (var i = 0; i < reporte.topPlatos.length; i++)
                   ListTile(
                     leading: CircleAvatar(
                       backgroundColor: GriColors.primary,
@@ -324,29 +305,30 @@ class _Resultados extends StatelessWidget {
                         ),
                       ),
                     ),
-                    title: Text(top[i].nombre),
+                    title: Text(reporte.topPlatos[i].nombre),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '×${top[i].cantidad}',
+                          '×${reporte.topPlatos[i].cantidad}',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(width: 16),
-                        Text(formatCOP(top[i].total)),
+                        Text(formatCOP(reporte.topPlatos[i].venta)),
                       ],
                     ),
                   ),
               ],
             ),
           ),
+        ],
       ],
     );
   }
 }
 
 /// Card resumen estilo StatCard del dashboard, con valor String (el total
-/// viaja formateado con formatCOP; StatCard exige int).
+/// viaja formateado con formatCOP).
 class _ResumenCard extends StatelessWidget {
   const _ResumenCard({
     required this.emoji,
