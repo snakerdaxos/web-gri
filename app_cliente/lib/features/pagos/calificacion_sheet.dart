@@ -52,7 +52,58 @@ Future<void> _calificar(
   required int estrellas,
   String? comentario,
 }) {
-  throw UnimplementedError();
+  return db.runTransaction<void>((tx) async {
+    // 1) El pedido debe existir, ser del emisor y estar SERVIDO.
+    final pedidoSnap = await tx.get(db.doc('pedidos/$pedidoId'));
+    final pedidoData = pedidoSnap.data();
+    if (!pedidoSnap.exists || pedidoData == null) {
+      throw const CalificacionException('Pedido no encontrado');
+    }
+    if (pedidoData['usuarioId'] != uid) {
+      throw const CalificacionException(
+          'Solo puedes calificar tus propios pedidos');
+    }
+    if (pedidoData['estado'] != 'servido') {
+      throw const CalificacionException(
+          'Solo puedes calificar pedidos servidos');
+    }
+
+    // 2) La sesión debe estar CERRADA (locked: calificación tras cierre).
+    final sesionId = pedidoData['sesionId'] as String? ?? '';
+    final sesionSnap = await tx.get(db.doc('sesiones/$sesionId'));
+    if (sesionSnap.data()?['estado'] != 'cerrada') {
+      throw const CalificacionException(
+          'Podrás calificar cuando el restaurante cierre tu sesión');
+    }
+
+    // 3) 1:1 — el doc ID es el pedidoId; si ya existe, ya fue calificado.
+    final califRef = db.doc('calificaciones/$pedidoId');
+    if ((await tx.get(califRef)).exists) {
+      throw const CalificacionException('Este pedido ya fue calificado');
+    }
+
+    // 4) Agregado leído y recomputado EN LA MISMA tx (atómico).
+    final rid = pedidoData['restauranteId'] as String? ?? '';
+    final restSnap = await tx.get(db.doc('restaurantes/$rid'));
+    final restData = restSnap.data() ?? const <String, dynamic>{};
+    final count = (restData['califCount'] as num?)?.toInt() ?? 0;
+    final prom = (restData['califProm'] as num?)?.toDouble() ?? 0.0;
+    final nuevoProm =
+        ((prom * count + estrellas) / (count + 1) * 100).round() / 100;
+
+    tx.set(califRef, <String, dynamic>{
+      'restauranteId': rid,
+      'usuarioId': uid,
+      'pedidoId': pedidoId,
+      'estrellas': estrellas,
+      'comentario': comentario ?? '',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    tx.update(db.doc('restaurantes/$rid'), <String, dynamic>{
+      'califProm': nuevoProm,
+      'califCount': count + 1,
+    });
+  });
 }
 
 /// Bottom sheet de calificación post-cierre (CALI-01 sobre Firestore):

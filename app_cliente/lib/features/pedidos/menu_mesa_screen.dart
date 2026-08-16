@@ -1,9 +1,7 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api_client.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../models/producto.dart';
@@ -14,12 +12,12 @@ import 'pedidos_provider.dart';
 
 /// Menú de la mesa con carrito (PEDI-01/02 UI).
 ///
-/// * La sesión viene de [sesionProvider]; el menú se REUSA de
-///   `restauranteDetalleProvider` (GET /public/restaurantes/{id} — el menú
-///   NO se re-implementa).
+/// * La sesión viene de [sesionActualProvider] (stream Firestore); el menú
+///   se REUSA de `restauranteDetalleProvider` (Firestore — el menú NO se
+///   re-implementa).
 /// * Productos agotados deshabilitados desde el render inicial (Pitfall 7:
-///   el 409 del POST es red de seguridad, no UX).
-/// * El bottom bar abre el carrito (notas + total informativo + envío).
+///   el rechazo de cocina es red de seguridad, no UX).
+/// * El bottom bar abre el carrito (total informativo + envío por tx).
 class MenuMesaScreen extends ConsumerWidget {
   const MenuMesaScreen({super.key});
 
@@ -44,7 +42,7 @@ class MenuMesaScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sesionAsync = ref.watch(sesionProvider);
+    final sesionAsync = ref.watch(sesionActualProvider);
     final sesion = sesionAsync.value;
 
     if (sesionAsync.isLoading) {
@@ -53,7 +51,9 @@ class MenuMesaScreen extends ConsumerWidget {
       );
     }
 
-    if (sesion == null) {
+    // Sin sesión — o sesión CERRADA/expirada (el stream la sigue emitiendo
+    // para la calificación): el menú exige una sesión activa.
+    if (sesion == null || sesion.estado != 'activa') {
       return Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.white,
@@ -84,7 +84,7 @@ class MenuMesaScreen extends ConsumerWidget {
     }
 
     final detalleAsync =
-        ref.watch(restauranteDetalleProvider(sesion.restauranteId.toString()));
+        ref.watch(restauranteDetalleProvider(sesion.restauranteId));
     final cart = ref.watch(carritoProvider);
 
     return Scaffold(
@@ -106,7 +106,7 @@ class MenuMesaScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () => ref.invalidate(
-                    restauranteDetalleProvider(sesion.restauranteId.toString())),
+                    restauranteDetalleProvider(sesion.restauranteId)),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Reintentar'),
               ),
@@ -262,8 +262,9 @@ class _ProductoRow extends ConsumerWidget {
   }
 }
 
-/// Bottom sheet del carrito: líneas, notas para la cocina, total
-/// informativo y envío (Pitfall 4: botón disabled mientras vuela).
+/// Bottom sheet del carrito: líneas con snapshot, total informativo y
+/// envío (Pitfall 4: botón disabled mientras vuela). Sin campo de notas —
+/// el doc shape de pedidos de Phase 10 no las incluye.
 class _CarritoSheet extends ConsumerStatefulWidget {
   const _CarritoSheet({required this.onEnviado});
 
@@ -277,63 +278,15 @@ class _CarritoSheet extends ConsumerStatefulWidget {
 }
 
 class _CarritoSheetState extends ConsumerState<_CarritoSheet> {
-  final _notasCtrl = TextEditingController();
   bool _sending = false;
 
   @override
-  void dispose() {
-    _notasCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _enviar() async {
-    final cart = ref.read(carritoProvider);
-    if (cart.isEmpty || _sending) return;
-    setState(() => _sending = true);
-    try {
-      await ref.read(apiClientProvider).createPedido(
-            items: [
-              for (final l in cart.values)
-                (productoId: l.producto.id, cantidad: l.cantidad),
-            ],
-            notas: _notasCtrl.text.trim().isEmpty
-                ? null
-                : _notasCtrl.text.trim(),
-          );
-      ref.read(carritoProvider.notifier).limpiar();
-      // Refresh inmediato — no esperar los 10s del polling.
-      ref.invalidate(pedidosSessionProvider);
-      widget.onEnviado();
-    } on DioException catch (e) {
-      if (!mounted) return;
-      setState(() => _sending = false);
-      final data = e.response?.data;
-      final detail = data is Map<String, dynamic> ? data['detail'] : null;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            detail is String && detail.isNotEmpty
-                ? detail
-                : 'No pudimos enviar el pedido. Intenta de nuevo.',
-          ),
-          backgroundColor: GriColors.chipCanceladaFg,
-        ),
-      );
-    } catch (e) {
-      debugPrint('enviar pedido falló: $e');
-      if (!mounted) return;
-      setState(() => _sending = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error de conexión. Intenta de nuevo.'),
-          backgroundColor: GriColors.chipCanceladaFg,
-        ),
-      );
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // Mantiene vivo el (autoDispose) PedidosController mientras el sheet
+    // existe — sin un listener, Riverpod 3 lo dispone tras el ref.read y
+    // el `state =` post-await del controller explota.
+    ref.watch(pedidosControllerProvider);
+
     final cart = ref.watch(carritoProvider);
 
     return Padding(
@@ -370,23 +323,6 @@ class _CarritoSheetState extends ConsumerState<_CarritoSheet> {
                   ),
                 ),
               const Divider(height: 24),
-              TextField(
-                controller: _notasCtrl,
-                enabled: !_sending,
-                maxLength: 500,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  hintText: 'Notas para la cocina (opcional)',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        const BorderSide(color: GriColors.primaryTintBorder),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
               Row(
                 children: [
                   const Text('Total', style: TextStyle(color: GriColors.gray)),
@@ -403,7 +339,7 @@ class _CarritoSheetState extends ConsumerState<_CarritoSheet> {
               ),
               const SizedBox(height: 12),
               ElevatedButton(
-                // Pitfall 4: disabled mientras vuela — doble POST = 2 pedidos.
+                // Pitfall 4: disabled mientras vuela — doble envío = 2 pedidos.
                 onPressed: (_sending || cart.isEmpty) ? null : _enviar,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: GriColors.primary,
@@ -433,5 +369,35 @@ class _CarritoSheetState extends ConsumerState<_CarritoSheet> {
         ),
       ),
     );
+  }
+
+  Future<void> _enviar() async {
+    final cart = ref.read(carritoProvider);
+    if (cart.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    try {
+      // La tx exige sesión activa propia; los items viajan con snapshot.
+      await ref.read(pedidosControllerProvider.notifier).enviar();
+      widget.onEnviado();
+    } on PedidoException catch (e) {
+      if (!mounted) return;
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: GriColors.chipCanceladaFg,
+        ),
+      );
+    } catch (e) {
+      debugPrint('enviar pedido falló: $e');
+      if (!mounted) return;
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error de conexión. Intenta de nuevo.'),
+          backgroundColor: GriColors.chipCanceladaFg,
+        ),
+      );
+    }
   }
 }

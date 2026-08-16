@@ -40,7 +40,7 @@ class HomeScreen extends ConsumerWidget {
     final reservasAsync = uid == null
         ? const AsyncValue<List<Reserva>>.loading()
         : ref.watch(misReservasProvider(uid));
-    final sesion = ref.watch(sesionProvider).value;
+    final sesion = ref.watch(sesionActualProvider).value;
 
     final primera = restaurantesAsync.value?.firstOrNull;
     final proxima = _proximaReserva(reservasAsync.value);
@@ -82,7 +82,9 @@ class HomeScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Banner de sesión activa (MESA-06 UI) ────────────────────
-              if (sesion != null) ...[
+              // El stream emite la sesión MÁS RECIENTE aunque esté cerrada
+              // (para la calificación post-cierre) — el banner exige activa.
+              if (sesion != null && sesion.estado == 'activa') ...[
                 _SesionBanner(sesion: sesion),
                 const SizedBox(height: 20),
               ],
@@ -209,7 +211,7 @@ class _SesionBanner extends StatelessWidget {
             '📍 ${sesion.restauranteNombre}',
             style: const TextStyle(color: Colors.white70),
           ),
-          if (sesion.solicitaCuenta) ...[
+          if (sesion.cuentaSolicitada) ...[
             const SizedBox(height: 8),
             const Text(
               'Cuenta solicitada ✓',

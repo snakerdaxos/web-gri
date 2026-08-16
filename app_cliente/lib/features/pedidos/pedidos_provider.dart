@@ -60,7 +60,55 @@ Future<String> _crearPedido(
   required List<PedidoItem> items,
   String clienteNombre = '',
 }) {
-  throw UnimplementedError();
+  return db.runTransaction<String>((tx) async {
+    // 1) La sesión debe estar ACTIVA y ser del emisor (anti-spoofing P6).
+    //    Sin diferenciar el motivo exacto al usuario: mismo mensaje neutro.
+    final sesionSnap = await tx.get(db.doc('sesiones/$mesaCodigo'));
+    final sesionData = sesionSnap.data();
+    if (!sesionSnap.exists ||
+        sesionData == null ||
+        sesionData['usuarioId'] != uid) {
+      throw const PedidoException(
+          'No pudimos enviar el pedido: tu sesión en la mesa no está activa');
+    }
+    if (sesionData['estado'] != 'activa') {
+      throw const PedidoException(
+          'La sesión de la mesa fue cerrada — pide al mesero reabrir la mesa');
+    }
+
+    // 2) restauranteId de la mesa (consistencia con la sesión).
+    final mesaSnap = await tx.get(db.doc('mesas/$mesaCodigo'));
+    final restauranteId =
+        mesaSnap.data()?['restauranteId'] as String? ?? sesionData['restauranteId'] as String? ?? '';
+
+    // 3) Total = Σ precio×cantidad del MISMO snapshot que viaja en el doc.
+    final total =
+        items.fold<int>(0, (suma, item) => suma + item.precio * item.cantidad);
+
+    // 4) autoId para pedidos — la unicidad del dominio vive en la sesión.
+    final ref = db.collection('pedidos').doc();
+    tx.set(ref, <String, dynamic>{
+      'restauranteId': restauranteId,
+      'mesaId': mesaCodigo,
+      'sesionId': mesaCodigo,
+      'usuarioId': uid,
+      'clienteNombre': clienteNombre,
+      'estado': 'enviado',
+      'items': [
+        for (final item in items)
+          <String, dynamic>{
+            'productoId': item.productoId,
+            'nombre': item.nombre,
+            'precio': item.precio,
+            'cantidad': item.cantidad,
+          },
+      ],
+      'total': total,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  });
 }
 
 /// Solicita la cuenta — flag visible para el staff en VIVO (la pantalla de
@@ -71,8 +119,20 @@ Future<void> solicitarCuenta(
   FirebaseFirestore db, {
   required String uid,
   required String mesaId,
-}) {
-  throw UnimplementedError();
+}) async {
+  final snap = await db.doc('sesiones/$mesaId').get();
+  final data = snap.data();
+  if (!snap.exists || data == null || data['usuarioId'] != uid) {
+    throw const PedidoException(
+        'No pudimos solicitar la cuenta: tu sesión en la mesa no está activa');
+  }
+  if (data['estado'] != 'activa') {
+    throw const PedidoException('La sesión de la mesa fue cerrada');
+  }
+  await db.doc('sesiones/$mesaId').update(<String, dynamic>{
+    'cuentaSolicitada': true,
+    'cuentaPedidaAt': FieldValue.serverTimestamp(),
+  });
 }
 
 /// Pedidos de la sesión activa EN VIVO (MIGRA-05): `where('sesionId') +

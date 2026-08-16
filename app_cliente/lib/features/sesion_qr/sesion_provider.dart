@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/firebase_providers.dart';
@@ -147,7 +148,7 @@ Stream<SesionMesa> sesion(Ref ref, String mesaId) {
 Stream<SesionMesa?> sesionActual(Ref ref) {
   final db = ref.watch(firestoreProvider);
   final auth = ref.watch(firebaseAuthProvider);
-  return auth.authStateChanges().asyncExpand((user) {
+  return _usuarios(auth).asyncExpand((user) {
     if (user == null) return Stream.value(null);
     return db
         .collection('sesiones')
@@ -156,16 +157,30 @@ Stream<SesionMesa?> sesionActual(Ref ref) {
         .asyncMap((snap) async {
       if (snap.docs.isEmpty) return null;
       // La más reciente por inicioAt (mix Timestamp|DateTime según writer).
+      // Loop manual (NO reduce): los fakes tipan docs como subclase y el
+      // chequeo de varianza del combine explota en runtime.
       int ms(dynamic v) => v is Timestamp
           ? v.millisecondsSinceEpoch
           : v is DateTime
               ? v.millisecondsSinceEpoch
               : 0;
-      final doc = snap.docs.reduce((a, b) =>
-          ms(b.data()['inicioAt']) > ms(a.data()['inicioAt']) ? b : a);
-      return _enriquecer(db, SesionMesa.fromDoc(doc));
+      QueryDocumentSnapshot<Map<String, dynamic>>? doc;
+      for (final d in snap.docs) {
+        if (doc == null || ms(d.data()['inicioAt']) > ms(doc.data()['inicioAt'])) {
+          doc = d;
+        }
+      }
+      return _enriquecer(db, SesionMesa.fromDoc(doc!));
     });
   });
+}
+
+/// Usuarios de auth: el actual YA (el SDK real emite el usuario vigente a
+/// cada nuevo listener; los mocks usan broadcast sin replay y se saltan el
+/// evento del constructor — el yield inicial los pone en paridad).
+Stream<User?> _usuarios(FirebaseAuth auth) async* {
+  yield auth.currentUser;
+  yield* auth.authStateChanges();
 }
 
 /// Mutaciones de la sesión: [abrir] por código QR (cámara o input manual).

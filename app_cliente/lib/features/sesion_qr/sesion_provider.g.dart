@@ -166,7 +166,7 @@ final class SesionActualProvider
   }
 }
 
-String _$sesionActualHash() => r'6f4cb024871be048dcb275ff963e83c1a34c0c0d';
+String _$sesionActualHash() => r'7cb2b7446c6b0829613457891c63878da686fea5';
 
 /// Mutaciones de la sesión: [abrir] por código QR (cámara o input manual).
 ///

@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -63,7 +63,9 @@ void main() {
       () async {
     final db = await buildFakeFirestoreConSeed();
     final id1 = await _sembrarPedido(db);
-    // Re-abrir la mesa para un segundo pedido del mismo restaurante.
+    // El staff cierra el ciclo de la mesa (limpieza→disponible) antes de
+    // que el cliente re-abra para un segundo pedido.
+    await db.doc('mesas/$_mesa').update({'estado': 'disponible'});
     await abrirSesion(db, uid: 'test-uid', codigoQR: _mesa);
     final id2 =
         await crearPedido(db, uid: 'test-uid', mesaCodigo: _mesa, items: _items);
@@ -137,7 +139,7 @@ void main() {
   // ── Widgets: el sheet de estrellas (UI intacta) ─────────────────────────
 
   /// Host con botón que abre el sheet apuntando a [pedidoId].
-  Widget _wrapCon(dynamic db, String pedidoId, {String etiqueta = 'abrir'}) {
+  Widget wrapCon(dynamic db, String pedidoId, {String etiqueta = 'abrir'}) {
     return ProviderScope(
       overrides: [
         firestoreProvider.overrideWithValue(db),
@@ -166,7 +168,7 @@ void main() {
       (tester) async {
     final db = await buildFakeFirestoreConSeed();
     final id = await _sembrarPedido(db);
-    await tester.pumpWidget(_wrapCon(db, id));
+    await tester.pumpWidget(wrapCon(db, id));
     await tester.tap(find.text('abrir'));
     await tester.pumpAndSettle();
 
@@ -187,7 +189,7 @@ void main() {
     final db = await buildFakeFirestoreConSeed();
     final id = await _sembrarPedido(db);
 
-    await tester.pumpWidget(_wrapCon(db, id));
+    await tester.pumpWidget(wrapCon(db, id));
     await tester.tap(find.text('abrir'));
     await tester.pumpAndSettle();
 
@@ -233,7 +235,7 @@ void main() {
     final id = await _sembrarPedido(db);
     await calificar(db, uid: 'test-uid', pedidoId: id, estrellas: 5);
 
-    await tester.pumpWidget(_wrapCon(db, id));
+    await tester.pumpWidget(wrapCon(db, id));
     await tester.tap(find.text('abrir'));
     await tester.pumpAndSettle();
 

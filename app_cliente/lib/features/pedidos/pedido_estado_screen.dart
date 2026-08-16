@@ -1,19 +1,21 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api_client.dart';
+import '../../core/firebase_providers.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../models/pedido.dart';
 import '../../models/sesion_mesa.dart';
+import '../pagos/calificacion_sheet.dart';
 import '../sesion_qr/sesion_provider.dart';
 import 'pedidos_provider.dart';
 
 /// Estado de los pedidos de la sesión (PEDI-04 UI) — cards con chips de
-/// estado coloreados que se actualizan solas (polling 10s del provider) +
-/// botón "Pedir la cuenta" (PAGO-01 UI, idempotente server-side).
+/// estado coloreados que se actualizan SOLOS (stream snapshots, MIGRA-05)
+/// + botón "Pedir la cuenta" (PAGO-01; el checkout en línea quedó
+/// DIFERIDO en Phase 10) + calificación de pedidos servidos tras el
+/// cierre de la sesión.
 class PedidoEstadoScreen extends ConsumerStatefulWidget {
   const PedidoEstadoScreen({super.key});
 
@@ -26,15 +28,21 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
   bool _pidiendoCuenta = false;
 
   /// Mirror local tras pedir la cuenta exitosamente — la visibilidad no
-  /// depende solo del invalidate del provider (robusto en cualquier flujo).
+  /// depende solo del stream (robusto en cualquier flujo).
   bool _cuentaYaPedida = false;
 
   Future<void> _pedirCuenta() async {
     if (_pidiendoCuenta) return;
+    final sesion = ref.read(sesionActualProvider).value;
+    final uid = ref.read(firebaseAuthProvider).currentUser?.uid;
+    if (sesion == null || uid == null) return;
     setState(() => _pidiendoCuenta = true);
     try {
-      await ref.read(apiClientProvider).pedirCuenta();
-      ref.invalidate(sesionProvider); // el banner del home se entera
+      await solicitarCuenta(
+        ref.read(firestoreProvider),
+        uid: uid,
+        mesaId: sesion.mesaId,
+      );
       if (!mounted) return;
       setState(() => _cuentaYaPedida = true);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -43,17 +51,11 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
           backgroundColor: GriColors.green,
         ),
       );
-    } on DioException catch (e) {
+    } on PedidoException catch (e) {
       if (!mounted) return;
-      final data = e.response?.data;
-      final detail = data is Map<String, dynamic> ? data['detail'] : null;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            detail is String && detail.isNotEmpty
-                ? detail
-                : 'No pudimos solicitar la cuenta. Intenta de nuevo.',
-          ),
+          content: Text(e.message),
           backgroundColor: GriColors.chipCanceladaFg,
         ),
       );
@@ -71,10 +73,20 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
     }
   }
 
+  void _abrirCalificacion(String pedidoId) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => CalificacionSheet(pedidoId: pedidoId),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final sesion = ref.watch(sesionProvider).value;
+    final sesion = ref.watch(sesionActualProvider).value;
     final pedidosAsync = ref.watch(pedidosSessionProvider);
+
+    final sesionCerrada = sesion != null && sesion.estado != 'activa';
 
     return Scaffold(
       appBar: AppBar(
@@ -139,66 +151,63 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
                   ),
                 ),
               ),
-              for (final pedido in pedidos) _PedidoCard(pedido: pedido),
+              for (final pedido in pedidos)
+                _PedidoCard(
+                  pedido: pedido,
+                  // Calificación: pedido servido + sesión cerrada (locked).
+                  onCalificar: sesionCerrada && pedido.estado == 'servido'
+                      ? () => _abrirCalificacion(pedido.id)
+                      : null,
+                ),
             ],
           );
         },
       ),
       bottomNavigationBar:
-          sesion == null ? null : _cuentaSection(sesion),
+          sesion == null ? null : _cuentaSection(sesion, sesionCerrada),
     );
   }
 
-  Widget _cuentaSection(SesionMesa sesion) {
-    final yaPedida = sesion.solicitaCuenta || _cuentaYaPedida;
+  Widget _cuentaSection(SesionMesa sesion, bool sesionCerrada) {
+    if (sesionCerrada) {
+      // Tras el cierre: el staff ya llevó la cuenta — solo queda calificar
+      // (los CTAs viven en los cards de pedidos servidos).
+      return const SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Center(
+            child: Text(
+              'Sesión cerrada — ¡gracias por tu visita! 🙌',
+              style: TextStyle(color: GriColors.gray),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final yaPedida = sesion.cuentaSolicitada || _cuentaYaPedida;
 
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
         child: yaPedida
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: GriColors.chipConfirmadaBg,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'Cuenta solicitada ✓',
-                        style: TextStyle(
-                          color: GriColors.chipConfirmadaFg,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
+            ? Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: GriColors.chipConfirmadaBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: Text(
+                    'Cuenta solicitada ✓',
+                    style: TextStyle(
+                      color: GriColors.chipConfirmadaFg,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  // PAGO-02 UI: pagar la cuenta en línea desde acá.
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => context.push('/mesa/pago'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: GriColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      icon: const Icon(Icons.credit_card),
-                      label: const Text(
-                        'Pagar en línea 💳',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               )
             : SizedBox(
                 width: double.infinity,
@@ -234,11 +243,13 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
   }
 }
 
-/// Card de un pedido: chip de estado coloreado + items + notas + total.
+/// Card de un pedido: chip de estado coloreado + items + total (+ CTA
+/// calificar cuando la sesión cerró y el pedido está servido).
 class _PedidoCard extends StatelessWidget {
-  const _PedidoCard({required this.pedido});
+  const _PedidoCard({required this.pedido, this.onCalificar});
 
   final Pedido pedido;
+  final VoidCallback? onCalificar;
 
   @override
   Widget build(BuildContext context) {
@@ -253,7 +264,7 @@ class _PedidoCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Pedido #${pedido.id}',
+                    'Pedido #${pedido.codigoCorto}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: GriColors.text,
@@ -269,16 +280,6 @@ class _PedidoCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Text('${item.nombre} ×${item.cantidad}'),
               ),
-            if (pedido.notas != null && pedido.notas!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                '📝 ${pedido.notas}',
-                style: const TextStyle(
-                  color: GriColors.gray,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
             const SizedBox(height: 10),
             Row(
               children: [
@@ -293,6 +294,22 @@ class _PedidoCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (onCalificar != null) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: onCalificar,
+                  icon: const Icon(Icons.star_border,
+                      color: Color(0xFFF5A623)),
+                  label: const Text(
+                    'Calificar',
+                    style: TextStyle(
+                        color: Color(0xFFF5A623), fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
