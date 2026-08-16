@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$PedidoItem {
 
-@JsonKey(name: 'producto_id') int get productoId; String get nombre; int get cantidad;@JsonKey(name: 'precio_unitario') double get precioUnitario; double get subtotal;
+ String get productoId; String get nombre; int get precio; int get cantidad;
 /// Create a copy of PedidoItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $PedidoItemCopyWith<PedidoItem> get copyWith => _$PedidoItemCopyWithImpl<PedidoI
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PedidoItem&&(identical(other.productoId, productoId) || other.productoId == productoId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.cantidad, cantidad) || other.cantidad == cantidad)&&(identical(other.precioUnitario, precioUnitario) || other.precioUnitario == precioUnitario)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PedidoItem&&(identical(other.productoId, productoId) || other.productoId == productoId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.precio, precio) || other.precio == precio)&&(identical(other.cantidad, cantidad) || other.cantidad == cantidad));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,productoId,nombre,cantidad,precioUnitario,subtotal);
+int get hashCode => Object.hash(runtimeType,productoId,nombre,precio,cantidad);
 
 @override
 String toString() {
-  return 'PedidoItem(productoId: $productoId, nombre: $nombre, cantidad: $cantidad, precioUnitario: $precioUnitario, subtotal: $subtotal)';
+  return 'PedidoItem(productoId: $productoId, nombre: $nombre, precio: $precio, cantidad: $cantidad)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $PedidoItemCopyWith<$Res>  {
   factory $PedidoItemCopyWith(PedidoItem value, $Res Function(PedidoItem) _then) = _$PedidoItemCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'producto_id') int productoId, String nombre, int cantidad,@JsonKey(name: 'precio_unitario') double precioUnitario, double subtotal
+ String productoId, String nombre, int precio, int cantidad
 });
 
 
@@ -66,14 +66,13 @@ class _$PedidoItemCopyWithImpl<$Res>
 
 /// Create a copy of PedidoItem
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? productoId = null,Object? nombre = null,Object? cantidad = null,Object? precioUnitario = null,Object? subtotal = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? productoId = null,Object? nombre = null,Object? precio = null,Object? cantidad = null,}) {
   return _then(PedidoItem(
 productoId: null == productoId ? _self.productoId : productoId // ignore: cast_nullable_to_non_nullable
-as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
-as String,cantidad: null == cantidad ? _self.cantidad : cantidad // ignore: cast_nullable_to_non_nullable
-as int,precioUnitario: null == precioUnitario ? _self.precioUnitario : precioUnitario // ignore: cast_nullable_to_non_nullable
-as double,subtotal: null == subtotal ? _self.subtotal : subtotal // ignore: cast_nullable_to_non_nullable
-as double,
+as String,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
+as String,precio: null == precio ? _self.precio : precio // ignore: cast_nullable_to_non_nullable
+as int,cantidad: null == cantidad ? _self.cantidad : cantidad // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
@@ -158,10 +157,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'producto_id')  int productoId,  String nombre,  int cantidad, @JsonKey(name: 'precio_unitario')  double precioUnitario,  double subtotal)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String productoId,  String nombre,  int precio,  int cantidad)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PedidoItem() when $default != null:
-return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precioUnitario,_that.subtotal);case _:
+return $default(_that.productoId,_that.nombre,_that.precio,_that.cantidad);case _:
   return orElse();
 
 }
@@ -179,10 +178,10 @@ return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precioUnitari
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'producto_id')  int productoId,  String nombre,  int cantidad, @JsonKey(name: 'precio_unitario')  double precioUnitario,  double subtotal)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String productoId,  String nombre,  int precio,  int cantidad)  $default,) {final _that = this;
 switch (_that) {
 case _PedidoItem():
-return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precioUnitario,_that.subtotal);case _:
+return $default(_that.productoId,_that.nombre,_that.precio,_that.cantidad);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -199,10 +198,10 @@ return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precioUnitari
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'producto_id')  int productoId,  String nombre,  int cantidad, @JsonKey(name: 'precio_unitario')  double precioUnitario,  double subtotal)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String productoId,  String nombre,  int precio,  int cantidad)?  $default,) {final _that = this;
 switch (_that) {
 case _PedidoItem() when $default != null:
-return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precioUnitario,_that.subtotal);case _:
+return $default(_that.productoId,_that.nombre,_that.precio,_that.cantidad);case _:
   return null;
 
 }
@@ -214,14 +213,13 @@ return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precioUnitari
 @JsonSerializable()
 
 class _PedidoItem implements PedidoItem {
-  const _PedidoItem({@JsonKey(name: 'producto_id') required this.productoId, required this.nombre, required this.cantidad, @JsonKey(name: 'precio_unitario') required this.precioUnitario, required this.subtotal});
+  const _PedidoItem({required this.productoId, required this.nombre, required this.precio, required this.cantidad});
   factory _PedidoItem.fromJson(Map<String, dynamic> json) => _$PedidoItemFromJson(json);
 
-@override@JsonKey(name: 'producto_id') final  int productoId;
+@override final  String productoId;
 @override final  String nombre;
+@override final  int precio;
 @override final  int cantidad;
-@override@JsonKey(name: 'precio_unitario') final  double precioUnitario;
-@override final  double subtotal;
 
 /// Create a copy of PedidoItem
 /// with the given fields replaced by the non-null parameter values.
@@ -236,16 +234,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PedidoItem&&(identical(other.productoId, productoId) || other.productoId == productoId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.cantidad, cantidad) || other.cantidad == cantidad)&&(identical(other.precioUnitario, precioUnitario) || other.precioUnitario == precioUnitario)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PedidoItem&&(identical(other.productoId, productoId) || other.productoId == productoId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.precio, precio) || other.precio == precio)&&(identical(other.cantidad, cantidad) || other.cantidad == cantidad));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,productoId,nombre,cantidad,precioUnitario,subtotal);
+int get hashCode => Object.hash(runtimeType,productoId,nombre,precio,cantidad);
 
 @override
 String toString() {
-  return 'PedidoItem(productoId: $productoId, nombre: $nombre, cantidad: $cantidad, precioUnitario: $precioUnitario, subtotal: $subtotal)';
+  return 'PedidoItem(productoId: $productoId, nombre: $nombre, precio: $precio, cantidad: $cantidad)';
 }
 
 
@@ -256,7 +254,7 @@ abstract mixin class _$PedidoItemCopyWith<$Res> implements $PedidoItemCopyWith<$
   factory _$PedidoItemCopyWith(_PedidoItem value, $Res Function(_PedidoItem) _then) = __$PedidoItemCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'producto_id') int productoId, String nombre, int cantidad,@JsonKey(name: 'precio_unitario') double precioUnitario, double subtotal
+ String productoId, String nombre, int precio, int cantidad
 });
 
 
@@ -273,14 +271,13 @@ class __$PedidoItemCopyWithImpl<$Res>
 
 /// Create a copy of PedidoItem
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? productoId = null,Object? nombre = null,Object? cantidad = null,Object? precioUnitario = null,Object? subtotal = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? productoId = null,Object? nombre = null,Object? precio = null,Object? cantidad = null,}) {
   return _then(_PedidoItem(
 productoId: null == productoId ? _self.productoId : productoId // ignore: cast_nullable_to_non_nullable
-as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
-as String,cantidad: null == cantidad ? _self.cantidad : cantidad // ignore: cast_nullable_to_non_nullable
-as int,precioUnitario: null == precioUnitario ? _self.precioUnitario : precioUnitario // ignore: cast_nullable_to_non_nullable
-as double,subtotal: null == subtotal ? _self.subtotal : subtotal // ignore: cast_nullable_to_non_nullable
-as double,
+as String,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
+as String,precio: null == precio ? _self.precio : precio // ignore: cast_nullable_to_non_nullable
+as int,cantidad: null == cantidad ? _self.cantidad : cantidad // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 

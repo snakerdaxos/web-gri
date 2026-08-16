@@ -7,18 +7,16 @@ part of 'pedido_item.dart';
 // **************************************************************************
 
 _PedidoItem _$PedidoItemFromJson(Map<String, dynamic> json) => _PedidoItem(
-  productoId: (json['producto_id'] as num).toInt(),
+  productoId: json['productoId'] as String,
   nombre: json['nombre'] as String,
+  precio: (json['precio'] as num).toInt(),
   cantidad: (json['cantidad'] as num).toInt(),
-  precioUnitario: (json['precio_unitario'] as num).toDouble(),
-  subtotal: (json['subtotal'] as num).toDouble(),
 );
 
 Map<String, dynamic> _$PedidoItemToJson(_PedidoItem instance) =>
     <String, dynamic>{
-      'producto_id': instance.productoId,
+      'productoId': instance.productoId,
       'nombre': instance.nombre,
+      'precio': instance.precio,
       'cantidad': instance.cantidad,
-      'precio_unitario': instance.precioUnitario,
-      'subtotal': instance.subtotal,
     };

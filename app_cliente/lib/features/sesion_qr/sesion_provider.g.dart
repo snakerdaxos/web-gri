@@ -8,86 +8,181 @@ part of 'sesion_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Sesión de mesa activa del usuario (o null) — `GET /cliente/sesiones/actual`.
-///
-/// keepAlive como [AuthState]: la sesión debe sobrevivir la navegación entre
-/// tabs y pantallas (home banner / menú / pedidos la observan). Un 404 del
-/// backend se traduce a null (sin sesión), cualquier otro error queda como
-/// AsyncError — los watchers leen `.value` y lo tratan como "sin sesión".
+/// Stream del doc `sesiones/{mesaId}` (banner vivo): refleja
+/// `cuentaSolicitada`, cambios de estado del staff y el cierre de sesión
+/// — detección de cierre → la UI trata estado != 'activa' como fin de la
+/// sesión (mismo rol que el evento `sesion.cerrada` del WS de Phase 7).
 
 @ProviderFor(sesion)
-final sesionProvider = SesionProvider._();
+final sesionProvider = SesionFamily._();
 
-/// Sesión de mesa activa del usuario (o null) — `GET /cliente/sesiones/actual`.
-///
-/// keepAlive como [AuthState]: la sesión debe sobrevivir la navegación entre
-/// tabs y pantallas (home banner / menú / pedidos la observan). Un 404 del
-/// backend se traduce a null (sin sesión), cualquier otro error queda como
-/// AsyncError — los watchers leen `.value` y lo tratan como "sin sesión".
+/// Stream del doc `sesiones/{mesaId}` (banner vivo): refleja
+/// `cuentaSolicitada`, cambios de estado del staff y el cierre de sesión
+/// — detección de cierre → la UI trata estado != 'activa' como fin de la
+/// sesión (mismo rol que el evento `sesion.cerrada` del WS de Phase 7).
 
 final class SesionProvider
     extends
         $FunctionalProvider<
+          AsyncValue<SesionMesa>,
+          SesionMesa,
+          Stream<SesionMesa>
+        >
+    with $FutureModifier<SesionMesa>, $StreamProvider<SesionMesa> {
+  /// Stream del doc `sesiones/{mesaId}` (banner vivo): refleja
+  /// `cuentaSolicitada`, cambios de estado del staff y el cierre de sesión
+  /// — detección de cierre → la UI trata estado != 'activa' como fin de la
+  /// sesión (mismo rol que el evento `sesion.cerrada` del WS de Phase 7).
+  SesionProvider._({
+    required SesionFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'sesionProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$sesionHash();
+
+  @override
+  String toString() {
+    return r'sesionProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $StreamProviderElement<SesionMesa> $createElement($ProviderPointer pointer) =>
+      $StreamProviderElement(pointer);
+
+  @override
+  Stream<SesionMesa> create(Ref ref) {
+    final argument = this.argument as String;
+    return sesion(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is SesionProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$sesionHash() => r'5b407ad9049d5270a586b03a28b62edfee22d3c0';
+
+/// Stream del doc `sesiones/{mesaId}` (banner vivo): refleja
+/// `cuentaSolicitada`, cambios de estado del staff y el cierre de sesión
+/// — detección de cierre → la UI trata estado != 'activa' como fin de la
+/// sesión (mismo rol que el evento `sesion.cerrada` del WS de Phase 7).
+
+final class SesionFamily extends $Family
+    with $FunctionalFamilyOverride<Stream<SesionMesa>, String> {
+  SesionFamily._()
+    : super(
+        retry: null,
+        name: r'sesionProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Stream del doc `sesiones/{mesaId}` (banner vivo): refleja
+  /// `cuentaSolicitada`, cambios de estado del staff y el cierre de sesión
+  /// — detección de cierre → la UI trata estado != 'activa' como fin de la
+  /// sesión (mismo rol que el evento `sesion.cerrada` del WS de Phase 7).
+
+  SesionProvider call(String mesaId) =>
+      SesionProvider._(argument: mesaId, from: this);
+
+  @override
+  String toString() => r'sesionProvider';
+}
+
+/// Sesión activa del usuario autenticado (o null) — query realtime
+/// `sesiones where usuarioId == uid` + filtro de estado client-side.
+/// keepAlive: el banner de home / menú / pedidos la observan a través de
+/// la navegación. Al cerrar sesión el stream emite null (banner fuera).
+
+@ProviderFor(sesionActual)
+final sesionActualProvider = SesionActualProvider._();
+
+/// Sesión activa del usuario autenticado (o null) — query realtime
+/// `sesiones where usuarioId == uid` + filtro de estado client-side.
+/// keepAlive: el banner de home / menú / pedidos la observan a través de
+/// la navegación. Al cerrar sesión el stream emite null (banner fuera).
+
+final class SesionActualProvider
+    extends
+        $FunctionalProvider<
           AsyncValue<SesionMesa?>,
           SesionMesa?,
-          FutureOr<SesionMesa?>
+          Stream<SesionMesa?>
         >
-    with $FutureModifier<SesionMesa?>, $FutureProvider<SesionMesa?> {
-  /// Sesión de mesa activa del usuario (o null) — `GET /cliente/sesiones/actual`.
-  ///
-  /// keepAlive como [AuthState]: la sesión debe sobrevivir la navegación entre
-  /// tabs y pantallas (home banner / menú / pedidos la observan). Un 404 del
-  /// backend se traduce a null (sin sesión), cualquier otro error queda como
-  /// AsyncError — los watchers leen `.value` y lo tratan como "sin sesión".
-  SesionProvider._()
+    with $FutureModifier<SesionMesa?>, $StreamProvider<SesionMesa?> {
+  /// Sesión activa del usuario autenticado (o null) — query realtime
+  /// `sesiones where usuarioId == uid` + filtro de estado client-side.
+  /// keepAlive: el banner de home / menú / pedidos la observan a través de
+  /// la navegación. Al cerrar sesión el stream emite null (banner fuera).
+  SesionActualProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'sesionProvider',
+        name: r'sesionActualProvider',
         isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$sesionHash();
+  String debugGetCreateSourceHash() => _$sesionActualHash();
 
   @$internal
   @override
-  $FutureProviderElement<SesionMesa?> $createElement(
+  $StreamProviderElement<SesionMesa?> $createElement(
     $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
+  ) => $StreamProviderElement(pointer);
 
   @override
-  FutureOr<SesionMesa?> create(Ref ref) {
-    return sesion(ref);
+  Stream<SesionMesa?> create(Ref ref) {
+    return sesionActual(ref);
   }
 }
 
-String _$sesionHash() => r'e7ac9ae7b5424947e64de93cb95fb7b1e5f45b98';
+String _$sesionActualHash() => r'0488ccd1850c8e1701a4dba45973a18bc5929335';
 
 /// Mutaciones de la sesión: [abrir] por código QR (cámara o input manual).
 ///
-/// Los errores (404 código inexistente / 409 mesa ocupada / limpieza /
-/// sesión en otra mesa) se propagan a la screen, que muestra el `detail`
-/// del server en un SnackBar rojo — nunca crash.
+/// Los errores de dominio ('Código de mesa inválido' / 'Mesa ocupada')
+/// llegan como [SesionException] con mensaje user-friendly; la mesa en
+/// limpieza ([TransicionInvalidaException]) se traduce a mensaje
+/// controlado — nunca un stack trace al usuario.
 
 @ProviderFor(SesionController)
 final sesionControllerProvider = SesionControllerProvider._();
 
 /// Mutaciones de la sesión: [abrir] por código QR (cámara o input manual).
 ///
-/// Los errores (404 código inexistente / 409 mesa ocupada / limpieza /
-/// sesión en otra mesa) se propagan a la screen, que muestra el `detail`
-/// del server en un SnackBar rojo — nunca crash.
+/// Los errores de dominio ('Código de mesa inválido' / 'Mesa ocupada')
+/// llegan como [SesionException] con mensaje user-friendly; la mesa en
+/// limpieza ([TransicionInvalidaException]) se traduce a mensaje
+/// controlado — nunca un stack trace al usuario.
 final class SesionControllerProvider
     extends $AsyncNotifierProvider<SesionController, void> {
   /// Mutaciones de la sesión: [abrir] por código QR (cámara o input manual).
   ///
-  /// Los errores (404 código inexistente / 409 mesa ocupada / limpieza /
-  /// sesión en otra mesa) se propagan a la screen, que muestra el `detail`
-  /// del server en un SnackBar rojo — nunca crash.
+  /// Los errores de dominio ('Código de mesa inválido' / 'Mesa ocupada')
+  /// llegan como [SesionException] con mensaje user-friendly; la mesa en
+  /// limpieza ([TransicionInvalidaException]) se traduce a mensaje
+  /// controlado — nunca un stack trace al usuario.
   SesionControllerProvider._()
     : super(
         from: null,
@@ -107,13 +202,14 @@ final class SesionControllerProvider
   SesionController create() => SesionController();
 }
 
-String _$sesionControllerHash() => r'7f55957481fcd6922d636647115030c8a96f8a47';
+String _$sesionControllerHash() => r'46c7293daf5d1a2648502630985f0feab40c014b';
 
 /// Mutaciones de la sesión: [abrir] por código QR (cámara o input manual).
 ///
-/// Los errores (404 código inexistente / 409 mesa ocupada / limpieza /
-/// sesión en otra mesa) se propagan a la screen, que muestra el `detail`
-/// del server en un SnackBar rojo — nunca crash.
+/// Los errores de dominio ('Código de mesa inválido' / 'Mesa ocupada')
+/// llegan como [SesionException] con mensaje user-friendly; la mesa en
+/// limpieza ([TransicionInvalidaException]) se traduce a mensaje
+/// controlado — nunca un stack trace al usuario.
 
 abstract class _$SesionController extends $AsyncNotifier<void> {
   FutureOr<void> build();

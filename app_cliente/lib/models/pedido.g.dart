@@ -7,25 +7,35 @@ part of 'pedido.dart';
 // **************************************************************************
 
 _Pedido _$PedidoFromJson(Map<String, dynamic> json) => _Pedido(
-  id: (json['id'] as num).toInt(),
-  sesionId: (json['sesion_id'] as num).toInt(),
-  mesaNumero: (json['mesa_numero'] as num).toInt(),
+  id: json['id'] as String,
+  restauranteId: json['restauranteId'] as String,
+  mesaId: json['mesaId'] as String,
+  sesionId: json['sesionId'] as String,
+  usuarioId: json['usuarioId'] as String,
+  clienteNombre: json['clienteNombre'] as String? ?? '',
   estado: json['estado'] as String,
-  total: (json['total'] as num).toDouble(),
-  notas: json['notas'] as String?,
-  createdAt: DateTime.parse(json['created_at'] as String),
+  total: (json['total'] as num).toInt(),
   items: (json['items'] as List<dynamic>)
       .map((e) => PedidoItem.fromJson(e as Map<String, dynamic>))
       .toList(),
+  createdAt: json['createdAt'] == null
+      ? null
+      : DateTime.parse(json['createdAt'] as String),
+  updatedAt: json['updatedAt'] == null
+      ? null
+      : DateTime.parse(json['updatedAt'] as String),
 );
 
 Map<String, dynamic> _$PedidoToJson(_Pedido instance) => <String, dynamic>{
   'id': instance.id,
-  'sesion_id': instance.sesionId,
-  'mesa_numero': instance.mesaNumero,
+  'restauranteId': instance.restauranteId,
+  'mesaId': instance.mesaId,
+  'sesionId': instance.sesionId,
+  'usuarioId': instance.usuarioId,
+  'clienteNombre': instance.clienteNombre,
   'estado': instance.estado,
   'total': instance.total,
-  'notas': instance.notas,
-  'created_at': instance.createdAt.toIso8601String(),
   'items': instance.items,
+  'createdAt': instance.createdAt?.toIso8601String(),
+  'updatedAt': instance.updatedAt?.toIso8601String(),
 };

@@ -1,140 +1,299 @@
-import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:gri_cliente/core/api_client.dart';
+import 'package:gri_cliente/core/firebase_providers.dart';
+import 'package:gri_cliente/core/state_machines.dart';
 import 'package:gri_cliente/features/sesion_qr/scan_screen.dart';
+import 'package:gri_cliente/features/sesion_qr/sesion_provider.dart';
 import 'package:gri_cliente/models/sesion_mesa.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
-/// Fake del ApiClient — devuelve una sesión fija (o lanza [error]) al
-/// abrir sesión por código. La cámara NUNCA se instancia: todos los flujos
-/// van por el input manual (Pitfall 5 research).
-class _FakeApiClient extends ApiClient {
-  _FakeApiClient({this.sesion, this.error});
+import '../helpers/firebase_fakes.dart';
 
-  final SesionMesa? sesion;
-  final Object? error;
+/// SesiÃ³n QR sobre Firestore (Task 1 de 10-04): abrirSesion tx determinista
+/// sobre sesiones/{mesaId}, concurrencia doble-apertura (MIGRA-06), y el
+/// stream del doc como banner vivo. Todo contra fakes in-memory.
 
-  String? lastCodigo;
+const _mesa = 'GRI-MESA-demo-001';
 
-  @override
-  Future<SesionMesa> abrirSesion(String codigoQr) async {
-    lastCodigo = codigoQr;
-    final e = error;
-    if (e != null) throw e;
-    return sesion ?? _sesion(1);
+/// Espera activa hasta que [cond] sea true (los snapshots de los fakes
+/// emiten en microtareas â€” polling breve en vez de tiempos fijos).
+Future<void> _hasta(bool Function() cond) async {
+  final fin = DateTime.now().add(const Duration(seconds: 5));
+  while (!cond()) {
+    if (DateTime.now().isAfter(fin)) {
+      fail('timeout esperando condiciÃ³n del stream');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 10));
   }
 }
 
-SesionMesa _sesion(int mesaNumero, {bool solicitaCuenta = false}) =>
-    SesionMesa(
-      id: 10,
-      restauranteId: 1,
-      restauranteNombre: 'Restaurante Demo GRI',
-      mesaId: mesaNumero,
-      mesaNumero: mesaNumero,
-      abiertaEn: DateTime(2026, 8, 14, 12, 30),
-      solicitaCuenta: solicitaCuenta,
-      solicitadaEn: null,
+void main() {
+  // â”€â”€ Unidad: la tx de abrirSesion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  test('mesa disponible â†’ sesiÃ³n activa con dueÃ±o y mesa pasa a ocupada',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+
+    final sesion = await abrirSesion(db, uid: 'uid-a', codigoQR: _mesa);
+
+    expect(sesion.estado, 'activa');
+    expect(sesion.usuarioId, 'uid-a');
+    expect(sesion.mesaId, _mesa);
+    expect(sesion.mesaNumero, 1, reason: 'numero leÃ­do de la mesa en la tx');
+
+    final doc = await db.doc('sesiones/$_mesa').get();
+    expect(doc.exists, isTrue);
+    expect(doc.data()!['estado'], 'activa');
+    expect(doc.data()!['usuarioId'], 'uid-a');
+    expect(doc.data()!['mesaId'], _mesa, reason: 'mesaId == docId (rules)');
+    expect(doc.data()!['cuentaSolicitada'], false);
+
+    final mesa = await db.doc('mesas/$_mesa').get();
+    expect(mesa.data()!['estado'], 'ocupada');
+  });
+
+  test('CONCURRENCIA (MIGRA-06): dos abrirSesion simultÃ¡neos â†’ 1 gana, 1 "Mesa ocupada"',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+
+    final resultados = await Future.wait<String>([
+      abrirSesion(db, uid: 'uid-a', codigoQR: _mesa)
+          .then((_) => 'ok')
+          .catchError((_) => 'error'),
+      abrirSesion(db, uid: 'uid-b', codigoQR: _mesa)
+          .then((_) => 'ok')
+          .catchError((_) => 'error'),
+    ]);
+    // .catchError tapa el mensaje â€” repetimos por separado para assertearlo.
+    final perdedor = abrirSesion(db, uid: 'uid-c', codigoQR: _mesa);
+
+    expect(resultados.where((r) => r == 'ok').length, 1,
+        reason: 'exactamente UNA sesiÃ³n se crea');
+    await expectLater(perdedor,
+        throwsA(isA<SesionException>().having((e) => e.message, 'message', 'Mesa ocupada')));
+
+    final doc = await db.doc('sesiones/$_mesa').get();
+    expect(doc.data()!['estado'], 'activa');
+    expect(doc.data()!['usuarioId'], anyOf('uid-a', 'uid-b'));
+    final mesa = await db.doc('mesas/$_mesa').get();
+    expect(mesa.data()!['estado'], 'ocupada');
+  });
+
+  test('mesa en limpieza â†’ TransicionInvalidaException (mensaje controlado en el controller)',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    await db.doc('mesas/$_mesa').update({'estado': 'limpieza'});
+
+    await expectLater(
+      abrirSesion(db, uid: 'uid-a', codigoQR: _mesa),
+      throwsA(isA<TransicionInvalidaException>()),
     );
 
-/// Router de test: /mesa es una página dummy para verificar la navegación
-/// tras abrir sesión (pushReplacement necesita GoRouter real en el árbol).
-Widget _wrap({required ApiClient client}) {
-  final router = GoRouter(
-    initialLocation: '/sesion/scan',
-    routes: [
-      GoRoute(path: '/sesion/scan', builder: (_, _) => const ScanScreen()),
-      GoRoute(
-        path: '/mesa',
-        builder: (_, _) =>
-            const Scaffold(body: Center(child: Text('MESA_PAGE'))),
-      ),
-    ],
-  );
-  return ProviderScope(
-    overrides: [apiClientProvider.overrideWithValue(client)],
-    child: MaterialApp.router(routerConfig: router),
-  );
-}
+    // El controller lo traduce a mensaje user-friendly (contrato de la UI).
+    final container = ProviderContainer(overrides: [
+      firestoreProvider.overrideWithValue(db),
+      firebaseAuthProvider.overrideWithValue(mockAuth(uid: 'uid-a')),
+    ]);
+    addTearDown(container.dispose);
 
-void main() {
-  testWidgets(
-      'render inicial muestra input manual SIN instanciar MobileScanner',
+    final error = await container
+        .read(sesionControllerProvider.notifier)
+        .abrir(_mesa)
+        .then<Object?>((s) => s, onError: (Object e) => e);
+    expect(error, isA<SesionException>());
+    expect((error as SesionException).message,
+        'La mesa no estÃ¡ disponible en este momento');
+  });
+
+  test('cÃ³digo inexistente (GRI-MESA-demo-999) â†’ "CÃ³digo de mesa invÃ¡lido"',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+
+    await expectLater(
+      abrirSesion(db, uid: 'uid-a', codigoQR: 'GRI-MESA-demo-999'),
+      throwsA(isA<SesionException>()
+          .having((e) => e.message, 'message', 'CÃ³digo de mesa invÃ¡lido')),
+    );
+
+    final sesiones = await db.collection('sesiones').get();
+    expect(sesiones.docs, isEmpty, reason: 'sin doc creado');
+  });
+
+  test('sesiÃ³n cerrada previa en esa mesa â†’ se permite re-abrir', () async {
+    final db = await buildFakeFirestoreConSeed();
+    await db.doc('sesiones/GRI-MESA-demo-002').set({
+      'restauranteId': 'demo',
+      'mesaId': 'GRI-MESA-demo-002',
+      'usuarioId': 'otro-uid',
+      'estado': 'cerrada',
+      'cuentaSolicitada': true,
+      'inicioAt': DateTime(2026, 8, 1, 12),
+    });
+
+    final sesion =
+        await abrirSesion(db, uid: 'uid-a', codigoQR: 'GRI-MESA-demo-002');
+
+    expect(sesion.estado, 'activa');
+    final doc = await db.doc('sesiones/GRI-MESA-demo-002').get();
+    expect(doc.data()!['estado'], 'activa');
+    expect(doc.data()!['usuarioId'], 'uid-a');
+    expect(doc.data()!['cuentaSolicitada'], false,
+        reason: 'el set reemplaza el doc (nueva sesiÃ³n limpia)');
+    final mesa = await db.doc('mesas/GRI-MESA-demo-002').get();
+    expect(mesa.data()!['estado'], 'ocupada');
+  });
+
+  test('stream sesionProvider refleja cuentaSolicitada=true de otro writer',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    await abrirSesion(db, uid: 'uid-a', codigoQR: _mesa);
+
+    final container = ProviderContainer(overrides: [
+      firestoreProvider.overrideWithValue(db),
+    ]);
+    addTearDown(container.dispose);
+
+    final emisiones = <SesionMesa>[];
+    container.listen(
+      sesionProvider(_mesa),
+      (_, next) => next.whenData((s) => emisiones.add(s)),
+    );
+
+    await _hasta(() => emisiones.isNotEmpty);
+    expect(emisiones.last.cuentaSolicitada, false);
+    expect(emisiones.last.estado, 'activa');
+    expect(emisiones.last.restauranteNombre, 'Restaurante Demo GRI',
+        reason: 'enriquecido client-side (join)');
+    expect(emisiones.last.mesaNumero, 1);
+
+    // Otro writer (staff/mesero flip) â€” el stream lo refleja solo.
+    await db.doc('sesiones/$_mesa').update({'cuentaSolicitada': true});
+
+    await _hasta(() => emisiones.last.cuentaSolicitada);
+    expect(emisiones.last.cuentaSolicitada, true);
+  });
+
+  // â”€â”€ Widgets: ScanScreen (input manual de primera clase) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  Widget wrapFake(FakeTestFirestoreBuilder builder) {
+    final router = GoRouter(
+      initialLocation: '/sesion/scan',
+      routes: [
+        GoRoute(path: '/sesion/scan', builder: (_, _) => const ScanScreen()),
+        GoRoute(
+          path: '/mesa',
+          builder: (_, _) =>
+              const Scaffold(body: Center(child: Text('MESA_PAGE'))),
+        ),
+      ],
+    );
+    return ProviderScope(
+      overrides: [
+        firestoreProvider.overrideWithValue(builder.db),
+        firebaseAuthProvider.overrideWithValue(builder.auth ?? mockAuth()),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    );
+  }
+
+  testWidgets('render inicial: sin cÃ¡mara, input manual y hint del nuevo formato',
       (tester) async {
-    await tester.pumpWidget(_wrap(client: _FakeApiClient()));
+    final db = await buildFakeFirestoreConSeed();
+    await tester.pumpWidget(wrapFake(FakeTestFirestoreBuilder(db: db)));
     await tester.pumpAndSettle();
 
-    // Cámara solo tras tap — en el render inicial no existe.
     expect(find.byType(MobileScanner), findsNothing);
-    expect(find.text('Escanear con cámara'), findsOneWidget);
-
-    // Input manual SIEMPRE visible (vía de primera clase).
-    expect(find.text('O escribe el código de la mesa'), findsOneWidget);
-    expect(find.byType(TextFormField), findsOneWidget);
-    expect(find.text('Abrir mesa'), findsOneWidget);
+    expect(find.text('Escanear con cÃ¡mara'), findsOneWidget);
+    expect(find.text('O escribe el cÃ³digo de la mesa'), findsOneWidget);
+    expect(find.text('GRI-MESA-demo-001'), findsOneWidget,
+        reason: 'hint con slug de restaurante');
   });
 
-  testWidgets('código inválido (GRI-123) queda bloqueado por el validator',
+  testWidgets('GRI-MESA-001 (sin slug) queda bloqueado por el validator',
       (tester) async {
-    final client = _FakeApiClient();
-    await tester.pumpWidget(_wrap(client: client));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(find.byType(TextFormField), 'GRI-123');
-    await tester.tap(find.text('Abrir mesa'));
-    await tester.pump();
-
-    // Mensaje de validación visible, sin llamada al backend ni navegación.
-    expect(find.textContaining('formato GRI-MESA-001'), findsOneWidget);
-    expect(client.lastCodigo, isNull);
-    expect(find.text('Escanear QR de la mesa'), findsOneWidget);
-  });
-
-  testWidgets('GRI-MESA-001 válido → sesión abierta (Mesa 1) + navegación',
-      (tester) async {
-    final client = _FakeApiClient(sesion: _sesion(1));
-    await tester.pumpWidget(_wrap(client: client));
+    final db = await buildFakeFirestoreConSeed();
+    await tester.pumpWidget(wrapFake(FakeTestFirestoreBuilder(db: db)));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField), 'GRI-MESA-001');
     await tester.tap(find.text('Abrir mesa'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
 
-    // Llegó el código exacto al backend y la sesión se abrió.
-    expect(client.lastCodigo, 'GRI-MESA-001');
-    expect(find.textContaining('Mesa 1'), findsOneWidget);
-    // pushReplacement a /mesa.
-    expect(find.text('MESA_PAGE'), findsOneWidget);
+    expect(find.textContaining('formato GRI-MESA-demo-001'), findsOneWidget);
+    // Sin navegaciÃ³n.
+    expect(find.text('MESA_PAGE'), findsNothing);
   });
 
-  testWidgets('409 del backend muestra el detail en SnackBar rojo',
+  testWidgets('GRI-MESA-demo-001 vÃ¡lido â†’ sesiÃ³n abierta (Mesa 1) + navegaciÃ³n',
       (tester) async {
-    final client = _FakeApiClient(
-      error: DioException(
-        requestOptions: RequestOptions(path: '/cliente/sesiones'),
-        response: Response(
-          requestOptions: RequestOptions(path: '/cliente/sesiones'),
-          statusCode: 409,
-          data: {'detail': 'La mesa ya está ocupada por otro comensal'},
-        ),
-      ),
-    );
-    await tester.pumpWidget(_wrap(client: client));
+    final db = await buildFakeFirestoreConSeed();
+    await tester.pumpWidget(wrapFake(FakeTestFirestoreBuilder(db: db)));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextFormField), 'GRI-MESA-003');
+    await tester.enterText(find.byType(TextFormField), _mesa);
+    await tester.tap(find.text('Abrir mesa'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Mesa 1'), findsOneWidget);
+    expect(find.text('MESA_PAGE'), findsOneWidget);
+
+    final doc = await db.doc('sesiones/$_mesa').get();
+    expect(doc.data()!['usuarioId'], 'test-uid');
+  });
+
+  testWidgets('mesa ocupada por sesiÃ³n ajena â†’ SnackBar "Mesa ocupada", sin navegar',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await db.doc('sesiones/$_mesa').set({
+      'restauranteId': 'demo',
+      'mesaId': _mesa,
+      'usuarioId': 'otro-uid',
+      'estado': 'activa',
+      'cuentaSolicitada': false,
+    });
+
+    await tester.pumpWidget(wrapFake(FakeTestFirestoreBuilder(db: db)));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), _mesa);
     await tester.tap(find.text('Abrir mesa'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
 
-    // El detail del server, accionable — sin crash, sin navegación.
-    expect(find.textContaining('ocupada por otro comensal'), findsOneWidget);
+    expect(find.text('Mesa ocupada'), findsOneWidget);
     expect(find.text('MESA_PAGE'), findsNothing);
-    expect(find.text('Abrir mesa'), findsOneWidget);
+    expect(find.text('Abrir mesa'), findsOneWidget, reason: 'permite reintentar');
   });
+
+  testWidgets('mesa en limpieza â†’ mensaje controlado (sin crash ni navegaciÃ³n)',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await db.doc('mesas/$_mesa').update({'estado': 'limpieza'});
+
+    await tester.pumpWidget(wrapFake(FakeTestFirestoreBuilder(db: db)));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), _mesa);
+    await tester.tap(find.text('Abrir mesa'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+        find.text('La mesa no estÃ¡ disponible en este momento'), findsOneWidget);
+    expect(find.text('MESA_PAGE'), findsNothing);
+  });
+}
+
+/// Envoltorio mÃ­nimo para inyectar db+auth al _wrap de los widget tests.
+class FakeTestFirestoreBuilder {
+  FakeTestFirestoreBuilder({required this.db, this.auth});
+
+  final dynamic db;
+  final dynamic auth;
 }

@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/firebase_providers.dart';
 import '../../core/state_machines.dart';
+import '../../core/tx_mutex.dart';
 import '../../models/reserva.dart';
 import '../../models/reserva_create.dart';
 
@@ -38,48 +39,12 @@ String _fechaStr(DateTime d) =>
     '${d.month.toString().padLeft(2, '0')}-'
     '${d.day.toString().padLeft(2, '0')}';
 
-// ── Mutex en-proceso para las mutaciones de reservas ────────────────────
+// ── Mutex en-proceso ─────────────────────────────────────────────────────
 //
-// POR QUÉ: (1) en Firestore REAL la transacción serializa writers entre
-// dispositivos (OCC + reintentos) — este mutex serializa las llamadas del
-// MISMO proceso (doble tap del wizard, crear/cancelar solapados); (2) los
-// fakes de test ejecutan runTransaction SIN control de concurrencia
-// (writes inmediatos — `_DummyTransaction` de fake_cloud_firestore), así
-// que el mutex es lo que hace determinista el test de concurrencia del
-// plan (MIGRA-06) bajo fakes. En producción nunca sostiene la sección
-// más que la propia transacción.
-//
-// Gotcha de zonas (tests): los callbacks de `.then` sobre un future YA
-// completado corren en la zona donde ese future fue CREADO — si el tail
-// quedó completado en la zona de un test anterior (ya muerta), esperar
-// esa cadena cuelga al test siguiente (FakeAsync). Por eso el estado se
-// rastrea con un token: libre ⇒ ejecutar YA sin encadenar; encadenar
-// SOLO cuando hay una acción en vuelo (siempre de la misma zona, porque
-// los tests esperan sus propios futures).
-Object? _reservaToken; // non-null mientras hay una acción en vuelo.
-Future<void> _reservaTail = Future<void>.value(); // cadena en vuelo.
-
-Future<T> _seccionCritica<T>(Future<T> Function() accion) {
-  final libre = _reservaToken == null;
-  final token = _reservaToken = Object();
-  final Future<T> resultado;
-  if (libre) {
-    resultado = accion();
-  } else {
-    resultado = _reservaTail.then<T>((_) => accion());
-  }
-  _reservaTail = resultado.then((_) {}, onError: (_) {});
-  // Liberar el lock al terminar. OJO: usar `.then` con onError (NO
-  // `whenComplete`): whenComplete PROPAGA el error al future que devuelve
-  // y, al ignorarlo, queda como unhandled async error que rompe los tests
-  // aunque el caller haya capturado el error original.
-  resultado.then((_) {
-    if (identical(_reservaToken, token)) _reservaToken = null;
-  }, onError: (_) {
-    if (identical(_reservaToken, token)) _reservaToken = null;
-  });
-  return resultado;
-}
+// Las mutaciones de reservas (y desde 10-04 las de sesión/pedidos/
+// calificaciones) serializan a través de `seccionCritica` de
+// core/tx_mutex.dart — patrón estrenado aquí en 10-03 y promovido a core
+// para compartirlo (gotchas de zonas documentados allí).
 
 /// Port de `backend/app/services/reserva_service.py::crear_reserva`
 /// (MIGRA-06): asignación automática de mesa, concurrent-safe.
@@ -105,7 +70,7 @@ Future<Reserva> crearReserva(
   required DateTime slot,
   required int personas,
 }) {
-  return _seccionCritica(() =>
+  return seccionCritica(() =>
       _crearReserva(db, uid: uid, restauranteId: restauranteId, slot: slot,
           personas: personas));
 }
@@ -199,7 +164,7 @@ Future<void> cancelarReserva(
   required String uid,
   required Reserva reserva,
 }) {
-  return _seccionCritica(() => _cancelarReserva(db, uid: uid, reserva: reserva));
+  return seccionCritica(() => _cancelarReserva(db, uid: uid, reserva: reserva));
 }
 
 Future<void> _cancelarReserva(

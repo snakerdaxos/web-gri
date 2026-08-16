@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,12 +12,11 @@ import 'sesion_provider.dart';
 ///   cámara" — en widget tests la cámara no existe (Pitfall 5 research) y
 ///   en web sin secure context/CDN falla (Pitfall 9): el `errorBuilder`
 ///   ofrece el código manual.
-/// * **Input manual** `GRI-MESA-XXX`: SIEMPRE visible, fuera del
-///   condicional de cámara — única vía testeable y fallback garantizado.
+/// * **Input manual** `GRI-MESA-{rid}-{numero}`: SIEMPRE visible, fuera
+///   del condicional de cámara — única vía testeable y fallback garantizado.
 ///
 /// Anti doble-disparo: `DetectionSpeed.noDuplicates` + `_navigating` flag +
-/// `controller.stop()` tras el primer hit (el endpoint es idempotente, pero
-/// la UI igual previene).
+/// `controller.stop()` tras el primer hit.
 class ScanScreen extends ConsumerStatefulWidget {
   const ScanScreen({super.key});
 
@@ -33,13 +31,14 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   MobileScannerController? _cameraController;
   bool _cameraOn = false;
 
-  /// True desde que un código dispara el POST hasta éxito/navegación —
+  /// True desde que un código dispara la tx hasta éxito/navegación —
   /// bloquea re-disparos del scanner y taps extra.
   bool _navigating = false;
   bool _sending = false;
 
-  /// Formato del QR de las mesas del seed (único global en BD).
-  static final _codigoRegExp = RegExp(r'^GRI-MESA-\d{3}$');
+  /// Doc ID de mesa = código QR: `GRI-MESA-{slug-restaurante}-{numero:03d}`
+  /// (ej. GRI-MESA-demo-001 — research 10).
+  static final _codigoRegExp = RegExp(r'^GRI-MESA-[a-z0-9-]+-\d{3}$');
 
   @override
   void dispose() {
@@ -88,18 +87,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         ),
       );
       context.pushReplacement('/mesa');
-    } on DioException catch (e) {
+    } on SesionException catch (e) {
       if (!mounted) return;
       _navigating = false; // permite reintentar
-      final data = e.response?.data;
-      final detail = data is Map<String, dynamic> ? data['detail'] : null;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            detail is String && detail.isNotEmpty
-                ? detail
-                : 'No pudimos abrir la mesa. Verifica el código e intenta de nuevo.',
-          ),
+          content: Text(e.message),
           backgroundColor: GriColors.chipCanceladaFg,
         ),
       );
@@ -124,8 +117,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
   Widget build(BuildContext context) {
     // Mantiene vivo el (autoDispose) SesionController mientras la pantalla
     // existe — sin un listener, Riverpod 3 lo dispone tras el ref.read y el
-    // `state =` post-await del controller explota (misma razón por la que el
-    // wizard de reservas observa a ReservaController).
+    // `state =` post-await del controller explota.
     ref.watch(sesionControllerProvider);
 
     return Scaffold(
@@ -209,7 +201,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _sending ? null : _submitManual(),
                   decoration: InputDecoration(
-                    hintText: 'GRI-MESA-001',
+                    hintText: 'GRI-MESA-demo-001',
                     filled: true,
                     fillColor: Colors.white,
                     border: OutlineInputBorder(
@@ -218,10 +210,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                           color: GriColors.primaryTintBorder),
                     ),
                   ),
-                  validator: (v) =>
-                      v != null && _codigoRegExp.hasMatch(v.trim())
-                          ? null
-                          : 'El código tiene formato GRI-MESA-001 (3 dígitos)',
+                  validator: (v) => v != null && _codigoRegExp.hasMatch(v.trim())
+                      ? null
+                      : 'El código tiene formato GRI-MESA-demo-001',
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton(
