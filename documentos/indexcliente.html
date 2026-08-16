@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+    <title>
+        GRI - Cliente
+    </title>
+
+
+    <style>
+
+        /* =====================================================
+           VARIABLES
+        ===================================================== */
+
+        :root {
+
+            --primary: #ff4c05;
+            --primary-dark: #d93d00;
+
+            --background: #f7f7f7;
+
+            --white: #ffffff;
+
+            --text: #222;
+
+            --gray: #777;
+
+            --green: #20b26b;
+
+        }
+
+
+        /* =====================================================
+           CONFIGURACIÓN GENERAL
+        ===================================================== */
+
+        * {
+
+            margin: 0;
+
+            padding: 0;
+
+            box-sizing: border-box;
+
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+
+        }
+
+
+        body {
+
+            background:
+                var(--background);
+
+            color:
+                var(--text);
+
+        }
+
+
+        /* =====================================================
+           CONTENEDOR PRINCIPAL
+        ===================================================== */
+
+        .app {
+
+            max-width: 480px;
+
+            margin:
+                auto;
+
+            min-height:
+                100vh;
+
+            background:
+                var(--background);
+
+        }
+
+
+        /* =====================================================
+           HEADER
+        ===================================================== */
+
+        header {
+
+            background:
+                var(--white);
+
+            padding:
+                20px;
+
+            display:
+                flex;
+
+            justify-content:
+                space-between;
+
+            align-items:
+                center;
+
+            border-bottom:
+                1px solid #eee;
+
+        }
+
+
+        .logo {
+
+            display:
+                flex;
+
+            align-items:
+                center;
+
+            gap:
+                10px;
+
+        }
+
+
+        .logo-icon {
+
+            width:
+                40px;
+
+            height:
+                40px;
+
+            background:
+                var(--primary);
+
+            border-radius:
+                10px;
+
+            display:
+                flex;
+
+            justify-content:
+                center;
+
+            align-items:
+                center;
+
+            color:
+                white;
+
+            font-size:
+                22px;
+
+        }
+
+
+        .logo strong {
+
+            font-size:
+                22px;
+
+        }
+
+
+        /* =====================================================
+           BOTÓN QR
+        ===================================================== */
+
+        .qr-button {
+
+            width:
+                45px;
+
+            height:
+                45px;
+
+            border:
+                none;
+
+            border-radius:
+                12px;
+
+            background:
+                #fff0e9;
+
+            color:
+                var(--primary);
+
+            font-size:
+                22px;
+
+            cursor:
+                pointer;
+
+        }
+
+
+        /* =====================================================
+           CONTENIDO
+        ===================================================== */
+
+        .content {
+
+            padding:
+                20px;
+
+        }
+
+
+        /* =====================================================
+           BIENVENIDA
+        ===================================================== */
+
+        .welcome {
+
+            margin-bottom:
+                25px;
+
+        }
+
+
+        .welcome h2 {
+
+            font-size:
+                25px;
+
+        }
+
+
+        .welcome p {
+
+            color:
+                var(--gray);
+
+            margin-top:
+                5px;
+
+        }
+
+
+        /* =====================================================
+           RESTAURANTE
+        ===================================================== */
+
+        .restaurant {
+
+            background:
+                white;
+
+            border-radius:
+                18px;
+
+            overflow:
+                hidden;
+
+            margin-bottom:
+                20px;
+
+            box-shadow:
+                0 3px 12px
+                rgba(0,0,0,0.06);
+
+        }
+
+
+        .restaurant-image {
+
+            height:
+                150px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #ff6b35,
+                    #ff9b5a
+                );
+
+            display:
+                flex;
+
+            justify-content:
+                center;
+
+            align-items:
+                center;
+
+            font-size:
+                60px;
+
+        }
+
+
+        .restaurant-info {
+
+            padding:
+                18px;
+
+        }
+
+
+        .restaurant-info h3 {
+
+            font-size:
+                20px;
+
+        }
+
+
+        .restaurant-info p {
+
+            color:
+                var(--gray);
+
+            margin-top:
+                6px;
+
+        }
+
+
+        .rating {
+
+            margin-top:
+                10px;
+
+            color:
+                #f5a623;
+
+        }
+
+
+        /* =====================================================
+           BOTÓN RESERVAR
+        ===================================================== */
+
+        .reserve-button {
+
+            width:
+                100%;
+
+            padding:
+                14px;
+
+            margin-top:
+                15px;
+
+            border:
+                none;
+
+            border-radius:
+                10px;
+
+            background:
+                var(--primary);
+
+            color:
+                white;
+
+            font-size:
+                16px;
+
+            font-weight:
+                bold;
+
+            cursor:
+                pointer;
+
+        }
+
+
+        .reserve-button:hover {
+
+            background:
+                var(--primary-dark);
+
+        }
+
+
+        /* =====================================================
+           ACCIONES
+        ===================================================== */
+
+        .actions {
+
+            display:
+                grid;
+
+            grid-template-columns:
+                1fr 1fr;
+
+            gap:
+                15px;
+
+            margin-top:
+                20px;
+
+        }
+
+
+        .action {
+
+            background:
+                white;
+
+            border:
+                none;
+
+            border-radius:
+                15px;
+
+            padding:
+                20px;
+
+            text-align:
+                center;
+
+            cursor:
+                pointer;
+
+            box-shadow:
+                0 3px 10px
+                rgba(0,0,0,0.05);
+
+        }
+
+
+        .action-icon {
+
+            font-size:
+                30px;
+
+            margin-bottom:
+                10px;
+
+        }
+
+
+        .action strong {
+
+            display:
+                block;
+
+        }
+
+
+        .action span {
+
+            font-size:
+                12px;
+
+            color:
+                var(--gray);
+
+        }
+
+
+        /* =====================================================
+           RESERVA ACTIVA
+        ===================================================== */
+
+        .reservation {
+
+            background:
+                #fff0e9;
+
+            border:
+                1px solid #ffd6c7;
+
+            border-radius:
+                15px;
+
+            padding:
+                18px;
+
+            margin-top:
+                25px;
+
+        }
+
+
+        .reservation-header {
+
+            display:
+                flex;
+
+            justify-content:
+                space-between;
+
+        }
+
+
+        .reservation-header strong {
+
+            color:
+                var(--primary);
+
+        }
+
+
+        .reservation-info {
+
+            margin-top:
+                12px;
+
+            line-height:
+                1.7;
+
+        }
+
+
+        .status {
+
+            display:
+                inline-block;
+
+            padding:
+                5px 10px;
+
+            border-radius:
+                20px;
+
+            background:
+                #dff7eb;
+
+            color:
+                #168a52;
+
+            font-size:
+                12px;
+
+        }
+
+
+        /* =====================================================
+           BARRA INFERIOR
+        ===================================================== */
+
+        .bottom-nav {
+
+            position:
+                fixed;
+
+            bottom:
+                0;
+
+            left:
+                50%;
+
+            transform:
+                translateX(-50%);
+
+            width:
+                min(480px, 100%);
+
+            background:
+                white;
+
+            display:
+                flex;
+
+            justify-content:
+                space-around;
+
+            padding:
+                12px 5px;
+
+            border-top:
+                1px solid #eee;
+
+        }
+
+
+        .bottom-nav button {
+
+            border:
+                none;
+
+            background:
+                none;
+
+            color:
+                var(--gray);
+
+            cursor:
+                pointer;
+
+        }
+
+
+        .bottom-nav button.active {
+
+            color:
+                var(--primary);
+
+        }
+
+
+        .bottom-nav div {
+
+            font-size:
+                20px;
+
+        }
+
+
+        .bottom-nav span {
+
+            display:
+                block;
+
+            font-size:
+                10px;
+
+            margin-top:
+                3px;
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<div class="app">
+
+
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+
+    <header>
+
+        <div class="logo">
+
+            <div class="logo-icon">
+                🍽️
+            </div>
+
+            <strong>
+                GRI
+            </strong>
+
+        </div>
+
+
+        <!--
+            BOTÓN PARA ESCANEAR QR
+
+            En Flutter posteriormente este botón utilizará
+            la cámara del teléfono para leer el QR de una mesa.
+        -->
+
+        <button
+            class="qr-button"
+            onclick="scanQR()">
+
+            📷
+
+        </button>
+
+    </header>
+
+
+    <!-- =====================================================
+         CONTENIDO
+    ====================================================== -->
+
+    <main class="content">
+
+
+        <!-- =================================================
+             BIENVENIDA
+        ================================================== -->
+
+        <section class="welcome">
+
+            <h2>
+                ¡Hola, Carlos! 👋
+            </h2>
+
+            <p>
+                ¿Dónde quieres comer hoy?
+            </p>
+
+        </section>
+
+
+        <!-- =================================================
+             RESTAURANTE
+        ================================================== -->
+
+        <section class="restaurant">
+
+
+            <div class="restaurant-image">
+
+                🍽️
+
+            </div>
+
+
+            <div class="restaurant-info">
+
+                <h3>
+                    Restaurante GRI
+                </h3>
+
+
+                <p>
+                    Comida colombiana · Internacional
+                </p>
+
+
+                <div class="rating">
+
+                    ⭐ 4.8
+                    <span style="color:#777;">
+                        (245 opiniones)
+                    </span>
+
+                </div>
+
+
+                <!--
+                    BOTÓN DE RESERVA
+                -->
+
+                <button
+                    class="reserve-button"
+                    onclick="reservar()">
+
+                    📅 Reservar una mesa
+
+                </button>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             ACCIONES
+        ================================================== -->
+
+        <div class="actions">
+
+
+            <!-- ESCANEAR QR -->
+
+            <button
+                class="action"
+                onclick="scanQR()">
+
+                <div class="action-icon">
+                    📷
+                </div>
+
+                <strong>
+                    Escanear mesa
+                </strong>
+
+                <span>
+                    Ordena desde tu celular
+                </span>
+
+            </button>
+
+
+            <!-- RESERVAS -->
+
+            <button
+                class="action"
+                onclick="misReservas()">
+
+                <div class="action-icon">
+                    📅
+                </div>
+
+                <strong>
+                    Mis reservas
+                </strong>
+
+                <span>
+                    Consulta tus reservas
+                </span>
+
+            </button>
+
+        </div>
+
+
+
+        <!-- =================================================
+             RESERVA ACTIVA
+        ================================================== -->
+
+        <section class="reservation">
+
+
+            <div class="reservation-header">
+
+                <strong>
+                    Próxima reserva
+                </strong>
+
+                <span class="status">
+                    Confirmada
+                </span>
+
+            </div>
+
+
+            <div class="reservation-info">
+
+                📅 Hoy, 7:00 PM
+
+                <br>
+
+                🪑 Mesa 4
+
+                <br>
+
+                👥 4 personas
+
+                <br>
+
+                📍 Restaurante GRI
+
+            </div>
+
+        </section>
+
+
+    </main>
+
+
+
+    <!-- =====================================================
+         NAVEGACIÓN INFERIOR
+    ====================================================== -->
+
+    <nav class="bottom-nav">
+
+
+        <button class="active">
+
+            <div>
+                🏠
+            </div>
+
+            <span>
+                Inicio
+            </span>
+
+        </button>
+
+
+        <button>
+
+            <div>
+                🔍
+            </div>
+
+            <span>
+                Restaurantes
+            </span>
+
+        </button>
+
+
+        <button>
+
+            <div>
+                📅
+            </div>
+
+            <span>
+                Reservas
+            </span>
+
+        </button>
+
+
+        <button>
+
+            <div>
+                👤
+            </div>
+
+            <span>
+                Perfil
+            </span>
+
+        </button>
+
+
+    </nav>
+
+</div>
+
+
+
+<script>
+
+
+    /*
+        ========================================================
+        ESCANEAR QR
+        ========================================================
+
+        Actualmente solamente mostramos un mensaje.
+
+        En Flutter esta función se reemplazará por un lector
+        real de códigos QR utilizando la cámara.
+
+        El QR de cada mesa podría contener algo como:
+
+        GRI-MESA-001
+
+        o:
+
+        https://gri.com/mesa/001
+
+        Flutter leerá el código y consultará nuestra API.
+
+        Ejemplo:
+
+        GET /api/mesas/001
+
+    */
+
+    function scanQR() {
+
+        alert(
+            "📷 Escáner QR\n\n" +
+            "Aquí se abrirá la cámara para escanear " +
+            "el código QR de la mesa."
+        );
+
+    }
+
+
+
+    /*
+        ========================================================
+        RESERVAR
+        ========================================================
+
+        Posteriormente esta función abrirá:
+
+        1. Restaurante
+        2. Fecha
+        3. Hora
+        4. Número de personas
+        5. Mesas disponibles
+
+        Luego Flutter enviará:
+
+        POST /api/reservas
+
+        hacia nuestra API.
+
+    */
+
+    function reservar() {
+
+        alert(
+            "📅 Reservar mesa\n\n" +
+            "Aquí se abrirá el sistema de reservas."
+        );
+
+    }
+
+
+
+    /*
+        ========================================================
+        MIS RESERVAS
+        ========================================================
+
+        Posteriormente consultaremos:
+
+        GET /api/reservas/cliente/ID
+
+    */
+
+    function misReservas() {
+
+        alert(
+            "📅 Mis reservas\n\n" +
+            "Aquí aparecerán tus reservas."
+        );
+
+    }
+
+</script>
+
+
+</body>
+
+</html>
