@@ -8,16 +8,22 @@ part of 'restaurantes_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Lista de restaurantes activos — INTERINO Task 1: sigue legacy REST
-/// (api_client) con ids String; Task 2 lo reescribe sobre Firestore
-/// (`collection('restaurantes').where('activo')` + fromDoc).
+/// Lista pública de restaurantes activos — Firestore (MIGRA-01).
+///
+/// `collection('restaurantes').where('activo', isEqualTo: true)` +
+/// [Restaurante.fromDoc]; orden estable por nombre (el slug ya no es un
+/// secuencia). SIN dio/api_client — el override de `firestoreProvider`
+/// en tests corta toda la feature del backend real.
 
 @ProviderFor(restaurantesList)
 final restaurantesListProvider = RestaurantesListProvider._();
 
-/// Lista de restaurantes activos — INTERINO Task 1: sigue legacy REST
-/// (api_client) con ids String; Task 2 lo reescribe sobre Firestore
-/// (`collection('restaurantes').where('activo')` + fromDoc).
+/// Lista pública de restaurantes activos — Firestore (MIGRA-01).
+///
+/// `collection('restaurantes').where('activo', isEqualTo: true)` +
+/// [Restaurante.fromDoc]; orden estable por nombre (el slug ya no es un
+/// secuencia). SIN dio/api_client — el override de `firestoreProvider`
+/// en tests corta toda la feature del backend real.
 
 final class RestaurantesListProvider
     extends
@@ -29,9 +35,12 @@ final class RestaurantesListProvider
     with
         $FutureModifier<List<Restaurante>>,
         $FutureProvider<List<Restaurante>> {
-  /// Lista de restaurantes activos — INTERINO Task 1: sigue legacy REST
-  /// (api_client) con ids String; Task 2 lo reescribe sobre Firestore
-  /// (`collection('restaurantes').where('activo')` + fromDoc).
+  /// Lista pública de restaurantes activos — Firestore (MIGRA-01).
+  ///
+  /// `collection('restaurantes').where('activo', isEqualTo: true)` +
+  /// [Restaurante.fromDoc]; orden estable por nombre (el slug ya no es un
+  /// secuencia). SIN dio/api_client — el override de `firestoreProvider`
+  /// en tests corta toda la feature del backend real.
   RestaurantesListProvider._()
     : super(
         from: null,
@@ -58,14 +67,28 @@ final class RestaurantesListProvider
   }
 }
 
-String _$restaurantesListHash() => r'821aea668fd1e1cae71e1c909cd1c484d85ed3be';
+String _$restaurantesListHash() => r'2dbf6414521be1bf6703537e87dc12d48a20969b';
 
-/// Detalle con menú anidado — INTERINO Task 1 (legacy REST, id String).
+/// Detalle público con menú anidado — 3 lecturas de Firestore (MIGRA-01):
+/// doc `restaurantes/{id}` + categorías + productos del restaurante,
+/// agrupados por `categoriaId` (colección plana, research 10).
+///
+/// Nota de índices: el `orderBy('orden')` de las categorías se hace
+/// client-side — el índice compuesto `categorias(restauranteId, orden)` NO
+/// existe en 10-01 y el where simple usa índice de campo único (el N por
+/// restaurante es chico; comportamiento idéntico).
 
 @ProviderFor(restauranteDetalle)
 final restauranteDetalleProvider = RestauranteDetalleFamily._();
 
-/// Detalle con menú anidado — INTERINO Task 1 (legacy REST, id String).
+/// Detalle público con menú anidado — 3 lecturas de Firestore (MIGRA-01):
+/// doc `restaurantes/{id}` + categorías + productos del restaurante,
+/// agrupados por `categoriaId` (colección plana, research 10).
+///
+/// Nota de índices: el `orderBy('orden')` de las categorías se hace
+/// client-side — el índice compuesto `categorias(restauranteId, orden)` NO
+/// existe en 10-01 y el where simple usa índice de campo único (el N por
+/// restaurante es chico; comportamiento idéntico).
 
 final class RestauranteDetalleProvider
     extends
@@ -77,7 +100,14 @@ final class RestauranteDetalleProvider
     with
         $FutureModifier<RestauranteDetalle>,
         $FutureProvider<RestauranteDetalle> {
-  /// Detalle con menú anidado — INTERINO Task 1 (legacy REST, id String).
+  /// Detalle público con menú anidado — 3 lecturas de Firestore (MIGRA-01):
+  /// doc `restaurantes/{id}` + categorías + productos del restaurante,
+  /// agrupados por `categoriaId` (colección plana, research 10).
+  ///
+  /// Nota de índices: el `orderBy('orden')` de las categorías se hace
+  /// client-side — el índice compuesto `categorias(restauranteId, orden)` NO
+  /// existe en 10-01 y el where simple usa índice de campo único (el N por
+  /// restaurante es chico; comportamiento idéntico).
   RestauranteDetalleProvider._({
     required RestauranteDetalleFamily super.from,
     required String super.argument,
@@ -123,9 +153,16 @@ final class RestauranteDetalleProvider
 }
 
 String _$restauranteDetalleHash() =>
-    r'60daccafdb92e70e3554b3f982a891765d22e728';
+    r'2bd8d3f5aa2f51ed3ff17dfb708e1205881138d7';
 
-/// Detalle con menú anidado — INTERINO Task 1 (legacy REST, id String).
+/// Detalle público con menú anidado — 3 lecturas de Firestore (MIGRA-01):
+/// doc `restaurantes/{id}` + categorías + productos del restaurante,
+/// agrupados por `categoriaId` (colección plana, research 10).
+///
+/// Nota de índices: el `orderBy('orden')` de las categorías se hace
+/// client-side — el índice compuesto `categorias(restauranteId, orden)` NO
+/// existe en 10-01 y el where simple usa índice de campo único (el N por
+/// restaurante es chico; comportamiento idéntico).
 
 final class RestauranteDetalleFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<RestauranteDetalle>, String> {
@@ -138,7 +175,14 @@ final class RestauranteDetalleFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// Detalle con menú anidado — INTERINO Task 1 (legacy REST, id String).
+  /// Detalle público con menú anidado — 3 lecturas de Firestore (MIGRA-01):
+  /// doc `restaurantes/{id}` + categorías + productos del restaurante,
+  /// agrupados por `categoriaId` (colección plana, research 10).
+  ///
+  /// Nota de índices: el `orderBy('orden')` de las categorías se hace
+  /// client-side — el índice compuesto `categorias(restauranteId, orden)` NO
+  /// existe en 10-01 y el where simple usa índice de campo único (el N por
+  /// restaurante es chico; comportamiento idéntico).
 
   RestauranteDetalleProvider call(String id) =>
       RestauranteDetalleProvider._(argument: id, from: this);
