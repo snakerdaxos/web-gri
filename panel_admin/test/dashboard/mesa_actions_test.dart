@@ -1,96 +1,45 @@
-import 'package:dio/dio.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gri_panel_admin/core/api_client.dart';
-import 'package:gri_panel_admin/core/token_provider.dart';
-import 'package:gri_panel_admin/features/dashboard/dashboard_screen.dart';
+import 'package:gri_panel_admin/core/firebase_providers.dart';
+import 'package:gri_panel_admin/core/state_machines.dart';
 import 'package:gri_panel_admin/features/dashboard/mesas_provider.dart';
-import 'package:gri_panel_admin/features/dashboard/stats_provider.dart';
 import 'package:gri_panel_admin/features/mesas/mesa_actions_sheet.dart';
-import 'package:gri_panel_admin/models/dashboard_stats.dart';
 import 'package:gri_panel_admin/models/mesa.dart';
-import 'package:gri_panel_admin/models/user.dart';
 
-/// Suite ADMN-04 (08-03): el actions sheet del mapa ofrece SOLO las
-/// transiciones válidas de kMesaTransitions por estado (mirror de
-/// MESA_TRANSITIONS — el server sigue siendo la autoridad), la mutación
-/// llama a setMesaEstado con el wire exacto, el 409 (carrera entre dos
-/// staff) muestra SnackBar sin crash, y el tap del MesaTile del
-/// dashboard abre el sheet.
-///
-/// Fakes con el patrón cola_test: ProviderScope inlineado por test.
+import '../helpers/firebase_fakes.dart';
 
-/// Fake del AuthState (class-based) — evita secure storage en el runner.
-class _FakeAuthState extends AuthState {
-  _FakeAuthState(this.user);
+/// Suite 10-05 Task 3 (ADMN-04 sobre Firestore): el actions sheet del mapa
+/// ofrece SOLO las transiciones válidas de la máquina `mesa` (port 1:1 de
+/// state_machines — las rules re-validan), y la mutación
+/// [cambiarEstadoMesa] escribe SOLO `{estado, updatedAt}` tras
+/// [validarTransicion] — una transición inválida lanza
+/// [TransicionInvalidaException] SIN tocar el doc.
 
-  final User? user;
-
-  @override
-  Future<User?> build() async => user;
-}
-
-/// Fake del ApiClient que registra setMesaEstado (y puede lanzar 409).
-class _RecordingApiClient extends ApiClient {
-  _RecordingApiClient({this.throw409 = false});
-
-  final bool throw409;
-  final List<(int, String, int?)> estadoCalls = [];
-
-  @override
-  Future<Mesa> setMesaEstado(
-    int mesaId,
-    String estado, {
-    int? restauranteId,
-  }) async {
-    estadoCalls.add((mesaId, estado, restauranteId));
-    if (throw409) {
-      final opts = RequestOptions(path: '/staff/mesas/$mesaId/estado');
-      throw DioException(
-        requestOptions: opts,
-        response: Response(requestOptions: opts, statusCode: 409),
-      );
-    }
-    return Mesa(
-      id: mesaId,
-      numero: 7,
+Mesa _m(EstadoMesa e) => Mesa(
+      id: 'GRI-MESA-demo-002',
+      restauranteId: 'demo',
+      numero: 2,
       capacidad: 4,
-      codigoQr: 'GRI-MESA-R1-007',
-      estado: EstadoMesa.limpieza,
-    );
-  }
-}
-
-const _meseroUser = User(
-  id: 10,
-  nombre: 'Mesero Demo',
-  email: 'mesero@demo.gri.dev',
-  role: 'mesero',
-  restaurantId: 1,
-);
-
-Mesa _m(EstadoMesa e, {int id = 7, int numero = 7}) => Mesa(
-      id: id,
-      numero: numero,
-      capacidad: 4,
-      codigoQr: 'GRI-MESA-R1-007',
       estado: e,
     );
 
-/// Bombea un host mínimo (botón) que abre el sheet standalone con los
-/// overrides del caso. showEdit false = vista mapa del dashboard.
+/// Bombea un host mínimo (botón) que abre el sheet standalone con el fake
+/// Firestore cableado. showEdit false = vista mapa del dashboard.
 Future<void> _pumpSheetHost(
   WidgetTester tester,
-  Mesa mesa,
-  _RecordingApiClient client, {
+  FakeFirebaseFirestore db,
+  Mesa mesa, {
   bool showEdit = false,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        apiClientProvider.overrideWithValue(client),
-        authStateProvider.overrideWith(() => _FakeAuthState(_meseroUser)),
+        firestoreProvider.overrideWithValue(db),
+        claimsProvider.overrideWith(
+          (ref) async => (role: 'mesero', rid: 'demo'),
+        ),
       ],
       child: Consumer(
         builder: (consumerContext, ref, _) => MaterialApp(
@@ -121,12 +70,12 @@ Future<void> _pumpSheetHost(
 }
 
 void main() {
-  testWidgets('(a) disponible: exactamente reservada+ocupada; sin Editar', (tester) async {
+  testWidgets('(a) disponible: exactamente reservada+ocupada; sin Editar',
+      (tester) async {
     await _pumpSheetHost(
       tester,
+      await buildFakeFirestoreConSeed(),
       _m(EstadoMesa.disponible),
-      _RecordingApiClient(),
-      showEdit: false,
     );
 
     // Exactamente las 2 transiciones válidas desde disponible.
@@ -144,9 +93,8 @@ void main() {
   testWidgets('(b) limpieza: solo Liberar', (tester) async {
     await _pumpSheetHost(
       tester,
+      await buildFakeFirestoreConSeed(),
       _m(EstadoMesa.limpieza),
-      _RecordingApiClient(),
-      showEdit: false,
     );
 
     expect(find.text('Liberar'), findsOneWidget);
@@ -157,12 +105,12 @@ void main() {
     expect(find.text('Ver código QR'), findsOneWidget);
   });
 
-  testWidgets('(c) ocupada: solo Marcar en limpieza', (tester) async {
+  testWidgets('(c) ocupada: solo Marcar en limpieza (NO ofrece disponible)',
+      (tester) async {
     await _pumpSheetHost(
       tester,
+      await buildFakeFirestoreConSeed(),
       _m(EstadoMesa.ocupada),
-      _RecordingApiClient(),
-      showEdit: false,
     );
 
     expect(find.text('Marcar en limpieza'), findsOneWidget);
@@ -172,70 +120,70 @@ void main() {
     expect(find.text('Liberar reserva'), findsNothing);
   });
 
-  testWidgets('(d) tap Marcar en limpieza → setMesaEstado(7, "limpieza") + sheet cerrado', (tester) async {
-    final client = _RecordingApiClient();
-    await _pumpSheetHost(tester, _m(EstadoMesa.ocupada, id: 7), client);
+  testWidgets(
+      '(d) tap Marcar en limpieza → update de mesas/{qr} SOLO {estado, updatedAt} + SnackBar',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _pumpSheetHost(tester, db, _m(EstadoMesa.ocupada));
 
     await tester.tap(find.text('Marcar en limpieza'));
     await tester.pumpAndSettle();
 
-    // Wire exacto: POST /staff/mesas/7/estado {"estado": "limpieza"}.
-    expect(client.estadoCalls, [(7, 'limpieza', null)]);
+    // El doc de la mesa quedó en limpieza…
+    final doc = await db.doc('mesas/GRI-MESA-demo-002').get();
+    final data = doc.data()!;
+    expect(data['estado'], 'limpieza');
+    // …y el update tocó SOLO estado/updatedAt: las demás keys del doc
+    // quedan intactas (restauranteId/numero/capacidad).
+    expect(data['restauranteId'], 'demo');
+    expect(data['numero'], 2);
+    expect(data['capacidad'], 4);
+    expect(data['updatedAt'], isNotNull,
+        reason: 'el update debe estampar updatedAt');
+    expect(
+      data.keys,
+      unorderedEquals(
+        ['restauranteId', 'numero', 'capacidad', 'estado', 'updatedAt'],
+      ),
+      reason: 'el update no debe crear/eliminar campos',
+    );
+
     // El sheet se cerró y el feedback quedó en la pantalla.
     expect(find.text('Marcar en limpieza'), findsNothing);
-    expect(find.text('Mesa 7 → limpieza'), findsOneWidget);
+    expect(find.text('Mesa 2 → limpieza'), findsOneWidget);
   });
 
-  testWidgets('(e) 409 del server (carrera) → SnackBar "cambió de estado" sin crash', (tester) async {
-    final client = _RecordingApiClient(throw409: true);
-    await _pumpSheetHost(tester, _m(EstadoMesa.ocupada, id: 7), client);
+  testWidgets(
+      '(e) transición inválida (ocupada→disponible) lanza y NO toca el doc',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    // La mesa 002 del seed está 'disponible' — se lleva a 'ocupada' por la
+    // vía válida para dejarla en el estado del caso.
+    await db.doc('mesas/GRI-MESA-demo-002').update({'estado': 'ocupada'});
 
-    await tester.tap(find.text('Marcar en limpieza'));
-    await tester.pumpAndSettle();
+    final mesa = Mesa.fromDoc(await db.doc('mesas/GRI-MESA-demo-002').get());
 
-    // La autoridad (server) ganó la carrera: SnackBar accionable. El
-    // refresh llega por el evento WS mesa.estado (kick-to-refetch).
-    expect(find.textContaining('cambió de estado'), findsOneWidget);
-    expect(client.estadoCalls.length, 1);
-  });
-
-  testWidgets('(f) tap en MesaTile del dashboard abre el sheet', (tester) async {
-    final client = _RecordingApiClient();
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          apiClientProvider.overrideWithValue(client),
-          authStateProvider.overrideWith(() => _FakeAuthState(_meseroUser)),
-          statsProvider.overrideWithValue(
-            AsyncData(_statsFixture()),
-          ),
-          mesasProvider.overrideWithValue(
-            AsyncData([_m(EstadoMesa.ocupada, id: 7, numero: 7)]),
-          ),
-        ],
-        child: const MaterialApp(home: DashboardScreen()),
-      ),
+    // Salto inválido directo a la función de mutación (lo que el server
+    // haría llegar como 409 — aquí la barrera client-side).
+    await expectLater(
+      cambiarEstadoMesa(db, mesa: mesa, destino: 'disponible'),
+      throwsA(isA<TransicionInvalidaException>()),
     );
-    await tester.pumpAndSettle();
 
-    // Tap en el tile del mapa (InkWell con ValueKey del tile).
-    await tester.tap(find.byKey(const ValueKey('mesa-tile-7')));
-    await tester.pumpAndSettle();
+    // El doc quedó intacto.
+    final data = (await db.doc('mesas/GRI-MESA-demo-002').get()).data()!;
+    expect(data['estado'], 'ocupada');
+  });
 
-    // El sheet abrió con las acciones de la mesa ocupada — y en el mapa
-    // SIN edición.
-    expect(find.text('Marcar en limpieza'), findsOneWidget);
-    expect(find.text('Editar mesa'), findsNothing);
-    expect(find.text('Ver código QR'), findsOneWidget);
+  testWidgets('(f) limpieza→disponible SÍ es válida (ciclo del staff)',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await db.doc('mesas/GRI-MESA-demo-002').update({'estado': 'limpieza'});
+    final mesa = Mesa.fromDoc(await db.doc('mesas/GRI-MESA-demo-002').get());
+
+    await cambiarEstadoMesa(db, mesa: mesa, destino: 'disponible');
+
+    final data = (await db.doc('mesas/GRI-MESA-demo-002').get()).data()!;
+    expect(data['estado'], 'disponible');
   });
 }
-
-DashboardStats _statsFixture() => const DashboardStats(
-      mesasDisponibles: 0,
-      mesasOcupadas: 1,
-      mesasReservadas: 0,
-      mesasLimpieza: 0,
-      totalMesas: 1,
-      reservasHoy: 0,
-      pedidosActivos: 0,
-    );

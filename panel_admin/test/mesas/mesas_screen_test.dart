@@ -30,7 +30,7 @@ class _FakeAuthState extends AuthState {
 /// mesasProvider se overridea por valor).
 class _RecordingApiClient extends ApiClient {
   final List<(int, int, int?)> createCalls = [];
-  final List<(int, int?, int?, int?)> updateCalls = [];
+  final List<(String, int?, int?, int?)> updateCalls = [];
 
   @override
   Future<Mesa> createMesa(
@@ -40,17 +40,17 @@ class _RecordingApiClient extends ApiClient {
   }) async {
     createCalls.add((numero, capacidad, restauranteId));
     return Mesa(
-      id: 99,
+      id: 'GRI-MESA-R1-${numero.toString().padLeft(3, '0')}',
+      restauranteId: 'R1',
       numero: numero,
       capacidad: capacidad,
-      codigoQr: 'GRI-MESA-R1-${numero.toString().padLeft(3, '0')}',
       estado: EstadoMesa.disponible,
     );
   }
 
   @override
   Future<Mesa> updateMesa(
-    int mesaId, {
+    String mesaId, {
     int? numero,
     int? capacidad,
     int? restauranteId,
@@ -58,9 +58,9 @@ class _RecordingApiClient extends ApiClient {
     updateCalls.add((mesaId, numero, capacidad, restauranteId));
     return Mesa(
       id: mesaId,
+      restauranteId: 'R1',
       numero: numero ?? 1,
       capacidad: capacidad ?? 4,
-      codigoQr: 'GRI-MESA-R1-006',
       estado: EstadoMesa.disponible,
     );
   }
@@ -76,17 +76,17 @@ const _adminUser = User(
 
 const _mesas = <Mesa>[
   Mesa(
-    id: 1,
+    id: 'GRI-MESA-R1-001',
+    restauranteId: 'R1',
     numero: 1,
     capacidad: 4,
-    codigoQr: 'GRI-MESA-R1-001',
     estado: EstadoMesa.disponible,
   ),
   Mesa(
-    id: 5,
+    id: 'GRI-MESA-R1-005',
+    restauranteId: 'R1',
     numero: 5,
     capacidad: 2,
-    codigoQr: 'GRI-MESA-R1-005',
     estado: EstadoMesa.ocupada,
   ),
 ];
@@ -169,8 +169,8 @@ void main() {
     await tester.tap(find.text('Guardar'));
     await tester.pumpAndSettle();
 
-    // Wire exacto: PATCH /staff/mesas/5 {numero: 6} — capacidad sin
-    // cambios NO viaja.
-    expect(client.updateCalls, [(5, 6, null, null)]);
+    // Wire exacto: PATCH /staff/mesas/GRI-MESA-R1-005 {numero: 6} —
+    // capacidad sin cambios NO viaja (doc ID = código QR, Phase 10-05).
+    expect(client.updateCalls, [('GRI-MESA-R1-005', 6, null, null)]);
   });
 }

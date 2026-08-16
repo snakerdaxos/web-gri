@@ -68,20 +68,22 @@ final _clientes = <ClienteResumen>[
 
 final _pedidosAna = <PedidoStaff>[
   PedidoStaff(
-    id: 11,
-    sesionId: 3,
+    id: 'ped-ana-11',
+    restauranteId: 'R1',
+    mesaId: 'GRI-MESA-R1-002',
+    sesionId: 'GRI-MESA-R1-002',
     mesaNumero: 2,
     estado: EstadoPedido.pagado,
-    total: 59500.0,
+    total: 59500,
     notas: null,
     createdAt: DateTime.parse('2026-08-14T20:15:03'),
     items: const [
       PedidoStaffItem(
-        productoId: 5,
+        productoId: '5',
         nombre: 'Patacón',
         cantidad: 2,
-        precioUnitario: 15500.0,
-        subtotal: 31000.0,
+        precio: 15500,
+        subtotal: 31000,
       ),
     ],
     usuarioNombre: 'Ana',

@@ -15,10 +15,10 @@ import 'package:qr_flutter/qr_flutter.dart';
 /// el browser (package:web) — en la VM del runner lanzaría.
 
 const _mesa = Mesa(
-  id: 5,
+  id: 'GRI-MESA-R1-005',
+  restauranteId: 'R1',
   numero: 5,
   capacidad: 4,
-  codigoQr: 'GRI-MESA-R1-005',
   estado: EstadoMesa.disponible,
 );
 

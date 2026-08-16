@@ -34,7 +34,7 @@ class _FakeApiClient extends ApiClient {
   _FakeApiClient({this.reservas = const [], this.estadoError});
 
   final List<Map<String, dynamic>> reservasCalls = [];
-  final List<(int, String)> setEstadoCalls = [];
+  final List<(String, String)> setEstadoCalls = [];
 
   List<Reserva> reservas;
   final DioException? estadoError;
@@ -50,7 +50,7 @@ class _FakeApiClient extends ApiClient {
 
   @override
   Future<Mesa> setMesaEstado(
-    int mesaId,
+    String mesaId,
     String estado, {
     int? restauranteId,
   }) async {
@@ -58,9 +58,9 @@ class _FakeApiClient extends ApiClient {
     if (estadoError != null) throw estadoError!;
     return Mesa(
       id: mesaId,
+      restauranteId: 'R1',
       numero: 2,
       capacidad: 4,
-      codigoQr: 'GRI-MESA-002',
       estado: EstadoMesa.ocupada,
     );
   }
@@ -170,8 +170,9 @@ void main() {
       await tester.tap(find.text('Marcar ocupada'));
       await tester.pumpAndSettle();
 
-      // Wire exacto: POST /staff/mesas/2/estado {"estado": "ocupada"}.
-      expect(client.setEstadoCalls, [(2, 'ocupada')]);
+      // Wire exacto: POST /staff/mesas/2/estado {"estado": "ocupada"} —
+      // mesaId viaja como String (doc ID = código QR, Phase 10-05).
+      expect(client.setEstadoCalls, [('2', 'ocupada')]);
       expect(find.text('Mesa 2 marcada ocupada'), findsOneWidget);
     },
   );
@@ -185,10 +186,10 @@ void main() {
     );
     await _pump(tester, client);
 
-    await tester.tap(find.text('Marcar ocupada'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Marcar ocupada'));
+      await tester.pumpAndSettle();
 
-    expect(client.setEstadoCalls, [(2, 'ocupada')]);
+      expect(client.setEstadoCalls, [('2', 'ocupada')]);
     expect(find.text('La mesa ya cambió de estado'), findsOneWidget);
     // El listado se refrescó (invalidate → re-fetch del día).
     expect(client.reservasCalls.length, greaterThanOrEqualTo(2));
