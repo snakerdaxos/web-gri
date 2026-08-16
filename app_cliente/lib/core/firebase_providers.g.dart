@@ -107,22 +107,22 @@ final class FirestoreProvider
 String _$firestoreHash() => r'864285def6284159b44f9598dcde96347e0c1dce';
 
 /// Stream de sesión: emite `User?` en cada login/logout + el usuario
-/// persistido al arrancar (persistencia nativa del SDK — reemplaza a
-/// auth_storage + token_provider).
+/// persistido al arrancar (persistencia nativa del SDK — sustituyó a la
+/// capa REST de tokens de la era anterior).
 
 @ProviderFor(authStateChanges)
 final authStateChangesProvider = AuthStateChangesProvider._();
 
 /// Stream de sesión: emite `User?` en cada login/logout + el usuario
-/// persistido al arrancar (persistencia nativa del SDK — reemplaza a
-/// auth_storage + token_provider).
+/// persistido al arrancar (persistencia nativa del SDK — sustituyó a la
+/// capa REST de tokens de la era anterior).
 
 final class AuthStateChangesProvider
     extends $FunctionalProvider<AsyncValue<User?>, User?, Stream<User?>>
     with $FutureModifier<User?>, $StreamProvider<User?> {
   /// Stream de sesión: emite `User?` en cada login/logout + el usuario
-  /// persistido al arrancar (persistencia nativa del SDK — reemplaza a
-  /// auth_storage + token_provider).
+  /// persistido al arrancar (persistencia nativa del SDK — sustituyó a la
+  /// capa REST de tokens de la era anterior).
   AuthStateChangesProvider._()
     : super(
         from: null,

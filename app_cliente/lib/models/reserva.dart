@@ -25,7 +25,7 @@ EstadoReserva estadoReservaFromJson(String? raw) => switch (raw) {
 /// * [restauranteNombre] NO vive en el doc: lo enriquece el provider
 ///   (join client-side con `restaurantes/{id}`).
 ///
-/// `fromJson` SOLO sobrevive para `api_client` (legacy REST) hasta 10-04.
+/// `fromJson` heredado de la era REST — sin uso tras la migración.
 @freezed
 abstract class Reserva with _$Reserva {
   const factory Reserva({

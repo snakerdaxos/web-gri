@@ -9,8 +9,8 @@ part 'restaurante_detalle.g.dart';
 /// Detalle público con menú anidado — ensamblado con 3 lecturas de
 /// Firestore (doc del restaurante + categorías + productos, research 10).
 ///
-/// `fromJson` SOLO sobrevive para `api_client` (legacy REST) hasta 10-04;
-/// la vía canónica es [fromDoc] con las categorías ya agrupadas.
+/// `fromJson` heredado de la era REST — sin uso tras la migración; la
+/// vía canónica es [fromDoc] con las categorías ya agrupadas.
 @freezed
 abstract class RestauranteDetalle with _$RestauranteDetalle {
   const factory RestauranteDetalle({

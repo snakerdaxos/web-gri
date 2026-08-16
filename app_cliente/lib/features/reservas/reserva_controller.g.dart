@@ -9,17 +9,23 @@ part of 'reserva_controller.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// Orquesta las mutaciones de reservas del cliente sobre Firestore.
-/// [misReservas] es un stream → la lista se refresca sola (REALTIME).
+///
+/// `misReservas` es un stream → la lista se refresca sola tras cada
+/// mutación (REALTIME): NO hay invalidate (era el refetch de la era REST).
 
 @ProviderFor(ReservaController)
 final reservaControllerProvider = ReservaControllerProvider._();
 
 /// Orquesta las mutaciones de reservas del cliente sobre Firestore.
-/// [misReservas] es un stream → la lista se refresca sola (REALTIME).
+///
+/// `misReservas` es un stream → la lista se refresca sola tras cada
+/// mutación (REALTIME): NO hay invalidate (era el refetch de la era REST).
 final class ReservaControllerProvider
     extends $AsyncNotifierProvider<ReservaController, void> {
   /// Orquesta las mutaciones de reservas del cliente sobre Firestore.
-  /// [misReservas] es un stream → la lista se refresca sola (REALTIME).
+  ///
+  /// `misReservas` es un stream → la lista se refresca sola tras cada
+  /// mutación (REALTIME): NO hay invalidate (era el refetch de la era REST).
   ReservaControllerProvider._()
     : super(
         from: null,
@@ -39,10 +45,12 @@ final class ReservaControllerProvider
   ReservaController create() => ReservaController();
 }
 
-String _$reservaControllerHash() => r'7e69e96dc1cf27c9eb60afd32f7d8d3840968ad4';
+String _$reservaControllerHash() => r'd79e772aeb617d4240b510600254327675416a4d';
 
 /// Orquesta las mutaciones de reservas del cliente sobre Firestore.
-/// [misReservas] es un stream → la lista se refresca sola (REALTIME).
+///
+/// `misReservas` es un stream → la lista se refresca sola tras cada
+/// mutación (REALTIME): NO hay invalidate (era el refetch de la era REST).
 
 abstract class _$ReservaController extends $AsyncNotifier<void> {
   FutureOr<void> build();

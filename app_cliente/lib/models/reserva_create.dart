@@ -10,8 +10,8 @@ part 'reserva_create.g.dart';
 /// * [restauranteId] es el slug String del doc `restaurantes/{slug}`.
 /// * [fecha] = "YYYY-MM-DD", [hora] = slot 0..23 (siempre :00).
 ///
-/// SIN `fromDoc`: nunca se lee de Firestore. `fromJson`/`toJson` solo
-/// sobreviven para `api_client` (legacy REST) hasta su purga en 10-04.
+/// SIN `fromDoc`: nunca se lee de Firestore. `fromJson`/`toJson`
+/// heredados de la era REST — sin uso tras la migración.
 @freezed
 abstract class ReservaCreate with _$ReservaCreate {
   const factory ReservaCreate({

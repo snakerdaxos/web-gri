@@ -30,7 +30,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // authStateProvider NUEVO (FirebaseAuth, 10-02) — displayName para el
-    // greeting; ya no el token_provider legacy.
+    // greeting; ya no la capa de sesión legacy de la era REST.
     final user = ref.watch(authStateProvider).value;
     final restaurantesAsync = ref.watch(restaurantesListProvider);
 

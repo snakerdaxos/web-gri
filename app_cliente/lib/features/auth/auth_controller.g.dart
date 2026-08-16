@@ -9,7 +9,7 @@ part of 'auth_controller.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// Fuente única de verdad de "¿hay sesión?" — la lee el redirect del
-/// GoRouter (reemplaza a token_provider.AuthState). Stream nativo del SDK:
+/// GoRouter (sustituyó al AuthState de la era REST). Stream nativo del SDK:
 /// persistencia + refresh de token gratis.
 ///
 /// Solo `AsyncData` con User no-null cuenta como "logueado" (isLoading y
@@ -19,7 +19,7 @@ part of 'auth_controller.dart';
 final authStateProvider = AuthStateProvider._();
 
 /// Fuente única de verdad de "¿hay sesión?" — la lee el redirect del
-/// GoRouter (reemplaza a token_provider.AuthState). Stream nativo del SDK:
+/// GoRouter (sustituyó al AuthState de la era REST). Stream nativo del SDK:
 /// persistencia + refresh de token gratis.
 ///
 /// Solo `AsyncData` con User no-null cuenta como "logueado" (isLoading y
@@ -29,7 +29,7 @@ final class AuthStateProvider
     extends $FunctionalProvider<AsyncValue<User?>, User?, Stream<User?>>
     with $FutureModifier<User?>, $StreamProvider<User?> {
   /// Fuente única de verdad de "¿hay sesión?" — la lee el redirect del
-  /// GoRouter (reemplaza a token_provider.AuthState). Stream nativo del SDK:
+  /// GoRouter (sustituyó al AuthState de la era REST). Stream nativo del SDK:
   /// persistencia + refresh de token gratis.
   ///
   /// Solo `AsyncData` con User no-null cuenta como "logueado" (isLoading y

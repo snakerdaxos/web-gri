@@ -12,7 +12,7 @@ part of 'restaurantes_provider.dart';
 ///
 /// `collection('restaurantes').where('activo', isEqualTo: true)` +
 /// [Restaurante.fromDoc]; orden estable por nombre (el slug ya no es un
-/// secuencia). SIN dio/api_client — el override de `firestoreProvider`
+/// secuencia). SIN capa HTTP propia — el override de `firestoreProvider`
 /// en tests corta toda la feature del backend real.
 
 @ProviderFor(restaurantesList)
@@ -22,7 +22,7 @@ final restaurantesListProvider = RestaurantesListProvider._();
 ///
 /// `collection('restaurantes').where('activo', isEqualTo: true)` +
 /// [Restaurante.fromDoc]; orden estable por nombre (el slug ya no es un
-/// secuencia). SIN dio/api_client — el override de `firestoreProvider`
+/// secuencia). SIN capa HTTP propia — el override de `firestoreProvider`
 /// en tests corta toda la feature del backend real.
 
 final class RestaurantesListProvider
@@ -39,7 +39,7 @@ final class RestaurantesListProvider
   ///
   /// `collection('restaurantes').where('activo', isEqualTo: true)` +
   /// [Restaurante.fromDoc]; orden estable por nombre (el slug ya no es un
-  /// secuencia). SIN dio/api_client — el override de `firestoreProvider`
+  /// secuencia). SIN capa HTTP propia — el override de `firestoreProvider`
   /// en tests corta toda la feature del backend real.
   RestaurantesListProvider._()
     : super(

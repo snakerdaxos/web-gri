@@ -22,8 +22,8 @@ FirebaseAuth firebaseAuth(Ref ref) => FirebaseAuth.instance;
 FirebaseFirestore firestore(Ref ref) => FirebaseFirestore.instance;
 
 /// Stream de sesión: emite `User?` en cada login/logout + el usuario
-/// persistido al arrancar (persistencia nativa del SDK — reemplaza a
-/// auth_storage + token_provider).
+/// persistido al arrancar (persistencia nativa del SDK — sustituyó a la
+/// capa REST de tokens de la era anterior).
 @Riverpod(keepAlive: true)
 Stream<User?> authStateChanges(Ref ref) =>
     ref.watch(firebaseAuthProvider).authStateChanges();

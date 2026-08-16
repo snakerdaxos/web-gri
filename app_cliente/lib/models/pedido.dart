@@ -49,8 +49,8 @@ abstract class Pedido with _$Pedido {
     );
   }
 
-  /// `fromJson` SOLO sobrevive para que `api_client` (legacy REST) compile
-  /// hasta su purga en 10-04 — la vía canónica es [fromDoc].
+  /// `fromJson` heredado de la era REST — sin uso tras la migración; la
+  /// vía canónica es [fromDoc].
   factory Pedido.fromJson(Map<String, dynamic> json) =>
       _$PedidoFromJson(json);
 

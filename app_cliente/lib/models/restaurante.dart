@@ -10,8 +10,8 @@ part 'restaurante.g.dart';
 /// son el rating desnormalizado (CALI-02, actualizado por el panel):
 /// "—" cuando [califCount] == 0.
 ///
-/// `fromJson` SOLO sobrevive para que `api_client` (legacy REST) compile
-/// hasta su purga en 10-04 — la vía canónica es [fromDoc].
+/// `fromJson` heredado de la era REST — sin uso tras la migración; la
+/// vía canónica es [fromDoc].
 @freezed
 abstract class Restaurante with _$Restaurante {
   const factory Restaurante({

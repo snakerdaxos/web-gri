@@ -25,8 +25,7 @@ abstract class PedidoItem with _$PedidoItem {
         cantidad: (map['cantidad'] as num?)?.toInt() ?? 0,
       );
 
-  /// `fromJson` SOLO sobrevive para que `api_client` (legacy REST) compile
-  /// hasta su purga en 10-04.
+  /// `fromJson` heredado de la era REST — sin uso tras la migración.
   factory PedidoItem.fromJson(Map<String, dynamic> json) =>
       _$PedidoItemFromJson(json);
 }
