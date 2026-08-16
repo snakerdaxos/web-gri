@@ -1,165 +1,191 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gri_panel_admin/core/api_client.dart';
-import 'package:gri_panel_admin/core/token_provider.dart';
+import 'package:gri_panel_admin/core/firebase_providers.dart';
 import 'package:gri_panel_admin/features/clientes/clientes_provider.dart';
 import 'package:gri_panel_admin/features/clientes/clientes_screen.dart';
-import 'package:gri_panel_admin/models/cliente_resumen.dart';
-import 'package:gri_panel_admin/models/pedido_staff.dart';
-import 'package:gri_panel_admin/models/user.dart';
 
-/// Tests de la tabla de clientes (ADMN-03): render de la DataTable2 con
-/// formatCOP/conteos, tap en fila → historial dialog con los pedidos del
-/// fixture (family clienteHistorialProvider alimentado por fake del
-/// ApiClient), y empty state.
-///
-/// Overrides sin red (patrón mesas_screen_test).
+import '../helpers/firebase_fakes.dart';
 
-/// Fake del AuthState (class-based) — evita secure storage en el runner.
-class _FakeAuthState extends AuthState {
-  _FakeAuthState(this.user);
+/// Tests de clientes DERIVADOS de pedidos (ADMN-03, 10-06): fold distinct
+/// por usuarioId (con conteos/totales/último), aislamiento tenant (pedidos
+/// de otro restaurante NO cuentan — sin leer usuarios/), tabla con
+/// formatCOP e historial por family.
 
-  final User? user;
-
-  @override
-  Future<User?> build() async => user;
+Future<void> _pedido(
+  FakeFirebaseFirestore db, {
+  required String rid,
+  required String uid,
+  required String nombre,
+  required int total,
+  required DateTime createdAt,
+  String estado = 'pagado',
+  List<Map<String, Object>> items = const [],
+}) {
+  return db.collection('pedidos').add({
+    'restauranteId': rid,
+    'mesaId': 'GRI-MESA-$rid-002',
+    'sesionId': 'GRI-MESA-$rid-002',
+    'usuarioId': uid,
+    'clienteNombre': nombre,
+    'estado': estado,
+    'items': items,
+    'total': total,
+    'createdAt': Timestamp.fromDate(createdAt),
+    'updatedAt': Timestamp.fromDate(createdAt),
+  });
 }
 
-/// Fake del ApiClient: alimenta el family clienteHistorialProvider con los
-/// pedidos fixture de Ana (usuario 9).
-class _FakeApiClient extends ApiClient {
-  @override
-  Future<List<PedidoStaff>> getClienteHistorial(
-    int usuarioId, {
-    int? restauranteId,
-  }) async {
-    if (usuarioId != 9) return [];
-    return _pedidosAna;
-  }
+/// 3 pedidos de 2 usuarios en demo (Ana×2 + Luis×1) + 1 de Ana en norte
+/// (NO cuenta) + 1 sin usuarioId (ignorado).
+Future<void> _seedPedidos(FakeFirebaseFirestore db) async {
+  await _pedido(db,
+      rid: 'demo',
+      uid: 'uid-ana',
+      nombre: 'Ana Torres',
+      total: 32000,
+      createdAt: DateTime(2026, 8, 14, 20, 15),
+      items: [
+        {'productoId': 'p1', 'nombre': 'Pizza Hawaiana', 'precio': 16000, 'cantidad': 2},
+      ]);
+  await _pedido(db,
+      rid: 'demo',
+      uid: 'uid-ana',
+      nombre: 'Ana Torres',
+      total: 27500,
+      createdAt: DateTime(2026, 8, 12, 13, 0));
+  await _pedido(db,
+      rid: 'demo',
+      uid: 'uid-luis',
+      nombre: 'Luis Gómez',
+      total: 12000,
+      createdAt: DateTime(2026, 8, 13, 19, 30));
+  await _pedido(db,
+      rid: 'norte',
+      uid: 'uid-ana',
+      nombre: 'Ana Torres',
+      total: 99000,
+      createdAt: DateTime(2026, 8, 15, 21, 0));
+  await _pedido(db,
+      rid: 'demo',
+      uid: '',
+      nombre: 'Sin usuario',
+      total: 5000,
+      createdAt: DateTime(2026, 8, 15, 22, 0));
 }
 
-const _adminUser = User(
-  id: 2,
-  nombre: 'Admin Demo',
-  email: 'admin@demo.gri.dev',
-  role: 'admin_restaurante',
-  restaurantId: 1,
-);
-
-final _clientes = <ClienteResumen>[
-  ClienteResumen(
-    usuarioId: 9,
-    nombre: 'Ana',
-    email: 'ana@x.com',
-    numPedidos: 3,
-    totalGastado: 84500.0,
-    ultimoPedidoAt: DateTime.parse('2026-08-14T20:15:03'),
-  ),
-  ClienteResumen(
-    usuarioId: 10,
-    nombre: 'Luis',
-    email: 'luis@x.com',
-    numPedidos: 1,
-    totalGastado: 12000.0,
-    ultimoPedidoAt: DateTime.parse('2026-08-13T13:05:00'),
-  ),
-];
-
-final _pedidosAna = <PedidoStaff>[
-  PedidoStaff(
-    id: 'ped-ana-11',
-    restauranteId: 'R1',
-    mesaId: 'GRI-MESA-R1-002',
-    sesionId: 'GRI-MESA-R1-002',
-    mesaNumero: 2,
-    estado: EstadoPedido.pagado,
-    total: 59500,
-    notas: null,
-    createdAt: DateTime.parse('2026-08-14T20:15:03'),
-    items: const [
-      PedidoStaffItem(
-        productoId: '5',
-        nombre: 'Patacón',
-        cantidad: 2,
-        precio: 15500,
-        subtotal: 31000,
+Widget _screen(FakeFirebaseFirestore db) {
+  return ProviderScope(
+    overrides: [
+      firestoreProvider.overrideWithValue(db),
+      claimsProvider.overrideWith(
+        (ref) async => (role: 'admin_restaurante', rid: 'demo'),
       ),
     ],
-    usuarioNombre: 'Ana',
-    solicitaCuenta: false,
-    solicitadaEn: null,
-  ),
-];
-
-Future<void> _pumpScreen(
-  WidgetTester tester, {
-  required List<ClienteResumen> clientes,
-}) async {
-  // Viewport alto: la tabla + dialog necesitan espacio vertical.
-  tester.view.physicalSize = const Size(800, 1800);
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.reset);
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        apiClientProvider.overrideWithValue(_FakeApiClient()),
-        authStateProvider.overrideWith(() => _FakeAuthState(_adminUser)),
-        clientesProvider.overrideWith((ref) => Future.value(clientes)),
-      ],
-      child: const MaterialApp(home: Scaffold(body: ClientesScreen())),
-    ),
+    child: const MaterialApp(home: Scaffold(body: ClientesScreen())),
   );
-  await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('(a) tabla renderiza nombres, total via formatCOP y num pedidos', (tester) async {
-    await _pumpScreen(tester, clientes: _clientes);
+  test(
+    'fold: 2 resúmenes desde 3 pedidos de demo — conteos/totales/últimos correctos',
+    () async {
+      final db = await buildFakeFirestoreConSeed();
+      await _seedPedidos(db);
 
-    // Headers + filas.
+      final container = ProviderContainer(overrides: [
+        firestoreProvider.overrideWithValue(db),
+        claimsProvider.overrideWith(
+          (ref) async => (role: 'admin_restaurante', rid: 'demo'),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      final clientes = await container.read(clientesProvider.future);
+      expect(clientes, hasLength(2), reason: '2 usuarios con pedidos en demo');
+
+      // Orden DESC por último pedido: Ana (14/08) antes que Luis (13/08).
+      final ana = clientes[0];
+      expect(ana.usuarioId, 'uid-ana');
+      expect(ana.clienteNombre, 'Ana Torres');
+      expect(ana.nPedidos, 2);
+      expect(ana.totalConsumo, 59500); // 32000 + 27500 (norte NO cuenta)
+      expect(ana.ultimoPedido, DateTime(2026, 8, 14, 20, 15));
+
+      final luis = clientes[1];
+      expect(luis.usuarioId, 'uid-luis');
+      expect(luis.nPedidos, 1);
+      expect(luis.totalConsumo, 12000);
+    },
+  );
+
+  testWidgets('(a) tabla renderiza nombres, total COP y conteos', (
+    tester,
+  ) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _seedPedidos(db);
+
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_screen(db));
+    await tester.pumpAndSettle();
+
     expect(find.text('Cliente'), findsOneWidget);
-    expect(find.text('Total gastado'), findsOneWidget);
-    expect(find.text('Ana'), findsOneWidget);
-    expect(find.text('Luis'), findsOneWidget);
-    expect(find.text('ana@x.com'), findsOneWidget);
+    expect(find.text('Ana Torres'), findsOneWidget);
+    expect(find.text('Luis Gómez'), findsOneWidget);
 
-    // formatCOP: 84500.0 → "$ 84.500" (grouping es_CO).
-    expect(find.textContaining('84.500'), findsOneWidget);
+    // formatCOP: 59500 → "$ 59.500" (grouping es_CO).
+    expect(find.textContaining('59.500'), findsOneWidget);
     expect(find.textContaining('12.000'), findsOneWidget);
 
     // Conteos de pedidos por cliente.
-    expect(find.text('3'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
 
     // Fecha del último pedido (dd/MM/yyyy).
     expect(find.text('14/08/2026'), findsOneWidget);
   });
 
-  testWidgets('(b) tap en fila → dialog historial con Mesa 2 y total del pedido', (tester) async {
-    await _pumpScreen(tester, clientes: _clientes);
+  testWidgets('(b) tap en fila → historial con sus pedidos DESC', (
+    tester,
+  ) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _seedPedidos(db);
 
-    await tester.tap(find.text('Ana'));
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_screen(db));
     await tester.pumpAndSettle();
 
-    // Dialog alimentado por clienteHistorialProvider(9) → fake getClienteHistorial.
-    expect(find.text('Historial de Ana'), findsOneWidget);
-    expect(find.text('Mesa 2'), findsOneWidget);
-    expect(find.text('Pagado'), findsOneWidget);
-    expect(find.textContaining('59.500'), findsOneWidget);
-    // Items resumidos: '2× Patacón'.
-    expect(find.text('2× Patacón'), findsOneWidget);
+    await tester.tap(find.text('Ana Torres'));
+    await tester.pumpAndSettle();
 
-    // Cerrar hace pop del dialog.
+    // Historial = SOLO los 2 pedidos de Ana en demo (el del norte no).
+    expect(find.text('Historial de Ana Torres'), findsOneWidget);
+    expect(find.text('Mesa 2'), findsNWidgets(2));
+    expect(find.textContaining('32.000'), findsOneWidget);
+    expect(find.textContaining('27.500'), findsOneWidget);
+    expect(find.text('2× Pizza Hawaiana'), findsOneWidget);
+
     await tester.tap(find.text('Cerrar'));
     await tester.pumpAndSettle();
-    expect(find.text('Historial de Ana'), findsNothing);
+    expect(find.text('Historial de Ana Torres'), findsNothing);
   });
 
-  testWidgets('(c) empty state con lista vacía', (tester) async {
-    await _pumpScreen(tester, clientes: const []);
+  testWidgets('(c) sin pedidos → empty state', (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_screen(db));
+    await tester.pumpAndSettle();
 
     expect(find.text('Aún no hay clientes con pedidos'), findsOneWidget);
-    expect(find.text('Ana'), findsNothing);
+    expect(find.text('Ana Torres'), findsNothing);
   });
 }

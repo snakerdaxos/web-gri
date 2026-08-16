@@ -1,26 +1,23 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/api_client.dart';
-import '../../core/token_provider.dart';
+import '../../core/firebase_providers.dart';
 import '../../models/producto_staff.dart';
 import '../dashboard/restaurante_provider.dart';
 import 'menu_provider.dart';
 
-/// Form crear/editar producto (MENU-02).
+/// Form crear/editar producto (MENU-02) sobre Firestore (10-06).
 ///
-/// * [producto] == null → crear (`POST /staff/productos`); si no → editar
-///   (`PATCH /staff/productos/{id}` con SOLO campos modificados).
+/// * [producto] == null → crear ([crearProducto] con autoId; nace
+///   `disponible: true, activo: true` — los switches SOLO en edición).
+/// * `precio` es int COP (research 10: sin floats).
 /// * `imagen_url` es un TextField opcional + preview [Image.network] con
 ///   `errorBuilder` (icono si la URL falla) — PROHIBIDO upload/multipart
 ///   (threat model 08-04).
-/// * Toggles con semánticas separadas (SOLO en edición — el POST no acepta
-///   `disponible`/`activo`, server default true):
-///   * 'Agotado' = !disponible (transitorio: SIGUE visible en la app con
-///     flag).
-///   * 'Activo' = soft-delete (desaparece de /public, sigue aquí).
-/// * Tras éxito: pop + SnackBar + `ref.invalidate(staffMenuProvider)`.
+/// * Toggles con semánticas separadas (SOLO en edición):
+///   * 'Agotado' = !disponible (transitorio).
+///   * 'Activo' = soft-delete (desaparece del menú del cliente).
+/// * Tras éxito: pop + SnackBar. El stream del menú re-emite solo.
 class ProductoFormDialog extends ConsumerStatefulWidget {
   const ProductoFormDialog({
     super.key,
@@ -29,7 +26,7 @@ class ProductoFormDialog extends ConsumerStatefulWidget {
   });
 
   /// Categoría destino (creación) / categoría actual del producto (edición).
-  final int categoriaId;
+  final String categoriaId;
 
   final ProductoStaff? producto;
 
@@ -80,8 +77,8 @@ class _ProductoFormDialogState extends ConsumerState<ProductoFormDialog> {
   String? _validarPrecio(String? v) {
     final t = v?.trim() ?? '';
     if (t.isEmpty) return 'Requerido';
-    final n = double.tryParse(t);
-    if (n == null) return 'Debe ser un número';
+    final n = int.tryParse(t);
+    if (n == null) return 'Debe ser un número (COP sin decimales)';
     if (n <= 0) return 'Debe ser mayor a 0';
     return null;
   }
@@ -91,8 +88,7 @@ class _ProductoFormDialogState extends ConsumerState<ProductoFormDialog> {
     final original = widget.producto!;
     return _nombreCtrl.text.trim() == original.nombre &&
         _descCtrl.text.trim() == (original.descripcion ?? '') &&
-        (double.tryParse(_precioCtrl.text.trim()) ?? -1) ==
-            original.precio &&
+        (int.tryParse(_precioCtrl.text.trim()) ?? -1) == original.precio &&
         _imagenCtrl.text.trim() == (original.imagenUrl ?? '') &&
         !_agotado == original.disponible &&
         _activo == original.activo;
@@ -105,35 +101,36 @@ class _ProductoFormDialogState extends ConsumerState<ProductoFormDialog> {
     final nombre = _nombreCtrl.text.trim();
     final descripcion =
         _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim();
-    final precio = double.parse(_precioCtrl.text.trim());
+    final precio = int.parse(_precioCtrl.text.trim());
     final imagenUrl =
         _imagenCtrl.text.trim().isEmpty ? null : _imagenCtrl.text.trim();
 
     // Capturas ANTES del await (patrón cocina_screen).
     final messenger = ScaffoldMessenger.maybeOf(context);
     final navigator = Navigator.of(context);
-    final user = ref.read(authStateProvider).value;
-    final rid = ref.read(currentRestauranteIdProvider) ?? user?.restaurantId;
-    final queryRid = user?.isSuperAdmin == true ? rid : null;
-    final client = ref.read(apiClientProvider);
+    final db = ref.read(firestoreProvider);
+    final rid = await ref.read(ridActivoProvider.future);
 
     try {
+      if (rid == null) throw StateError('No hay restaurante seleccionado');
       if (!_editando) {
-        await client.createProducto(
+        await crearProducto(
+          db,
+          rid: rid,
           categoriaId: widget.categoriaId,
           nombre: nombre,
           descripcion: descripcion,
           precio: precio,
           imagenUrl: imagenUrl,
-          restauranteId: queryRid,
         );
       } else {
         final original = widget.producto!;
         final nuevaDisponible = !_agotado; // 'Agotado' = !disponible.
-        // Vaciar descripcion/imagen también viaja ('' limpia el campo en el
-        // server — null-aware omitiría la clave y no lo limpiaría).
-        await client.updateProducto(
-          original.id,
+        // Vaciar descripcion/imagen también viaja ('' limpia el campo —
+        // null-aware omitiría la clave y no lo limpiaría).
+        await actualizarProducto(
+          db,
+          producto: original,
           nombre: nombre != original.nombre ? nombre : null,
           descripcion:
               descripcion != original.descripcion ? (descripcion ?? '') : null,
@@ -142,22 +139,8 @@ class _ProductoFormDialogState extends ConsumerState<ProductoFormDialog> {
           disponible:
               nuevaDisponible != original.disponible ? nuevaDisponible : null,
           activo: _activo != original.activo ? _activo : null,
-          restauranteId: queryRid,
         );
       }
-    } on DioException catch (e) {
-      if (mounted) setState(() => _saving = false);
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(
-            e.response?.statusCode == 422
-                ? 'Revisa los datos: el precio debe ser mayor a 0'
-                : 'No se pudo guardar el producto',
-          ),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      return;
     } catch (_) {
       if (mounted) setState(() => _saving = false);
       messenger?.showSnackBar(
@@ -169,7 +152,7 @@ class _ProductoFormDialogState extends ConsumerState<ProductoFormDialog> {
       return;
     }
 
-    // Éxito: cerrar + confirmar + refresh on-demand (sin WS — invalidate).
+    // Éxito: cerrar + confirmar. El stream del menú re-emite solo.
     navigator.pop();
     messenger?.showSnackBar(
       SnackBar(
@@ -179,7 +162,6 @@ class _ProductoFormDialogState extends ConsumerState<ProductoFormDialog> {
         duration: const Duration(seconds: 3),
       ),
     );
-    ref.invalidate(staffMenuProvider);
   }
 
   @override
@@ -229,8 +211,7 @@ class _ProductoFormDialogState extends ConsumerState<ProductoFormDialog> {
                     labelText: 'Precio (COP)',
                     hintText: 'Ej: 15500',
                   ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: TextInputType.number,
                   validator: _validarPrecio,
                 ),
                 const SizedBox(height: 14),
@@ -262,8 +243,7 @@ class _ProductoFormDialogState extends ConsumerState<ProductoFormDialog> {
                     ),
                   ),
                 ],
-                // Toggles solo en edición: el POST no acepta
-                // disponible/activo (server default true, contrato 08-01).
+                // Toggles solo en edición: el alta nace disponible/activa.
                 if (_editando)
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,

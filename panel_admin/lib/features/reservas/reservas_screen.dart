@@ -1,94 +1,86 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/api_client.dart';
+import '../../core/firebase_providers.dart';
+import '../../core/state_machines.dart';
 import '../../core/theme.dart';
-import '../../core/token_provider.dart';
 import '../../models/reserva.dart';
-import '../dashboard/restaurante_provider.dart';
 import 'reservas_provider.dart';
 
-/// Pantalla /reservas (RESV-05 UI): reservas del día del tenant con
-/// selector de fecha y botón 'Marcar ocupada' en las confirmadas.
+/// Pantalla /reservas (RESV-05 UI, 10-06): reservas de HOY del tenant EN
+/// VIVO (`reservasHoyProvider` — misma query del dashboard, onSnapshot).
 ///
-/// Consume el endpoint F5 EXISTENTE (`GET /staff/reservas?fecha=`) vía
-/// [reservasDelDiaProvider] (family por fecha). Al llegar el cliente, el
-/// staff marca la mesa ocupada con `setMesaEstado` (08-03) — el server es
-/// la autoridad: un 409 (la mesa ya cambió de estado por otra vía) se
-/// traduce a SnackBar + refresh del listado (threat model 08-05).
-class ReservasScreen extends ConsumerStatefulWidget {
+/// * 'Marcar ocupada' (confirmadas): transición de la MESA
+///   `reservada → ocupada` vía [marcarMesaOcupada] — la transición se
+///   valida ANTES del write ([cambiarEstadoMesa] 10-05; las rules
+///   re-fuerzan `transMesa`). Un [TransicionInvalidaException] (otro staff
+///   movió la mesa primero) se traduce a SnackBar — el stream ya muestra
+///   la verdad.
+/// * 'No-show' (pendientes/confirmadas): [cancelarReservaNoShow] — la
+///   reserva pasa a `cancelada` (staff lo permite rules).
+class ReservasScreen extends ConsumerWidget {
   const ReservasScreen({super.key});
 
-  @override
-  ConsumerState<ReservasScreen> createState() => _ReservasScreenState();
-}
-
-class _ReservasScreenState extends ConsumerState<ReservasScreen> {
-  /// Fecha consultada (estado local — el family del provider hace el resto).
-  DateTime _fecha = DateTime.now();
-
-  static final DateFormat _fmt = DateFormat('dd/MM/yyyy');
-
-  /// Key del family: YYYY-MM-DD (substring del ISO8601).
-  String get _fechaKey => _fecha.toIso8601String().substring(0, 10);
-
-  Future<void> _pickFecha() async {
-    final elegida = await showDatePicker(
-      context: context,
-      initialDate: _fecha,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (elegida == null) return;
-    setState(() => _fecha = elegida);
-    // Nueva key → nueva instancia del family (fetch fresco). El invalidate
-    // es defensivo por si esa fecha ya se consultó antes en la sesión.
-    ref.invalidate(reservasDelDiaProvider(_fechaKey));
-  }
-
-  Future<void> _marcarOcupada(Reserva reserva) async {
-    // queryRid como en cocina: super_admin manda el tenant del dropdown;
-    // staff viaja sin param (el tenant sale del token).
-    final user = ref.read(authStateProvider).value;
-    final selectedRid = ref.read(currentRestauranteIdProvider);
-    final rid = selectedRid ?? user?.restaurantId;
-    final queryRid = user?.isSuperAdmin == true ? rid : null;
+  Future<void> _marcarOcupada(BuildContext context, WidgetRef ref,
+      Reserva reserva) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final db = ref.read(firestoreProvider);
 
     try {
-      await ref.read(apiClientProvider).setMesaEstado(
-            // mesaId String (doc ID = código QR, Phase 10-05) — el wire
-            // REST legacy recibía el int como path param.
-            reserva.mesaId.toString(),
-            'ocupada',
-            restauranteId: queryRid,
-          );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Mesa ${reserva.mesaNumero} marcada ocupada')),
-      );
-      ref.invalidate(reservasDelDiaProvider(_fechaKey));
-    } on DioException catch (e) {
-      if (!mounted) return;
-      // 409: la mesa ya cambió de estado por otra vía (carrera) — el
-      // listado se refresca para mostrar la verdad del server.
-      ScaffoldMessenger.of(context).showSnackBar(
+      await marcarMesaOcupada(db, reserva: reserva);
+      messenger?.showSnackBar(
         SnackBar(
-          content: Text(
-            e.response?.statusCode == 409
-                ? 'La mesa ya cambió de estado'
-                : 'Error al marcar la mesa',
-          ),
+          content: Text('Mesa ${reserva.mesaNumero} marcada ocupada'),
+          duration: const Duration(seconds: 3),
         ),
       );
-      ref.invalidate(reservasDelDiaProvider(_fechaKey));
+    } on TransicionInvalidaException {
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('La mesa ya cambió de estado'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (_) {
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Error al marcar la mesa'),
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
+    // Sin invalidate local: el onSnapshot mantiene TODO vivo (la reserva
+    // no cambia — lo que se movió fue la mesa).
+  }
+
+  Future<void> _cancelarNoShow(
+      BuildContext context, WidgetRef ref, Reserva reserva) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final db = ref.read(firestoreProvider);
+
+    try {
+      await cancelarReservaNoShow(db, reserva: reserva);
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Reserva cancelada'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (_) {
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo cancelar la reserva'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+    // El stream re-emite con la reserva cancelada (chip tachado) solo.
   }
 
   @override
-  Widget build(BuildContext context) {
-    final reservasAsync = ref.watch(reservasDelDiaProvider(_fechaKey));
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reservasAsync = ref.watch(reservasHoyProvider);
 
     return Material(
       // Material ancestor: en producción lo provee el Scaffold del AppShell;
@@ -101,20 +93,22 @@ class _ReservasScreenState extends ConsumerState<ReservasScreen> {
           children: [
             Row(
               children: [
-                OutlinedButton.icon(
-                  onPressed: _pickFecha,
-                  icon: const Text('📅'),
-                  label: Text(_fmt.format(_fecha)),
-                ),
-                const SizedBox(width: 12),
-                TextButton(
-                  onPressed: () {
-                    setState(() => _fecha = DateTime.now());
-                    ref.invalidate(reservasDelDiaProvider(_fechaKey));
-                  },
-                  child: const Text('Hoy'),
+                const Text('📅', style: TextStyle(fontSize: 18)),
+                const SizedBox(width: 8),
+                Text(
+                  'Reservas de hoy (${DateFormat('dd/MM/yyyy').format(DateTime.now())})',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: GriColors.text,
+                  ),
                 ),
               ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'En vivo — al llegar el cliente marca la mesa ocupada',
+              style: TextStyle(color: GriColors.gray, fontSize: 13),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -130,8 +124,7 @@ class _ReservasScreenState extends ConsumerState<ReservasScreen> {
                         style: TextStyle(color: GriColors.gray),
                       ),
                       TextButton(
-                        onPressed: () =>
-                            ref.invalidate(reservasDelDiaProvider(_fechaKey)),
+                        onPressed: () => ref.invalidate(reservasHoyProvider),
                         child: const Text('Reintentar'),
                       ),
                     ],
@@ -140,17 +133,17 @@ class _ReservasScreenState extends ConsumerState<ReservasScreen> {
                 data: (reservas) => reservas.isEmpty
                     ? const Center(
                         child: Text(
-                          'Sin reservas para este día',
+                          'Sin reservas para hoy',
                           style: TextStyle(color: GriColors.gray),
                         ),
                       )
                     : ListView.builder(
                         itemCount: reservas.length,
-                        itemBuilder: (context, i) =>
-                            _ReservaCard(
-                              reserva: reservas[i],
-                              onMarcarOcupada: _marcarOcupada,
-                            ),
+                        itemBuilder: (context, i) => _ReservaCard(
+                          reserva: reservas[i],
+                          onMarcarOcupada: (r) => _marcarOcupada(context, ref, r),
+                          onNoShow: (r) => _cancelarNoShow(context, ref, r),
+                        ),
                       ),
               ),
             ),
@@ -161,26 +154,35 @@ class _ReservasScreenState extends ConsumerState<ReservasScreen> {
   }
 }
 
-/// Card de una reserva: hora, mesa, personas, chip de estado y — SOLO en
-/// confirmadas — el botón 'Marcar ocupada' (el resto de estados no tiene
-/// acción sobre la mesa).
+/// Card de una reserva: hora (HH:mm del Timestamp), mesa, personas, chip
+/// de estado y — SOLO en vivas (pendiente/confirmada) — las acciones
+/// 'Marcar ocupada' y 'No-show' (las canceladas ya no actúan sobre la
+/// mesa).
 class _ReservaCard extends StatelessWidget {
-  const _ReservaCard({required this.reserva, required this.onMarcarOcupada});
+  const _ReservaCard({
+    required this.reserva,
+    required this.onMarcarOcupada,
+    required this.onNoShow,
+  });
 
   final Reserva reserva;
   final void Function(Reserva) onMarcarOcupada;
+  final void Function(Reserva) onNoShow;
+
+  static final DateFormat _hora = DateFormat('HH:mm');
 
   @override
   Widget build(BuildContext context) {
+    final viva = reserva.estado == 'confirmada' || reserva.estado == 'pendiente';
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            // Hora (HH:MM del HH:MM:SS del wire).
+            // Hora del slot (Timestamp → HH:mm local).
             Text(
-              reserva.horaInicio.substring(0, 5),
+              _hora.format(reserva.fecha),
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -208,12 +210,18 @@ class _ReservaCard extends StatelessWidget {
               ),
             ),
             _EstadoChip(estado: reserva.estado),
-            if (reserva.estado == 'confirmada') ...[
+            if (viva) ...[
               const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: () => onMarcarOcupada(reserva),
-                child: const Text('Marcar ocupada'),
+              OutlinedButton(
+                onPressed: () => onNoShow(reserva),
+                child: const Text('No-show'),
               ),
+              const SizedBox(width: 8),
+              if (reserva.estado == 'confirmada')
+                ElevatedButton(
+                  onPressed: () => onMarcarOcupada(reserva),
+                  child: const Text('Marcar ocupada'),
+                ),
             ],
           ],
         ),

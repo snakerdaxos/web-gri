@@ -1,17 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/api_client.dart';
 import '../../core/firebase_providers.dart';
-import '../../core/token_provider.dart';
+import '../../core/token_provider.dart' show authStateProvider;
 import '../../models/restaurante.dart';
 
 part 'restaurante_provider.g.dart';
 
 /// Resumen de restaurante para las vistas del panel (selector del super +
-/// topbar). Proyección mínima del doc `restaurantes/{rid}` — el modelo
-/// legacy [Restaurante] (REST, id int) sigue vivo para las features no
-/// migradas hasta el purge 10-06.
+/// topbar). Proyección mínima del doc `restaurantes/{rid}`.
 typedef RestauranteResumen = ({String id, String nombre, bool activo});
 
 // ═══════════════════════════════ PHASE 10 (Firebase) ═════════════════════
@@ -79,9 +76,32 @@ Stream<RestauranteResumen?> restauranteActivo(Ref ref) async* {
   });
 }
 
+/// Ficha COMPLETA del restaurante activo (10-06): stream del doc
+/// `restaurantes/{rid}` — la alimenta el tab 'Restaurante' de
+/// /configuracion (read-only en v1).
+///
+/// Sin rid (super sin selección) o doc inexistente → error controlado
+/// ('No hay restaurante seleccionado') — la UI ya lo trata.
+@riverpod
+Stream<Restaurante> restaurante(Ref ref) async* {
+  final db = ref.watch(firestoreProvider);
+  final rid = await ref.watch(ridActivoProvider.future);
+
+  if (rid == null) {
+    throw StateError('No hay restaurante seleccionado');
+  }
+
+  yield* db.doc('restaurantes/$rid').snapshots().map((snap) {
+    if (!snap.exists) {
+      throw StateError('No hay restaurante seleccionado');
+    }
+    return Restaurante.fromDoc(snap);
+  });
+}
+
 // ════════════════ LEGACY (era REST — vivo hasta el purge 10-06) ═══════════
-// Consumido por ws_client/clientes/menu/reservas/reportes/mesas-form y
-// sus tests. NO tocar: el purge de 10-06 lo elimina junto al api_client.
+// Consumido SOLO por ws_client (core legacy que se elimina en 10-06 Task 3).
+// NO tocar: el purge lo elimina junto al api_client/token_provider.
 
 /// Restaurante activo en el panel: staff siempre su tenant; super_admin el
 /// que elija en el dropdown del AppShell (default al primero activo).
@@ -104,15 +124,3 @@ final currentRestauranteIdProvider =
     NotifierProvider<CurrentRestauranteId, int?>(
   CurrentRestauranteId.new,
 );
-
-/// FutureProvider que resuelve el [Restaurante] a mostrar (REST legacy).
-@riverpod
-Future<Restaurante> restaurante(Ref ref) async {
-  final user = ref.watch(authStateProvider).value;
-  final selectedRid = ref.watch(currentRestauranteIdProvider);
-  final rid = selectedRid ?? user?.restaurantId;
-  if (rid == null) {
-    throw StateError('No hay restaurante seleccionado');
-  }
-  return ref.read(apiClientProvider).getRestaurante(rid);
-}

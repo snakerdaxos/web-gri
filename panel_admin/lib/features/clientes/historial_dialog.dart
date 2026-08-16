@@ -35,7 +35,7 @@ class _HistorialDialog extends ConsumerWidget {
     );
 
     return AlertDialog(
-      title: Text('Historial de ${cliente.nombre}'),
+      title: Text('Historial de ${cliente.clienteNombre}'),
       content: SizedBox(
         width: 520,
         child: historialAsync.when(

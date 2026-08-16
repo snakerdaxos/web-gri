@@ -1,17 +1,18 @@
+// core/api_client.dart — LEGACY (era REST).
+//
+// SUPERFICIE MÍNIMA hasta el purge de 10-06 Task 3: todo el CRUD ya vive
+// en Firestore (mesas/menú/clientes/reservas/config migrados en 10-05 y
+// 10-06). Quedan SOLO los métodos que aún consumen:
+//   * token_provider (me + onSessionExpired)
+//   * ws_client (refreshTokens)
+//   * reportes_screen (getReporteVentas/getTopPlatos — migra en Task 3)
+// El archivo completo se ELIMINA en 10-06 Task 3 junto a sus consumers.
 import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../models/categoria_staff.dart';
-import '../models/cliente_resumen.dart';
-import '../models/dashboard_stats.dart';
-import '../models/mesa.dart';
-import '../models/pedido_staff.dart';
-import '../models/producto_staff.dart';
 import '../models/reporte.dart';
-import '../models/reserva.dart';
-import '../models/restaurante.dart';
 import '../models/token_pair.dart';
 import '../models/user.dart';
 import 'auth_storage.dart';
@@ -21,16 +22,7 @@ final apiClientProvider = Provider<ApiClient>((ref) {
   return ApiClient(storage: ref.watch(authStorageProvider));
 });
 
-/// Cliente HTTP del panel — la ÚNICA vía al backend (T-04-07).
-///
-/// Envuelve una instancia [Dio] con:
-///  * [AuthInterceptor] (extends [QueuedInterceptor]): attacha `Authorization:
-///    Bearer` en cada request y, ante un 401 (fuera de /auth/login y
-///    /auth/refresh), hace UN solo `POST /auth/refresh` protegido por un
-///    [Completer] compartido (T-04-06 anti refresh-storm) y reintenta la
-///    request original con el token nuevo.
-///  * Si el refresh falla: limpia storage, dispara [onSessionExpired]
-///    (logueo upstream via AuthState) y propaga el error.
+/// Cliente HTTP del panel (legado REST — purge en 10-06 Task 3).
 class ApiClient {
   ApiClient({AuthStorage? storage, Dio? dio})
       : _storage = storage ?? AuthStorage(),
@@ -54,14 +46,6 @@ class ApiClient {
   /// logout upstream → goRouter redirect a /login.
   void Function()? onSessionExpired;
 
-  Future<TokenPair> login(String email, String password) async {
-    final r = await _dio.post<Map<String, dynamic>>(
-      '/auth/login',
-      data: {'email': email, 'password': password},
-    );
-    return TokenPair.fromJson(r.data!);
-  }
-
   Future<User> me() async {
     final r = await _dio.get<Map<String, dynamic>>('/auth/me');
     return User.fromJson(r.data!);
@@ -74,283 +58,10 @@ class ApiClient {
   /// disparó el logout upstream via [onSessionExpired]).
   Future<String?> refreshTokens() => _auth._refreshOnce();
 
-  Future<List<Mesa>> getMesas({int? restauranteId}) async {
-    final r = await _dio.get<List<dynamic>>(
-      '/staff/mesas',
-      queryParameters: restauranteId == null
-          ? null
-          : {'restaurante_id': restauranteId},
-    );
-    return [
-      for (final e in r.data ?? const <dynamic>[])
-        Mesa.fromJson(e as Map<String, dynamic>),
-    ];
-  }
+  // ── Reportes (REPO-01/02 — migra a Firestore en 10-06 Task 3) ──────────
 
-  /// `POST /staff/mesas` — crea una mesa con QR determinista autogenerado
-  /// por el server (`GRI-MESA-R{rid}-{numero:03d}`, 08-02). 409 si ya existe
-  /// una mesa con ese número en el tenant. [restauranteId] SOLO lo manda el
-  /// caller para super_admin (patrón [getMesas]).
-  Future<Mesa> createMesa(
-    int numero,
-    int capacidad, {
-    int? restauranteId,
-  }) async {
-    final r = await _dio.post<Map<String, dynamic>>(
-      '/staff/mesas',
-      data: {'numero': numero, 'capacidad': capacidad},
-      queryParameters: restauranteId == null
-          ? null
-          : {'restaurante_id': restauranteId},
-    );
-    return Mesa.fromJson(r.data!);
-  }
-
-  /// `PATCH /staff/mesas/{id}` — update parcial. Cambiar `numero` REGENERA
-  /// el QR en el server (el impreso anterior queda obsoleto — la UI avisa
-  /// antes de guardar). Solo los campos no-null viajan en el body.
-  ///
-  /// Phase 10-05: `mesaId` pasa a String (doc ID = código QR de Firestore)
-  /// — surface compile-compat del CRUD legacy hasta el purge 10-06.
-  Future<Mesa> updateMesa(
-    String mesaId, {
-    int? numero,
-    int? capacidad,
-    int? restauranteId,
-  }) async {
-    final r = await _dio.patch<Map<String, dynamic>>(
-      '/staff/mesas/$mesaId',
-      // Null-aware elements: claves omitidas si el valor es null (PATCH
-      // parcial — solo los campos modificados viajan).
-      data: {'numero': ?numero, 'capacidad': ?capacidad},
-      queryParameters: restauranteId == null
-          ? null
-          : {'restaurante_id': restauranteId},
-    );
-    return Mesa.fromJson(r.data!);
-  }
-
-  /// `POST /staff/mesas/{id}/estado` — transición de estado de la mesa.
-  /// El server es la autoridad: 409 si la transición no es válida (carrera
-  /// entre dos staff), 404 cross-tenant (existence hiding).
-  ///
-  /// Phase 10-05: `mesaId` String (doc ID = código QR) — compile-compat
-  /// legacy; el mapa operacional YA escribe directo a Firestore
-  /// (`cambiarEstadoMesa`).
-  Future<Mesa> setMesaEstado(
-    String mesaId,
-    String estado, {
-    int? restauranteId,
-  }) async {
-    final r = await _dio.post<Map<String, dynamic>>(
-      '/staff/mesas/$mesaId/estado',
-      data: {'estado': estado},
-      queryParameters: restauranteId == null
-          ? null
-          : {'restaurante_id': restauranteId},
-    );
-    return Mesa.fromJson(r.data!);
-  }
-
-  Future<DashboardStats> getStats({int? restauranteId}) async {
-    final r = await _dio.get<Map<String, dynamic>>(
-      '/staff/stats',
-      queryParameters: restauranteId == null
-          ? null
-          : {'restaurante_id': restauranteId},
-    );
-    return DashboardStats.fromJson(r.data!);
-  }
-
-  /// `GET /staff/pedidos?activos=true` — cola FIFO de pedidos activos con
-  /// items, total, notas, usuario y el badge `solicita_cuenta` (ADMN-05).
-  /// [restauranteId] SOLO lo manda el caller para super_admin (patrón
-  /// [getMesas]); el staff jamás filtra client-side.
-  Future<List<PedidoStaff>> getPedidosActivos({int? restauranteId}) async {
-    final r = await _dio.get<List<dynamic>>(
-      '/staff/pedidos',
-      queryParameters: {
-        'activos': 'true',
-        'restaurante_id': ?restauranteId,
-      },
-    );
-    return [
-      for (final e in r.data ?? const <dynamic>[])
-        PedidoStaff.fromJson(e as Map<String, dynamic>),
-    ];
-  }
-
-  /// `POST /staff/pedidos/{id}/estado` — avanza el estado de un pedido.
-  /// El server es la autoridad: 409 transición inválida, 403 rol no
-  /// autorizado para ESA transición, 404 cross-tenant (existence hiding).
-  Future<PedidoStaff> avanzarPedido(
-    int pedidoId,
-    String estado, {
-    int? restauranteId,
-  }) async {
-    final r = await _dio.post<Map<String, dynamic>>(
-      '/staff/pedidos/$pedidoId/estado',
-      data: {'estado': estado},
-      queryParameters: restauranteId == null
-          ? null
-          : {'restaurante_id': restauranteId},
-    );
-    return PedidoStaff.fromJson(r.data!);
-  }
-
-  // ── Menú CRUD (MENU-01/02, 08-01) ─────────────────────────────────────
-
-  /// `GET /staff/menu` — categorías con productos anidados del tenant.
-  /// Incluye inactivos/agotados con flags (staff ve TODO; /public filtra).
-  /// [restauranteId] SOLO lo manda el caller para super_admin (patrón
-  /// [getMesas]).
-  Future<List<CategoriaStaff>> getStaffMenu({int? restauranteId}) async {
-    final r = await _dio.get<List<dynamic>>(
-      '/staff/menu',
-      queryParameters: restauranteId == null
-          ? null
-          : {'restaurante_id': restauranteId},
-    );
-    return [
-      for (final e in r.data ?? const <dynamic>[])
-        CategoriaStaff.fromJson(e as Map<String, dynamic>),
-    ];
-  }
-
-  /// `POST /staff/categorias` — 201; 409 si ya existe una categoría con ese
-  /// nombre en el tenant.
-  Future<CategoriaStaff> createCategoria(
-    String nombre, {
-    int? orden,
-    int? restauranteId,
-  }) async {
-    final r = await _dio.post<Map<String, dynamic>>(
-      '/staff/categorias',
-      data: {'nombre': nombre, 'orden': ?orden},
-      queryParameters: restauranteId == null
-          ? null
-          : {'restaurante_id': restauranteId},
-    );
-    return CategoriaStaff.fromJson(r.data!);
-  }
-
-  /// `PATCH /staff/categorias/{id}` — update parcial (solo campos no-null
-  /// viajan). 404 cross-tenant (existence hiding), 409 nombre dup.
-  Future<CategoriaStaff> updateCategoria(
-    int categoriaId, {
-    String? nombre,
-    int? orden,
-    bool? activo,
-    int? restauranteId,
-  }) async {
-    final r = await _dio.patch<Map<String, dynamic>>(
-      '/staff/categorias/$categoriaId',
-      data: {'nombre': ?nombre, 'orden': ?orden, 'activo': ?activo},
-      queryParameters: restauranteId == null
-          ? null
-          : {'restaurante_id': restauranteId},
-    );
-    return CategoriaStaff.fromJson(r.data!);
-  }
-
-  /// `POST /staff/productos` — 201; 404 categoría inexistente/ajena; 422
-  /// precio ≤ 0 (server re-valida — la UI también valida antes de enviar).
-  Future<ProductoStaff> createProducto({
-    required int categoriaId,
-    required String nombre,
-    String? descripcion,
-    required double precio,
-    String? imagenUrl,
-    int? restauranteId,
-  }) async {
-    final r = await _dio.post<Map<String, dynamic>>(
-      '/staff/productos',
-      data: {
-        'categoria_id': categoriaId,
-        'nombre': nombre,
-        'descripcion': ?descripcion,
-        'precio': precio,
-        'imagen_url': ?imagenUrl,
-      },
-      queryParameters: restauranteId == null
-          ? null
-          : {'restaurante_id': restauranteId},
-    );
-    return ProductoStaff.fromJson(r.data!);
-  }
-
-  /// `PATCH /staff/productos/{id}` — update parcial. `disponible` (agotado
-  /// transitorio) y `activo` (soft-delete) son semánticas separadas.
-  Future<ProductoStaff> updateProducto(
-    int productoId, {
-    String? nombre,
-    String? descripcion,
-    double? precio,
-    String? imagenUrl,
-    bool? disponible,
-    bool? activo,
-    int? restauranteId,
-  }) async {
-    final r = await _dio.patch<Map<String, dynamic>>(
-      '/staff/productos/$productoId',
-      data: {
-        'nombre': ?nombre,
-        'descripcion': ?descripcion,
-        'precio': ?precio,
-        'imagen_url': ?imagenUrl,
-        'disponible': ?disponible,
-        'activo': ?activo,
-      },
-      queryParameters: restauranteId == null
-          ? null
-          : {'restaurante_id': restauranteId},
-    );
-    return ProductoStaff.fromJson(r.data!);
-  }
-
-  // ── Clientes (ADMN-03, 08-01) ─────────────────────────────────────────
-
-  /// `GET /staff/clientes` — usuarios CON pedidos en el tenant (JOIN
-  /// pedido→usuario): num_pedidos, total_gastado, ultimo_pedido_at.
-  Future<List<ClienteResumen>> getClientes({int? restauranteId}) async {
-    final r = await _dio.get<List<dynamic>>(
-      '/staff/clientes',
-      queryParameters: restauranteId == null
-          ? null
-          : {'restaurante_id': restauranteId},
-    );
-    return [
-      for (final e in r.data ?? const <dynamic>[])
-        ClienteResumen.fromJson(e as Map<String, dynamic>),
-    ];
-  }
-
-  /// `GET /staff/clientes/{usuario_id}/historial` — pedidos del usuario EN
-  /// el tenant (misma shape que /staff/pedidos). Vacío → 404 (existence
-  /// hiding relacional: no revela que el usuario_id existe globalmente).
-  Future<List<PedidoStaff>> getClienteHistorial(
-    int usuarioId, {
-    int? restauranteId,
-  }) async {
-    final r = await _dio.get<List<dynamic>>(
-      '/staff/clientes/$usuarioId/historial',
-      queryParameters: restauranteId == null
-          ? null
-          : {'restaurante_id': restauranteId},
-    );
-    return [
-      for (final e in r.data ?? const <dynamic>[])
-        PedidoStaff.fromJson(e as Map<String, dynamic>),
-    ];
-  }
-
-  // ── Reportes (REPO-01/02, 08-02) ──────────────────────────────────────
-
-  /// `GET /staff/reportes/ventas` — total/num_pedidos/por_dia del rango
-  /// (venta = servido|pagado, decision locked 08-02). Sin [desde]/[hasta]
-  /// el server aplica su default DB-side (últimos 7 días); la respuesta
-  /// SIEMPRE trae el rango efectivo. 422 si desde > hasta (la UI valida
-  /// client-side ANTES de llamar — threat model 08-05).
+  /// `GET /staff/reportes/ventas` — venta = servido|pagado, rango efectivo
+  /// en la respuesta. 422 si desde > hasta.
   Future<VentasReporte> getReporteVentas({
     String? desde,
     String? hasta,
@@ -368,7 +79,6 @@ class ApiClient {
   }
 
   /// `GET /staff/reportes/top-platos` — top-N platos por SUM(cantidad) DESC.
-  /// [limit] default server 10 (1..50). Vacío → `[]` (sin ventas en rango).
   Future<List<TopPlato>> getTopPlatos({
     String? desde,
     String? hasta,
@@ -388,65 +98,6 @@ class ApiClient {
       for (final e in r.data ?? const <dynamic>[])
         TopPlato.fromJson(e as Map<String, dynamic>),
     ];
-  }
-
-  // ── Reservas (RESV-05, endpoint F5 existente) ─────────────────────────
-
-  /// `GET /staff/reservas?fecha=YYYY-MM-DD` — reservas del día (incluye
-  /// canceladas — el campo `estado` discrimina; orden por hora_inicio).
-  /// Sin [fecha] el server usa hoy (computado DB-side).
-  Future<List<Reserva>> getReservas({
-    String? fecha,
-    int? restauranteId,
-  }) async {
-    final r = await _dio.get<List<dynamic>>(
-      '/staff/reservas',
-      queryParameters: {
-        'fecha': ?fecha,
-        'restaurante_id': ?restauranteId,
-      },
-    );
-    return [
-      for (final e in r.data ?? const <dynamic>[])
-        Reserva.fromJson(e as Map<String, dynamic>),
-    ];
-  }
-
-  /// `GET /admin/restaurantes` — lista para el selector del super_admin.
-  /// [incluirInactivos] es la ÚNICA vista que expone restaurantes
-  /// desactivados (PLAT-05, 08-02) — la usa el tab 'Restaurantes' de
-  /// Configuración para el toggle de reactivación.
-  Future<List<Restaurante>> listRestaurantes({
-    bool incluirInactivos = false,
-  }) async {
-    final r = await _dio.get<List<dynamic>>(
-      '/admin/restaurantes',
-      queryParameters:
-          incluirInactivos ? {'incluir_inactivos': 'true'} : null,
-    );
-    return [
-      for (final e in r.data ?? const <dynamic>[])
-        Restaurante.fromJson(e as Map<String, dynamic>),
-    ];
-  }
-
-  /// `PATCH /admin/restaurantes/{id}` `{activo}` — desactivar/reactivar
-  /// (PLAT-05). Super_admin only (staff → 403). Desactivar oculta el
-  /// restaurante de /public; el staff con token vigente SIGUE operando
-  /// (alcance v1 del backend — 08-02).
-  Future<Restaurante> patchRestauranteActivo(int id, bool activo) async {
-    final r = await _dio.patch<Map<String, dynamic>>(
-      '/admin/restaurantes/$id',
-      data: {'activo': activo},
-    );
-    return Restaurante.fromJson(r.data!);
-  }
-
-  /// `GET /admin/restaurantes/{id}` — nombre del restaurante para el topbar
-  /// (staff: propio tenant; super_admin: el seleccionado).
-  Future<Restaurante> getRestaurante(int id) async {
-    final r = await _dio.get<Map<String, dynamic>>('/admin/restaurantes/$id');
-    return Restaurante.fromJson(r.data!);
   }
 }
 

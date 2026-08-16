@@ -1,125 +1,50 @@
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gri_panel_admin/core/api_client.dart';
-import 'package:gri_panel_admin/core/token_provider.dart';
+import 'package:gri_panel_admin/core/firebase_providers.dart';
 import 'package:gri_panel_admin/features/configuracion/configuracion_screen.dart';
-import 'package:gri_panel_admin/models/categoria_staff.dart';
-import 'package:gri_panel_admin/models/restaurante.dart';
-import 'package:gri_panel_admin/models/user.dart';
 
-/// Tests del tab 'Restaurantes' de /configuracion (PLAT-05, solo
-/// super_admin): lista con inactivos (switch OFF), espía del wire
-/// patchRestauranteActivo(id, activo) y ausencia total del tab para staff.
-///
-/// Overrides sin red (patrón cola_test): apiClientProvider → fake con
-/// listRestaurantes + patchRestauranteActivo espías; authStateProvider
-/// class-based con fixtures super_admin/admin_restaurante.
+import '../helpers/firebase_fakes.dart';
 
-/// Fake del AuthState (class-based) — evita secure storage en el runner.
-class _FakeAuthState extends AuthState {
-  _FakeAuthState(this.user);
+/// Tests del tab 'Restaurantes' de /configuracion sobre Firestore (PLAT-05,
+/// 10-06): super_admin ve la lista COMPLETA (activos E inactivos — get() de
+/// todos para poder re-activar), el toggle persiste SOLO la key `activo`
+/// (rules hasOnly(['activo'])) y el tab AUSENTE para staff.
 
-  final User? user;
-
-  @override
-  Future<User?> build() async => user;
+Widget _screen(
+  FakeFirebaseFirestore db, {
+  String role = 'super_admin',
+  String? rid,
+}) {
+  return ProviderScope(
+    overrides: [
+      firestoreProvider.overrideWithValue(db),
+      claimsProvider.overrideWith((ref) async => (role: role, rid: rid)),
+    ],
+    child: const MaterialApp(home: Scaffold(body: ConfiguracionScreen())),
+  );
 }
-
-/// Fake del ApiClient: listRestaurantes registra el flag incluir_inactivos;
-/// patchRestauranteActivo registra el wire; getStaffMenu alimenta el tab
-/// Menú (embebido en la misma pantalla) sin red.
-class _FakeApiClient extends ApiClient {
-  final List<bool> incluirInactivosCalls = [];
-  final List<(int, bool)> patchCalls = [];
-  List<Restaurante> restaurantes;
-
-  _FakeApiClient(this.restaurantes);
-
-  @override
-  Future<List<Restaurante>> listRestaurantes({
-    bool incluirInactivos = false,
-  }) async {
-    incluirInactivosCalls.add(incluirInactivos);
-    return restaurantes;
-  }
-
-  @override
-  Future<Restaurante> patchRestauranteActivo(int id, bool activo) async {
-    patchCalls.add((id, activo));
-    restaurantes = [
-      for (final r in restaurantes)
-        if (r.id == id) r.copyWith(activo: activo) else r,
-    ];
-    return restaurantes.firstWhere((r) => r.id == id);
-  }
-
-  @override
-  Future<List<CategoriaStaff>> getStaffMenu({int? restauranteId}) async {
-    return const [];
-  }
-}
-
-const _superAdmin = User(
-  id: 1,
-  nombre: 'Super Admin',
-  email: 'super@demo.gri.dev',
-  role: 'super_admin',
-  restaurantId: null,
-);
-
-const _staffUser = User(
-  id: 2,
-  nombre: 'Admin Demo',
-  email: 'admin@demo.gri.dev',
-  role: 'admin_restaurante',
-  restaurantId: 1,
-);
-
-List<Restaurante> _fixtures() => [
-      const Restaurante(
-        id: 1,
-        nombre: 'GRI Demo',
-        tipoCocina: 'Colombiana',
-        direccion: 'Calle 1',
-        activo: true,
-      ),
-      const Restaurante(
-        id: 2,
-        nombre: 'Sushi House',
-        tipoCocina: 'Japonesa',
-        direccion: 'Calle 2',
-        activo: false,
-      ),
-    ];
 
 Future<void> _pump(
   WidgetTester tester,
-  _FakeApiClient client, {
-  User user = _superAdmin,
+  FakeFirebaseFirestore db, {
+  String role = 'super_admin',
+  String? rid,
 }) async {
   tester.view.physicalSize = const Size(800, 1800);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        apiClientProvider.overrideWithValue(client),
-        authStateProvider.overrideWith(() => _FakeAuthState(user)),
-      ],
-      // Scaffold: SnackBar exige un Scaffold ancestor.
-      child: const MaterialApp(home: Scaffold(body: ConfiguracionScreen())),
-    ),
-  );
+  await tester.pumpWidget(_screen(db, role: role, rid: rid));
   await tester.pumpAndSettle();
 }
 
 void main() {
   testWidgets(
-    '(a) super_admin: tab Restaurantes con 2 restaurantes (1 activo, 1 inactivo OFF)',
+    '(a) super_admin: tab Restaurantes con los 3 del seed (sur inactivo OFF)',
     (tester) async {
-      final client = _FakeApiClient(_fixtures());
-      await _pump(tester, client);
+      final db = await buildFakeFirestoreConSeed();
+      await _pump(tester, db);
 
       // TabBar: los 3 tabs existen para super_admin.
       expect(find.text('Menú'), findsOneWidget);
@@ -130,49 +55,61 @@ void main() {
       await tester.tap(find.text('Restaurantes'));
       await tester.pumpAndSettle();
 
-      // La lista pidió incluir_inactivos (única vista que los expone).
-      expect(client.incluirInactivosCalls, [true]);
-      // 2 restaurantes renderizados con su estado.
-      expect(find.text('GRI Demo'), findsOneWidget);
-      expect(find.text('Sushi House'), findsOneWidget);
-      expect(find.text('Activo'), findsOneWidget);
+      // Los 3 restaurantes del seed (orden alfabético) con su estado.
+      expect(find.textContaining('Restaurante Demo GRI'), findsOneWidget);
+      expect(find.textContaining('GRI Norte'), findsOneWidget);
+      expect(find.textContaining('GRI Sur'), findsOneWidget);
+      expect(find.text('Activo'), findsNWidgets(2));
       expect(find.text('Inactivo'), findsOneWidget);
-      // Switch OFF en el inactivo (Sushi House, id 2).
+      // Switch OFF en el inactivo (sur — orden alfabético: Norte, Sur, Demo).
       final switches = find.byType(Switch);
-      expect(switches, findsNWidgets(2));
-      expect(tester.widget<Switch>(switches.at(0)).value, isTrue);
-      expect(tester.widget<Switch>(switches.at(1)).value, isFalse);
+      expect(switches, findsNWidgets(3));
+      expect(tester.widget<Switch>(switches.at(0)).value, isTrue); // Norte
+      expect(tester.widget<Switch>(switches.at(1)).value, isFalse); // Sur
+      expect(tester.widget<Switch>(switches.at(2)).value, isTrue); // Demo
     },
   );
 
-  testWidgets('(b) toggle en el inactivo → espía patchRestauranteActivo(2, true)', (
-    tester,
-  ) async {
-    final client = _FakeApiClient(_fixtures());
-    await _pump(tester, client);
+  testWidgets(
+    '(b) toggle del inactivo → persiste SOLO activo (resto del doc intacto)',
+    (tester) async {
+      final db = await buildFakeFirestoreConSeed();
+      await _pump(tester, db);
 
-    await tester.tap(find.text('Restaurantes'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Restaurantes'));
+      await tester.pumpAndSettle();
 
-    // Encender el switch OFF (Sushi House).
-    await tester.tap(find.byType(Switch).at(1));
-    await tester.pumpAndSettle();
+      // Encender el switch OFF (GRI Sur — 2º por orden alfabético).
+      await tester.tap(find.byType(Switch).at(1));
+      await tester.pumpAndSettle();
 
-    // Wire exacto: PATCH /admin/restaurantes/2 {"activo": true}.
-    expect(client.patchCalls, [(2, true)]);
-    expect(find.text('Restaurante reactivado'), findsOneWidget);
-  });
+      // Update quirúrgico: activo true, keys de negocio intactas.
+      final doc = await db.doc('restaurantes/sur').get();
+      final data = doc.data()!;
+      expect(data['activo'], true);
+      expect(data['nombre'], 'GRI Sur (inactivo)');
+      expect(data['tipoCocina'], 'Colombiana');
+      expect(data['direccion'], 'Cra. 27 #10-20, Bogotá');
 
-  testWidgets('(c) staff: tab Restaurantes AUSENTE; Menú/Restaurante presentes', (
-    tester,
-  ) async {
-    final client = _FakeApiClient(_fixtures());
-    await _pump(tester, client, user: _staffUser);
+      expect(find.text('Restaurante reactivado'), findsOneWidget);
+    },
+  );
 
-    expect(find.text('Restaurantes'), findsNothing);
-    expect(find.text('Menú'), findsOneWidget);
-    expect(find.text('Restaurante'), findsOneWidget);
-    // El provider de admin jamás se construye para staff.
-    expect(client.incluirInactivosCalls, isEmpty);
-  });
+  testWidgets(
+    '(c) staff: tab Restaurantes AUSENTE; ficha del propio tenant carga',
+    (tester) async {
+      final db = await buildFakeFirestoreConSeed();
+      await _pump(tester, db, role: 'admin_restaurante', rid: 'demo');
+
+      expect(find.text('Restaurantes'), findsNothing);
+      expect(find.text('Menú'), findsOneWidget);
+      expect(find.text('Restaurante'), findsOneWidget);
+
+      // Tab Restaurante (ficha del stream del doc del tenant).
+      await tester.tap(find.text('Restaurante'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Restaurante Demo GRI'), findsOneWidget);
+      expect(find.text('Activo'), findsOneWidget);
+    },
+  );
 }

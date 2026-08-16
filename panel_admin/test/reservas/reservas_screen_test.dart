@@ -1,205 +1,194 @@
-import 'package:dio/dio.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gri_panel_admin/core/api_client.dart';
-import 'package:gri_panel_admin/core/token_provider.dart';
+import 'package:gri_panel_admin/core/firebase_providers.dart';
 import 'package:gri_panel_admin/features/reservas/reservas_screen.dart';
-import 'package:gri_panel_admin/models/mesa.dart';
-import 'package:gri_panel_admin/models/reserva.dart';
-import 'package:gri_panel_admin/models/user.dart';
 
-/// Tests de /reservas (RESV-05 UI): render del día con chips de estado,
-/// botón 'Marcar ocupada' SOLO en confirmadas, espía del wire
-/// setMesaEstado(mesaId, 'ocupada') y manejo del 409 (mesa cambió por
-/// otra vía) con SnackBar + refresh.
-///
-/// Overrides sin red (patrón cola_test): apiClientProvider → fake con
-/// getReservas fixture + setMesaEstado espía (ejercita la cadena
-/// screen→provider→client completa); authStateProvider class-based.
+import '../helpers/firebase_fakes.dart';
 
-/// Fake del AuthState (class-based) — evita secure storage en el runner.
-class _FakeAuthState extends AuthState {
-  _FakeAuthState(this.user);
+/// Tests de /reservas sobre Firestore (RESV-05, 10-06): stream EN VIVO de
+/// las reservas de HOY (ventana TZ local — horas fijas 12:00/14:00 para no
+/// cruzar medianoche, lección 10-05), 'Marcar ocupada' = transición de la
+/// MESA reservada→ocupada, 'No-show' = reserva cancelada, y aislamiento
+/// tenant (otro restaurante y ayer NO aparecen).
 
-  final User? user;
-
-  @override
-  Future<User?> build() async => user;
+Future<void> _reserva(
+  FakeFirebaseFirestore db, {
+  required String rid,
+  required String mesaId,
+  required DateTime fecha,
+  required int numPersonas,
+  required String estado,
+}) {
+  final dia =
+      '${fecha.year}${fecha.month.toString().padLeft(2, '0')}${fecha.day.toString().padLeft(2, '0')}';
+  return db
+      .doc('reservas/${mesaId}_${dia}_${fecha.hour.toString().padLeft(2, '0')}')
+      .set({
+    'restauranteId': rid,
+    'mesaId': mesaId,
+    'fecha': Timestamp.fromDate(fecha),
+    'numPersonas': numPersonas,
+    'estado': estado,
+    'usuarioId': 'uid-ana',
+  });
 }
 
-/// Fake del ApiClient: getReservas devuelve el fixture del día; setMesaEstado
-/// registra el wire exacto (o lanza el [estadoError] para el test del 409).
-class _FakeApiClient extends ApiClient {
-  _FakeApiClient({this.reservas = const [], this.estadoError});
+/// Reservas de HOY (12:00 confirmada mesa 2, 14:00 pendiente mesa 3) +
+/// ruido que NO debe aparecer (ayer + otro tenant).
+Future<void> _seedHoy(FakeFirebaseFirestore db) async {
+  final hoy = DateTime.now();
+  final mediodia = DateTime(hoy.year, hoy.month, hoy.day, 12, 0);
+  final tarde = DateTime(hoy.year, hoy.month, hoy.day, 14, 0);
+  final ayer = DateTime(hoy.year, hoy.month, hoy.day, 12, 0)
+      .subtract(const Duration(days: 1));
 
-  final List<Map<String, dynamic>> reservasCalls = [];
-  final List<(String, String)> setEstadoCalls = [];
+  // Mesa 2 reservada (la transición reservada→ocupada es válida).
+  await db.doc('mesas/GRI-MESA-demo-002').update({'estado': 'reservada'});
 
-  List<Reserva> reservas;
-  final DioException? estadoError;
-
-  @override
-  Future<List<Reserva>> getReservas({
-    String? fecha,
-    int? restauranteId,
-  }) async {
-    reservasCalls.add({'fecha': fecha, 'restaurante_id': restauranteId});
-    return reservas;
-  }
-
-  @override
-  Future<Mesa> setMesaEstado(
-    String mesaId,
-    String estado, {
-    int? restauranteId,
-  }) async {
-    setEstadoCalls.add((mesaId, estado));
-    if (estadoError != null) throw estadoError!;
-    return Mesa(
-      id: mesaId,
-      restauranteId: 'R1',
-      numero: 2,
-      capacidad: 4,
-      estado: EstadoMesa.ocupada,
-    );
-  }
+  await _reserva(db,
+      rid: 'demo',
+      mesaId: 'GRI-MESA-demo-002',
+      fecha: mediodia,
+      numPersonas: 4,
+      estado: 'confirmada');
+  await _reserva(db,
+      rid: 'demo',
+      mesaId: 'GRI-MESA-demo-003',
+      fecha: tarde,
+      numPersonas: 2,
+      estado: 'pendiente');
+  await _reserva(db,
+      rid: 'demo',
+      mesaId: 'GRI-MESA-demo-001',
+      fecha: ayer,
+      numPersonas: 2,
+      estado: 'confirmada');
+  await _reserva(db,
+      rid: 'norte',
+      mesaId: 'GRI-MESA-norte-001',
+      fecha: mediodia,
+      numPersonas: 6,
+      estado: 'confirmada');
 }
 
-const _adminUser = User(
-  id: 2,
-  nombre: 'Admin Demo',
-  email: 'admin@demo.gri.dev',
-  role: 'admin_restaurante',
-  restaurantId: 1,
-);
-
-List<Reserva> _fixtureDia() => const [
-      Reserva(
-        id: 3,
-        restauranteNombre: 'Demo',
-        mesaId: 2,
-        mesaNumero: 2,
-        fecha: '2026-08-14',
-        horaInicio: '19:00:00',
-        numPersonas: 4,
-        estado: 'confirmada',
+Widget _screen(FakeFirebaseFirestore db) {
+  return ProviderScope(
+    overrides: [
+      firestoreProvider.overrideWithValue(db),
+      claimsProvider.overrideWith(
+        (ref) async => (role: 'admin_restaurante', rid: 'demo'),
       ),
-      Reserva(
-        id: 5,
-        restauranteNombre: 'Demo',
-        mesaId: 4,
-        mesaNumero: 4,
-        fecha: '2026-08-14',
-        horaInicio: '20:30:00',
-        numPersonas: 2,
-        estado: 'cancelada',
-      ),
-    ];
+    ],
+    child: const MaterialApp(home: Scaffold(body: ReservasScreen())),
+  );
+}
 
-DioException _conflict409() => DioException(
-      requestOptions: RequestOptions(path: '/staff/mesas/2/estado'),
-      response: Response(
-        requestOptions: RequestOptions(path: '/staff/mesas/2/estado'),
-        statusCode: 409,
-        data: {'detail': 'Transición inválida'},
-      ),
-    );
-
-Future<void> _pump(
-  WidgetTester tester,
-  _FakeApiClient client, {
-  User user = _adminUser,
-}) async {
-  tester.view.physicalSize = const Size(800, 1800);
+Future<void> _pump(WidgetTester tester, FakeFirebaseFirestore db) async {
+  tester.view.physicalSize = const Size(1200, 1800);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        apiClientProvider.overrideWithValue(client),
-        authStateProvider.overrideWith(() => _FakeAuthState(user)),
-      ],
-      // Scaffold: SnackBar exige un Scaffold ancestor.
-      child: const MaterialApp(home: Scaffold(body: ReservasScreen())),
-    ),
-  );
+  await tester.pumpWidget(_screen(db));
   await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('(a) renderiza las 2 reservas con chips de estado', (
-    tester,
-  ) async {
-    final client = _FakeApiClient(reservas: _fixtureDia());
-    await _pump(tester, client);
+  testWidgets(
+    '(a) stream de HOY: 2 reservas (confirmada+pendiente), sin ayer ni otro tenant',
+    (tester) async {
+      final db = await buildFakeFirestoreConSeed();
+      await _seedHoy(db);
+      await _pump(tester, db);
 
-    // El fetch del día viajó con la fecha de HOY (estado local inicial).
-    expect(client.reservasCalls, [
-      {'fecha': DateTime.now().toIso8601String().substring(0, 10), 'restaurante_id': null},
-    ]);
-    // Cards: hora HH:MM, mesa, personas, chips.
-    expect(find.text('19:00'), findsOneWidget);
-    expect(find.text('20:30'), findsOneWidget);
-    expect(find.text('Mesa 2'), findsOneWidget);
-    expect(find.text('Mesa 4'), findsOneWidget);
-    expect(find.text('4 personas'), findsOneWidget);
-    expect(find.text('2 personas'), findsOneWidget);
-    expect(find.text('confirmada'), findsOneWidget);
-    expect(find.text('cancelada'), findsOneWidget);
-    // Cancelada va TACHADA (semántica visual).
-    final chip = tester.widget<Text>(find.text('cancelada'));
-    expect(chip.style?.decoration, TextDecoration.lineThrough);
-  });
+      // Cards del día (horas fijas HH:mm del Timestamp).
+      expect(find.text('12:00'), findsOneWidget);
+      expect(find.text('14:00'), findsOneWidget);
+      expect(find.text('Mesa 2'), findsOneWidget);
+      expect(find.text('Mesa 3'), findsOneWidget);
+      expect(find.text('4 personas'), findsOneWidget);
+      expect(find.text('2 personas'), findsOneWidget);
 
-  testWidgets('(b) Marcar ocupada SOLO en la confirmada', (tester) async {
-    final client = _FakeApiClient(reservas: _fixtureDia());
-    await _pump(tester, client);
+      // La de ayer (Mesa 1) y la del norte NO aparecen.
+      expect(find.text('Mesa 1'), findsNothing);
 
-    expect(find.text('Marcar ocupada'), findsOneWidget);
-    expect(find.text('Hoy'), findsOneWidget);
-    expect(find.text('Sin reservas para este día'), findsNothing);
-  });
+      // Chips de estado.
+      expect(find.text('confirmada'), findsOneWidget);
+      expect(find.text('pendiente'), findsOneWidget);
+
+      // 'Marcar ocupada' SOLO en la confirmada; 'No-show' en ambas vivas.
+      expect(find.text('Marcar ocupada'), findsOneWidget);
+      expect(find.text('No-show'), findsNWidgets(2));
+    },
+  );
 
   testWidgets(
-    '(c) tap Marcar ocupada → espía setMesaEstado(mesaId, "ocupada") + SnackBar',
+    '(b) Marcar ocupada → mesa 2 pasa a ocupada en Firestore + SnackBar',
     (tester) async {
-      final client = _FakeApiClient(reservas: _fixtureDia());
-      await _pump(tester, client);
+      final db = await buildFakeFirestoreConSeed();
+      await _seedHoy(db);
+      await _pump(tester, db);
 
       await tester.tap(find.text('Marcar ocupada'));
       await tester.pumpAndSettle();
 
-      // Wire exacto: POST /staff/mesas/2/estado {"estado": "ocupada"} —
-      // mesaId viaja como String (doc ID = código QR, Phase 10-05).
-      expect(client.setEstadoCalls, [('2', 'ocupada')]);
+      final mesa = await db.doc('mesas/GRI-MESA-demo-002').get();
+      expect(mesa.data()!['estado'], 'ocupada');
       expect(find.text('Mesa 2 marcada ocupada'), findsOneWidget);
     },
   );
 
-  testWidgets('(d) 409 del server → SnackBar "La mesa ya cambió de estado"', (
-    tester,
-  ) async {
-    final client = _FakeApiClient(
-      reservas: _fixtureDia(),
-      estadoError: _conflict409(),
-    );
-    await _pump(tester, client);
+  testWidgets(
+    '(c) No-show → reserva cancelada (doc + chip tachado en vivo)',
+    (tester) async {
+      final db = await buildFakeFirestoreConSeed();
+      await _seedHoy(db);
+      await _pump(tester, db);
+
+      // El No-show de la pendiente (14:00, mesa 3).
+      await tester.tap(find.text('No-show').last);
+      await tester.pumpAndSettle();
+
+      // Doc con estado cancelada.
+      final snap = await db
+          .collection('reservas')
+          .where('mesaId', isEqualTo: 'GRI-MESA-demo-003')
+          .get();
+      expect(snap.size, 1);
+      expect(snap.docs.first.data()['estado'], 'cancelada');
+
+      // El stream re-emite: chip cancelada TACHADO y sin acciones vivas
+      // en ESA card (la confirmada conserva sus 2 acciones).
+      expect(find.text('Reserva cancelada'), findsOneWidget);
+      final chip = tester.widget<Text>(find.text('cancelada'));
+      expect(chip.style?.decoration, TextDecoration.lineThrough);
+      expect(find.text('No-show'), findsOneWidget);
+      expect(find.text('Marcar ocupada'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    '(d) mesa ya ocupada (carrera) → "La mesa ya cambió de estado"',
+    (tester) async {
+      final db = await buildFakeFirestoreConSeed();
+      await _seedHoy(db);
+      // Otro staff movió la mesa 2 primero.
+      await db.doc('mesas/GRI-MESA-demo-002').update({'estado': 'ocupada'});
+      await _pump(tester, db);
 
       await tester.tap(find.text('Marcar ocupada'));
       await tester.pumpAndSettle();
 
-      expect(client.setEstadoCalls, [('2', 'ocupada')]);
-    expect(find.text('La mesa ya cambió de estado'), findsOneWidget);
-    // El listado se refrescó (invalidate → re-fetch del día).
-    expect(client.reservasCalls.length, greaterThanOrEqualTo(2));
-  });
+      expect(find.text('La mesa ya cambió de estado'), findsOneWidget);
+    },
+  );
 
-  testWidgets('(e) día vacío → estado vacío', (tester) async {
-    final client = _FakeApiClient(reservas: const []);
-    await _pump(tester, client);
+  testWidgets('(e) día sin reservas → estado vacío', (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _pump(tester, db);
 
-    expect(find.text('Sin reservas para este día'), findsOneWidget);
+    expect(find.text('Sin reservas para hoy'), findsOneWidget);
     expect(find.byType(ListView), findsNothing);
   });
 }

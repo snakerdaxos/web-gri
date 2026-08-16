@@ -9,7 +9,9 @@ import 'clientes_provider.dart';
 import 'historial_dialog.dart';
 
 /// Tabla de clientes del restaurante (ADMN-03) — usuarios con pedidos en
-/// el tenant. Tap en una fila → [showHistorialDialog] con sus pedidos.
+/// el tenant (DERIVADOS de pedidos: fold distinct por usuarioId con el
+/// clienteNombre denormalizado — sin leer usuarios/, que rules prohíben
+/// al staff). Tap en una fila → [showHistorialDialog] con sus pedidos.
 ///
 /// DataTable2 con `minWidth: 600` (scroll horizontal en pantallas angostas)
 /// y scroll vertical propio con header sticky — SIEMPRE dentro de bounds
@@ -86,7 +88,7 @@ class ClientesScreen extends ConsumerWidget {
                             numeric: true,
                           ),
                           DataColumn(
-                            label: Text('Total gastado'),
+                            label: Text('Total consumo'),
                             numeric: true,
                           ),
                           DataColumn(label: Text('Último pedido')),
@@ -104,13 +106,13 @@ class ClientesScreen extends ConsumerWidget {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        c.nombre,
+                                        c.clienteNombre,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       Text(
-                                        c.email,
+                                        c.usuarioId,
                                         style: const TextStyle(
                                           fontSize: 12,
                                           color: GriColors.gray,
@@ -119,14 +121,14 @@ class ClientesScreen extends ConsumerWidget {
                                     ],
                                   ),
                                 ),
-                                DataCell(Text(c.numPedidos.toString())),
-                                DataCell(Text(formatCOP(c.totalGastado))),
+                                DataCell(Text(c.nPedidos.toString())),
+                                DataCell(Text(formatCOP(c.totalConsumo))),
                                 DataCell(
                                   Text(
-                                    c.ultimoPedidoAt == null
+                                    c.ultimoPedido == null
                                         ? '—'
                                         : DateFormat('dd/MM/yyyy')
-                                            .format(c.ultimoPedidoAt!),
+                                            .format(c.ultimoPedido!),
                                   ),
                                 ),
                               ],

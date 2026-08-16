@@ -1,46 +1,109 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/api_client.dart';
-import '../../core/token_provider.dart';
+import '../../core/firebase_providers.dart';
 import '../../models/cliente_resumen.dart';
 import '../../models/pedido_staff.dart';
-import '../dashboard/restaurante_provider.dart';
+import '../dashboard/restaurante_provider.dart' show ridActivoProvider;
 
 part 'clientes_provider.g.dart';
 
-/// Clientes del restaurante (usuarios con pedidos en el tenant, ADMN-03).
+/// Clientes del restaurante (ADMN-03) — DERIVADOS de pedidos.
 ///
-/// Sin WS (decisión research 08): la tabla vive de este FutureProvider y la
-/// UI lo invalida cuando corresponde. rid null (super_admin sin selección)
-/// → `[]` (patrón mesasProvider).
+/// Las rules no permiten al staff leer `usuarios/` ajenos, así que la
+/// lista se pliega desde pedidos: `pedidos where restauranteId == rid`
+/// (equality-only: sin orderBy compuesto — los índices de campo simple
+/// bastan y no exige un índice nuevo) + orden client-side por createdAt
+/// DESC + fold distinct por `usuarioId` usando el `clienteNombre`
+/// denormalizado de cada doc. Cero lecturas de `usuarios/`.
+///
+/// NOTA de coste (diseño planner): v1 demo = get + fold en cliente;
+/// agregaciones formales server-side = fase futura.
+///
+/// rid null (super_admin sin selección) → `[]` (patrón mesasProvider).
 @riverpod
 Future<List<ClienteResumen>> clientes(Ref ref) async {
-  final user = ref.watch(authStateProvider).value;
-  final selectedRid = ref.watch(currentRestauranteIdProvider);
-  final rid = selectedRid ?? user?.restaurantId;
+  final db = ref.watch(firestoreProvider);
+  final rid = await ref.watch(ridActivoProvider.future);
 
-  if (rid == null) return [];
+  if (rid == null) return const <ClienteResumen>[];
 
-  final queryRid = user?.isSuperAdmin == true ? rid : null;
-  return ref.read(apiClientProvider).getClientes(restauranteId: queryRid);
+  final snap = await db
+      .collection('pedidos')
+      .where('restauranteId', isEqualTo: rid)
+      .get();
+
+  final docs = snap.docs.toList()
+    ..sort((a, b) {
+      final fa = (a.data()['createdAt'] as Timestamp?)?.toDate();
+      final fb = (b.data()['createdAt'] as Timestamp?)?.toDate();
+      return (fb ?? DateTime(0)).compareTo(fa ?? DateTime(0)); // DESC
+    });
+
+  // Fold: primer pedido visto (el más reciente) fija nombre y último;
+  // los siguientes acumulan nPedidos/totalConsumo.
+  final acumulados = <String, _Acumulado>{};
+  for (final doc in docs) {
+    final d = doc.data();
+    final uid = d['usuarioId'] as String? ?? '';
+    if (uid.isEmpty) continue;
+    final previo = acumulados[uid];
+    acumulados[uid] = _Acumulado(
+      clienteNombre: d['clienteNombre'] as String? ?? 'Cliente',
+      nPedidos: (previo?.nPedidos ?? 0) + 1,
+      totalConsumo:
+          (previo?.totalConsumo ?? 0) + ((d['total'] as num?)?.toInt() ?? 0),
+      ultimoPedido:
+          previo?.ultimoPedido ?? (d['createdAt'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  // La iteración preserva el orden de inserción (DESC por primer visto).
+  return [
+    for (final e in acumulados.entries)
+      ClienteResumen(
+        usuarioId: e.key,
+        clienteNombre: e.value.clienteNombre,
+        nPedidos: e.value.nPedidos,
+        totalConsumo: e.value.totalConsumo,
+        ultimoPedido: e.value.ultimoPedido,
+      ),
+  ];
 }
 
-/// Historial de pedidos de un cliente EN el tenant (family, ADMN-03) —
-/// misma shape que la cola de pedidos (`PedidoStaffRead` reusado, 08-01).
+class _Acumulado {
+  const _Acumulado({
+    required this.clienteNombre,
+    required this.nPedidos,
+    required this.totalConsumo,
+    this.ultimoPedido,
+  });
+
+  final String clienteNombre;
+  final int nPedidos;
+  final int totalConsumo;
+  final DateTime? ultimoPedido;
+}
+
+/// Historial de pedidos de un cliente EN el tenant (family, ADMN-03).
 ///
-/// 404 existence hiding relacional cuando el usuario no tiene pedidos aquí:
-/// el dialog lo traduce a 'Sin pedidos en este restaurante' (el error y el
-/// vacío son indistinguibles por diseño).
+/// `pedidos where restauranteId == rid where usuarioId == uid`
+/// (dos igualdades: zigzag merge sobre índices simples, sin índice
+/// compuesto) + orden DESC client-side por createdAt.
 @riverpod
-Future<List<PedidoStaff>> clienteHistorial(Ref ref, int usuarioId) async {
-  final user = ref.watch(authStateProvider).value;
-  final selectedRid = ref.watch(currentRestauranteIdProvider);
-  final rid = selectedRid ?? user?.restaurantId;
+Future<List<PedidoStaff>> clienteHistorial(Ref ref, String usuarioId) async {
+  final db = ref.watch(firestoreProvider);
+  final rid = await ref.watch(ridActivoProvider.future);
 
-  if (rid == null) return [];
+  if (rid == null) return const <PedidoStaff>[];
 
-  final queryRid = user?.isSuperAdmin == true ? rid : null;
-  return ref
-      .read(apiClientProvider)
-      .getClienteHistorial(usuarioId, restauranteId: queryRid);
+  final snap = await db
+      .collection('pedidos')
+      .where('restauranteId', isEqualTo: rid)
+      .where('usuarioId', isEqualTo: usuarioId)
+      .get();
+
+  final pedidos = [for (final doc in snap.docs) PedidoStaff.fromDoc(doc)]
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt)); // DESC
+  return pedidos;
 }

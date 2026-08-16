@@ -1,25 +1,40 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'restaurante.freezed.dart';
-part 'restaurante.g.dart';
 
-/// Restaurante (`RestauranteRead` del backend).
+/// Restaurante — doc `restaurantes/{slug}` (Phase 10).
 ///
-/// Lo consume el topbar del panel vía `GET /admin/restaurantes/{id}`
-/// (staff lee su propio tenant) y el selector de super_admin vía
-/// `GET /admin/restaurantes`.
+/// Lo consume la ficha read-only de /configuracion (staff de SU tenant) y
+/// el tab de super_admin (lista completa con inactivos).
 @freezed
 abstract class Restaurante with _$Restaurante {
   const factory Restaurante({
-    required int id,
+    /// Slug (doc ID) — ej. `demo`.
+    required String id,
     required String nombre,
     String? descripcion,
-    @JsonKey(name: 'tipo_cocina') String? tipoCocina,
+    String? tipoCocina,
     String? direccion,
     required bool activo,
-    @JsonKey(name: 'created_at') DateTime? createdAt,
+
+    /// Agregado de calificaciones (lo mantiene la tx de calificar).
+    @Default(0.0) double califProm,
+    @Default(0) int califCount,
   }) = _Restaurante;
 
-  factory Restaurante.fromJson(Map<String, dynamic> json) =>
-      _$RestauranteFromJson(json);
+  /// Mapea el doc `restaurantes/{slug}`.
+  factory Restaurante.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? const <String, dynamic>{};
+    return Restaurante(
+      id: doc.id,
+      nombre: data['nombre'] as String? ?? '',
+      descripcion: data['descripcion'] as String?,
+      tipoCocina: data['tipoCocina'] as String?,
+      direccion: data['direccion'] as String?,
+      activo: data['activo'] as bool? ?? false,
+      califProm: (data['califProm'] as num?)?.toDouble() ?? 0.0,
+      califCount: (data['califCount'] as num?)?.toInt() ?? 0,
+    );
+  }
 }

@@ -1,24 +1,21 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/api_client.dart';
-import '../../core/token_provider.dart';
+import '../../core/firebase_providers.dart';
 import '../../models/categoria_staff.dart';
 import '../dashboard/restaurante_provider.dart';
 import 'menu_provider.dart';
 
-/// Form crear/editar categoría (MENU-01).
+/// Form crear/editar categoría (MENU-01) sobre Firestore (10-06).
 ///
-/// * [categoria] == null → crear (`POST /staff/categorias {nombre, orden?}`):
-///   el POST NO acepta `activo` (server default true, contrato 08-01) — el
-///   switch 'Activo' aparece SOLO en edición.
-/// * Editar → `PATCH /staff/categorias/{id}` con SOLO los campos modificados
-///   (null-aware elements). El switch 'Activo' es el soft-delete: la
-///   categoría desaparece de /public pero sigue aquí para gestión.
-/// * Tras éxito: pop + SnackBar + `ref.invalidate(staffMenuProvider)` — el
-///   menú NO tiene WS (refresh on-demand, decisión research 08).
-/// * DioException 409 (nombre dup por tenant) → SnackBar accionable.
+/// * [categoria] == null → crear ([crearCategoria] con autoId; nace
+///   `activo: true` — el switch 'Activa' aparece SOLO en edición).
+/// * Editar → [actualizarCategoria] con SOLO los campos modificados
+///   (diff quirúrgico). El switch 'Activa' es el soft-delete: la
+///   categoría desaparece del menú del cliente pero sigue aquí para
+///   gestión.
+/// * Tras éxito: pop + SnackBar. El menú es un STREAM (onSnapshot de
+///   categorías+productos) — se refresca SOLO, sin invalidate manual.
 class CategoriaFormDialog extends ConsumerStatefulWidget {
   const CategoriaFormDialog({super.key, this.categoria});
 
@@ -32,7 +29,7 @@ class CategoriaFormDialog extends ConsumerStatefulWidget {
 class _CategoriaFormDialogState extends ConsumerState<CategoriaFormDialog> {
   late final TextEditingController _nombreCtrl;
   late final TextEditingController _ordenCtrl;
-  late final bool _activo;
+  late bool _activo;
   final _formKey = GlobalKey<FormState>();
   bool _saving = false;
 
@@ -55,8 +52,8 @@ class _CategoriaFormDialogState extends ConsumerState<CategoriaFormDialog> {
 
   bool get _editando => widget.categoria != null;
 
-  /// Editar sin cambios → nada que enviar (backend 422 "Nada que
-  /// actualizar"): Guardar queda deshabilitado (patrón mesa_form_dialog).
+  /// Editar sin cambios → nada que escribir: Guardar queda deshabilitado
+  /// (patrón mesa_form_dialog).
   bool get _sinCambios {
     if (!_editando) return false;
     final original = widget.categoria!;
@@ -76,38 +73,23 @@ class _CategoriaFormDialogState extends ConsumerState<CategoriaFormDialog> {
     // Capturas ANTES del await (patrón cocina_screen).
     final messenger = ScaffoldMessenger.maybeOf(context);
     final navigator = Navigator.of(context);
-    final user = ref.read(authStateProvider).value;
-    final rid = ref.read(currentRestauranteIdProvider) ?? user?.restaurantId;
-    final queryRid = user?.isSuperAdmin == true ? rid : null;
-    final client = ref.read(apiClientProvider);
+    final db = ref.read(firestoreProvider);
+    final rid = await ref.read(ridActivoProvider.future);
 
     try {
+      if (rid == null) throw StateError('No hay restaurante seleccionado');
       if (!_editando) {
-        await client.createCategoria(nombre, orden: orden,
-            restauranteId: queryRid);
+        await crearCategoria(db, rid: rid, nombre: nombre, orden: orden);
       } else {
         final original = widget.categoria!;
-        await client.updateCategoria(
-          original.id,
+        await actualizarCategoria(
+          db,
+          categoria: original,
           nombre: nombre != original.nombre ? nombre : null,
           orden: orden != original.orden ? orden : null,
           activo: _activo != original.activo ? _activo : null,
-          restauranteId: queryRid,
         );
       }
-    } on DioException catch (e) {
-      if (mounted) setState(() => _saving = false);
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(
-            e.response?.statusCode == 409
-                ? 'Ya existe una categoría con ese nombre'
-                : 'No se pudo guardar la categoría',
-          ),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      return;
     } catch (_) {
       if (mounted) setState(() => _saving = false);
       messenger?.showSnackBar(
@@ -119,7 +101,7 @@ class _CategoriaFormDialogState extends ConsumerState<CategoriaFormDialog> {
       return;
     }
 
-    // Éxito: cerrar + confirmar + refresh on-demand (sin WS — invalidate).
+    // Éxito: cerrar + confirmar. El stream del menú re-emite solo.
     navigator.pop();
     messenger?.showSnackBar(
       SnackBar(
@@ -129,7 +111,6 @@ class _CategoriaFormDialogState extends ConsumerState<CategoriaFormDialog> {
         duration: const Duration(seconds: 3),
       ),
     );
-    ref.invalidate(staffMenuProvider);
   }
 
   @override
@@ -178,7 +159,7 @@ class _CategoriaFormDialogState extends ConsumerState<CategoriaFormDialog> {
                   return null;
                 },
               ),
-              // Soft-delete: solo en edición (el POST no acepta activo).
+              // Soft-delete: solo en edición (el alta nace activa).
               if (_editando)
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,

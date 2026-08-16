@@ -1,10 +1,8 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/api_client.dart';
+import '../../core/firebase_providers.dart';
 import '../../core/theme.dart';
-import '../../core/token_provider.dart';
 import '../../models/restaurante.dart';
 import '../dashboard/restaurante_provider.dart';
 import '../menu/menu_screen.dart';
@@ -15,55 +13,66 @@ import 'restaurantes_admin_provider.dart';
 /// reservada para administración).
 ///
 /// Tabs:
-///  * 'Menú' → [MenuScreen] embebido (CRUD categorías/productos, 08-04).
-///  * 'Restaurante' → info read-only del restauranteProvider (la edición
-///    del perfil queda fuera de v1).
-///  * 'Restaurantes' → SOLO super_admin (PLAT-05, 08-05): lista COMPLETA
-///    (incluye inactivos) con switch desactivar/reactivar.
+///  * 'Menú' → [MenuScreen] embebido (CRUD categorías/productos en vivo).
+///  * 'Restaurante' → info read-only del [restauranteProvider] (stream
+///    Firestore del doc del tenant — la edición del perfil queda fuera
+///    de v1).
+///  * 'Restaurantes' → SOLO super_admin (PLAT-05): lista COMPLETA
+///    (incluye inactivos) con switch desactivar/reactivar
+///    ([toggleRestauranteActivo] — update de SOLO `activo` por rules).
 ///
-/// El [DefaultTabController] length se computa ANTES del build (2 staff /
-/// 3 super_admin) — el tab extra no existe para staff ni en el TabBar.
+/// El gating vive en claims (`role == 'super_admin'`); los tabs se
+/// construyen cuando los claims resuelven (brief spinner al abrir).
 class ConfiguracionScreen extends ConsumerWidget {
   const ConfiguracionScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isSuperAdmin =
-        ref.watch(authStateProvider).value?.isSuperAdmin ?? false;
+    final claimsAsync = ref.watch(claimsProvider);
 
-    return DefaultTabController(
-      length: isSuperAdmin ? 3 : 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Material(
-            color: Colors.white,
-            child: TabBar(
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              tabs: [
-                const Tab(text: 'Menú'),
-                const Tab(text: 'Restaurante'),
-                if (isSuperAdmin) const Tab(text: 'Restaurantes'),
-              ],
-            ),
-          ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                const MenuScreen(),
-                const _RestauranteTab(),
-                if (isSuperAdmin) const _RestaurantesTab(),
-              ],
-            ),
-          ),
-        ],
+    return claimsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => const Center(
+        child: Text('Error cargando la sesión', style: TextStyle(color: GriColors.gray)),
       ),
+      data: (claims) {
+        final isSuperAdmin = claims.role == 'super_admin';
+        return DefaultTabController(
+          length: isSuperAdmin ? 3 : 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Material(
+                color: Colors.white,
+                child: TabBar(
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  tabs: [
+                    const Tab(text: 'Menú'),
+                    const Tab(text: 'Restaurante'),
+                    if (isSuperAdmin) const Tab(text: 'Restaurantes'),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    const MenuScreen(),
+                    const _RestauranteTab(),
+                    if (isSuperAdmin) const _RestaurantesTab(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
-/// Tab Restaurante — ficha read-only del restaurante activo.
+/// Tab Restaurante — ficha read-only del restaurante activo (stream del
+/// doc `restaurantes/{rid}`).
 class _RestauranteTab extends ConsumerWidget {
   const _RestauranteTab();
 
@@ -181,24 +190,23 @@ class _EstadoBadge extends StatelessWidget {
 }
 
 /// Tab Restaurantes (PLAT-05) — SOLO super_admin: lista COMPLETA de
-/// restaurantes (incluye inactivos, `?incluir_inactivos=true`) con switch
-/// desactivar/reactivar.
+/// restaurantes (get() de TODOS — incluye inactivos para poder
+/// re-activarlos) con switch desactivar/reactivar.
 ///
-/// Alcance v1 del backend (08-02): desactivar oculta el restaurante de
-/// /public (desaparece de la app de clientes) pero el staff con token
-/// vigente SIGUE operando — por eso desactivar el restaurante ACTUALMENTE
-/// seleccionado en el dropdown del topbar NO lo desmonta.
+/// El update toca SOLO la key `activo` (rules: `diff hasOnly(['activo'])`
+/// — ni nombre ni calificaciones tocables desde el panel). Desactivar
+/// oculta el restaurante del discover de clientes en vivo.
 class _RestaurantesTab extends ConsumerWidget {
   const _RestaurantesTab();
 
   Future<void> _toggle(BuildContext context, WidgetRef ref, Restaurante r,
       bool valor) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final db = ref.read(firestoreProvider);
+
     try {
-      await ref
-          .read(apiClientProvider)
-          .patchRestauranteActivo(r.id, valor);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      await toggleRestauranteActivo(db, slug: r.id, valor: valor);
+      messenger?.showSnackBar(
         SnackBar(
           content: Text(
             valor
@@ -208,15 +216,10 @@ class _RestaurantesTab extends ConsumerWidget {
         ),
       );
       ref.invalidate(restaurantesAdminProvider);
-    } on DioException catch (e) {
-      if (!context.mounted) return;
-      final detail =
-          e.response?.data is Map ? e.response?.data['detail'] : null;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            detail is String ? detail : 'Error actualizando el restaurante',
-          ),
+    } catch (_) {
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('Error actualizando el restaurante'),
         ),
       );
     }
