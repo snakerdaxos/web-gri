@@ -180,13 +180,25 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
 
 ### Phase 10: Migracion a Firebase (Opcion B) — apps Flutter (movil y panel web) directas a Firebase Auth + Firestore con security rules, backend FastAPI archivado como referencia
 
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 9
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd-plan-phase 10 to break down)
+**Goal:** Las dos apps Flutter (app cliente y panel admin) funcionan 100% sobre Firebase Auth + Firestore con security rules por custom claims, realtime nativo (onSnapshot) y transacciones de concurrencia; el restaurante demo se siembra en Firestore (emuladores + proyecto real) y el backend FastAPI queda archivado como referencia
+**Mode:** mvp
+**Depends on**: Phase 9
+**Requirements**: MIGRA-01, MIGRA-02, MIGRA-03, MIGRA-04, MIGRA-05, MIGRA-06
+**Success Criteria** (what must be TRUE):
+  1. La app cliente completa (auth, descubrimiento, reservas, sesión QR, pedidos, cuenta, calificación) opera 100% contra Firebase sin rastro de la capa HTTP propia (dio/ws/dotenv fuera del pubspec)
+  2. El panel admin completo (login staff por claims, dashboard/mapa y cocina en vivo, mesas+QR, menú, clientes, reportes, reservas, super-admin) opera 100% contra Firebase
+  3. firestore.rules + firestore.indexes.json desplegables al proyecto p-gri-b5b40: autorización 100% por custom claims {role, rid}, doc usuarios espejo jamás autoriza, transiciones validadas server-side
+  4. El seed idempotente (restaurante demo + 6 usuarios + claims + 8 mesas QR + menú de 16 productos) corre contra emuladores sin credenciales y contra el proyecto real con serviceAccountKey (gitignored)
+  5. Pedidos, mesas, reservas y aviso de cuenta se actualizan en vivo en cliente y panel sin refrescar (onSnapshot nativo — reemplaza WebSockets de Phase 7)
+  6. Reservas y sesiones de mesa son seguras bajo concurrencia: doc IDs deterministas + runTransaction (sin doble reserva del slot ni doble sesión activa por mesa)
+**Plans:** 7 plans
+- [ ] 10-01-PLAN.md — Infra Firebase raíz: firestore.rules + indexes + firebase.json + seed idempotente (Admin SDK, claims) + guía FIREBASE_SETUP (MIGRA-03, MIGRA-04)
+- [ ] 10-02-PLAN.md — app_cliente: deps + firebase_options (fallback manual) + bootstrap emuladores + state_machines port 1:1 + auth/perfil migrados (MIGRA-01)
+- [ ] 10-03-PLAN.md — app_cliente: models fromDoc + discover (lista/detalle/menú) + reservas tx anti sobre-reserva (MIGRA-01, MIGRA-06)
+- [ ] 10-04-PLAN.md — app_cliente: sesión QR tx + pedidos snapshot tx + cuenta + calificación agregada + realtime + purge legacy (MIGRA-01, MIGRA-05, MIGRA-06)
+- [ ] 10-05-PLAN.md — panel_admin: bootstrap + login por claims + dashboard/mapa/stats en vivo + cocina cola realtime + aviso cuenta (MIGRA-02, MIGRA-05) — depende de 10-04 (app primero)
+- [ ] 10-06-PLAN.md — panel_admin: mesas CRUD+QR determinista + menú CRUD + clientes + reservas staff + super-admin + reportes + purge legacy (MIGRA-02, MIGRA-05)
+- [ ] 10-07-PLAN.md — Smoke e2e en emuladores + deploy rules/indexes al proyecto real + checkpoint final (MIGRA-03, MIGRA-04, MIGRA-05, MIGRA-06)
 
 ---
 *Coverage: 50/50 requisitos v1 mapeados (PLAT 5, AUTH 5, REST 2, MENU 2, MESA 6, RESV 5, PEDI 6, RT 3, PAGO 4, CALI 2, ADMN 5, REPO 2, INFR 3). Nota: REQUIREMENTS.md decÃƒÂ­a "47 total" por error aritmÃƒÂ©tico; el conteo real de IDs es 50.*
