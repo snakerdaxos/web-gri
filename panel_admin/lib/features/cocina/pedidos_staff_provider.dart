@@ -127,3 +127,45 @@ Future<void> avanzarPedidoStaff(
     'updatedAt': FieldValue.serverTimestamp(),
   });
 }
+
+/// Entrega la cuenta de una mesa (PAGO-04 manual — el checkout en línea
+/// quedó diferido v1): en UNA transacción cierra la sesión
+/// `sesiones/{mesaId}` (activa→cerrada) y pasa la MESA ocupada→limpieza.
+///
+/// * Cierra el ciclo del aviso: al commitear, `avisoCuenta` deja de ver la
+///   sesión (filtra por `estado == 'activa'`) y el badge desaparece SOLO.
+/// * Habilita la calificación del cliente (su tx exige sesión cerrada) y
+///   su stream del doc refleja el cierre EN VIVO.
+/// * Escrituras de SOLO `{estado, updatedAt}` — `soloEstado()` de las
+///   rules; `validarTransicion` client-side ANTES de escribir y las rules
+///   re-fuerzan staff+transición por doc (doble barrera, la autoridad).
+/// * La mesa solo se mueve si está 'ocupada' (una sesión activa con mesa
+///   en otro estado no bloquea el cierre de la sesión).
+Future<void> entregarCuenta(
+  FirebaseFirestore db, {
+  required String mesaId,
+}) async {
+  await db.runTransaction((tx) async {
+    // TODOS los gets antes de TODOS los writes (requisito de las tx de
+    // Firestore — mismo patrón que abrirSesion/crearPedido del cliente).
+    final sesionSnap = await tx.get(db.doc('sesiones/$mesaId'));
+    final mesaSnap = await tx.get(db.doc('mesas/$mesaId'));
+
+    if (!sesionSnap.exists || sesionSnap.data()?['estado'] != 'activa') {
+      throw StateError('La sesión de la mesa ya no está activa');
+    }
+    validarTransicion('sesion_mesa', 'activa', 'cerrada');
+    tx.update(db.doc('sesiones/$mesaId'), <String, dynamic>{
+      'estado': 'cerrada',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    if (mesaSnap.data()?['estado'] == 'ocupada') {
+      validarTransicion('mesa', 'ocupada', 'limpieza');
+      tx.update(db.doc('mesas/$mesaId'), <String, dynamic>{
+        'estado': 'limpieza',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+  });
+}
