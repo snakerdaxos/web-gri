@@ -321,25 +321,12 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
     }
   }
 
-  /// Mappea el error del POST a un mensaje user-friendly (threat 6) —
-  /// JAMÁS un stack trace o detail crudo.
-  String _errorMsg(Object e) {
-    final statusCode = _statusCodeOf(e);
-    return switch (statusCode) {
-      409 => 'Ese horario acaba de ser reservado, elige otro',
-      400 => 'Revisa los datos: la fecha debe ser futura y la hora en punto',
-      _ => 'No se pudo crear la reserva. Intenta de nuevo',
-    };
-  }
-
-  int? _statusCodeOf(Object e) {
-    try {
-      final dynamic dyn = e;
-      return dyn.response?.statusCode as int?;
-    } catch (_) {
-      return null;
-    }
-  }
+  /// Mappea el error del dominio a un mensaje user-friendly (threat 6) —
+  /// JAMÁS un stack trace o detail crudo. El controller ya entrega
+  /// [ReservaException] con el texto listo (mismos textos de la era REST).
+  String _errorMsg(Object e) => e is ReservaException
+      ? e.message
+      : 'No se pudo crear la reserva. Intenta de nuevo';
 
   void _hint(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));

@@ -158,29 +158,40 @@ void main() {
           slot: _slotDeManana(20),
           personas: 4);
 
-      final primeras =
-          await container.read(misReservasProvider('test-uid').future);
-      expect(primeras.map((r) => r.id).toList(),
-          [tardia.id, temprana.id], reason: 'orderBy fecha DESC');
-      // Join client-side del nombre (el doc no lo guarda).
-      expect(primeras.first.restauranteNombre, 'Restaurante Demo GRI');
-      // No filtra ajenas… pero solo pidió las suyas:
+      // Subscripción VIVA (el provider es autoDispose: sin listener se
+      // dispone antes de emitir) — captura cada emisión del stream.
+      final emisiones = <List<Reserva>>[];
+      final sub = container.listen(
+        misReservasProvider('test-uid'),
+        (_, s) => s.whenData(emisiones.add),
+      );
+      addTearDown(sub.close);
+      await pumpEventQueue();
+      expect(emisiones, isNotEmpty,
+          reason: 'snapshots() emite el estado inicial');
+
+      // Orden fecha DESC + join client-side del nombre (no vive en el doc).
+      expect(emisiones.last.map((r) => r.id).toList(),
+          [tardia.id, temprana.id]);
+      expect(emisiones.last.first.restauranteNombre, 'Restaurante Demo GRI');
+
+      // Solo las del usuario: una ajena NO aparece.
       final ajena = await crearReserva(db,
-          uid: 'otro-uid', restauranteId: 'demo', slot: _slotDeManana(21),
+          uid: 'otro-uid',
+          restauranteId: 'demo',
+          slot: _slotDeManana(21),
           personas: 2);
-      final trasAjena =
-          await container.read(misReservasProvider('test-uid').future);
-      expect(
-          trasAjena.map((r) => r.id), isNot(contains(ajena.id)));
+      await pumpEventQueue();
+      expect(emisiones.last.map((r) => r.id), isNot(contains(ajena.id)));
 
       // El stream refleja la cancelación SIN refetch (REALTIME).
       await cancelarReserva(db, uid: 'test-uid', reserva: tardia);
-      final trasCancel =
-          await container.read(misReservasProvider('test-uid').future);
+      await pumpEventQueue();
       final cancelada =
-          trasCancel.firstWhere((r) => r.id == tardia.id);
+          emisiones.last.firstWhere((r) => r.id == tardia.id);
       expect(cancelada.estado, 'cancelada');
-      expect(cancelada.mesaNumero, 1);
+      // tardia pidió 4 personas → mesa 002 (la 001 solo tiene capacidad 2).
+      expect(cancelada.mesaNumero, 2);
     });
   });
 
