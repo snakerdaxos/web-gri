@@ -136,10 +136,13 @@ Stream<SesionMesa> sesion(Ref ref, String mesaId) {
       .asyncMap((snap) => _enriquecer(db, SesionMesa.fromDoc(snap)));
 }
 
-/// Sesión activa del usuario autenticado (o null) — query realtime
-/// `sesiones where usuarioId == uid` + filtro de estado client-side.
+/// Sesión más reciente del usuario autenticado (o null) — query realtime
+/// `sesiones where usuarioId == uid`. NO filtra por estado: tras el cierre
+/// la sigue emitiendo (estado 'cerrada') para que el cliente pueda calificar
+/// sus pedidos servidos (locked: calificación tras cierre) y el banner se
+/// despida al detectar el cierre (la UI discrimina por `estado`).
 /// keepAlive: el banner de home / menú / pedidos la observan a través de
-/// la navegación. Al cerrar sesión el stream emite null (banner fuera).
+/// la navegación. Sin usuario → emite null (banner fuera).
 @Riverpod(keepAlive: true)
 Stream<SesionMesa?> sesionActual(Ref ref) {
   final db = ref.watch(firestoreProvider);
@@ -151,10 +154,15 @@ Stream<SesionMesa?> sesionActual(Ref ref) {
         .where('usuarioId', isEqualTo: user.uid)
         .snapshots()
         .asyncMap((snap) async {
-      final doc = snap.docs
-          .where((d) => d.data()['estado'] == 'activa')
-          .firstOrNull;
-      if (doc == null) return null;
+      if (snap.docs.isEmpty) return null;
+      // La más reciente por inicioAt (mix Timestamp|DateTime según writer).
+      int ms(dynamic v) => v is Timestamp
+          ? v.millisecondsSinceEpoch
+          : v is DateTime
+              ? v.millisecondsSinceEpoch
+              : 0;
+      final doc = snap.docs.reduce((a, b) =>
+          ms(b.data()['inicioAt']) > ms(a.data()['inicioAt']) ? b : a);
       return _enriquecer(db, SesionMesa.fromDoc(doc));
     });
   });

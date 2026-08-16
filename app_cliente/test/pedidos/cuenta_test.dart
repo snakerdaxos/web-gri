@@ -1,118 +1,112 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gri_cliente/core/api_client.dart';
+import 'package:gri_cliente/core/firebase_providers.dart';
 import 'package:gri_cliente/features/pedidos/pedido_estado_screen.dart';
 import 'package:gri_cliente/features/pedidos/pedidos_provider.dart';
 import 'package:gri_cliente/features/sesion_qr/sesion_provider.dart';
-import 'package:gri_cliente/models/pedido.dart';
-import 'package:gri_cliente/models/pedido_item.dart';
-import 'package:gri_cliente/models/sesion_mesa.dart';
 
-/// Fake que cuenta las llamadas a pedirCuenta y devuelve la sesión con el
-/// flag prendido (respuesta del backend real).
-class _CuentaClient extends ApiClient {
-  int llamadas = 0;
+import '../helpers/firebase_fakes.dart';
 
-  @override
-  Future<SesionMesa> pedirCuenta() async {
-    llamadas++;
-    return _sesion(solicitaCuenta: true);
-  }
-}
+const _mesa = 'GRI-MESA-demo-001';
 
-SesionMesa _sesion({bool solicitaCuenta = false}) => SesionMesa(
-      id: 10,
-      restauranteId: 1,
-      restauranteNombre: 'Restaurante Demo GRI',
-      mesaId: 3,
-      mesaNumero: 3,
-      abiertaEn: DateTime(2026, 8, 14, 12, 30),
-      solicitaCuenta: solicitaCuenta,
-      solicitadaEn: solicitaCuenta ? DateTime(2026, 8, 14, 14) : null,
-    );
+/// Bombea PedidoEstadoScreen con db+auth fakes y sesión REAL abierta —
+/// retorna el db para inspeccionar docs tras los taps.
+Future<dynamic> _pump(WidgetTester tester) async {
+  final db = await buildFakeFirestoreConSeed();
+  await abrirSesion(db, uid: 'test-uid', codigoQR: _mesa);
 
-Pedido _p() => Pedido(
-      id: 1,
-      sesionId: 10,
-      mesaNumero: 3,
-      estado: 'servido',
-      total: 57000,
-      notas: null,
-      createdAt: DateTime(2026, 8, 14, 13),
-      items: const [
-        PedidoItem(
-            productoId: 1,
-            nombre: 'Pasta',
-            cantidad: 2,
-            precioUnitario: 25000,
-            subtotal: 50000)
-      ],
-    );
-
-Widget _wrap({required SesionMesa sesion, required ApiClient client}) {
-  return ProviderScope(
+  await tester.pumpWidget(ProviderScope(
     overrides: [
-      apiClientProvider.overrideWithValue(client),
-      sesionProvider.overrideWithValue(AsyncData(sesion)),
-      pedidosSessionProvider.overrideWith((ref) => Stream.value([_p()])),
+      firestoreProvider.overrideWithValue(db),
+      firebaseAuthProvider.overrideWithValue(mockAuth()),
     ],
     child: const MaterialApp(home: PedidoEstadoScreen()),
-  );
+  ));
+  await tester.pumpAndSettle();
+  return db;
 }
 
 void main() {
-  testWidgets('sesión sin cuenta → botón "Pedir la cuenta" visible',
+  // ── Unidad: solicitarCuenta ─────────────────────────────────────────────
+
+  test('solicitarCuenta → sesion.cuentaSolicitada true + cuentaPedidaAt',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    await abrirSesion(db, uid: 'uid-a', codigoQR: _mesa);
+
+    await solicitarCuenta(db, uid: 'uid-a', mesaId: _mesa);
+
+    final sesion = await db.doc('sesiones/$_mesa').get();
+    expect(sesion.data()!['cuentaSolicitada'], true);
+    expect(sesion.data()!['cuentaPedidaAt'], isNotNull);
+  });
+
+  test('solicitarCuenta de otro usuario → error controlado (dueño only)',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    await abrirSesion(db, uid: 'uid-a', codigoQR: _mesa);
+
+    await expectLater(
+      solicitarCuenta(db, uid: 'intruso', mesaId: _mesa),
+      throwsA(isA<PedidoException>()),
+    );
+    final sesion = await db.doc('sesiones/$_mesa').get();
+    expect(sesion.data()!['cuentaSolicitada'], false,
+        reason: 'el flag no se prendió');
+  });
+
+  // ── Widgets: la sección de cuenta de PedidoEstadoScreen ────────────────
+
+  testWidgets('sesión sin cuenta → botón "Pedir la cuenta" visible; sin pago',
       (tester) async {
-    await tester.pumpWidget(
-        _wrap(sesion: _sesion(), client: _CuentaClient()));
-    await tester.pumpAndSettle();
+    await _pump(tester);
 
     expect(find.text('Pedir la cuenta'), findsOneWidget);
     expect(find.text('Cuenta solicitada ✓'), findsNothing);
-    // El botón de pago solo aparece cuando la cuenta ya está pedida.
-    expect(find.text('Pagar en línea 💳'), findsNothing);
+    // Pagos DIFERIDOS (locked 10-04): no existe UI de pago en la app.
+    expect(find.textContaining('Pagar'), findsNothing);
   });
 
-  testWidgets('tap → 1 llamada al backend + confirmación + botón reemplazado',
+  testWidgets('tap → doc con cuentaSolicitada + confirmación (stream vivo)',
       (tester) async {
-    final client = _CuentaClient();
-    await tester.pumpWidget(_wrap(sesion: _sesion(), client: client));
-    await tester.pumpAndSettle();
+    final db = await _pump(tester);
 
     await tester.tap(find.text('Pedir la cuenta'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(client.llamadas, 1);
+    final sesion = await db.doc('sesiones/$_mesa').get();
+    expect(sesion.data()!['cuentaSolicitada'], true);
+    expect(sesion.data()!['cuentaPedidaAt'], isNotNull);
+
     expect(find.textContaining('el mesero viene en camino'), findsOneWidget);
     // El botón desaparece y queda la confirmación visible (idempotente UX).
     expect(find.text('Cuenta solicitada ✓'), findsOneWidget);
     expect(find.text('Pedir la cuenta'), findsNothing);
+    expect(find.textContaining('Pagar'), findsNothing);
   });
 
-  testWidgets('sesión con solicitaCuenta=true → sin botón, solo ✓',
+  testWidgets('cuenta ya pedida (staff flip) → solo ✓, sin botón ni pago',
       (tester) async {
-    final client = _CuentaClient();
-    await tester.pumpWidget(
-        _wrap(sesion: _sesion(solicitaCuenta: true), client: client));
+    final db = await buildFakeFirestoreConSeed();
+    await abrirSesion(db, uid: 'test-uid', codigoQR: _mesa);
+    await db.doc('sesiones/$_mesa')
+        .update({'cuentaSolicitada': true});
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        firestoreProvider.overrideWithValue(db),
+        firebaseAuthProvider.overrideWithValue(mockAuth()),
+      ],
+      child: const MaterialApp(home: PedidoEstadoScreen()),
+    ));
     await tester.pumpAndSettle();
 
     expect(find.text('Cuenta solicitada ✓'), findsOneWidget);
     expect(find.text('Pedir la cuenta'), findsNothing);
-    expect(client.llamadas, 0);
-  });
-
-  testWidgets('cuenta pedida → botón "Pagar en línea" visible (PAGO-02)',
-      (tester) async {
-    final client = _CuentaClient();
-    await tester.pumpWidget(
-        _wrap(sesion: _sesion(solicitaCuenta: true), client: client));
-    await tester.pumpAndSettle();
-
-    // 09-03: con la cuenta pedida aparece el CTA de pago en línea.
-    expect(find.text('Pagar en línea 💳'), findsOneWidget);
-    // Sin cuenta pedida NO aparece (se valida en los tests 1 y 2).
+    expect(find.textContaining('Pagar'), findsNothing);
   });
 }

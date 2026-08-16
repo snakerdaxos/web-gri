@@ -8,58 +8,24 @@ part of 'pedidos_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Stream de pedidos de la sesión activa EN VIVO (PEDI-04, Phase 7).
+/// Pedidos de la sesión activa EN VIVO (MIGRA-05): `where('sesionId') +
+/// orderBy('createdAt') + snapshots()` — sustituye WS + polling + refetch
+/// de la era REST (Phase 7). Sin sesión → stream vacío.
 ///
-/// GET inicial (snapshot autoritativo) + kick-to-refetch: los eventos WS
-/// (`pedido.creado` / `pedido.estado` / `sesion.cuenta` / `sesion.abierta` /
-/// `sesion.cerrada`) NUNCA mutan la lista local — disparan un
-/// `GET /cliente/pedidos/actual` (única fuente de verdad de orden/estado).
-/// El polling de 10s quedó en safety net de [Env.pollSafetyNetSeconds]
-/// (acota half-open tras background, Pitfall 6 del research 07).
-///
-/// `sesion.cerrada` (anti-zombi del staff o pago) → invalidate de
-/// [sesionProvider]: el banner "Estás en la Mesa X" desaparece y este
-/// provider colapsa a Stream.empty al reconstruirse con sesión null
-/// (el 404 del GET ya se traduce a null). Se refetchea igualmente por si
-/// llega una `cerrada` de una sesión vieja.
-///
-/// Sin sesión activa → stream vacío. autoDispose: al dejar de observarse
-/// mueren las suscripciones al broadcast del WsClient y el timer.
-///
-/// Nota riverpod 3: TODO uso de `ref` (watch/read/onDispose) ocurre ANTES
-/// del primer await — riverpod 3.4 lanza `UnmountedRefException` si un
-/// rebuild del provider invalida el `ref` mientras el generador está
-/// suspendido en un await. Los eventos que llegan durante el GET inicial
-/// quedan bufferizados en el controller (stream single-subscription) y se
-/// entregan tras el snapshot inicial.
+/// El orden DESC se materializa client-side (`reversed`) — el índice
+/// compuesto definido en 10-01 es pedidos/sesionId+createdAt ASC (mismo
+/// patrón documentado en 10-03: server-side solo lo que tiene índice).
 
 @ProviderFor(pedidosSession)
 final pedidosSessionProvider = PedidosSessionProvider._();
 
-/// Stream de pedidos de la sesión activa EN VIVO (PEDI-04, Phase 7).
+/// Pedidos de la sesión activa EN VIVO (MIGRA-05): `where('sesionId') +
+/// orderBy('createdAt') + snapshots()` — sustituye WS + polling + refetch
+/// de la era REST (Phase 7). Sin sesión → stream vacío.
 ///
-/// GET inicial (snapshot autoritativo) + kick-to-refetch: los eventos WS
-/// (`pedido.creado` / `pedido.estado` / `sesion.cuenta` / `sesion.abierta` /
-/// `sesion.cerrada`) NUNCA mutan la lista local — disparan un
-/// `GET /cliente/pedidos/actual` (única fuente de verdad de orden/estado).
-/// El polling de 10s quedó en safety net de [Env.pollSafetyNetSeconds]
-/// (acota half-open tras background, Pitfall 6 del research 07).
-///
-/// `sesion.cerrada` (anti-zombi del staff o pago) → invalidate de
-/// [sesionProvider]: el banner "Estás en la Mesa X" desaparece y este
-/// provider colapsa a Stream.empty al reconstruirse con sesión null
-/// (el 404 del GET ya se traduce a null). Se refetchea igualmente por si
-/// llega una `cerrada` de una sesión vieja.
-///
-/// Sin sesión activa → stream vacío. autoDispose: al dejar de observarse
-/// mueren las suscripciones al broadcast del WsClient y el timer.
-///
-/// Nota riverpod 3: TODO uso de `ref` (watch/read/onDispose) ocurre ANTES
-/// del primer await — riverpod 3.4 lanza `UnmountedRefException` si un
-/// rebuild del provider invalida el `ref` mientras el generador está
-/// suspendido en un await. Los eventos que llegan durante el GET inicial
-/// quedan bufferizados en el controller (stream single-subscription) y se
-/// entregan tras el snapshot inicial.
+/// El orden DESC se materializa client-side (`reversed`) — el índice
+/// compuesto definido en 10-01 es pedidos/sesionId+createdAt ASC (mismo
+/// patrón documentado en 10-03: server-side solo lo que tiene índice).
 
 final class PedidosSessionProvider
     extends
@@ -69,30 +35,13 @@ final class PedidosSessionProvider
           Stream<List<Pedido>>
         >
     with $FutureModifier<List<Pedido>>, $StreamProvider<List<Pedido>> {
-  /// Stream de pedidos de la sesión activa EN VIVO (PEDI-04, Phase 7).
+  /// Pedidos de la sesión activa EN VIVO (MIGRA-05): `where('sesionId') +
+  /// orderBy('createdAt') + snapshots()` — sustituye WS + polling + refetch
+  /// de la era REST (Phase 7). Sin sesión → stream vacío.
   ///
-  /// GET inicial (snapshot autoritativo) + kick-to-refetch: los eventos WS
-  /// (`pedido.creado` / `pedido.estado` / `sesion.cuenta` / `sesion.abierta` /
-  /// `sesion.cerrada`) NUNCA mutan la lista local — disparan un
-  /// `GET /cliente/pedidos/actual` (única fuente de verdad de orden/estado).
-  /// El polling de 10s quedó en safety net de [Env.pollSafetyNetSeconds]
-  /// (acota half-open tras background, Pitfall 6 del research 07).
-  ///
-  /// `sesion.cerrada` (anti-zombi del staff o pago) → invalidate de
-  /// [sesionProvider]: el banner "Estás en la Mesa X" desaparece y este
-  /// provider colapsa a Stream.empty al reconstruirse con sesión null
-  /// (el 404 del GET ya se traduce a null). Se refetchea igualmente por si
-  /// llega una `cerrada` de una sesión vieja.
-  ///
-  /// Sin sesión activa → stream vacío. autoDispose: al dejar de observarse
-  /// mueren las suscripciones al broadcast del WsClient y el timer.
-  ///
-  /// Nota riverpod 3: TODO uso de `ref` (watch/read/onDispose) ocurre ANTES
-  /// del primer await — riverpod 3.4 lanza `UnmountedRefException` si un
-  /// rebuild del provider invalida el `ref` mientras el generador está
-  /// suspendido en un await. Los eventos que llegan durante el GET inicial
-  /// quedan bufferizados en el controller (stream single-subscription) y se
-  /// entregan tras el snapshot inicial.
+  /// El orden DESC se materializa client-side (`reversed`) — el índice
+  /// compuesto definido en 10-01 es pedidos/sesionId+createdAt ASC (mismo
+  /// patrón documentado en 10-03: server-side solo lo que tiene índice).
   PedidosSessionProvider._()
     : super(
         from: null,
@@ -119,4 +68,58 @@ final class PedidosSessionProvider
   }
 }
 
-String _$pedidosSessionHash() => r'c435084e03b48239512e46f50d3c619c39e05c6a';
+String _$pedidosSessionHash() => r'fc0b987dda8004f36cb1fa6d1bac0baf2d38d87a';
+
+/// Mutaciones de pedidos: [enviar] arma los items desde el carrito
+/// (snapshot) y pasa por [crearPedido]; limpia el carrito al éxito.
+
+@ProviderFor(PedidosController)
+final pedidosControllerProvider = PedidosControllerProvider._();
+
+/// Mutaciones de pedidos: [enviar] arma los items desde el carrito
+/// (snapshot) y pasa por [crearPedido]; limpia el carrito al éxito.
+final class PedidosControllerProvider
+    extends $AsyncNotifierProvider<PedidosController, void> {
+  /// Mutaciones de pedidos: [enviar] arma los items desde el carrito
+  /// (snapshot) y pasa por [crearPedido]; limpia el carrito al éxito.
+  PedidosControllerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'pedidosControllerProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$pedidosControllerHash();
+
+  @$internal
+  @override
+  PedidosController create() => PedidosController();
+}
+
+String _$pedidosControllerHash() => r'127c071c13036b820ef7d317c59c33c85d533b30';
+
+/// Mutaciones de pedidos: [enviar] arma los items desde el carrito
+/// (snapshot) y pasa por [crearPedido]; limpia el carrito al éxito.
+
+abstract class _$PedidosController extends $AsyncNotifier<void> {
+  FutureOr<void> build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<void>, void>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<void>, void>,
+              AsyncValue<void>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

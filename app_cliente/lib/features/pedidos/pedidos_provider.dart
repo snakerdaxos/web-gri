@@ -1,97 +1,145 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/api_client.dart';
-import '../../core/env.dart';
-import '../../core/ws_client.dart';
+import '../../core/firebase_providers.dart';
+import '../../core/tx_mutex.dart';
 import '../../models/pedido.dart';
+import '../../models/pedido_item.dart';
 import '../sesion_qr/sesion_provider.dart';
+import 'carrito_controller.dart';
 
 part 'pedidos_provider.g.dart';
 
-/// Stream de pedidos de la sesión activa EN VIVO (PEDI-04, Phase 7).
+/// Error de dominio de pedidos con mensaje user-friendly directo
+/// (contrato de la UI — mismo rol que el `detail` de la era REST).
+class PedidoException implements Exception {
+  const PedidoException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// Crea el pedido de la sesión — `runTransaction` (MIGRA-06, anti-spoofing
+/// Phase 6):
 ///
-/// GET inicial (snapshot autoritativo) + kick-to-refetch: los eventos WS
-/// (`pedido.creado` / `pedido.estado` / `sesion.cuenta` / `sesion.abierta` /
-/// `sesion.cerrada`) NUNCA mutan la lista local — disparan un
-/// `GET /cliente/pedidos/actual` (única fuente de verdad de orden/estado).
-/// El polling de 10s quedó en safety net de [Env.pollSafetyNetSeconds]
-/// (acota half-open tras background, Pitfall 6 del research 07).
+/// 1. `tx.get(sesiones/{mesaId})` — debe existir, estar 'activa' y ser del
+///    emisor (`usuarioId == uid`); si no → error controlado SIN doc creado.
+/// 2. `tx.get(mesas/{codigo})` — restauranteId de la mesa.
+/// 3. [items] llegan ARMADOS con snapshot de nombre/precio (congelados al
+///    armar el carrito); `total` = Σ precio×cantidad (`int` COP).
+/// 4. `tx.set(pedidos.doc(), {estado 'enviado', ...})` — autoId para
+///    pedidos (la unicidad vive en la sesión, no en el pedido).
 ///
-/// `sesion.cerrada` (anti-zombi del staff o pago) → invalidate de
-/// [sesionProvider]: el banner "Estás en la Mesa X" desaparece y este
-/// provider colapsa a Stream.empty al reconstruirse con sesión null
-/// (el 404 del GET ya se traduce a null). Se refetchea igualmente por si
-/// llega una `cerrada` de una sesión vieja.
+/// El mutex en-proceso serializa doble-taps; en Firestore real el OCC de
+/// la tx serializa writers entre dispositivos.
+Future<String> crearPedido(
+  FirebaseFirestore db, {
+  required String uid,
+  required String mesaCodigo,
+  required List<PedidoItem> items,
+  String clienteNombre = '',
+}) {
+  if (items.isEmpty) {
+    // UX anticipa la regla (items 1..50) — sin vuelo a Firestore.
+    return Future.error(const PedidoException('Tu carrito está vacío'));
+  }
+  return seccionCritica(
+    () => _crearPedido(db, uid: uid, mesaCodigo: mesaCodigo, items: items,
+        clienteNombre: clienteNombre),
+  );
+}
+
+Future<String> _crearPedido(
+  FirebaseFirestore db, {
+  required String uid,
+  required String mesaCodigo,
+  required List<PedidoItem> items,
+  String clienteNombre = '',
+}) {
+  throw UnimplementedError();
+}
+
+/// Solicita la cuenta — flag visible para el staff en VIVO (la pantalla de
+/// pedidos y el banner lo reflejan por el stream del doc de sesión).
+/// Idempotente: repetir el update escribe los mismos valores.
+/// Solo el dueño de la sesión activa (guard UX; rules re-validan).
+Future<void> solicitarCuenta(
+  FirebaseFirestore db, {
+  required String uid,
+  required String mesaId,
+}) {
+  throw UnimplementedError();
+}
+
+/// Pedidos de la sesión activa EN VIVO (MIGRA-05): `where('sesionId') +
+/// orderBy('createdAt') + snapshots()` — sustituye WS + polling + refetch
+/// de la era REST (Phase 7). Sin sesión → stream vacío.
 ///
-/// Sin sesión activa → stream vacío. autoDispose: al dejar de observarse
-/// mueren las suscripciones al broadcast del WsClient y el timer.
-///
-/// Nota riverpod 3: TODO uso de `ref` (watch/read/onDispose) ocurre ANTES
-/// del primer await — riverpod 3.4 lanza `UnmountedRefException` si un
-/// rebuild del provider invalida el `ref` mientras el generador está
-/// suspendido en un await. Los eventos que llegan durante el GET inicial
-/// quedan bufferizados en el controller (stream single-subscription) y se
-/// entregan tras el snapshot inicial.
+/// El orden DESC se materializa client-side (`reversed`) — el índice
+/// compuesto definido en 10-01 es pedidos/sesionId+createdAt ASC (mismo
+/// patrón documentado en 10-03: server-side solo lo que tiene índice).
 @riverpod
 Stream<List<Pedido>> pedidosSession(Ref ref) async* {
-  final sesion = ref.watch(sesionProvider).value;
+  final sesion = ref.watch(sesionActualProvider).value;
   if (sesion == null) {
     yield* const Stream<List<Pedido>>.empty();
     return;
   }
 
-  final client = ref.read(apiClientProvider);
+  final db = ref.watch(firestoreProvider);
 
-  final controller = StreamController<List<Pedido>>();
-  Future<void> refresh() async {
+  yield* db
+      .collection('pedidos')
+      .where('sesionId', isEqualTo: sesion.mesaId)
+      .orderBy('createdAt')
+      .snapshots()
+      .map((snap) => [
+            for (final doc in snap.docs) Pedido.fromDoc(doc),
+          ].reversed.toList());
+}
+
+/// Mutaciones de pedidos: [enviar] arma los items desde el carrito
+/// (snapshot) y pasa por [crearPedido]; limpia el carrito al éxito.
+@riverpod
+class PedidosController extends _$PedidosController {
+  @override
+  FutureOr<void> build() {}
+
+  Future<String> enviar() async {
+    final cart = ref.read(carritoProvider);
+    if (cart.isEmpty) {
+      throw const PedidoException('Tu carrito está vacío');
+    }
+    final auth = ref.read(firebaseAuthProvider);
+    final uid = auth.currentUser?.uid;
+    if (uid == null) {
+      throw const PedidoException('Debes iniciar sesión para pedir');
+    }
+    final sesion = ref.read(sesionActualProvider).value;
+    if (sesion == null || sesion.estado != 'activa') {
+      throw const PedidoException(
+          'Escanea el QR de la mesa para hacer tu pedido');
+    }
+
+    state = const AsyncLoading<void>();
     try {
-      final pedidos = await client.getPedidosActuales();
-      // Guard anti-race: un sesion.cerrada puede invalidar (→ dispose →
-      // close) mientras este GET estaba en vuelo.
-      if (!controller.isClosed) controller.add(pedidos);
-    } catch (e) {
-      if (!controller.isClosed) controller.addError(e);
+      final id = await crearPedido(
+        ref.read(firestoreProvider),
+        uid: uid,
+        mesaCodigo: sesion.mesaId,
+        items: [
+          for (final linea in cart.values) linea.toPedidoItem(),
+        ],
+        clienteNombre: auth.currentUser?.displayName ?? '',
+      );
+      ref.read(carritoProvider.notifier).limpiar();
+      return id;
+    } finally {
+      state = const AsyncData<void>(null);
     }
   }
-
-  // 1) Eventos WS relevantes → kick-to-refetch (idempotente por diseño).
-  const kickTypes = {
-    'pedido.creado',
-    'pedido.estado',
-    'sesion.cuenta',
-    'sesion.abierta',
-    'sesion.cerrada',
-  };
-  final sub1 = ref
-      .watch(wsEventsProvider)
-      .where((e) => kickTypes.contains(e.type))
-      .listen((e) {
-    if (e.type == 'sesion.cerrada') {
-      ref.invalidate(sesionProvider); // la sesión murió → banner fuera
-    }
-    refresh();
-  });
-
-  // 2) Reconexión WS restablecida → re-sync total.
-  final sub2 = ref.watch(wsResyncProvider).listen((_) => refresh());
-
-  // 3) Safety net: polling lento 60s.
-  final timer = Timer.periodic(
-    Duration(seconds: Env.pollSafetyNetSeconds),
-    (_) => refresh(),
-  );
-
-  ref.onDispose(() {
-    sub1.cancel();
-    sub2.cancel();
-    timer.cancel();
-    controller.close();
-  });
-
-  // Snapshot inicial — también el re-sync de RT-03 (tras reconexión WS).
-  yield await client.getPedidosActuales();
-
-  yield* controller.stream;
 }

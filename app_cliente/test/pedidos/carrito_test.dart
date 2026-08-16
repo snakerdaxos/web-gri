@@ -2,51 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:gri_cliente/core/api_client.dart';
+import 'package:gri_cliente/core/firebase_providers.dart';
+import 'package:gri_cliente/features/pedidos/carrito_controller.dart';
 import 'package:gri_cliente/features/pedidos/menu_mesa_screen.dart';
+import 'package:gri_cliente/features/pedidos/pedidos_provider.dart';
 import 'package:gri_cliente/features/restaurantes/restaurantes_provider.dart';
 import 'package:gri_cliente/features/sesion_qr/sesion_provider.dart';
 import 'package:gri_cliente/models/categoria.dart';
-import 'package:gri_cliente/models/pedido.dart';
+import 'package:gri_cliente/models/pedido_item.dart';
 import 'package:gri_cliente/models/producto.dart';
 import 'package:gri_cliente/models/restaurante_detalle.dart';
-import 'package:gri_cliente/models/sesion_mesa.dart';
 
-/// Fake del ApiClient — graba el pedido que llega a createPedido.
-class _FakeClient extends ApiClient {
-  List<({String productoId, int cantidad})>? lastItems;
-  String? lastNotas;
+import '../helpers/firebase_fakes.dart';
 
-  @override
-  Future<Pedido> createPedido({
-    required List<({String productoId, int cantidad})> items,
-    String? notas,
-  }) async {
-    lastItems = items;
-    lastNotas = notas;
-    return Pedido(
-      id: 77,
-      sesionId: 10,
-      mesaNumero: 3,
-      estado: 'enviado',
-      total: 25000,
-      notas: notas,
-      createdAt: DateTime(2026, 8, 14, 13),
-      items: const [],
-    );
-  }
-}
+const _mesa = 'GRI-MESA-demo-001';
 
-SesionMesa _sesion() => SesionMesa(
-      id: 10,
-      restauranteId: 1,
-      restauranteNombre: 'Restaurante Demo GRI',
-      mesaId: 3,
-      mesaNumero: 3,
-      abiertaEn: DateTime(2026, 8, 14, 12, 30),
-      solicitaCuenta: false,
-      solicitadaEn: null,
-    );
+/// Items de pedido de prueba (2× Pasta + 1× Jugo = 57000 COP).
+const _items = [
+  PedidoItem(productoId: 'p1', nombre: 'Pasta', precio: 25000, cantidad: 2),
+  PedidoItem(productoId: 'p4', nombre: 'Jugo', precio: 7000, cantidad: 1),
+];
 
 /// Detalle con 2 categorías: Pasta/Pizza/Soda(agotada) en Platos (expandida
 /// por defecto), Jugo en Bebidas (colapsada). Ids String (Phase 10).
@@ -95,30 +70,30 @@ RestauranteDetalle _detalle() => RestauranteDetalle(
       ],
     );
 
-Widget _wrap({ApiClient? client}) {
-  final router = GoRouter(
-    initialLocation: '/mesa',
-    routes: [
-      GoRoute(path: '/mesa', builder: (_, _) => const MenuMesaScreen()),
-      GoRoute(
-        path: '/mesa/pedidos',
-        builder: (_, _) =>
-            const Scaffold(body: Center(child: Text('PEDIDOS_PAGE'))),
-      ),
-      GoRoute(
-        path: '/sesion/scan',
-        builder: (_, _) => const Scaffold(body: Text('SCAN_PAGE')),
-      ),
-    ],
-  );
-  return ProviderScope(
+/// Bombea el MenuMesaScreen con db+auth fakes y sesión REAL abierta en la
+/// mesa 1 (vía abrirSesion — misma vía que producción).
+Future<FakeFirebaseHandle> _pumpConSesion(WidgetTester tester) async {
+  final db = await buildFakeFirestoreConSeed();
+  await abrirSesion(db, uid: 'test-uid', codigoQR: _mesa);
+
+  await tester.pumpWidget(ProviderScope(
     overrides: [
-      apiClientProvider.overrideWithValue(client ?? _FakeClient()),
-      sesionProvider.overrideWithValue(AsyncData(_sesion())),
-      restauranteDetalleProvider('1').overrideWith((ref) async => _detalle()),
+      firestoreProvider.overrideWithValue(db),
+      firebaseAuthProvider.overrideWithValue(mockAuth()),
+      restauranteDetalleProvider('demo')
+          .overrideWith((ref) async => _detalle()),
     ],
-    child: MaterialApp.router(routerConfig: router),
-  );
+    child: const MaterialApp(home: MenuMesaScreen()),
+  ));
+  await tester.pumpAndSettle();
+  return FakeFirebaseHandle(db);
+}
+
+/// Handle del db fake para que los widget tests puedan inspeccionar docs.
+class FakeFirebaseHandle {
+  FakeFirebaseHandle(this.db);
+
+  final dynamic db;
 }
 
 /// El botón +/- del producto [nombre] (scoping por fila — el orden global
@@ -129,12 +104,131 @@ Finder _btnProducto(String nombre, IconData icon) => find.descendant(
     );
 
 void main() {
+  // ── Unidad: snapshot del carrito + tx crearPedido ───────────────────────
+
+  test(
+      'SNAPSHOT: agregar congela nombre/precio — cambiar el doc después NO altera carrito ni pedido',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    await abrirSesion(db, uid: 'uid-a', codigoQR: _mesa);
+
+    // Producto leído del doc (vía canonical fromDoc).
+    final snap = await db.collection('productos').get();
+    final docPasta =
+        snap.docs.firstWhere((d) => d.data()['nombre'] == 'Bandeja paisa');
+    final producto = Producto.fromDoc(docPasta);
+    expect(producto.precio, 28000);
+
+    // Agregar al carrito...
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    container.read(carritoProvider.notifier).agregar(producto);
+    expect(container.read(carritoProvider).total, 28000);
+
+    // ...el menú cambia después...
+    await db.doc('productos/${docPasta.id}').update({
+      'precio': 99000,
+      'nombre': 'Bandeja XL',
+    });
+
+    // ...y el carrito SIGUE congelado.
+    expect(container.read(carritoProvider).total, 28000);
+
+    // El doc de pedido también nace con el precio ORIGINAL.
+    final id = await crearPedido(db,
+        uid: 'uid-a',
+        mesaCodigo: _mesa,
+        items: [
+          for (final l in container.read(carritoProvider).values)
+            l.toPedidoItem(),
+        ]);
+    final pedido = (await db.collection('pedidos').get())
+        .docs
+        .firstWhere((d) => d.id == id);
+    expect(pedido.data()['items'],
+      [
+        {
+          'productoId': docPasta.id,
+          'nombre': 'Bandeja paisa',
+          'precio': 28000,
+          'cantidad': 1,
+        }
+      ],
+      reason: 'items con snapshot original',
+    );
+    expect(pedido.data()['total'], 28000);
+  });
+
+  test(
+      'crearPedido: doc estado enviado, items snapshot, total int, sesionId == mesaId',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    await abrirSesion(db, uid: 'uid-a', codigoQR: _mesa);
+
+    final id = await crearPedido(db,
+        uid: 'uid-a',
+        mesaCodigo: _mesa,
+        clienteNombre: 'Carlos',
+        items: _items);
+
+    final pedido = (await db.collection('pedidos').get())
+        .docs
+        .firstWhere((d) => d.id == id);
+    expect(pedido.data()['estado'], 'enviado');
+    expect(pedido.data()['sesionId'], _mesa, reason: 'sesionId == mesaId');
+    expect(pedido.data()['mesaId'], _mesa);
+    expect(pedido.data()['restauranteId'], 'demo');
+    expect(pedido.data()['usuarioId'], 'uid-a');
+    expect(pedido.data()['clienteNombre'], 'Carlos');
+    expect(pedido.data()['total'], 57000, reason: '25000×2 + 7000×1');
+    expect((pedido.data()['items'] as List).length, 2);
+  });
+
+  test('crearPedido con sesión CERRADA → error controlado, sin doc creado',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    await abrirSesion(db, uid: 'uid-a', codigoQR: _mesa);
+    await db.doc('sesiones/$_mesa').update({'estado': 'cerrada'});
+
+    await expectLater(
+      crearPedido(db, uid: 'uid-a', mesaCodigo: _mesa, items: _items),
+      throwsA(isA<PedidoException>()),
+    );
+    expect((await db.collection('pedidos').get()).docs, isEmpty);
+  });
+
+  test(
+      'crearPedido con sesión de OTRO usuario → error controlado (anti-spoofing)',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    await abrirSesion(db, uid: 'uid-a', codigoQR: _mesa);
+
+    await expectLater(
+      crearPedido(db, uid: 'intruso', mesaCodigo: _mesa, items: _items),
+      throwsA(isA<PedidoException>()),
+    );
+    expect((await db.collection('pedidos').get()).docs, isEmpty);
+  });
+
+  test('crearPedido con carrito vacío → error (UX anticipa la regla)',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    await abrirSesion(db, uid: 'uid-a', codigoQR: _mesa);
+
+    await expectLater(
+      crearPedido(db, uid: 'uid-a', mesaCodigo: _mesa, items: const []),
+      throwsA(isA<PedidoException>()
+          .having((e) => e.message, 'message', 'Tu carrito está vacío')),
+    );
+  });
+
+  // ── Widgets: menú de la mesa + carrito (sesión real Firestore) ──────────
+
   testWidgets('menú de la mesa renderiza 2 categorías y carrito vacío',
       (tester) async {
-    await tester.pumpWidget(_wrap());
-    await tester.pumpAndSettle();
+    await _pumpConSesion(tester);
 
-    expect(find.text('Mesa 3 · Restaurante Demo GRI'), findsOneWidget);
+    expect(find.text('Mesa 1 · Restaurante Demo GRI'), findsOneWidget);
     expect(find.text('Platos'), findsOneWidget);
     expect(find.text('Bebidas'), findsOneWidget);
     expect(find.text('Pasta'), findsOneWidget);
@@ -144,8 +238,7 @@ void main() {
 
   testWidgets('tap + agrega al carrito: badge (1) y total COP correcto',
       (tester) async {
-    await tester.pumpWidget(_wrap());
-    await tester.pumpAndSettle();
+    await _pumpConSesion(tester);
 
     await tester.tap(_btnProducto('Pasta', Icons.add_circle_outline));
     await tester.pump();
@@ -157,8 +250,7 @@ void main() {
 
   testWidgets('+ + − : cantidades correctas y eliminación al llegar a 0',
       (tester) async {
-    await tester.pumpWidget(_wrap());
-    await tester.pumpAndSettle();
+    await _pumpConSesion(tester);
 
     final mas = _btnProducto('Pasta', Icons.add_circle_outline);
     final menos = _btnProducto('Pasta', Icons.remove_circle_outline);
@@ -179,7 +271,8 @@ void main() {
     await tester.tap(menos);
     await tester.pump();
     expect(find.text('Tu carrito está vacío'), findsOneWidget);
-    expect(find.descendant(
+    expect(
+        find.descendant(
             of: find.ancestor(
                 of: find.text('Pasta'), matching: find.byType(ListTile)),
             matching: find.byIcon(Icons.remove_circle_outline)),
@@ -188,8 +281,7 @@ void main() {
 
   testWidgets('producto agotado: sin botones y con etiqueta "Agotado"',
       (tester) async {
-    await tester.pumpWidget(_wrap());
-    await tester.pumpAndSettle();
+    await _pumpConSesion(tester);
 
     expect(find.text('Agotado'), findsOneWidget);
     // Solo Pasta y Pizza (disponibles, cat. expandida) tienen botón +.
@@ -197,10 +289,32 @@ void main() {
     expect(find.byIcon(Icons.remove_circle_outline), findsNothing);
   });
 
-  testWidgets('enviar pedido: items + notas al backend, carrito limpio y navegación',
+  testWidgets(
+      'enviar pedido: doc con items snapshot + total, carrito limpio y navegación',
       (tester) async {
-    final client = _FakeClient();
-    await tester.pumpWidget(_wrap(client: client));
+    final db = await buildFakeFirestoreConSeed();
+    await abrirSesion(db, uid: 'test-uid', codigoQR: _mesa);
+
+    final router = GoRouter(
+      initialLocation: '/mesa',
+      routes: [
+        GoRoute(path: '/mesa', builder: (_, _) => const MenuMesaScreen()),
+        GoRoute(
+          path: '/mesa/pedidos',
+          builder: (_, _) =>
+              const Scaffold(body: Center(child: Text('PEDIDOS_PAGE'))),
+        ),
+      ],
+    );
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        firestoreProvider.overrideWithValue(db),
+        firebaseAuthProvider.overrideWithValue(mockAuth()),
+        restauranteDetalleProvider('demo')
+            .overrideWith((ref) async => _detalle()),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ));
     await tester.pumpAndSettle();
 
     await tester.tap(_btnProducto('Pasta', Icons.add_circle_outline));
@@ -208,20 +322,31 @@ void main() {
     await tester.tap(find.textContaining('Carrito (1)'));
     await tester.pumpAndSettle();
 
-    // Sheet del carrito: línea, notas, total informativo y envío.
+    // Sheet del carrito: línea + total informativo. Sin campo de notas —
+    // el doc shape de pedidos NO las incluye (Phase 10).
     expect(find.text('Tu pedido'), findsOneWidget);
     expect(find.text('Pasta ×1'), findsOneWidget);
-    await tester.enterText(find.byType(TextField), 'Sin cebolla');
+    expect(find.byType(TextField), findsNothing);
+
     await tester.tap(find.text('Enviar pedido'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
 
-    // Llegaron items + notas exactas (sesión implícita server-side).
-    expect(client.lastItems, const [(productoId: 'p1', cantidad: 1)]);
-    expect(client.lastNotas, 'Sin cebolla');
     // Confirmación + navegación al estado del pedido.
     expect(find.textContaining('¡Pedido enviado!'), findsOneWidget);
     expect(find.text('PEDIDOS_PAGE'), findsOneWidget);
+
+    // El doc nace con el snapshot exacto del carrito.
+    final pedidos = (await db.collection('pedidos').get()).docs;
+    expect(pedidos, hasLength(1));
+    expect(pedidos.first.data()['estado'], 'enviado');
+    expect(pedidos.first.data()['sesionId'], _mesa);
+    expect(pedidos.first.data()['total'], 25000);
+    expect(pedidos.first.data()['items'],
+      [
+        {'productoId': 'p1', 'nombre': 'Pasta', 'precio': 25000, 'cantidad': 1}
+      ],
+    );
   });
 }

@@ -106,18 +106,24 @@ final class SesionFamily extends $Family
   String toString() => r'sesionProvider';
 }
 
-/// Sesión activa del usuario autenticado (o null) — query realtime
-/// `sesiones where usuarioId == uid` + filtro de estado client-side.
+/// Sesión más reciente del usuario autenticado (o null) — query realtime
+/// `sesiones where usuarioId == uid`. NO filtra por estado: tras el cierre
+/// la sigue emitiendo (estado 'cerrada') para que el cliente pueda calificar
+/// sus pedidos servidos (locked: calificación tras cierre) y el banner se
+/// despida al detectar el cierre (la UI discrimina por `estado`).
 /// keepAlive: el banner de home / menú / pedidos la observan a través de
-/// la navegación. Al cerrar sesión el stream emite null (banner fuera).
+/// la navegación. Sin usuario → emite null (banner fuera).
 
 @ProviderFor(sesionActual)
 final sesionActualProvider = SesionActualProvider._();
 
-/// Sesión activa del usuario autenticado (o null) — query realtime
-/// `sesiones where usuarioId == uid` + filtro de estado client-side.
+/// Sesión más reciente del usuario autenticado (o null) — query realtime
+/// `sesiones where usuarioId == uid`. NO filtra por estado: tras el cierre
+/// la sigue emitiendo (estado 'cerrada') para que el cliente pueda calificar
+/// sus pedidos servidos (locked: calificación tras cierre) y el banner se
+/// despida al detectar el cierre (la UI discrimina por `estado`).
 /// keepAlive: el banner de home / menú / pedidos la observan a través de
-/// la navegación. Al cerrar sesión el stream emite null (banner fuera).
+/// la navegación. Sin usuario → emite null (banner fuera).
 
 final class SesionActualProvider
     extends
@@ -127,10 +133,13 @@ final class SesionActualProvider
           Stream<SesionMesa?>
         >
     with $FutureModifier<SesionMesa?>, $StreamProvider<SesionMesa?> {
-  /// Sesión activa del usuario autenticado (o null) — query realtime
-  /// `sesiones where usuarioId == uid` + filtro de estado client-side.
+  /// Sesión más reciente del usuario autenticado (o null) — query realtime
+  /// `sesiones where usuarioId == uid`. NO filtra por estado: tras el cierre
+  /// la sigue emitiendo (estado 'cerrada') para que el cliente pueda calificar
+  /// sus pedidos servidos (locked: calificación tras cierre) y el banner se
+  /// despida al detectar el cierre (la UI discrimina por `estado`).
   /// keepAlive: el banner de home / menú / pedidos la observan a través de
-  /// la navegación. Al cerrar sesión el stream emite null (banner fuera).
+  /// la navegación. Sin usuario → emite null (banner fuera).
   SesionActualProvider._()
     : super(
         from: null,
@@ -157,7 +166,7 @@ final class SesionActualProvider
   }
 }
 
-String _$sesionActualHash() => r'0488ccd1850c8e1701a4dba45973a18bc5929335';
+String _$sesionActualHash() => r'6f4cb024871be048dcb275ff963e83c1a34c0c0d';
 
 /// Mutaciones de la sesión: [abrir] por código QR (cámara o input manual).
 ///

@@ -32,7 +32,16 @@ Future<T> seccionCritica<T>(Future<T> Function() accion) {
   final token = _txToken = Object();
   final Future<T> resultado;
   if (libre) {
-    resultado = accion();
+    try {
+      resultado = accion();
+    } catch (e, s) {
+      // Un throw SINCRÓNICO de la acción saltaría la liberación del token
+      // (mutex tomado para siempre → la siguiente acción encadena sobre
+      // un future de una zona muerta y cuelga). Convertirlo a Future
+      // erróneo y liberar YA preserva el contrato async del mutex.
+      if (identical(_txToken, token)) _txToken = null;
+      return Future.error(e, s);
+    }
   } else {
     resultado = _txTail.then<T>((_) => accion());
   }

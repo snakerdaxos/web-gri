@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/pedido_item.dart';
 import '../../models/producto.dart';
 
 /// Línea del carrito: producto del menú + cantidad.
@@ -11,12 +12,22 @@ class CarritoLine {
 
   /// int COP (Phase 10: precios Firestore son enteros).
   int get subtotal => producto.precio * cantidad;
+
+  /// Item del doc `pedidos` — SNAPSHOT: copia nombre/precio del producto
+  /// tal como estaban al agregarlo al carrito (el doc de pedido queda
+  /// inmutable aunque el menú cambie después).
+  PedidoItem toPedidoItem() => PedidoItem(
+        productoId: producto.id,
+        nombre: producto.nombre,
+        precio: producto.precio,
+        cantidad: cantidad,
+      );
 }
 
 /// Helpers de lectura sobre el mapa del carrito (id → línea).
 extension CarritoX on Map<String, CarritoLine> {
-  /// Σ precio×cantidad — informativo ANTES de enviar; el total real lo
-  /// responde el server (snapshot server-side).
+  /// Σ precio×cantidad (int COP) — el mismo total que la tx escribe en el
+  /// doc de pedido (mismo snapshot de items).
   int get total => values.fold(0, (s, l) => s + l.subtotal);
 
   /// Σ cantidades (badge del botón carrito).

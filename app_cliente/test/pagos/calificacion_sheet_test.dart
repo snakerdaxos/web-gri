@@ -1,74 +1,174 @@
-import 'package:dio/dio.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gri_cliente/core/api_client.dart';
+import 'package:gri_cliente/core/firebase_providers.dart';
 import 'package:gri_cliente/features/pagos/calificacion_sheet.dart';
+import 'package:gri_cliente/features/pedidos/pedidos_provider.dart';
+import 'package:gri_cliente/features/sesion_qr/sesion_provider.dart';
+import 'package:gri_cliente/models/pedido_item.dart';
 
-/// Fake que registra los args de crearCalificacion (patrón cuenta_test).
-class _CalifClient extends ApiClient {
-  int? pedidoId;
-  int? estrellas;
-  String? comentario;
-  int llamadas = 0;
-  Object? error;
+import '../helpers/firebase_fakes.dart';
 
-  @override
-  Future<void> crearCalificacion(
-    int pedidoId,
-    int estrellas, {
-    String? comentario,
-  }) async {
-    llamadas++;
-    this.pedidoId = pedidoId;
-    this.estrellas = estrellas;
-    this.comentario = comentario;
-    if (error != null) throw error!;
+const _mesa = 'GRI-MESA-demo-001';
+const _items = [
+  PedidoItem(productoId: 'p1', nombre: 'Pasta', precio: 25000, cantidad: 2),
+];
+
+/// Siembra un pedido en [estado] con la sesión en [sesionEstado] y lo
+/// retorna su docId.
+Future<String> _sembrarPedido(
+  dynamic db, {
+  String estado = 'servido',
+  String sesionEstado = 'cerrada',
+  String uid = 'test-uid',
+}) async {
+  await abrirSesion(db, uid: uid, codigoQR: _mesa);
+  final id = await crearPedido(db, uid: uid, mesaCodigo: _mesa, items: _items);
+  await db.doc('pedidos/$id').update({'estado': estado});
+  if (sesionEstado != 'activa') {
+    await db.doc('sesiones/$_mesa').update({
+      'estado': sesionEstado,
+      'cerradaAt': FieldValue.serverTimestamp(),
+    });
   }
+  return id;
 }
 
-DioException _e(Object? data, int status) {
-  final opts = RequestOptions(path: '/cliente/calificaciones');
-  return DioException(
-    requestOptions: opts,
-    response: Response<Object?>(requestOptions: opts, statusCode: status, data: data),
-  );
-}
+void main() {
+  // ── Unidad: la tx de calificar (agregado atómico) ───────────────────────
 
-/// Host: botón que abre el sheet (showModalBottomSheet necesita context
-/// de Scaffold — patrón real de uso desde la PagoScreen).
-Widget _wrap({required ApiClient client}) {
-  return ProviderScope(
-    overrides: [apiClientProvider.overrideWithValue(client)],
-    child: MaterialApp(
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => Center(
-            child: ElevatedButton(
-              onPressed: () => showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                builder: (_) => const CalificacionSheet(pedidoId: 7),
+  test(
+      'calificar pedido servido con sesión cerrada → calificaciones 1:1 + recompute atómico',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    final id = await _sembrarPedido(db);
+
+    // 0,0 × 0 → primera: 5.
+    await calificar(db, uid: 'test-uid', pedidoId: id, estrellas: 5);
+
+    final calif = await db.doc('calificaciones/$id').get();
+    expect(calif.exists, isTrue, reason: 'doc ID = pedidoId (1:1)');
+    expect(calif.data()!['estrellas'], 5);
+    expect(calif.data()!['restauranteId'], 'demo');
+    expect(calif.data()!['usuarioId'], 'test-uid');
+    expect(calif.data()!['comentario'], '');
+
+    final rest = await db.doc('restaurantes/demo').get();
+    expect(rest.data()!['califCount'], 1);
+    expect((rest.data()!['califProm'] as num), 5.0);
+  });
+
+  test('segunda calificación de OTRO pedido → promedio recomputado (5,5 → 4)',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    final id1 = await _sembrarPedido(db);
+    // Re-abrir la mesa para un segundo pedido del mismo restaurante.
+    await abrirSesion(db, uid: 'test-uid', codigoQR: _mesa);
+    final id2 =
+        await crearPedido(db, uid: 'test-uid', mesaCodigo: _mesa, items: _items);
+    await db.doc('pedidos/$id2').update({'estado': 'servido'});
+    await db.doc('sesiones/$_mesa').update({'estado': 'cerrada'});
+
+    await calificar(db, uid: 'test-uid', pedidoId: id1, estrellas: 5);
+    await calificar(db,
+        uid: 'test-uid', pedidoId: id2, estrellas: 3, comentario: 'Bien');
+
+    final rest = await db.doc('restaurantes/demo').get();
+    expect(rest.data()!['califCount'], 2);
+    expect((rest.data()!['califProm'] as num), 4.0,
+        reason: '(5×1 + 3)/2 = 4 — leído y escrito en la MISMA tx');
+    final calif2 = await db.doc('calificaciones/$id2').get();
+    expect(calif2.data()!['comentario'], 'Bien');
+  });
+
+  test('calificar el MISMO pedido dos veces → error 1:1 (sin duplicados)',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    final id = await _sembrarPedido(db);
+    await calificar(db, uid: 'test-uid', pedidoId: id, estrellas: 5);
+
+    await expectLater(
+      calificar(db, uid: 'test-uid', pedidoId: id, estrellas: 3),
+      throwsA(isA<CalificacionException>().having(
+          (e) => e.message, 'message', 'Este pedido ya fue calificado')),
+    );
+    final rest = await db.doc('restaurantes/demo').get();
+    expect(rest.data()!['califCount'], 1, reason: 'el agregado no avanzó');
+  });
+
+  test('calificar con sesión AÚN ACTIVA → error controlado (locked tras cierre)',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    final id = await _sembrarPedido(db, sesionEstado: 'activa');
+
+    await expectLater(
+      calificar(db, uid: 'test-uid', pedidoId: id, estrellas: 4),
+      throwsA(isA<CalificacionException>().having((e) => e.message,
+          'message', 'Podrás calificar cuando el restaurante cierre tu sesión')),
+    );
+    expect((await db.collection('calificaciones').get()).docs, isEmpty);
+  });
+
+  test('calificar pedido de OTRO usuario → error controlado', () async {
+    final db = await buildFakeFirestoreConSeed();
+    final id = await _sembrarPedido(db, uid: 'dueno');
+
+    await expectLater(
+      calificar(db, uid: 'intruso', pedidoId: id, estrellas: 4),
+      throwsA(isA<CalificacionException>().having((e) => e.message,
+          'message', 'Solo puedes calificar tus propios pedidos')),
+    );
+    expect((await db.collection('calificaciones').get()).docs, isEmpty);
+  });
+
+  test('calificar pedido NO servido (enviado) → error controlado', () async {
+    final db = await buildFakeFirestoreConSeed();
+    final id = await _sembrarPedido(db, estado: 'enviado');
+
+    await expectLater(
+      calificar(db, uid: 'test-uid', pedidoId: id, estrellas: 4),
+      throwsA(isA<CalificacionException>()
+          .having((e) => e.message, 'message', 'Solo puedes calificar pedidos servidos')),
+    );
+    expect((await db.collection('calificaciones').get()).docs, isEmpty);
+  });
+
+  // ── Widgets: el sheet de estrellas (UI intacta) ─────────────────────────
+
+  /// Host con botón que abre el sheet apuntando a [pedidoId].
+  Widget _wrapCon(dynamic db, String pedidoId, {String etiqueta = 'abrir'}) {
+    return ProviderScope(
+      overrides: [
+        firestoreProvider.overrideWithValue(db),
+        firebaseAuthProvider.overrideWithValue(mockAuth()),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => Center(
+              child: ElevatedButton(
+                onPressed: () => showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => CalificacionSheet(pedidoId: pedidoId),
+                ),
+                child: Text(etiqueta),
               ),
-              child: const Text('abrir'),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-Future<void> _abrirSheet(WidgetTester tester) async {
-  await tester.tap(find.text('abrir'));
-  await tester.pumpAndSettle();
-}
-
-void main() {
   testWidgets('5 estrellas custom: tap en la 4ta → 4 llenas, valor 4',
       (tester) async {
-    await tester.pumpWidget(_wrap(client: _CalifClient()));
-    await _abrirSheet(tester);
+    final db = await buildFakeFirestoreConSeed();
+    final id = await _sembrarPedido(db);
+    await tester.pumpWidget(_wrapCon(db, id));
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
 
     // Inicial: 5 vacías.
     expect(find.byIcon(Icons.star_border), findsNWidgets(5));
@@ -82,11 +182,14 @@ void main() {
   });
 
   testWidgets(
-      'Enviar deshabilitado sin estrellas; con 4+comentario llama al backend, cierra y agradece',
+      'Enviar deshabilitado sin estrellas; con 4+comentario escribe el doc, cierra y agradece',
       (tester) async {
-    final client = _CalifClient();
-    await tester.pumpWidget(_wrap(client: client));
-    await _abrirSheet(tester);
+    final db = await buildFakeFirestoreConSeed();
+    final id = await _sembrarPedido(db);
+
+    await tester.pumpWidget(_wrapCon(db, id));
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
 
     // Deshabilitado con 0 estrellas.
     var btn = tester.widget<ElevatedButton>(
@@ -108,32 +211,31 @@ void main() {
     );
     expect(btn.onPressed, isNotNull);
 
-    await tester.enterText(
-      find.byType(TextField),
-      '¡Excelente todo!',
-    );
+    await tester.enterText(find.byType(TextField), '¡Excelente todo!');
     await tester.pump();
 
     await tester.tap(find.text('Enviar calificación'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(client.llamadas, 1);
-    expect(client.pedidoId, 7);
-    expect(client.estrellas, 4);
-    expect(client.comentario, '¡Excelente todo!');
+    final calif = await db.doc('calificaciones/$id').get();
+    expect(calif.data()!['estrellas'], 4);
+    expect(calif.data()!['comentario'], '¡Excelente todo!');
 
     // Sheet cerrado + SnackBar de gracias.
     expect(find.byIcon(Icons.star_border), findsNothing);
     expect(find.text('¡Gracias por calificar! 🙌'), findsOneWidget);
   });
 
-  testWidgets('409 ya calificado → mensaje específico, sheet NO cierra',
+  testWidgets('ya calificado → mensaje específico, sheet NO cierra',
       (tester) async {
-    final client = _CalifClient()
-      ..error = _e({'detail': 'El pedido ya fue calificado'}, 409);
-    await tester.pumpWidget(_wrap(client: client));
-    await _abrirSheet(tester);
+    final db = await buildFakeFirestoreConSeed();
+    final id = await _sembrarPedido(db);
+    await calificar(db, uid: 'test-uid', pedidoId: id, estrellas: 5);
+
+    await tester.pumpWidget(_wrapCon(db, id));
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.star_border).at(4));
     await tester.pump();

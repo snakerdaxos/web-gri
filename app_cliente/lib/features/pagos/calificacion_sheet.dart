@@ -1,21 +1,71 @@
-import 'package:dio/dio.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/api_client.dart';
+import '../../core/firebase_providers.dart';
 import '../../core/theme.dart';
+import '../../core/tx_mutex.dart';
 
-/// Bottom sheet de calificación post-pago (CALI-01): 5 estrellas custom
-/// (Row de IconButtons — cero deps) + comentario opcional + enviar.
+/// Error de dominio de calificación con mensaje user-friendly.
+class CalificacionException implements Exception {
+  const CalificacionException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// Califica un pedido SERVIDO de una sesión CERRADA — `runTransaction`
+/// con el agregado del restaurante recalculado ATÓMICAMENTE (locked:
+/// calificación tras cierre):
 ///
-/// Solo se abre desde el estado APROBADO de la PagoScreen: el [pedidoId]
-/// proviene de `PagoEstado.pedidoIds` (la sesión ya está cerrada — Pitfall
-/// 6 del research 09). El backend revalida todo (solo pedidos pagados
-/// propios, una calificación por pedido).
+/// 1. `tx.get(pedidos/{pedidoId})` — existe, `usuarioId == uid` y estado
+///    'servido' (si no → error controlado).
+/// 2. `tx.get(sesiones/{sesionId})` — estado 'cerrada'.
+/// 3. `tx.get(calificaciones/{pedidoId})` — NO existe (doc ID = pedidoId:
+///    1:1, sin duplicados).
+/// 4. Lee `califProm`/`califCount` EN LA MISMA tx y escribe ambos
+///    recomputados: `califProm = (prom*count + e)/(count+1)` redondeado a
+///    2 decimales, `califCount = count + 1`.
+Future<void> calificar(
+  FirebaseFirestore db, {
+  required String uid,
+  required String pedidoId,
+  required int estrellas,
+  String? comentario,
+}) {
+  if (estrellas < 1 || estrellas > 5) {
+    return Future.error(
+        const CalificacionException('Las estrellas van de 1 a 5'));
+  }
+  return seccionCritica(
+    () => _calificar(db, uid: uid, pedidoId: pedidoId, estrellas: estrellas,
+        comentario: comentario),
+  );
+}
+
+Future<void> _calificar(
+  FirebaseFirestore db, {
+  required String uid,
+  required String pedidoId,
+  required int estrellas,
+  String? comentario,
+}) {
+  throw UnimplementedError();
+}
+
+/// Bottom sheet de calificación post-cierre (CALI-01 sobre Firestore):
+/// 5 estrellas custom (Row de IconButtons — cero deps) + comentario
+/// opcional + enviar.
+///
+/// Se abre desde la pantalla de pedidos cuando la sesión está CERRADA y
+/// el pedido SERVIDO; las rules revalidan todo (solo pedidos servidos
+/// propios con sesión cerrada, una calificación por pedido).
 class CalificacionSheet extends ConsumerStatefulWidget {
   const CalificacionSheet({super.key, required this.pedidoId});
 
-  final int pedidoId;
+  final String pedidoId;
 
   @override
   ConsumerState<CalificacionSheet> createState() => _CalificacionSheetState();
@@ -38,12 +88,21 @@ class _CalificacionSheetState extends ConsumerState<CalificacionSheet> {
     if (_estrellas == 0 || _enviando) return;
     setState(() => _enviando = true);
     final texto = _comentario.text.trim();
+    final uid = ref.read(firebaseAuthProvider).currentUser?.uid;
+    if (uid == null) {
+      if (!mounted) return;
+      setState(() => _enviando = false);
+      _error('Debes iniciar sesión para calificar');
+      return;
+    }
     try {
-      await ref.read(apiClientProvider).crearCalificacion(
-            widget.pedidoId,
-            _estrellas,
-            comentario: texto.isEmpty ? null : texto,
-          );
+      await calificar(
+        ref.read(firestoreProvider),
+        uid: uid,
+        pedidoId: widget.pedidoId,
+        estrellas: _estrellas,
+        comentario: texto.isEmpty ? null : texto,
+      );
       if (!mounted) return;
       // El messenger se captura ANTES del pop: el SnackBar vive en la
       // pantalla que alojó el sheet.
@@ -55,36 +114,25 @@ class _CalificacionSheetState extends ConsumerState<CalificacionSheet> {
           backgroundColor: GriColors.green,
         ),
       );
-    } on DioException catch (e) {
+    } on CalificacionException catch (e) {
       if (!mounted) return;
       setState(() => _enviando = false);
-      final status = e.response?.statusCode;
-      final data = e.response?.data;
-      final detail = data is Map<String, dynamic> ? data['detail'] : null;
-      final String mensaje;
-      if (status == 409) {
-        mensaje = 'Este pedido ya fue calificado';
-      } else if (detail is String && detail.isNotEmpty) {
-        mensaje = detail;
-      } else {
-        mensaje = 'No pudimos enviar tu calificación. Intenta de nuevo.';
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(mensaje),
-          backgroundColor: GriColors.chipCanceladaFg,
-        ),
-      );
-    } catch (_) {
+      _error(e.message);
+    } catch (e) {
+      debugPrint('calificar falló: $e');
       if (!mounted) return;
       setState(() => _enviando = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error de conexión. Intenta de nuevo.'),
-          backgroundColor: GriColors.chipCanceladaFg,
-        ),
-      );
+      _error('No pudimos enviar tu calificación. Intenta de nuevo.');
     }
+  }
+
+  void _error(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(mensaje),
+        backgroundColor: GriColors.chipCanceladaFg,
+      ),
+    );
   }
 
   @override
