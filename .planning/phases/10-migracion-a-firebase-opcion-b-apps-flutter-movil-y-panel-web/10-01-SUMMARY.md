@@ -23,7 +23,7 @@ decisions:
   - "mesas: rama cliente con SOLO sus 2 transacciones diseñadas (tx reserva, tx abrir sesión); edición de ficha restringida a numero/capacidad"
   - "reservas create valida numPersonas <= capacidad de la mesa (mismo get cacheado, 0 access-calls extra)"
 metrics:
-  duration: "~45 min"
+  duration: "~2h 15m"
   completed: "2026-08-16"
   tasks: 3
   commits: 3
