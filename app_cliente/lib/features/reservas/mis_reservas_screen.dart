@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/firebase_providers.dart';
 import '../../core/theme.dart';
 import '../../models/reserva.dart';
 import 'reserva_controller.dart';
@@ -23,7 +24,10 @@ class MisReservasScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(reservasProvider);
+    final uid = ref.watch(firebaseAuthProvider).currentUser?.uid;
+    final AsyncValue<List<Reserva>> async = uid == null
+        ? const AsyncLoading()
+        : ref.watch(misReservasProvider(uid));
     final saving = ref.watch(reservaControllerProvider).isLoading;
 
     return Scaffold(
@@ -45,7 +49,9 @@ class MisReservasScreen extends ConsumerWidget {
               const Text('Error al cargar tus reservas'),
               const SizedBox(height: 16),
               ElevatedButton.icon(
-                onPressed: () => ref.invalidate(reservasProvider),
+                onPressed: () {
+                  if (uid != null) ref.invalidate(misReservasProvider(uid));
+                },
                 icon: const Icon(Icons.refresh),
                 label: const Text('Reintentar'),
               ),
@@ -258,7 +264,7 @@ class _ReservaCard extends ConsumerWidget {
     if (confirmar != true) return;
 
     try {
-      await ref.read(reservaControllerProvider.notifier).cancel(reserva.id);
+      await ref.read(reservaControllerProvider.notifier).cancel(reserva);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -268,8 +274,10 @@ class _ReservaCard extends ConsumerWidget {
       );
     } on Exception catch (e) {
       if (!context.mounted) return;
-      final msg = _statusCodeOf(e) == 409
-          ? 'La reserva ya estaba cancelada'
+      // ReservaException trae el mensaje user-friendly del dominio
+      // (ya cancelada / pasada / no encontrada).
+      final msg = e is ReservaException
+          ? e.message
           : 'No se pudo cancelar la reserva';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -277,15 +285,6 @@ class _ReservaCard extends ConsumerWidget {
           backgroundColor: GriColors.chipCanceladaFg,
         ),
       );
-    }
-  }
-
-  int? _statusCodeOf(Object e) {
-    try {
-      final dynamic dyn = e;
-      return dyn.response?.statusCode as int?;
-    } catch (_) {
-      return null;
     }
   }
 }

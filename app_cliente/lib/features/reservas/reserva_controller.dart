@@ -1,46 +1,59 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/api_client.dart';
 import '../../models/reserva.dart';
 import '../../models/reserva_create.dart';
-import 'reservas_provider.dart';
 
 part 'reserva_controller.g.dart';
 
-/// Orquesta las mutaciones de reservas del cliente:
-/// * [create] → `POST /cliente/reservas` (201) — los errores 400/409 se
-///   propagan al widget, que los traduce a mensajes user-friendly
-///   (threat 6: "Ese horario acaba de ser reservado, elige otro").
-/// * [cancel] → `POST /cliente/reservas/{id}/cancelar`.
-///
-/// Ambos invalidan [reservasProvider] (sin polling — Pattern 4 del
-/// research; Phase 7 lo vuelve WS).
+/// Error de dominio de reservas con mensaje user-friendly directo
+/// (contrato de la UI — mismo rol que el `detail` de la era REST).
+class ReservaException implements Exception {
+  const ReservaException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+// ── RED (TDD Task 3): las firmas existen; implementación en GREEN. ──────
+
+/// Doc ID determinista de la reserva: `{mesaId}_{yyyyMMdd}_{HH}` con la
+/// fecha del SLOT en TZ local (Pitfall 3: NUNCA serverTimestamp para el
+/// id — la unicidad mesa+slot vive en el propio doc ID).
+String docIdReserva(String mesaId, DateTime slot) => throw UnimplementedError();
+
+/// Port de `backend/app/services/reserva_service.py` (MIGRA-06):
+/// asignación automática de mesa sin sobre-reservas.
+Future<Reserva> crearReserva(
+  FirebaseFirestore db, {
+  required String uid,
+  required String restauranteId,
+  required DateTime slot,
+  required int personas,
+}) =>
+    throw UnimplementedError();
+
+/// Cancela una reserva futura propia (transición de state machine) y
+/// revierte la mesa SOLO si estaba 'reservada'.
+Future<void> cancelarReserva(
+  FirebaseFirestore db, {
+  required String uid,
+  required Reserva reserva,
+}) =>
+    throw UnimplementedError();
+
+/// Orquesta las mutaciones de reservas del cliente sobre Firestore.
+/// [misReservas] es un stream → la lista se refresca sola (REALTIME).
 @riverpod
 class ReservaController extends _$ReservaController {
   @override
   FutureOr<void> build() {}
 
-  Future<Reserva> create(ReservaCreate body) async {
-    state = const AsyncLoading<void>();
-    try {
-      final reserva = await ref.read(apiClientProvider).createReserva(body);
-      ref.invalidate(reservasProvider);
-      return reserva;
-    } finally {
-      state = const AsyncData<void>(null);
-    }
-  }
+  Future<Reserva> create(ReservaCreate body) => throw UnimplementedError();
 
-  Future<Reserva> cancel(String reservaId) async {
-    state = const AsyncLoading<void>();
-    try {
-      final reserva = await ref.read(apiClientProvider).cancelReserva(reservaId);
-      ref.invalidate(reservasProvider);
-      return reserva;
-    } finally {
-      state = const AsyncData<void>(null);
-    }
-  }
+  Future<void> cancel(Reserva reserva) => throw UnimplementedError();
 }

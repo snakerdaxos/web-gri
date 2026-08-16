@@ -1,66 +1,52 @@
-import 'package:dio/dio.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gri_cliente/core/api_client.dart';
+import 'package:gri_cliente/core/firebase_providers.dart';
+import 'package:gri_cliente/features/reservas/reserva_controller.dart';
 import 'package:gri_cliente/features/reservas/reserva_wizard_screen.dart';
-import 'package:gri_cliente/models/reserva.dart';
-import 'package:gri_cliente/models/reserva_create.dart';
 
-/// Fake del ApiClient — graba el ReservaCreate que llega a createReserva y
-/// puede lanzar un 409 para testear el mensaje user-friendly.
-class _RecordingApiClient extends ApiClient {
-  final Object? createError;
+import '../helpers/firebase_fakes.dart';
 
-  _RecordingApiClient({this.createError});
+/// Wizard + servicio `crearReserva` sobre FakeFirebaseFirestore (MIGRA-06).
+///
+/// Nota de concurrencia: el fake ejecuta runTransaction SIN control
+/// optimista (writes inmediatos) — la serialización entre llamadas del
+/// mismo proceso la aporta el mutex `_seccionCritica` del controller
+/// (en Firestore real es el OCC de la transacción el que serializa).
 
-  ReservaCreate? lastCreate;
-
-  @override
-  Future<Reserva> createReserva(ReservaCreate body) async {
-    lastCreate = body;
-    final e = createError;
-    if (e != null) throw e;
-    return Reserva(
-      id: 'GRI-MESA-demo-001_20990101_19',
-      restauranteId: body.restauranteId,
-      restauranteNombre: 'Restaurante Demo GRI',
-      mesaId: 'GRI-MESA-demo-001',
-      mesaNumero: 1,
-      usuarioId: 'test-uid',
-      fecha: DateTime(2099, 1, 1, body.hora),
-      fechaStr: body.fecha,
-      hora: body.hora,
-      numPersonas: body.numPersonas,
-      estado: 'confirmada',
-    );
-  }
-}
-
-Widget _wrap({required ApiClient client}) {
-  return ProviderScope(
-    overrides: [apiClientProvider.overrideWithValue(client)],
-    child: const MaterialApp(
-      home: ReservaWizardScreen(
-        restauranteId: 'demo',
-        restauranteNombre: 'Restaurante Demo GRI',
-      ),
-    ),
-  );
-}
-
-String _fechaDeManana() {
+DateTime _slotDeManana([int hora = 19]) {
   final t = DateTime.now().add(const Duration(days: 1));
-  return '${t.year.toString().padLeft(4, '0')}-'
-      '${t.month.toString().padLeft(2, '0')}-'
-      '${t.day.toString().padLeft(2, '0')}';
+  return DateTime(t.year, t.month, t.day, hora);
 }
+
+String _fechaStr(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-'
+    '${d.month.toString().padLeft(2, '0')}-'
+    '${d.day.toString().padLeft(2, '0')}';
+
+const _mesasSeed = [
+  'GRI-MESA-demo-001',
+  'GRI-MESA-demo-002',
+  'GRI-MESA-demo-003',
+];
+
+Widget _wrap(FakeFirebaseFirestore db) => ProviderScope(
+      overrides: [
+        firebaseAuthProvider.overrideWithValue(mockAuth()),
+        firestoreProvider.overrideWithValue(db),
+      ],
+      child: const MaterialApp(
+        home: ReservaWizardScreen(
+          restauranteId: 'demo',
+          restauranteNombre: 'Restaurante Demo GRI',
+        ),
+      ),
+    );
 
 /// Llena el wizard completo (fecha mañana vía dialog OK, hora 19:00,
 /// personas por defecto) y avanza hasta Confirmar.
 Future<void> _llenarHastaConfirmar(WidgetTester tester) async {
-  // Step Fecha: abre el dialog y acepta la fecha por defecto (firstDate
-  // = mañana → selectedDate = mañana).
   await tester.tap(find.text('Elegir fecha'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('OK'));
@@ -68,7 +54,6 @@ Future<void> _llenarHastaConfirmar(WidgetTester tester) async {
   await tester.tap(find.text('Continuar'));
   await tester.pumpAndSettle();
 
-  // Step Hora: dropdown de slots :00 → 19:00.
   await tester.tap(find.text('Elige una hora'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('19:00').last);
@@ -76,20 +61,121 @@ Future<void> _llenarHastaConfirmar(WidgetTester tester) async {
   await tester.tap(find.text('Continuar'));
   await tester.pumpAndSettle();
 
-  // Step Personas: dejar el default (2) y continuar.
   await tester.tap(find.text('Continuar'));
   await tester.pumpAndSettle();
 }
 
 void main() {
+  // ── Servicio: transacción determinista (port de reserva_service.py) ──
+  group('crearReserva (tx determinista)', () {
+    test('crea doc {mesaId}_{yyyyMMdd}_{HH} confirmada y pasa la mesa a reservada',
+        () async {
+      final db = await buildFakeFirestoreConSeed();
+      final slot = _slotDeManana();
+
+      final reserva = await crearReserva(db,
+          uid: 'test-uid', restauranteId: 'demo', slot: slot, personas: 2);
+
+      // Doc determinista de la PRIMERA mesa con capacidad (orden numero).
+      expect(reserva.mesaId, 'GRI-MESA-demo-001');
+      expect(reserva.id, docIdReserva('GRI-MESA-demo-001', slot));
+
+      final doc = await db
+          .doc('reservas/${docIdReserva('GRI-MESA-demo-001', slot)}')
+          .get();
+      expect(doc.exists, isTrue);
+      expect(doc.data()!['estado'], 'confirmada');
+      expect(doc.data()!['usuarioId'], 'test-uid');
+      expect(doc.data()!['restauranteId'], 'demo');
+      expect(doc.data()!['fechaStr'], _fechaStr(slot));
+      expect(doc.data()!['hora'], 19);
+      expect(doc.data()!['numPersonas'], 2);
+      expect(doc.data()!['mesaNumero'], 1);
+
+      // La mesa estaba disponible → reservada.
+      final mesa = await db.doc('mesas/GRI-MESA-demo-001').get();
+      expect(mesa.data()!['estado'], 'reservada');
+    });
+
+    test(
+        'CONCURRENCIA (MIGRA-06): dos crearReserva simultáneas → mesas distintas, jamás 2 docs para la misma mesa+slot',
+        () async {
+      final db = await buildFakeFirestoreConSeed();
+      final slot = _slotDeManana();
+
+      final resultados = await Future.wait([
+        crearReserva(db,
+            uid: 'uid-a', restauranteId: 'demo', slot: slot, personas: 2),
+        crearReserva(db,
+            uid: 'uid-b', restauranteId: 'demo', slot: slot, personas: 2),
+      ]);
+
+      final docs = (await db.collection('reservas').get()).docs;
+
+      // Ambas tienen mesa, pero DISTINTA (exactamente 1 gana cada mesa).
+      expect(resultados.map((r) => r.mesaId).toSet(), hasLength(2));
+      // Un doc por reserva — ids deterministas únicos por construcción.
+      expect(docs, hasLength(2));
+      expect(docs.map((d) => d.id).toSet(), hasLength(2));
+      for (final r in resultados) {
+        expect(r.estado, 'confirmada');
+      }
+      // La segunda reserva NO pisó el slot de la primera: cada doc lleva
+      // el usuario que la ganó.
+      expect(docs.map((d) => d.data()['usuarioId']).toSet(),
+          {'uid-a', 'uid-b'});
+    });
+
+    test('todas las mesas del slot tomadas → error controlado', () async {
+      final db = await buildFakeFirestoreConSeed();
+      final slot = _slotDeManana();
+
+      // Pre-sembrar el slot de TODAS las candidatas (capacidad >= 2: las 3).
+      for (final mesaId in _mesasSeed) {
+        await db.doc('reservas/${docIdReserva(mesaId, slot)}').set({
+          'restauranteId': 'demo',
+          'mesaId': mesaId,
+          'usuarioId': 'otro',
+          'estado': 'confirmada',
+        });
+      }
+
+      await expectLater(
+        crearReserva(db,
+            uid: 'test-uid',
+            restauranteId: 'demo',
+            slot: slot,
+            personas: 2),
+        throwsA(isA<ReservaException>().having(
+            (e) => e.message, 'message', 'No hay mesas disponibles en ese horario')),
+      );
+    });
+
+    test('capacidad insuficiente → mismo error controlado, sin writes', () async {
+      final db = await buildFakeFirestoreConSeed();
+
+      // 10 personas > capacidad máxima del seed (6) → sin candidatas.
+      await expectLater(
+        crearReserva(db,
+            uid: 'test-uid',
+            restauranteId: 'demo',
+            slot: _slotDeManana(),
+            personas: 10),
+        throwsA(isA<ReservaException>().having((e) => e.message, 'message',
+            'No hay mesas con capacidad suficiente')),
+      );
+      expect((await db.collection('reservas').get()).docs, isEmpty);
+    });
+  });
+
+  // ── UI del wizard ─────────────────────────────────────────────────────
   testWidgets('Stepper de 4 pasos: Fecha / Hora / Personas / Confirmar',
       (tester) async {
-    await tester.pumpWidget(_wrap(client: _RecordingApiClient()));
+    final db = await buildFakeFirestoreConSeed();
+    await tester.pumpWidget(_wrap(db));
     await tester.pumpAndSettle();
 
     expect(find.byType(Stepper), findsOneWidget);
-    // Títulos de los 4 steps (el resumen del step Confirmar repite algunos
-    // labels — findsWidgets, no findsOneWidget).
     expect(find.text('Fecha'), findsWidgets);
     expect(find.text('Hora'), findsWidgets);
     expect(find.text('Personas'), findsWidgets);
@@ -106,8 +192,8 @@ void main() {
     expect(ReservaWizardScreen.horasSlot.last, '21:00');
     expect(ReservaWizardScreen.horasSlot, isNot(contains('12:30')));
 
-    // Y en la UI: el dropdown ofrece solo esos ítems.
-    await tester.pumpWidget(_wrap(client: _RecordingApiClient()));
+    final db = await buildFakeFirestoreConSeed();
+    await tester.pumpWidget(_wrap(db));
     await tester.pumpAndSettle();
 
     // Avanzar al step Hora (elegir fecha primero).
@@ -126,10 +212,10 @@ void main() {
   });
 
   testWidgets('num_personas queda entre 1 y 20', (tester) async {
-    await tester.pumpWidget(_wrap(client: _RecordingApiClient()));
+    final db = await buildFakeFirestoreConSeed();
+    await tester.pumpWidget(_wrap(db));
     await tester.pumpAndSettle();
 
-    // Avanzar hasta Personas.
     await tester.tap(find.text('Elegir fecha'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('OK'));
@@ -158,39 +244,46 @@ void main() {
     expect(find.text('20'), findsWidgets);
   });
 
-  testWidgets('Confirmar llama al controller con el ReservaCreate armado',
+  testWidgets('Confirmar crea la reserva en Firestore y muestra la mesa asignada',
       (tester) async {
-    final client = _RecordingApiClient();
-    await tester.pumpWidget(_wrap(client: client));
+    final db = await buildFakeFirestoreConSeed();
+    await tester.pumpWidget(_wrap(db));
     await tester.pumpAndSettle();
 
     await _llenarHastaConfirmar(tester);
-
-    // Step Confirmar: resumen + submit.
     await tester.tap(find.text('Confirmar reserva'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(client.lastCreate, isNotNull);
-    expect(client.lastCreate!.restauranteId, 'demo');
-    expect(client.lastCreate!.fecha, _fechaDeManana());
-    expect(client.lastCreate!.hora, 19);
-    expect(client.lastCreate!.numPersonas, 2);
+    // SnackBar con la mesa asignada automáticamente.
+    expect(find.textContaining('¡Reserva confirmada! Mesa 1'), findsOneWidget);
+
+    // El doc llegó a Firestore con el shape completo del slot.
+    final docs = (await db.collection('reservas').get()).docs;
+    expect(docs, hasLength(1));
+    final data = docs.first.data();
+    expect(data['restauranteId'], 'demo');
+    expect(data['usuarioId'], 'test-uid');
+    expect(data['hora'], 19);
+    expect(data['numPersonas'], 2);
+    expect(data['estado'], 'confirmada');
+    expect(data['fechaStr'], _fechaStr(_slotDeManana()));
   });
 
-  testWidgets('ante 409 muestra "Ese horario acaba de ser reservado"',
+  testWidgets('ante slot agotado muestra "Ese horario acaba de ser reservado"',
       (tester) async {
-    final client = _RecordingApiClient(
-      createError: DioException(
-        requestOptions: RequestOptions(path: '/cliente/reservas'),
-        response: Response(
-          requestOptions: RequestOptions(path: '/cliente/reservas'),
-          statusCode: 409,
-          data: {'detail': 'Slot ocupado'},
-        ),
-      ),
-    );
-    await tester.pumpWidget(_wrap(client: client));
+    final db = await buildFakeFirestoreConSeed();
+    final slot = _slotDeManana();
+    for (final mesaId in _mesasSeed) {
+      await db.doc('reservas/${docIdReserva(mesaId, slot)}').set({
+        'restauranteId': 'demo',
+        'mesaId': mesaId,
+        'usuarioId': 'otro',
+        'estado': 'confirmada',
+      });
+    }
+
+    await tester.pumpWidget(_wrap(db));
     await tester.pumpAndSettle();
 
     await _llenarHastaConfirmar(tester);
@@ -201,5 +294,7 @@ void main() {
 
     expect(find.textContaining('Ese horario acaba de ser reservado'),
         findsOneWidget);
+    // Sin writes: las 3 del seed siguen siendo las únicas.
+    expect((await db.collection('reservas').get()).docs, hasLength(3));
   });
 }

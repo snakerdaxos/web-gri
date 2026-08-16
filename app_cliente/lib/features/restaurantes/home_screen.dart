@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/firebase_providers.dart';
 import '../../core/theme.dart';
-import '../../core/token_provider.dart';
 import '../../models/reserva.dart';
 import '../../models/sesion_mesa.dart';
+import '../auth/auth_controller.dart';
 import '../reservas/mis_reservas_screen.dart' show EstadoChip;
 import '../reservas/reservas_provider.dart';
 import '../sesion_qr/sesion_provider.dart';
@@ -28,9 +29,17 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // authStateProvider NUEVO (FirebaseAuth, 10-02) — displayName para el
+    // greeting; ya no el token_provider legacy.
     final user = ref.watch(authStateProvider).value;
     final restaurantesAsync = ref.watch(restaurantesListProvider);
-    final reservasAsync = ref.watch(reservasProvider);
+
+    // Mis reservas como stream Firestore (REALTIME) — sin uid no hay
+    // sesión: AsyncLoading (el router igual redirige a /login).
+    final uid = ref.watch(firebaseAuthProvider).currentUser?.uid;
+    final reservasAsync = uid == null
+        ? const AsyncValue<List<Reserva>>.loading()
+        : ref.watch(misReservasProvider(uid));
     final sesion = ref.watch(sesionProvider).value;
 
     final primera = restaurantesAsync.value?.firstOrNull;
@@ -80,7 +89,7 @@ class HomeScreen extends ConsumerWidget {
 
               // ── Welcome ──────────────────────────────────────────────────
               Text(
-                '¡Hola, ${user?.nombre ?? ''}! 👋',
+                '¡Hola, ${user?.displayName ?? ''}! 👋',
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,

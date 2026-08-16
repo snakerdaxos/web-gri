@@ -8,36 +8,18 @@ part of 'reserva_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Orquesta las mutaciones de reservas del cliente:
-/// * [create] → `POST /cliente/reservas` (201) — los errores 400/409 se
-///   propagan al widget, que los traduce a mensajes user-friendly
-///   (threat 6: "Ese horario acaba de ser reservado, elige otro").
-/// * [cancel] → `POST /cliente/reservas/{id}/cancelar`.
-///
-/// Ambos invalidan [reservasProvider] (sin polling — Pattern 4 del
-/// research; Phase 7 lo vuelve WS).
+/// Orquesta las mutaciones de reservas del cliente sobre Firestore.
+/// [misReservas] es un stream → la lista se refresca sola (REALTIME).
 
 @ProviderFor(ReservaController)
 final reservaControllerProvider = ReservaControllerProvider._();
 
-/// Orquesta las mutaciones de reservas del cliente:
-/// * [create] → `POST /cliente/reservas` (201) — los errores 400/409 se
-///   propagan al widget, que los traduce a mensajes user-friendly
-///   (threat 6: "Ese horario acaba de ser reservado, elige otro").
-/// * [cancel] → `POST /cliente/reservas/{id}/cancelar`.
-///
-/// Ambos invalidan [reservasProvider] (sin polling — Pattern 4 del
-/// research; Phase 7 lo vuelve WS).
+/// Orquesta las mutaciones de reservas del cliente sobre Firestore.
+/// [misReservas] es un stream → la lista se refresca sola (REALTIME).
 final class ReservaControllerProvider
     extends $AsyncNotifierProvider<ReservaController, void> {
-  /// Orquesta las mutaciones de reservas del cliente:
-  /// * [create] → `POST /cliente/reservas` (201) — los errores 400/409 se
-  ///   propagan al widget, que los traduce a mensajes user-friendly
-  ///   (threat 6: "Ese horario acaba de ser reservado, elige otro").
-  /// * [cancel] → `POST /cliente/reservas/{id}/cancelar`.
-  ///
-  /// Ambos invalidan [reservasProvider] (sin polling — Pattern 4 del
-  /// research; Phase 7 lo vuelve WS).
+  /// Orquesta las mutaciones de reservas del cliente sobre Firestore.
+  /// [misReservas] es un stream → la lista se refresca sola (REALTIME).
   ReservaControllerProvider._()
     : super(
         from: null,
@@ -57,16 +39,10 @@ final class ReservaControllerProvider
   ReservaController create() => ReservaController();
 }
 
-String _$reservaControllerHash() => r'52bd79ed34a79dc5333ad53a9f991180e9e8b83a';
+String _$reservaControllerHash() => r'7e69e96dc1cf27c9eb60afd32f7d8d3840968ad4';
 
-/// Orquesta las mutaciones de reservas del cliente:
-/// * [create] → `POST /cliente/reservas` (201) — los errores 400/409 se
-///   propagan al widget, que los traduce a mensajes user-friendly
-///   (threat 6: "Ese horario acaba de ser reservado, elige otro").
-/// * [cancel] → `POST /cliente/reservas/{id}/cancelar`.
-///
-/// Ambos invalidan [reservasProvider] (sin polling — Pattern 4 del
-/// research; Phase 7 lo vuelve WS).
+/// Orquesta las mutaciones de reservas del cliente sobre Firestore.
+/// [misReservas] es un stream → la lista se refresca sola (REALTIME).
 
 abstract class _$ReservaController extends $AsyncNotifier<void> {
   FutureOr<void> build();
