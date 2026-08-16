@@ -192,17 +192,18 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
   5. Pedidos, mesas, reservas y aviso de cuenta se actualizan en vivo en cliente y panel sin refrescar (onSnapshot nativo — reemplaza WebSockets de Phase 7)
   6. Reservas y sesiones de mesa son seguras bajo concurrencia: doc IDs deterministas + runTransaction (sin doble reserva del slot ni doble sesión activa por mesa)
 **Plans:** 7 plans
-- [ ] 10-01-PLAN.md — Infra Firebase raíz: firestore.rules + indexes + firebase.json + seed idempotente (Admin SDK, claims) + guía FIREBASE_SETUP (MIGRA-03, MIGRA-04)
-- [ ] 10-02-PLAN.md — app_cliente: deps + firebase_options (fallback manual) + bootstrap emuladores + state_machines port 1:1 + auth/perfil migrados (MIGRA-01)
-- [ ] 10-03-PLAN.md — app_cliente: models fromDoc + discover (lista/detalle/menú) + reservas tx anti sobre-reserva (MIGRA-01, MIGRA-06)
-- [ ] 10-04-PLAN.md — app_cliente: sesión QR tx + pedidos snapshot tx + cuenta + calificación agregada + realtime + purge legacy (MIGRA-01, MIGRA-05, MIGRA-06)
-- [ ] 10-05-PLAN.md — panel_admin: bootstrap + login por claims + dashboard/mapa/stats en vivo + cocina cola realtime + aviso cuenta (MIGRA-02, MIGRA-05) — depende de 10-04 (app primero)
-- [ ] 10-06-PLAN.md — panel_admin: mesas CRUD+QR determinista + menú CRUD + clientes + reservas staff + super-admin + reportes + purge legacy (MIGRA-02, MIGRA-05)
-- [ ] 10-07-PLAN.md — Smoke e2e en emuladores + deploy rules/indexes al proyecto real + checkpoint final (MIGRA-03, MIGRA-04, MIGRA-05, MIGRA-06)
+- [x] 10-01-PLAN.md — Infra Firebase raíz: firestore.rules + indexes + firebase.json + seed idempotente (Admin SDK, claims) + guía FIREBASE_SETUP (MIGRA-03, MIGRA-04)
+- [x] 10-02-PLAN.md — app_cliente: deps + firebase_options (fallback manual) + bootstrap emuladores + state_machines port 1:1 + auth/perfil migrados (MIGRA-01)
+- [x] 10-03-PLAN.md — app_cliente: models fromDoc + discover (lista/detalle/menú) + reservas tx anti sobre-reserva (MIGRA-01, MIGRA-06)
+- [x] 10-04-PLAN.md — app_cliente: sesión QR tx + pedidos snapshot tx + cuenta + calificación agregada + realtime + purge legacy (MIGRA-01, MIGRA-05, MIGRA-06)
+- [x] 10-05-PLAN.md — panel_admin: bootstrap + login por claims + dashboard/mapa/stats en vivo + cocina cola realtime + aviso cuenta (MIGRA-02, MIGRA-05) — depende de 10-04 (app primero)
+- [x] 10-06-PLAN.md — panel_admin: mesas CRUD+QR determinista + menú CRUD + clientes + reservas staff + super-admin + reportes + purge legacy (MIGRA-02, MIGRA-05)
+- [x] 10-07-PLAN.md — Smoke e2e en emuladores + deploy rules/indexes al proyecto real + checkpoint final (MIGRA-03, MIGRA-04, MIGRA-05, MIGRA-06)
 
 ---
 *Coverage: 50/50 requisitos v1 mapeados (PLAT 5, AUTH 5, REST 2, MENU 2, MESA 6, RESV 5, PEDI 6, RT 3, PAGO 4, CALI 2, ADMN 5, REPO 2, INFR 3). Nota: REQUIREMENTS.md decÃƒÂ­a "47 total" por error aritmÃƒÂ©tico; el conteo real de IDs es 50.*
 *Created: 2026-08-13*
+
 
 
 
