@@ -1,0 +1,16 @@
+{
+  "name": "gri-firebase-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tooling Firebase de GRI: seed idempotente del restaurante demo + firebase-tools (emuladores/deploy). Ver docs/FIREBASE_SETUP.md.",
+  "scripts": {
+    "seed": "node seed_firebase.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "14.2.0"
+  },
+  "devDependencies": {
+    "firebase-tools": "15.27.0"
+  }
+}
