@@ -8,13 +8,13 @@ part of 'restaurante_detalle.dart';
 
 _RestauranteDetalle _$RestauranteDetalleFromJson(Map<String, dynamic> json) =>
     _RestauranteDetalle(
-      id: (json['id'] as num).toInt(),
+      id: json['id'] as String,
       nombre: json['nombre'] as String,
-      tipoCocina: json['tipo_cocina'] as String?,
+      tipoCocina: json['tipoCocina'] as String?,
       descripcion: json['descripcion'] as String?,
       direccion: json['direccion'] as String?,
-      calificacion: (json['calificacion'] as num?)?.toDouble(),
-      totalCalificaciones: (json['total_calificaciones'] as num?)?.toInt() ?? 0,
+      califProm: (json['califProm'] as num?)?.toDouble() ?? 0.0,
+      califCount: (json['califCount'] as num?)?.toInt() ?? 0,
       categorias: (json['categorias'] as List<dynamic>)
           .map((e) => Categoria.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -24,10 +24,10 @@ Map<String, dynamic> _$RestauranteDetalleToJson(_RestauranteDetalle instance) =>
     <String, dynamic>{
       'id': instance.id,
       'nombre': instance.nombre,
-      'tipo_cocina': instance.tipoCocina,
+      'tipoCocina': instance.tipoCocina,
       'descripcion': instance.descripcion,
       'direccion': instance.direccion,
-      'calificacion': instance.calificacion,
-      'total_calificaciones': instance.totalCalificaciones,
+      'califProm': instance.califProm,
+      'califCount': instance.califCount,
       'categorias': instance.categorias,
     };

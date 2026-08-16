@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Categoria {
 
- int get id; String get nombre; int get orden; List<Producto> get productos;
+ String get id; String get restauranteId; String get nombre; int get orden; bool get activo; List<Producto> get productos;
 /// Create a copy of Categoria
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $CategoriaCopyWith<Categoria> get copyWith => _$CategoriaCopyWithImpl<Categoria>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Categoria&&(identical(other.id, id) || other.id == id)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.orden, orden) || other.orden == orden)&&const DeepCollectionEquality().equals(other.productos, productos));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Categoria&&(identical(other.id, id) || other.id == id)&&(identical(other.restauranteId, restauranteId) || other.restauranteId == restauranteId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.orden, orden) || other.orden == orden)&&(identical(other.activo, activo) || other.activo == activo)&&const DeepCollectionEquality().equals(other.productos, productos));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,nombre,orden,const DeepCollectionEquality().hash(productos));
+int get hashCode => Object.hash(runtimeType,id,restauranteId,nombre,orden,activo,const DeepCollectionEquality().hash(productos));
 
 @override
 String toString() {
-  return 'Categoria(id: $id, nombre: $nombre, orden: $orden, productos: $productos)';
+  return 'Categoria(id: $id, restauranteId: $restauranteId, nombre: $nombre, orden: $orden, activo: $activo, productos: $productos)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $CategoriaCopyWith<$Res>  {
   factory $CategoriaCopyWith(Categoria value, $Res Function(Categoria) _then) = _$CategoriaCopyWithImpl;
 @useResult
 $Res call({
- int id, String nombre, int orden, List<Producto> productos
+ String id, String restauranteId, String nombre, int orden, bool activo, List<Producto> productos
 });
 
 
@@ -66,12 +66,14 @@ class _$CategoriaCopyWithImpl<$Res>
 
 /// Create a copy of Categoria
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? nombre = null,Object? orden = null,Object? productos = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? restauranteId = null,Object? nombre = null,Object? orden = null,Object? activo = null,Object? productos = null,}) {
   return _then(Categoria(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
+as String,restauranteId: null == restauranteId ? _self.restauranteId : restauranteId // ignore: cast_nullable_to_non_nullable
+as String,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
 as String,orden: null == orden ? _self.orden : orden // ignore: cast_nullable_to_non_nullable
-as int,productos: null == productos ? _self.productos : productos // ignore: cast_nullable_to_non_nullable
+as int,activo: null == activo ? _self.activo : activo // ignore: cast_nullable_to_non_nullable
+as bool,productos: null == productos ? _self.productos : productos // ignore: cast_nullable_to_non_nullable
 as List<Producto>,
   ));
 }
@@ -157,10 +159,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String nombre,  int orden,  List<Producto> productos)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String restauranteId,  String nombre,  int orden,  bool activo,  List<Producto> productos)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Categoria() when $default != null:
-return $default(_that.id,_that.nombre,_that.orden,_that.productos);case _:
+return $default(_that.id,_that.restauranteId,_that.nombre,_that.orden,_that.activo,_that.productos);case _:
   return orElse();
 
 }
@@ -178,10 +180,10 @@ return $default(_that.id,_that.nombre,_that.orden,_that.productos);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String nombre,  int orden,  List<Producto> productos)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String restauranteId,  String nombre,  int orden,  bool activo,  List<Producto> productos)  $default,) {final _that = this;
 switch (_that) {
 case _Categoria():
-return $default(_that.id,_that.nombre,_that.orden,_that.productos);case _:
+return $default(_that.id,_that.restauranteId,_that.nombre,_that.orden,_that.activo,_that.productos);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -198,10 +200,10 @@ return $default(_that.id,_that.nombre,_that.orden,_that.productos);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String nombre,  int orden,  List<Producto> productos)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String restauranteId,  String nombre,  int orden,  bool activo,  List<Producto> productos)?  $default,) {final _that = this;
 switch (_that) {
 case _Categoria() when $default != null:
-return $default(_that.id,_that.nombre,_that.orden,_that.productos);case _:
+return $default(_that.id,_that.restauranteId,_that.nombre,_that.orden,_that.activo,_that.productos);case _:
   return null;
 
 }
@@ -213,14 +215,16 @@ return $default(_that.id,_that.nombre,_that.orden,_that.productos);case _:
 @JsonSerializable()
 
 class _Categoria implements Categoria {
-  const _Categoria({required this.id, required this.nombre, required this.orden, required  List<Producto> productos}): _productos = productos;
+  const _Categoria({required this.id, required this.restauranteId, required this.nombre, this.orden = 1, this.activo = true,  List<Producto> productos = const <Producto>[]}): _productos = productos;
   factory _Categoria.fromJson(Map<String, dynamic> json) => _$CategoriaFromJson(json);
 
-@override final  int id;
+@override final  String id;
+@override final  String restauranteId;
 @override final  String nombre;
-@override final  int orden;
+@override@JsonKey() final  int orden;
+@override@JsonKey() final  bool activo;
  final  List<Producto> _productos;
-@override List<Producto> get productos {
+@override@JsonKey() List<Producto> get productos {
   if (_productos is EqualUnmodifiableListView) return _productos;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_productos);
@@ -240,16 +244,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Categoria&&(identical(other.id, id) || other.id == id)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.orden, orden) || other.orden == orden)&&const DeepCollectionEquality().equals(other._productos, _productos));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Categoria&&(identical(other.id, id) || other.id == id)&&(identical(other.restauranteId, restauranteId) || other.restauranteId == restauranteId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.orden, orden) || other.orden == orden)&&(identical(other.activo, activo) || other.activo == activo)&&const DeepCollectionEquality().equals(other._productos, _productos));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,nombre,orden,const DeepCollectionEquality().hash(_productos));
+int get hashCode => Object.hash(runtimeType,id,restauranteId,nombre,orden,activo,const DeepCollectionEquality().hash(_productos));
 
 @override
 String toString() {
-  return 'Categoria(id: $id, nombre: $nombre, orden: $orden, productos: $productos)';
+  return 'Categoria(id: $id, restauranteId: $restauranteId, nombre: $nombre, orden: $orden, activo: $activo, productos: $productos)';
 }
 
 
@@ -260,7 +264,7 @@ abstract mixin class _$CategoriaCopyWith<$Res> implements $CategoriaCopyWith<$Re
   factory _$CategoriaCopyWith(_Categoria value, $Res Function(_Categoria) _then) = __$CategoriaCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String nombre, int orden, List<Producto> productos
+ String id, String restauranteId, String nombre, int orden, bool activo, List<Producto> productos
 });
 
 
@@ -277,12 +281,14 @@ class __$CategoriaCopyWithImpl<$Res>
 
 /// Create a copy of Categoria
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? nombre = null,Object? orden = null,Object? productos = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? restauranteId = null,Object? nombre = null,Object? orden = null,Object? activo = null,Object? productos = null,}) {
   return _then(_Categoria(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
+as String,restauranteId: null == restauranteId ? _self.restauranteId : restauranteId // ignore: cast_nullable_to_non_nullable
+as String,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
 as String,orden: null == orden ? _self.orden : orden // ignore: cast_nullable_to_non_nullable
-as int,productos: null == productos ? _self._productos : productos // ignore: cast_nullable_to_non_nullable
+as int,activo: null == activo ? _self.activo : activo // ignore: cast_nullable_to_non_nullable
+as bool,productos: null == productos ? _self._productos : productos // ignore: cast_nullable_to_non_nullable
 as List<Producto>,
   ));
 }

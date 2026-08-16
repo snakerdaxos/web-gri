@@ -14,12 +14,12 @@ import 'package:gri_cliente/models/sesion_mesa.dart';
 
 /// Fake del ApiClient — graba el pedido que llega a createPedido.
 class _FakeClient extends ApiClient {
-  List<({int productoId, int cantidad})>? lastItems;
+  List<({String productoId, int cantidad})>? lastItems;
   String? lastNotas;
 
   @override
   Future<Pedido> createPedido({
-    required List<({int productoId, int cantidad})> items,
+    required List<({String productoId, int cantidad})> items,
     String? notas,
   }) async {
     lastItems = items;
@@ -49,30 +49,48 @@ SesionMesa _sesion() => SesionMesa(
     );
 
 /// Detalle con 2 categorías: Pasta/Pizza/Soda(agotada) en Platos (expandida
-/// por defecto), Jugo en Bebidas (colapsada).
+/// por defecto), Jugo en Bebidas (colapsada). Ids String (Phase 10).
 RestauranteDetalle _detalle() => RestauranteDetalle(
-      id: 1,
+      id: 'demo',
       nombre: 'Restaurante Demo GRI',
       tipoCocina: 'Internacional',
       descripcion: null,
       direccion: null,
-      calificacion: null,
       categorias: [
-        Categoria(id: 1, nombre: 'Platos', orden: 1, productos: [
+        Categoria(id: 'c1', restauranteId: 'demo', nombre: 'Platos', orden: 1,
+            productos: [
           const Producto(
-              id: 1,
+              id: 'p1',
+              restauranteId: 'demo',
+              categoriaId: 'c1',
               nombre: 'Pasta',
               descripcion: 'Con salsa de la casa',
               precio: 25000,
               disponible: true),
           const Producto(
-              id: 2, nombre: 'Pizza', precio: 32000, disponible: true),
+              id: 'p2',
+              restauranteId: 'demo',
+              categoriaId: 'c1',
+              nombre: 'Pizza',
+              precio: 32000,
+              disponible: true),
           const Producto(
-              id: 3, nombre: 'Soda', precio: 5000, disponible: false),
+              id: 'p3',
+              restauranteId: 'demo',
+              categoriaId: 'c1',
+              nombre: 'Soda',
+              precio: 5000,
+              disponible: false),
         ]),
-        Categoria(id: 2, nombre: 'Bebidas', orden: 2, productos: [
+        Categoria(id: 'c2', restauranteId: 'demo', nombre: 'Bebidas', orden: 2,
+            productos: [
           const Producto(
-              id: 4, nombre: 'Jugo', precio: 8000, disponible: true),
+              id: 'p4',
+              restauranteId: 'demo',
+              categoriaId: 'c2',
+              nombre: 'Jugo',
+              precio: 8000,
+              disponible: true),
         ]),
       ],
     );
@@ -97,7 +115,7 @@ Widget _wrap({ApiClient? client}) {
     overrides: [
       apiClientProvider.overrideWithValue(client ?? _FakeClient()),
       sesionProvider.overrideWithValue(AsyncData(_sesion())),
-      restauranteDetalleProvider(1).overrideWith((ref) async => _detalle()),
+      restauranteDetalleProvider('1').overrideWith((ref) async => _detalle()),
     ],
     child: MaterialApp.router(routerConfig: router),
   );
@@ -200,7 +218,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     // Llegaron items + notas exactas (sesión implícita server-side).
-    expect(client.lastItems, const [(productoId: 1, cantidad: 1)]);
+    expect(client.lastItems, const [(productoId: 'p1', cantidad: 1)]);
     expect(client.lastNotas, 'Sin cebolla');
     // Confirmación + navegación al estado del pedido.
     expect(find.textContaining('¡Pedido enviado!'), findsOneWidget);

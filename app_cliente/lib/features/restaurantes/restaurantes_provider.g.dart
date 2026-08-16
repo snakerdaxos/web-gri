@@ -8,14 +8,16 @@ part of 'restaurantes_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Lista de restaurantes activos — `GET /public/restaurantes` (sin auth).
-/// `calificacion` siempre null en Phase 5 (UI muestra "—").
+/// Lista de restaurantes activos — INTERINO Task 1: sigue legacy REST
+/// (api_client) con ids String; Task 2 lo reescribe sobre Firestore
+/// (`collection('restaurantes').where('activo')` + fromDoc).
 
 @ProviderFor(restaurantesList)
 final restaurantesListProvider = RestaurantesListProvider._();
 
-/// Lista de restaurantes activos — `GET /public/restaurantes` (sin auth).
-/// `calificacion` siempre null en Phase 5 (UI muestra "—").
+/// Lista de restaurantes activos — INTERINO Task 1: sigue legacy REST
+/// (api_client) con ids String; Task 2 lo reescribe sobre Firestore
+/// (`collection('restaurantes').where('activo')` + fromDoc).
 
 final class RestaurantesListProvider
     extends
@@ -27,8 +29,9 @@ final class RestaurantesListProvider
     with
         $FutureModifier<List<Restaurante>>,
         $FutureProvider<List<Restaurante>> {
-  /// Lista de restaurantes activos — `GET /public/restaurantes` (sin auth).
-  /// `calificacion` siempre null en Phase 5 (UI muestra "—").
+  /// Lista de restaurantes activos — INTERINO Task 1: sigue legacy REST
+  /// (api_client) con ids String; Task 2 lo reescribe sobre Firestore
+  /// (`collection('restaurantes').where('activo')` + fromDoc).
   RestaurantesListProvider._()
     : super(
         from: null,
@@ -57,12 +60,12 @@ final class RestaurantesListProvider
 
 String _$restaurantesListHash() => r'821aea668fd1e1cae71e1c909cd1c484d85ed3be';
 
-/// Detalle con menú anidado — `GET /public/restaurantes/{id}` (sin auth).
+/// Detalle con menú anidado — INTERINO Task 1 (legacy REST, id String).
 
 @ProviderFor(restauranteDetalle)
 final restauranteDetalleProvider = RestauranteDetalleFamily._();
 
-/// Detalle con menú anidado — `GET /public/restaurantes/{id}` (sin auth).
+/// Detalle con menú anidado — INTERINO Task 1 (legacy REST, id String).
 
 final class RestauranteDetalleProvider
     extends
@@ -74,10 +77,10 @@ final class RestauranteDetalleProvider
     with
         $FutureModifier<RestauranteDetalle>,
         $FutureProvider<RestauranteDetalle> {
-  /// Detalle con menú anidado — `GET /public/restaurantes/{id}` (sin auth).
+  /// Detalle con menú anidado — INTERINO Task 1 (legacy REST, id String).
   RestauranteDetalleProvider._({
     required RestauranteDetalleFamily super.from,
-    required int super.argument,
+    required String super.argument,
   }) : super(
          retry: null,
          name: r'restauranteDetalleProvider',
@@ -104,7 +107,7 @@ final class RestauranteDetalleProvider
 
   @override
   FutureOr<RestauranteDetalle> create(Ref ref) {
-    final argument = this.argument as int;
+    final argument = this.argument as String;
     return restauranteDetalle(ref, argument);
   }
 
@@ -120,12 +123,12 @@ final class RestauranteDetalleProvider
 }
 
 String _$restauranteDetalleHash() =>
-    r'a728ea291686b65917ec1f06a4bd0ee45f61c6fd';
+    r'60daccafdb92e70e3554b3f982a891765d22e728';
 
-/// Detalle con menú anidado — `GET /public/restaurantes/{id}` (sin auth).
+/// Detalle con menú anidado — INTERINO Task 1 (legacy REST, id String).
 
 final class RestauranteDetalleFamily extends $Family
-    with $FunctionalFamilyOverride<FutureOr<RestauranteDetalle>, int> {
+    with $FunctionalFamilyOverride<FutureOr<RestauranteDetalle>, String> {
   RestauranteDetalleFamily._()
     : super(
         retry: null,
@@ -135,9 +138,9 @@ final class RestauranteDetalleFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// Detalle con menú anidado — `GET /public/restaurantes/{id}` (sin auth).
+  /// Detalle con menú anidado — INTERINO Task 1 (legacy REST, id String).
 
-  RestauranteDetalleProvider call(int id) =>
+  RestauranteDetalleProvider call(String id) =>
       RestauranteDetalleProvider._(argument: id, from: this);
 
   @override

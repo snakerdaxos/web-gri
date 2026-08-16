@@ -8,22 +8,23 @@ import 'package:gri_cliente/models/reserva.dart';
 
 /// Fake del ApiClient — graba los ids cancelados.
 class _RecordingApiClient extends ApiClient {
-  final List<int> cancelled = [];
+  final List<String> cancelled = [];
 
   @override
-  Future<Reserva> cancelReserva(int reservaId) async {
+  Future<Reserva> cancelReserva(String reservaId) async {
     cancelled.add(reservaId);
     return Reserva(
       id: reservaId,
-      restauranteId: 1,
+      restauranteId: 'demo',
       restauranteNombre: 'Restaurante Demo GRI',
-      mesaId: 4,
-      mesaNumero: 4,
-      fecha: '2099-01-01',
-      horaInicio: '19:00:00',
+      mesaId: 'GRI-MESA-demo-001',
+      mesaNumero: 1,
+      usuarioId: 'test-uid',
+      fecha: DateTime(2099, 1, 1, 19),
+      fechaStr: '2099-01-01',
+      hora: 19,
       numPersonas: 2,
       estado: 'cancelada',
-      createdAt: '2026-08-14T10:00:00',
     );
   }
 }
@@ -36,22 +37,23 @@ String _hoy() {
 }
 
 Reserva _reserva(
-  int id,
+  int n,
   String fecha, {
   String estado = 'confirmada',
   String restaurante = 'Restaurante Demo GRI',
 }) =>
     Reserva(
-      id: id,
-      restauranteId: 1,
+      id: 'r$n',
+      restauranteId: 'demo',
       restauranteNombre: restaurante,
-      mesaId: id,
-      mesaNumero: id,
-      fecha: fecha,
-      horaInicio: '19:00:00',
+      mesaId: 'm$n',
+      mesaNumero: n,
+      usuarioId: 'test-uid',
+      fecha: DateTime.parse('$fecha 19:00:00'),
+      fechaStr: fecha,
+      hora: 19,
       numPersonas: 4,
       estado: estado,
-      createdAt: '2026-08-01T10:00:00',
     );
 
 Widget _wrap({required ApiClient client, required List<Reserva> reservas}) {
@@ -148,6 +150,6 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(client.cancelled, [7]);
+    expect(client.cancelled, ['r7']);
   });
 }

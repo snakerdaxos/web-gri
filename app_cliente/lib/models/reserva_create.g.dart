@@ -8,16 +8,16 @@ part of 'reserva_create.dart';
 
 _ReservaCreate _$ReservaCreateFromJson(Map<String, dynamic> json) =>
     _ReservaCreate(
-      restauranteId: (json['restaurante_id'] as num).toInt(),
+      restauranteId: json['restauranteId'] as String,
       fecha: json['fecha'] as String,
-      horaInicio: json['hora_inicio'] as String,
-      numPersonas: (json['num_personas'] as num).toInt(),
+      hora: (json['hora'] as num).toInt(),
+      numPersonas: (json['numPersonas'] as num).toInt(),
     );
 
 Map<String, dynamic> _$ReservaCreateToJson(_ReservaCreate instance) =>
     <String, dynamic>{
-      'restaurante_id': instance.restauranteId,
+      'restauranteId': instance.restauranteId,
       'fecha': instance.fecha,
-      'hora_inicio': instance.horaInicio,
-      'num_personas': instance.numPersonas,
+      'hora': instance.hora,
+      'numPersonas': instance.numPersonas,
     };

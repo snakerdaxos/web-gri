@@ -22,16 +22,17 @@ class _RecordingApiClient extends ApiClient {
     final e = createError;
     if (e != null) throw e;
     return Reserva(
-      id: 99,
+      id: 'GRI-MESA-demo-001_20990101_19',
       restauranteId: body.restauranteId,
       restauranteNombre: 'Restaurante Demo GRI',
-      mesaId: 4,
-      mesaNumero: 4,
-      fecha: body.fecha,
-      horaInicio: body.horaInicio,
+      mesaId: 'GRI-MESA-demo-001',
+      mesaNumero: 1,
+      usuarioId: 'test-uid',
+      fecha: DateTime(2099, 1, 1, body.hora),
+      fechaStr: body.fecha,
+      hora: body.hora,
       numPersonas: body.numPersonas,
       estado: 'confirmada',
-      createdAt: '2026-08-14T10:00:00',
     );
   }
 }
@@ -41,7 +42,7 @@ Widget _wrap({required ApiClient client}) {
     overrides: [apiClientProvider.overrideWithValue(client)],
     child: const MaterialApp(
       home: ReservaWizardScreen(
-        restauranteId: 1,
+        restauranteId: 'demo',
         restauranteNombre: 'Restaurante Demo GRI',
       ),
     ),
@@ -171,9 +172,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(client.lastCreate, isNotNull);
-    expect(client.lastCreate!.restauranteId, 1);
+    expect(client.lastCreate!.restauranteId, 'demo');
     expect(client.lastCreate!.fecha, _fechaDeManana());
-    expect(client.lastCreate!.horaInicio, '19:00:00');
+    expect(client.lastCreate!.hora, 19);
     expect(client.lastCreate!.numPersonas, 2);
   });
 

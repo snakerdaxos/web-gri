@@ -84,7 +84,7 @@ class MenuMesaScreen extends ConsumerWidget {
     }
 
     final detalleAsync =
-        ref.watch(restauranteDetalleProvider(sesion.restauranteId));
+        ref.watch(restauranteDetalleProvider(sesion.restauranteId.toString()));
     final cart = ref.watch(carritoProvider);
 
     return Scaffold(
@@ -106,7 +106,7 @@ class MenuMesaScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () => ref.invalidate(
-                    restauranteDetalleProvider(sesion.restauranteId)),
+                    restauranteDetalleProvider(sesion.restauranteId.toString())),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Reintentar'),
               ),

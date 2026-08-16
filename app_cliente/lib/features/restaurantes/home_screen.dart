@@ -152,7 +152,7 @@ class HomeScreen extends ConsumerWidget {
         .where((r) => r.esProxima(_hoy))
         .toList()
       ..sort((a, b) =>
-          '${a.fecha} ${a.horaInicio}'.compareTo('${b.fecha} ${b.horaInicio}'));
+          '${a.fechaStr} ${a.horaLabel}'.compareTo('${b.fechaStr} ${b.horaLabel}'));
     return candidatas.firstOrNull;
   }
 }
@@ -316,7 +316,8 @@ class _RestauranteCard extends StatelessWidget {
     required this.calificacionLabel,
   });
 
-  final int id;
+  /// Slug del doc Firestore (String end-to-end, Phase 10).
+  final String id;
   final String nombre;
   final String? tipoCocina;
   final String calificacionLabel;
@@ -488,7 +489,7 @@ class _ProximaReservaCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text('📅 ${reserva.fecha} · ${reserva.horaLabel}'),
+          Text('📅 ${reserva.fechaStr} · ${reserva.horaLabel}'),
           const SizedBox(height: 6),
           Text('🪑 Mesa ${reserva.mesaNumero} · '
               '👥 ${reserva.numPersonas} personas'),

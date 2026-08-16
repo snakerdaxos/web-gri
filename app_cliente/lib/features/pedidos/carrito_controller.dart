@@ -9,14 +9,15 @@ class CarritoLine {
   final Producto producto;
   final int cantidad;
 
-  double get subtotal => producto.precio * cantidad;
+  /// int COP (Phase 10: precios Firestore son enteros).
+  int get subtotal => producto.precio * cantidad;
 }
 
 /// Helpers de lectura sobre el mapa del carrito (id → línea).
-extension CarritoX on Map<int, CarritoLine> {
+extension CarritoX on Map<String, CarritoLine> {
   /// Σ precio×cantidad — informativo ANTES de enviar; el total real lo
   /// responde el server (snapshot server-side).
-  double get total => values.fold(0.0, (s, l) => s + l.subtotal);
+  int get total => values.fold(0, (s, l) => s + l.subtotal);
 
   /// Σ cantidades (badge del botón carrito).
   int get itemCount => values.fold(0, (s, l) => s + l.cantidad);
@@ -29,9 +30,9 @@ extension CarritoX on Map<int, CarritoLine> {
 /// carrito sobreviva abrir/cerrar el bottom sheet del carrito y navegar
 /// entre menú y estado del pedido. Se limpia tras enviar o al abrir otra
 /// sesión.
-class CarritoNotifier extends Notifier<Map<int, CarritoLine>> {
+class CarritoNotifier extends Notifier<Map<String, CarritoLine>> {
   @override
-  Map<int, CarritoLine> build() => {};
+  Map<String, CarritoLine> build() => {};
 
   void agregar(Producto producto) {
     state = {
@@ -43,7 +44,7 @@ class CarritoNotifier extends Notifier<Map<int, CarritoLine>> {
     };
   }
 
-  void incrementar(int productoId) {
+  void incrementar(String productoId) {
     final linea = state[productoId];
     if (linea == null) return;
     state = {
@@ -54,7 +55,7 @@ class CarritoNotifier extends Notifier<Map<int, CarritoLine>> {
   }
 
   /// Cantidad 1 → remueve la línea completa.
-  void decrementar(int productoId) {
+  void decrementar(String productoId) {
     final linea = state[productoId];
     if (linea == null) return;
     if (linea.cantidad <= 1) {
@@ -68,7 +69,7 @@ class CarritoNotifier extends Notifier<Map<int, CarritoLine>> {
     };
   }
 
-  void remover(int productoId) {
+  void remover(String productoId) {
     state = {...state}..remove(productoId);
   }
 
@@ -76,6 +77,6 @@ class CarritoNotifier extends Notifier<Map<int, CarritoLine>> {
 }
 
 final carritoProvider =
-    NotifierProvider<CarritoNotifier, Map<int, CarritoLine>>(
+    NotifierProvider<CarritoNotifier, Map<String, CarritoLine>>(
   CarritoNotifier.new,
 );

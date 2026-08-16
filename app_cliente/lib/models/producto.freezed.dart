@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Producto {
 
- int get id; String get nombre; String? get descripcion; double get precio;@JsonKey(name: 'imagen_url') String? get imagenUrl; bool get disponible;
+ String get id; String get restauranteId; String get categoriaId; String get nombre; String? get descripcion; int get precio; String? get imagenUrl; bool get disponible; bool get activo;
 /// Create a copy of Producto
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $ProductoCopyWith<Producto> get copyWith => _$ProductoCopyWithImpl<Producto>(thi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Producto&&(identical(other.id, id) || other.id == id)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.descripcion, descripcion) || other.descripcion == descripcion)&&(identical(other.precio, precio) || other.precio == precio)&&(identical(other.imagenUrl, imagenUrl) || other.imagenUrl == imagenUrl)&&(identical(other.disponible, disponible) || other.disponible == disponible));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Producto&&(identical(other.id, id) || other.id == id)&&(identical(other.restauranteId, restauranteId) || other.restauranteId == restauranteId)&&(identical(other.categoriaId, categoriaId) || other.categoriaId == categoriaId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.descripcion, descripcion) || other.descripcion == descripcion)&&(identical(other.precio, precio) || other.precio == precio)&&(identical(other.imagenUrl, imagenUrl) || other.imagenUrl == imagenUrl)&&(identical(other.disponible, disponible) || other.disponible == disponible)&&(identical(other.activo, activo) || other.activo == activo));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,nombre,descripcion,precio,imagenUrl,disponible);
+int get hashCode => Object.hash(runtimeType,id,restauranteId,categoriaId,nombre,descripcion,precio,imagenUrl,disponible,activo);
 
 @override
 String toString() {
-  return 'Producto(id: $id, nombre: $nombre, descripcion: $descripcion, precio: $precio, imagenUrl: $imagenUrl, disponible: $disponible)';
+  return 'Producto(id: $id, restauranteId: $restauranteId, categoriaId: $categoriaId, nombre: $nombre, descripcion: $descripcion, precio: $precio, imagenUrl: $imagenUrl, disponible: $disponible, activo: $activo)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $ProductoCopyWith<$Res>  {
   factory $ProductoCopyWith(Producto value, $Res Function(Producto) _then) = _$ProductoCopyWithImpl;
 @useResult
 $Res call({
- int id, String nombre, String? descripcion, double precio,@JsonKey(name: 'imagen_url') String? imagenUrl, bool disponible
+ String id, String restauranteId, String categoriaId, String nombre, String? descripcion, int precio, String? imagenUrl, bool disponible, bool activo
 });
 
 
@@ -66,14 +66,17 @@ class _$ProductoCopyWithImpl<$Res>
 
 /// Create a copy of Producto
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? nombre = null,Object? descripcion = freezed,Object? precio = null,Object? imagenUrl = freezed,Object? disponible = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? restauranteId = null,Object? categoriaId = null,Object? nombre = null,Object? descripcion = freezed,Object? precio = null,Object? imagenUrl = freezed,Object? disponible = null,Object? activo = null,}) {
   return _then(Producto(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
+as String,restauranteId: null == restauranteId ? _self.restauranteId : restauranteId // ignore: cast_nullable_to_non_nullable
+as String,categoriaId: null == categoriaId ? _self.categoriaId : categoriaId // ignore: cast_nullable_to_non_nullable
+as String,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
 as String,descripcion: freezed == descripcion ? _self.descripcion : descripcion // ignore: cast_nullable_to_non_nullable
 as String?,precio: null == precio ? _self.precio : precio // ignore: cast_nullable_to_non_nullable
-as double,imagenUrl: freezed == imagenUrl ? _self.imagenUrl : imagenUrl // ignore: cast_nullable_to_non_nullable
+as int,imagenUrl: freezed == imagenUrl ? _self.imagenUrl : imagenUrl // ignore: cast_nullable_to_non_nullable
 as String?,disponible: null == disponible ? _self.disponible : disponible // ignore: cast_nullable_to_non_nullable
+as bool,activo: null == activo ? _self.activo : activo // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }
@@ -159,10 +162,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String nombre,  String? descripcion,  double precio, @JsonKey(name: 'imagen_url')  String? imagenUrl,  bool disponible)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String restauranteId,  String categoriaId,  String nombre,  String? descripcion,  int precio,  String? imagenUrl,  bool disponible,  bool activo)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Producto() when $default != null:
-return $default(_that.id,_that.nombre,_that.descripcion,_that.precio,_that.imagenUrl,_that.disponible);case _:
+return $default(_that.id,_that.restauranteId,_that.categoriaId,_that.nombre,_that.descripcion,_that.precio,_that.imagenUrl,_that.disponible,_that.activo);case _:
   return orElse();
 
 }
@@ -180,10 +183,10 @@ return $default(_that.id,_that.nombre,_that.descripcion,_that.precio,_that.image
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String nombre,  String? descripcion,  double precio, @JsonKey(name: 'imagen_url')  String? imagenUrl,  bool disponible)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String restauranteId,  String categoriaId,  String nombre,  String? descripcion,  int precio,  String? imagenUrl,  bool disponible,  bool activo)  $default,) {final _that = this;
 switch (_that) {
 case _Producto():
-return $default(_that.id,_that.nombre,_that.descripcion,_that.precio,_that.imagenUrl,_that.disponible);case _:
+return $default(_that.id,_that.restauranteId,_that.categoriaId,_that.nombre,_that.descripcion,_that.precio,_that.imagenUrl,_that.disponible,_that.activo);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +203,10 @@ return $default(_that.id,_that.nombre,_that.descripcion,_that.precio,_that.image
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String nombre,  String? descripcion,  double precio, @JsonKey(name: 'imagen_url')  String? imagenUrl,  bool disponible)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String restauranteId,  String categoriaId,  String nombre,  String? descripcion,  int precio,  String? imagenUrl,  bool disponible,  bool activo)?  $default,) {final _that = this;
 switch (_that) {
 case _Producto() when $default != null:
-return $default(_that.id,_that.nombre,_that.descripcion,_that.precio,_that.imagenUrl,_that.disponible);case _:
+return $default(_that.id,_that.restauranteId,_that.categoriaId,_that.nombre,_that.descripcion,_that.precio,_that.imagenUrl,_that.disponible,_that.activo);case _:
   return null;
 
 }
@@ -215,15 +218,18 @@ return $default(_that.id,_that.nombre,_that.descripcion,_that.precio,_that.image
 @JsonSerializable()
 
 class _Producto implements Producto {
-  const _Producto({required this.id, required this.nombre, this.descripcion, required this.precio, @JsonKey(name: 'imagen_url') this.imagenUrl, required this.disponible});
+  const _Producto({required this.id, required this.restauranteId, required this.categoriaId, required this.nombre, this.descripcion, required this.precio, this.imagenUrl, this.disponible = true, this.activo = true});
   factory _Producto.fromJson(Map<String, dynamic> json) => _$ProductoFromJson(json);
 
-@override final  int id;
+@override final  String id;
+@override final  String restauranteId;
+@override final  String categoriaId;
 @override final  String nombre;
 @override final  String? descripcion;
-@override final  double precio;
-@override@JsonKey(name: 'imagen_url') final  String? imagenUrl;
-@override final  bool disponible;
+@override final  int precio;
+@override final  String? imagenUrl;
+@override@JsonKey() final  bool disponible;
+@override@JsonKey() final  bool activo;
 
 /// Create a copy of Producto
 /// with the given fields replaced by the non-null parameter values.
@@ -238,16 +244,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Producto&&(identical(other.id, id) || other.id == id)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.descripcion, descripcion) || other.descripcion == descripcion)&&(identical(other.precio, precio) || other.precio == precio)&&(identical(other.imagenUrl, imagenUrl) || other.imagenUrl == imagenUrl)&&(identical(other.disponible, disponible) || other.disponible == disponible));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Producto&&(identical(other.id, id) || other.id == id)&&(identical(other.restauranteId, restauranteId) || other.restauranteId == restauranteId)&&(identical(other.categoriaId, categoriaId) || other.categoriaId == categoriaId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.descripcion, descripcion) || other.descripcion == descripcion)&&(identical(other.precio, precio) || other.precio == precio)&&(identical(other.imagenUrl, imagenUrl) || other.imagenUrl == imagenUrl)&&(identical(other.disponible, disponible) || other.disponible == disponible)&&(identical(other.activo, activo) || other.activo == activo));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,nombre,descripcion,precio,imagenUrl,disponible);
+int get hashCode => Object.hash(runtimeType,id,restauranteId,categoriaId,nombre,descripcion,precio,imagenUrl,disponible,activo);
 
 @override
 String toString() {
-  return 'Producto(id: $id, nombre: $nombre, descripcion: $descripcion, precio: $precio, imagenUrl: $imagenUrl, disponible: $disponible)';
+  return 'Producto(id: $id, restauranteId: $restauranteId, categoriaId: $categoriaId, nombre: $nombre, descripcion: $descripcion, precio: $precio, imagenUrl: $imagenUrl, disponible: $disponible, activo: $activo)';
 }
 
 
@@ -258,7 +264,7 @@ abstract mixin class _$ProductoCopyWith<$Res> implements $ProductoCopyWith<$Res>
   factory _$ProductoCopyWith(_Producto value, $Res Function(_Producto) _then) = __$ProductoCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String nombre, String? descripcion, double precio,@JsonKey(name: 'imagen_url') String? imagenUrl, bool disponible
+ String id, String restauranteId, String categoriaId, String nombre, String? descripcion, int precio, String? imagenUrl, bool disponible, bool activo
 });
 
 
@@ -275,14 +281,17 @@ class __$ProductoCopyWithImpl<$Res>
 
 /// Create a copy of Producto
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? nombre = null,Object? descripcion = freezed,Object? precio = null,Object? imagenUrl = freezed,Object? disponible = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? restauranteId = null,Object? categoriaId = null,Object? nombre = null,Object? descripcion = freezed,Object? precio = null,Object? imagenUrl = freezed,Object? disponible = null,Object? activo = null,}) {
   return _then(_Producto(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
+as String,restauranteId: null == restauranteId ? _self.restauranteId : restauranteId // ignore: cast_nullable_to_non_nullable
+as String,categoriaId: null == categoriaId ? _self.categoriaId : categoriaId // ignore: cast_nullable_to_non_nullable
+as String,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
 as String,descripcion: freezed == descripcion ? _self.descripcion : descripcion // ignore: cast_nullable_to_non_nullable
 as String?,precio: null == precio ? _self.precio : precio // ignore: cast_nullable_to_non_nullable
-as double,imagenUrl: freezed == imagenUrl ? _self.imagenUrl : imagenUrl // ignore: cast_nullable_to_non_nullable
+as int,imagenUrl: freezed == imagenUrl ? _self.imagenUrl : imagenUrl // ignore: cast_nullable_to_non_nullable
 as String?,disponible: null == disponible ? _self.disponible : disponible // ignore: cast_nullable_to_non_nullable
+as bool,activo: null == activo ? _self.activo : activo // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }

@@ -7,27 +7,33 @@ part of 'reserva.dart';
 // **************************************************************************
 
 _Reserva _$ReservaFromJson(Map<String, dynamic> json) => _Reserva(
-  id: (json['id'] as num).toInt(),
-  restauranteId: (json['restaurante_id'] as num).toInt(),
-  restauranteNombre: json['restaurante_nombre'] as String,
-  mesaId: (json['mesa_id'] as num).toInt(),
-  mesaNumero: (json['mesa_numero'] as num).toInt(),
-  fecha: json['fecha'] as String,
-  horaInicio: json['hora_inicio'] as String,
-  numPersonas: (json['num_personas'] as num).toInt(),
+  id: json['id'] as String,
+  restauranteId: json['restauranteId'] as String,
+  restauranteNombre: json['restauranteNombre'] as String? ?? '',
+  mesaId: json['mesaId'] as String,
+  mesaNumero: (json['mesaNumero'] as num).toInt(),
+  usuarioId: json['usuarioId'] as String,
+  fecha: DateTime.parse(json['fecha'] as String),
+  fechaStr: json['fechaStr'] as String,
+  hora: (json['hora'] as num).toInt(),
+  numPersonas: (json['numPersonas'] as num).toInt(),
   estado: json['estado'] as String,
-  createdAt: json['created_at'] as String,
+  createdAt: json['createdAt'] == null
+      ? null
+      : DateTime.parse(json['createdAt'] as String),
 );
 
 Map<String, dynamic> _$ReservaToJson(_Reserva instance) => <String, dynamic>{
   'id': instance.id,
-  'restaurante_id': instance.restauranteId,
-  'restaurante_nombre': instance.restauranteNombre,
-  'mesa_id': instance.mesaId,
-  'mesa_numero': instance.mesaNumero,
-  'fecha': instance.fecha,
-  'hora_inicio': instance.horaInicio,
-  'num_personas': instance.numPersonas,
+  'restauranteId': instance.restauranteId,
+  'restauranteNombre': instance.restauranteNombre,
+  'mesaId': instance.mesaId,
+  'mesaNumero': instance.mesaNumero,
+  'usuarioId': instance.usuarioId,
+  'fecha': instance.fecha.toIso8601String(),
+  'fechaStr': instance.fechaStr,
+  'hora': instance.hora,
+  'numPersonas': instance.numPersonas,
   'estado': instance.estado,
-  'created_at': instance.createdAt,
+  'createdAt': instance.createdAt?.toIso8601String(),
 };

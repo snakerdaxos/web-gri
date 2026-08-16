@@ -204,7 +204,7 @@ class _ReservaCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 10),
-            Text('📅 ${reserva.fecha} · ${reserva.horaLabel}'),
+            Text('📅 ${reserva.fechaStr} · ${reserva.horaLabel}'),
             const SizedBox(height: 4),
             Text(
               '🪑 Mesa ${reserva.mesaNumero} · 👥 ${reserva.numPersonas} personas',
@@ -237,7 +237,7 @@ class _ReservaCard extends ConsumerWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text('¿Cancelar esta reserva?'),
         content: Text(
-          '${reserva.restauranteNombre} · ${reserva.fecha} a las '
+          '${reserva.restauranteNombre} · ${reserva.fechaStr} a las '
           '${reserva.horaLabel}. Esta acción no se puede deshacer.',
         ),
         actions: [

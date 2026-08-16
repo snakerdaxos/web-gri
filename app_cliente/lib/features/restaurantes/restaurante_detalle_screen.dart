@@ -12,7 +12,8 @@ import 'restaurantes_provider.dart';
 class RestauranteDetalleScreen extends ConsumerWidget {
   const RestauranteDetalleScreen({super.key, required this.restauranteId});
 
-  final int restauranteId;
+  /// Slug del doc `restaurantes/{slug}` — String end-to-end (Phase 10).
+  final String restauranteId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

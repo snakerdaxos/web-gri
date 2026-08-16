@@ -6,15 +6,16 @@ import '../../models/restaurante_detalle.dart';
 
 part 'restaurantes_provider.g.dart';
 
-/// Lista de restaurantes activos — `GET /public/restaurantes` (sin auth).
-/// `calificacion` siempre null en Phase 5 (UI muestra "—").
+/// Lista de restaurantes activos — INTERINO Task 1: sigue legacy REST
+/// (api_client) con ids String; Task 2 lo reescribe sobre Firestore
+/// (`collection('restaurantes').where('activo')` + fromDoc).
 @riverpod
 Future<List<Restaurante>> restaurantesList(Ref ref) async {
   return ref.read(apiClientProvider).getPublicRestaurantes();
 }
 
-/// Detalle con menú anidado — `GET /public/restaurantes/{id}` (sin auth).
+/// Detalle con menú anidado — INTERINO Task 1 (legacy REST, id String).
 @riverpod
-Future<RestauranteDetalle> restauranteDetalle(Ref ref, int id) async {
+Future<RestauranteDetalle> restauranteDetalle(Ref ref, String id) async {
   return ref.read(apiClientProvider).getPublicRestaurante(id);
 }

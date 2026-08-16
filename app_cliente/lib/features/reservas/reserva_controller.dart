@@ -33,7 +33,7 @@ class ReservaController extends _$ReservaController {
     }
   }
 
-  Future<Reserva> cancel(int reservaId) async {
+  Future<Reserva> cancel(String reservaId) async {
     state = const AsyncLoading<void>();
     try {
       final reserva = await ref.read(apiClientProvider).cancelReserva(reservaId);

@@ -24,7 +24,9 @@ class ReservaWizardScreen extends ConsumerStatefulWidget {
     required this.restauranteNombre,
   });
 
-  final int restauranteId;
+  /// Slug del doc `restaurantes/{slug}` — String end-to-end (Phase 10).
+  /// Vacío (`''`) cuando el FAB abre el wizard "sin preselect".
+  final String restauranteId;
   final String restauranteNombre;
 
   /// Slots horarios del turno (hourly, :00) — la fuente única que renderiza
@@ -47,7 +49,7 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
   String? _hora;
   int _personas = 2;
 
-  bool get _needsRestauranteStep => widget.restauranteId <= 0;
+  bool get _needsRestauranteStep => widget.restauranteId.isEmpty;
 
   String get _fechaString {
     final f = _fecha!;
@@ -285,7 +287,7 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
   bool get _puedeConfirmar {
     final tieneRestaurante = _needsRestauranteStep
         ? _restaurante != null
-        : widget.restauranteId > 0;
+        : widget.restauranteId.isNotEmpty;
     return tieneRestaurante && _fecha != null && _hora != null;
   }
 
@@ -297,7 +299,7 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
           .create(ReservaCreate(
             restauranteId: rid,
             fecha: _fechaString,
-            horaInicio: '$_hora:00', // 19:00 → 19:00:00 (slot :00)
+            hora: int.parse(_hora!.split(':').first), // '19:00' → 19 (slot :00)
             numPersonas: _personas,
           ));
       if (!mounted) return;

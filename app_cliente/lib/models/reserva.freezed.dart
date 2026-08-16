@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Reserva {
 
- int get id;@JsonKey(name: 'restaurante_id') int get restauranteId;@JsonKey(name: 'restaurante_nombre') String get restauranteNombre;@JsonKey(name: 'mesa_id') int get mesaId;@JsonKey(name: 'mesa_numero') int get mesaNumero; String get fecha;@JsonKey(name: 'hora_inicio') String get horaInicio;@JsonKey(name: 'num_personas') int get numPersonas; String get estado;@JsonKey(name: 'created_at') String get createdAt;
+ String get id; String get restauranteId; String get restauranteNombre; String get mesaId; int get mesaNumero; String get usuarioId; DateTime get fecha; String get fechaStr; int get hora; int get numPersonas; String get estado; DateTime? get createdAt;
 /// Create a copy of Reserva
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $ReservaCopyWith<Reserva> get copyWith => _$ReservaCopyWithImpl<Reserva>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Reserva&&(identical(other.id, id) || other.id == id)&&(identical(other.restauranteId, restauranteId) || other.restauranteId == restauranteId)&&(identical(other.restauranteNombre, restauranteNombre) || other.restauranteNombre == restauranteNombre)&&(identical(other.mesaId, mesaId) || other.mesaId == mesaId)&&(identical(other.mesaNumero, mesaNumero) || other.mesaNumero == mesaNumero)&&(identical(other.fecha, fecha) || other.fecha == fecha)&&(identical(other.horaInicio, horaInicio) || other.horaInicio == horaInicio)&&(identical(other.numPersonas, numPersonas) || other.numPersonas == numPersonas)&&(identical(other.estado, estado) || other.estado == estado)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Reserva&&(identical(other.id, id) || other.id == id)&&(identical(other.restauranteId, restauranteId) || other.restauranteId == restauranteId)&&(identical(other.restauranteNombre, restauranteNombre) || other.restauranteNombre == restauranteNombre)&&(identical(other.mesaId, mesaId) || other.mesaId == mesaId)&&(identical(other.mesaNumero, mesaNumero) || other.mesaNumero == mesaNumero)&&(identical(other.usuarioId, usuarioId) || other.usuarioId == usuarioId)&&(identical(other.fecha, fecha) || other.fecha == fecha)&&(identical(other.fechaStr, fechaStr) || other.fechaStr == fechaStr)&&(identical(other.hora, hora) || other.hora == hora)&&(identical(other.numPersonas, numPersonas) || other.numPersonas == numPersonas)&&(identical(other.estado, estado) || other.estado == estado)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,restauranteId,restauranteNombre,mesaId,mesaNumero,fecha,horaInicio,numPersonas,estado,createdAt);
+int get hashCode => Object.hash(runtimeType,id,restauranteId,restauranteNombre,mesaId,mesaNumero,usuarioId,fecha,fechaStr,hora,numPersonas,estado,createdAt);
 
 @override
 String toString() {
-  return 'Reserva(id: $id, restauranteId: $restauranteId, restauranteNombre: $restauranteNombre, mesaId: $mesaId, mesaNumero: $mesaNumero, fecha: $fecha, horaInicio: $horaInicio, numPersonas: $numPersonas, estado: $estado, createdAt: $createdAt)';
+  return 'Reserva(id: $id, restauranteId: $restauranteId, restauranteNombre: $restauranteNombre, mesaId: $mesaId, mesaNumero: $mesaNumero, usuarioId: $usuarioId, fecha: $fecha, fechaStr: $fechaStr, hora: $hora, numPersonas: $numPersonas, estado: $estado, createdAt: $createdAt)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $ReservaCopyWith<$Res>  {
   factory $ReservaCopyWith(Reserva value, $Res Function(Reserva) _then) = _$ReservaCopyWithImpl;
 @useResult
 $Res call({
- int id,@JsonKey(name: 'restaurante_id') int restauranteId,@JsonKey(name: 'restaurante_nombre') String restauranteNombre,@JsonKey(name: 'mesa_id') int mesaId,@JsonKey(name: 'mesa_numero') int mesaNumero, String fecha,@JsonKey(name: 'hora_inicio') String horaInicio,@JsonKey(name: 'num_personas') int numPersonas, String estado,@JsonKey(name: 'created_at') String createdAt
+ String id, String restauranteId, String restauranteNombre, String mesaId, int mesaNumero, String usuarioId, DateTime fecha, String fechaStr, int hora, int numPersonas, String estado, DateTime? createdAt
 });
 
 
@@ -66,19 +66,21 @@ class _$ReservaCopyWithImpl<$Res>
 
 /// Create a copy of Reserva
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? restauranteId = null,Object? restauranteNombre = null,Object? mesaId = null,Object? mesaNumero = null,Object? fecha = null,Object? horaInicio = null,Object? numPersonas = null,Object? estado = null,Object? createdAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? restauranteId = null,Object? restauranteNombre = null,Object? mesaId = null,Object? mesaNumero = null,Object? usuarioId = null,Object? fecha = null,Object? fechaStr = null,Object? hora = null,Object? numPersonas = null,Object? estado = null,Object? createdAt = freezed,}) {
   return _then(Reserva(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,restauranteId: null == restauranteId ? _self.restauranteId : restauranteId // ignore: cast_nullable_to_non_nullable
-as int,restauranteNombre: null == restauranteNombre ? _self.restauranteNombre : restauranteNombre // ignore: cast_nullable_to_non_nullable
+as String,restauranteId: null == restauranteId ? _self.restauranteId : restauranteId // ignore: cast_nullable_to_non_nullable
+as String,restauranteNombre: null == restauranteNombre ? _self.restauranteNombre : restauranteNombre // ignore: cast_nullable_to_non_nullable
 as String,mesaId: null == mesaId ? _self.mesaId : mesaId // ignore: cast_nullable_to_non_nullable
-as int,mesaNumero: null == mesaNumero ? _self.mesaNumero : mesaNumero // ignore: cast_nullable_to_non_nullable
-as int,fecha: null == fecha ? _self.fecha : fecha // ignore: cast_nullable_to_non_nullable
-as String,horaInicio: null == horaInicio ? _self.horaInicio : horaInicio // ignore: cast_nullable_to_non_nullable
-as String,numPersonas: null == numPersonas ? _self.numPersonas : numPersonas // ignore: cast_nullable_to_non_nullable
+as String,mesaNumero: null == mesaNumero ? _self.mesaNumero : mesaNumero // ignore: cast_nullable_to_non_nullable
+as int,usuarioId: null == usuarioId ? _self.usuarioId : usuarioId // ignore: cast_nullable_to_non_nullable
+as String,fecha: null == fecha ? _self.fecha : fecha // ignore: cast_nullable_to_non_nullable
+as DateTime,fechaStr: null == fechaStr ? _self.fechaStr : fechaStr // ignore: cast_nullable_to_non_nullable
+as String,hora: null == hora ? _self.hora : hora // ignore: cast_nullable_to_non_nullable
+as int,numPersonas: null == numPersonas ? _self.numPersonas : numPersonas // ignore: cast_nullable_to_non_nullable
 as int,estado: null == estado ? _self.estado : estado // ignore: cast_nullable_to_non_nullable
-as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as String,
+as String,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
   ));
 }
 
@@ -163,10 +165,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id, @JsonKey(name: 'restaurante_id')  int restauranteId, @JsonKey(name: 'restaurante_nombre')  String restauranteNombre, @JsonKey(name: 'mesa_id')  int mesaId, @JsonKey(name: 'mesa_numero')  int mesaNumero,  String fecha, @JsonKey(name: 'hora_inicio')  String horaInicio, @JsonKey(name: 'num_personas')  int numPersonas,  String estado, @JsonKey(name: 'created_at')  String createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String restauranteId,  String restauranteNombre,  String mesaId,  int mesaNumero,  String usuarioId,  DateTime fecha,  String fechaStr,  int hora,  int numPersonas,  String estado,  DateTime? createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Reserva() when $default != null:
-return $default(_that.id,_that.restauranteId,_that.restauranteNombre,_that.mesaId,_that.mesaNumero,_that.fecha,_that.horaInicio,_that.numPersonas,_that.estado,_that.createdAt);case _:
+return $default(_that.id,_that.restauranteId,_that.restauranteNombre,_that.mesaId,_that.mesaNumero,_that.usuarioId,_that.fecha,_that.fechaStr,_that.hora,_that.numPersonas,_that.estado,_that.createdAt);case _:
   return orElse();
 
 }
@@ -184,10 +186,10 @@ return $default(_that.id,_that.restauranteId,_that.restauranteNombre,_that.mesaI
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id, @JsonKey(name: 'restaurante_id')  int restauranteId, @JsonKey(name: 'restaurante_nombre')  String restauranteNombre, @JsonKey(name: 'mesa_id')  int mesaId, @JsonKey(name: 'mesa_numero')  int mesaNumero,  String fecha, @JsonKey(name: 'hora_inicio')  String horaInicio, @JsonKey(name: 'num_personas')  int numPersonas,  String estado, @JsonKey(name: 'created_at')  String createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String restauranteId,  String restauranteNombre,  String mesaId,  int mesaNumero,  String usuarioId,  DateTime fecha,  String fechaStr,  int hora,  int numPersonas,  String estado,  DateTime? createdAt)  $default,) {final _that = this;
 switch (_that) {
 case _Reserva():
-return $default(_that.id,_that.restauranteId,_that.restauranteNombre,_that.mesaId,_that.mesaNumero,_that.fecha,_that.horaInicio,_that.numPersonas,_that.estado,_that.createdAt);case _:
+return $default(_that.id,_that.restauranteId,_that.restauranteNombre,_that.mesaId,_that.mesaNumero,_that.usuarioId,_that.fecha,_that.fechaStr,_that.hora,_that.numPersonas,_that.estado,_that.createdAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -204,10 +206,10 @@ return $default(_that.id,_that.restauranteId,_that.restauranteNombre,_that.mesaI
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id, @JsonKey(name: 'restaurante_id')  int restauranteId, @JsonKey(name: 'restaurante_nombre')  String restauranteNombre, @JsonKey(name: 'mesa_id')  int mesaId, @JsonKey(name: 'mesa_numero')  int mesaNumero,  String fecha, @JsonKey(name: 'hora_inicio')  String horaInicio, @JsonKey(name: 'num_personas')  int numPersonas,  String estado, @JsonKey(name: 'created_at')  String createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String restauranteId,  String restauranteNombre,  String mesaId,  int mesaNumero,  String usuarioId,  DateTime fecha,  String fechaStr,  int hora,  int numPersonas,  String estado,  DateTime? createdAt)?  $default,) {final _that = this;
 switch (_that) {
 case _Reserva() when $default != null:
-return $default(_that.id,_that.restauranteId,_that.restauranteNombre,_that.mesaId,_that.mesaNumero,_that.fecha,_that.horaInicio,_that.numPersonas,_that.estado,_that.createdAt);case _:
+return $default(_that.id,_that.restauranteId,_that.restauranteNombre,_that.mesaId,_that.mesaNumero,_that.usuarioId,_that.fecha,_that.fechaStr,_that.hora,_that.numPersonas,_that.estado,_that.createdAt);case _:
   return null;
 
 }
@@ -219,19 +221,21 @@ return $default(_that.id,_that.restauranteId,_that.restauranteNombre,_that.mesaI
 @JsonSerializable()
 
 class _Reserva extends Reserva {
-  const _Reserva({required this.id, @JsonKey(name: 'restaurante_id') required this.restauranteId, @JsonKey(name: 'restaurante_nombre') required this.restauranteNombre, @JsonKey(name: 'mesa_id') required this.mesaId, @JsonKey(name: 'mesa_numero') required this.mesaNumero, required this.fecha, @JsonKey(name: 'hora_inicio') required this.horaInicio, @JsonKey(name: 'num_personas') required this.numPersonas, required this.estado, @JsonKey(name: 'created_at') required this.createdAt}): super._();
+  const _Reserva({required this.id, required this.restauranteId, this.restauranteNombre = '', required this.mesaId, required this.mesaNumero, required this.usuarioId, required this.fecha, required this.fechaStr, required this.hora, required this.numPersonas, required this.estado, this.createdAt}): super._();
   factory _Reserva.fromJson(Map<String, dynamic> json) => _$ReservaFromJson(json);
 
-@override final  int id;
-@override@JsonKey(name: 'restaurante_id') final  int restauranteId;
-@override@JsonKey(name: 'restaurante_nombre') final  String restauranteNombre;
-@override@JsonKey(name: 'mesa_id') final  int mesaId;
-@override@JsonKey(name: 'mesa_numero') final  int mesaNumero;
-@override final  String fecha;
-@override@JsonKey(name: 'hora_inicio') final  String horaInicio;
-@override@JsonKey(name: 'num_personas') final  int numPersonas;
+@override final  String id;
+@override final  String restauranteId;
+@override@JsonKey() final  String restauranteNombre;
+@override final  String mesaId;
+@override final  int mesaNumero;
+@override final  String usuarioId;
+@override final  DateTime fecha;
+@override final  String fechaStr;
+@override final  int hora;
+@override final  int numPersonas;
 @override final  String estado;
-@override@JsonKey(name: 'created_at') final  String createdAt;
+@override final  DateTime? createdAt;
 
 /// Create a copy of Reserva
 /// with the given fields replaced by the non-null parameter values.
@@ -246,16 +250,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Reserva&&(identical(other.id, id) || other.id == id)&&(identical(other.restauranteId, restauranteId) || other.restauranteId == restauranteId)&&(identical(other.restauranteNombre, restauranteNombre) || other.restauranteNombre == restauranteNombre)&&(identical(other.mesaId, mesaId) || other.mesaId == mesaId)&&(identical(other.mesaNumero, mesaNumero) || other.mesaNumero == mesaNumero)&&(identical(other.fecha, fecha) || other.fecha == fecha)&&(identical(other.horaInicio, horaInicio) || other.horaInicio == horaInicio)&&(identical(other.numPersonas, numPersonas) || other.numPersonas == numPersonas)&&(identical(other.estado, estado) || other.estado == estado)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Reserva&&(identical(other.id, id) || other.id == id)&&(identical(other.restauranteId, restauranteId) || other.restauranteId == restauranteId)&&(identical(other.restauranteNombre, restauranteNombre) || other.restauranteNombre == restauranteNombre)&&(identical(other.mesaId, mesaId) || other.mesaId == mesaId)&&(identical(other.mesaNumero, mesaNumero) || other.mesaNumero == mesaNumero)&&(identical(other.usuarioId, usuarioId) || other.usuarioId == usuarioId)&&(identical(other.fecha, fecha) || other.fecha == fecha)&&(identical(other.fechaStr, fechaStr) || other.fechaStr == fechaStr)&&(identical(other.hora, hora) || other.hora == hora)&&(identical(other.numPersonas, numPersonas) || other.numPersonas == numPersonas)&&(identical(other.estado, estado) || other.estado == estado)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,restauranteId,restauranteNombre,mesaId,mesaNumero,fecha,horaInicio,numPersonas,estado,createdAt);
+int get hashCode => Object.hash(runtimeType,id,restauranteId,restauranteNombre,mesaId,mesaNumero,usuarioId,fecha,fechaStr,hora,numPersonas,estado,createdAt);
 
 @override
 String toString() {
-  return 'Reserva(id: $id, restauranteId: $restauranteId, restauranteNombre: $restauranteNombre, mesaId: $mesaId, mesaNumero: $mesaNumero, fecha: $fecha, horaInicio: $horaInicio, numPersonas: $numPersonas, estado: $estado, createdAt: $createdAt)';
+  return 'Reserva(id: $id, restauranteId: $restauranteId, restauranteNombre: $restauranteNombre, mesaId: $mesaId, mesaNumero: $mesaNumero, usuarioId: $usuarioId, fecha: $fecha, fechaStr: $fechaStr, hora: $hora, numPersonas: $numPersonas, estado: $estado, createdAt: $createdAt)';
 }
 
 
@@ -266,7 +270,7 @@ abstract mixin class _$ReservaCopyWith<$Res> implements $ReservaCopyWith<$Res> {
   factory _$ReservaCopyWith(_Reserva value, $Res Function(_Reserva) _then) = __$ReservaCopyWithImpl;
 @override @useResult
 $Res call({
- int id,@JsonKey(name: 'restaurante_id') int restauranteId,@JsonKey(name: 'restaurante_nombre') String restauranteNombre,@JsonKey(name: 'mesa_id') int mesaId,@JsonKey(name: 'mesa_numero') int mesaNumero, String fecha,@JsonKey(name: 'hora_inicio') String horaInicio,@JsonKey(name: 'num_personas') int numPersonas, String estado,@JsonKey(name: 'created_at') String createdAt
+ String id, String restauranteId, String restauranteNombre, String mesaId, int mesaNumero, String usuarioId, DateTime fecha, String fechaStr, int hora, int numPersonas, String estado, DateTime? createdAt
 });
 
 
@@ -283,19 +287,21 @@ class __$ReservaCopyWithImpl<$Res>
 
 /// Create a copy of Reserva
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? restauranteId = null,Object? restauranteNombre = null,Object? mesaId = null,Object? mesaNumero = null,Object? fecha = null,Object? horaInicio = null,Object? numPersonas = null,Object? estado = null,Object? createdAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? restauranteId = null,Object? restauranteNombre = null,Object? mesaId = null,Object? mesaNumero = null,Object? usuarioId = null,Object? fecha = null,Object? fechaStr = null,Object? hora = null,Object? numPersonas = null,Object? estado = null,Object? createdAt = freezed,}) {
   return _then(_Reserva(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,restauranteId: null == restauranteId ? _self.restauranteId : restauranteId // ignore: cast_nullable_to_non_nullable
-as int,restauranteNombre: null == restauranteNombre ? _self.restauranteNombre : restauranteNombre // ignore: cast_nullable_to_non_nullable
+as String,restauranteId: null == restauranteId ? _self.restauranteId : restauranteId // ignore: cast_nullable_to_non_nullable
+as String,restauranteNombre: null == restauranteNombre ? _self.restauranteNombre : restauranteNombre // ignore: cast_nullable_to_non_nullable
 as String,mesaId: null == mesaId ? _self.mesaId : mesaId // ignore: cast_nullable_to_non_nullable
-as int,mesaNumero: null == mesaNumero ? _self.mesaNumero : mesaNumero // ignore: cast_nullable_to_non_nullable
-as int,fecha: null == fecha ? _self.fecha : fecha // ignore: cast_nullable_to_non_nullable
-as String,horaInicio: null == horaInicio ? _self.horaInicio : horaInicio // ignore: cast_nullable_to_non_nullable
-as String,numPersonas: null == numPersonas ? _self.numPersonas : numPersonas // ignore: cast_nullable_to_non_nullable
+as String,mesaNumero: null == mesaNumero ? _self.mesaNumero : mesaNumero // ignore: cast_nullable_to_non_nullable
+as int,usuarioId: null == usuarioId ? _self.usuarioId : usuarioId // ignore: cast_nullable_to_non_nullable
+as String,fecha: null == fecha ? _self.fecha : fecha // ignore: cast_nullable_to_non_nullable
+as DateTime,fechaStr: null == fechaStr ? _self.fechaStr : fechaStr // ignore: cast_nullable_to_non_nullable
+as String,hora: null == hora ? _self.hora : hora // ignore: cast_nullable_to_non_nullable
+as int,numPersonas: null == numPersonas ? _self.numPersonas : numPersonas // ignore: cast_nullable_to_non_nullable
 as int,estado: null == estado ? _self.estado : estado // ignore: cast_nullable_to_non_nullable
-as String,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as String,
+as String,createdAt: freezed == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
   ));
 }
 

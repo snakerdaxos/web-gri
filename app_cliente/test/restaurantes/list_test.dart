@@ -10,20 +10,18 @@ import 'package:gri_cliente/models/restaurante.dart';
 
 final _fixture = <Restaurante>[
   const Restaurante(
-    id: 1,
+    id: 'demo',
     nombre: 'Restaurante Demo GRI',
     tipoCocina: 'Comida colombiana',
     descripcion: null,
     direccion: 'Calle 100',
-    calificacion: null, // Phase 5: siempre null → UI muestra "—"
   ),
   const Restaurante(
-    id: 2,
+    id: 'sushi-kai',
     nombre: 'Sushi Kai',
     tipoCocina: 'Japonesa',
     descripcion: null,
     direccion: 'Cra 15',
-    calificacion: null,
   ),
 ];
 
@@ -73,16 +71,14 @@ void main() {
       (tester) async {
     final conResenas = <Restaurante>[
       const Restaurante(
-        id: 3,
+        id: 'parrilla',
         nombre: 'La Parrilla',
-        calificacion: 4.8,
-        totalCalificaciones: 245,
+        califProm: 4.8,
+        califCount: 245,
       ),
       const Restaurante(
-        id: 4,
+        id: 'rincon',
         nombre: 'El Rincón',
-        calificacion: null,
-        totalCalificaciones: 0,
       ),
     ];
     await tester.pumpWidget(_wrap(AsyncData(conResenas)));

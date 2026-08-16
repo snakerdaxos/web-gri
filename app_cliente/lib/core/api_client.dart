@@ -94,7 +94,9 @@ class ApiClient {
   }
 
   /// `GET /public/restaurantes/{id}` — detalle con menú anidado (sin auth).
-  Future<RestauranteDetalle> getPublicRestaurante(int id) async {
+  /// LEGACY REST (purga 10-04): [id] es String (doc ID Firestore) — el
+  /// endpoint legacy muere con la migración; solo para compilar.
+  Future<RestauranteDetalle> getPublicRestaurante(String id) async {
     final r = await _dio.get<Map<String, dynamic>>('/public/restaurantes/$id');
     return RestauranteDetalle.fromJson(r.data!);
   }
@@ -118,8 +120,9 @@ class ApiClient {
     return Reserva.fromJson(r.data!);
   }
 
-  /// `POST /cliente/reservas/{id}/cancelar`.
-  Future<Reserva> cancelReserva(int reservaId) async {
+  /// `POST /cliente/reservas/{id}/cancelar`. LEGACY (purga 10-04): [reservaId]
+  /// es String (doc ID Firestore determinista).
+  Future<Reserva> cancelReserva(String reservaId) async {
     final r = await _dio.post<Map<String, dynamic>>(
       '/cliente/reservas/$reservaId/cancelar',
     );
@@ -196,12 +199,10 @@ class ApiClient {
 
   /// `POST /cliente/pedidos` — crea el pedido en estado `enviado`.
   ///
-  /// Sin `sesion_id` en el body: el backend usa la sesión ACTIVA del
-  /// usuario (contrato 06-01). El total se calcula server-side con
-  /// snapshot de precio — el total del carrito es solo informativo.
-  /// Errores: 404 sin sesión/producto cross-restaurante · 409 agotado.
+  /// LEGACY REST (purga 10-04): `productoId` es String (doc ID Firestore)
+  /// — el wire legacy morirá con la migración de pedidos (10-04).
   Future<Pedido> createPedido({
-    required List<({int productoId, int cantidad})> items,
+    required List<({String productoId, int cantidad})> items,
     String? notas,
   }) async {
     final r = await _dio.post<Map<String, dynamic>>(

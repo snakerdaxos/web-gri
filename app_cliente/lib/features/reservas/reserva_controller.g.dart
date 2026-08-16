@@ -57,7 +57,7 @@ final class ReservaControllerProvider
   ReservaController create() => ReservaController();
 }
 
-String _$reservaControllerHash() => r'e0e0c4787df6a80f9d8204c4d09635d431ab3155';
+String _$reservaControllerHash() => r'52bd79ed34a79dc5333ad53a9f991180e9e8b83a';
 
 /// Orquesta las mutaciones de reservas del cliente:
 /// * [create] → `POST /cliente/reservas` (201) — los errores 400/409 se

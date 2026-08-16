@@ -67,17 +67,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/restaurantes/:id',
+        // El id es el slug del doc Firestore — String end-to-end.
         builder: (_, state) => RestauranteDetalleScreen(
-          restauranteId: int.parse(state.pathParameters['id']!),
+          restauranteId: state.pathParameters['id']!,
         ),
       ),
       GoRoute(
         path: '/reservas/wizard',
         builder: (_, state) => ReservaWizardScreen(
-          restauranteId: int.tryParse(
-                state.uri.queryParameters['restauranteId'] ?? '',
-              ) ??
-              0,
+          restauranteId: state.uri.queryParameters['restauranteId'] ?? '',
           restauranteNombre:
               state.uri.queryParameters['restauranteNombre'] ?? '',
         ),

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'reserva.freezed.dart';
@@ -6,7 +7,7 @@ part 'reserva.g.dart';
 /// Estados de una reserva (espejo del enum backend `EstadoReserva`).
 enum EstadoReserva { confirmada, cancelada, pendiente }
 
-/// Parsea el string del wire (`estado: "confirmada"`) al enum.
+/// Parsea el string del doc (`estado: "confirmada"`) al enum.
 /// Valores desconocidos (futuros) caen a [EstadoReserva.pendiente].
 EstadoReserva estadoReservaFromJson(String? raw) => switch (raw) {
       'confirmada' => EstadoReserva.confirmada,
@@ -14,26 +15,52 @@ EstadoReserva estadoReservaFromJson(String? raw) => switch (raw) {
       _ => EstadoReserva.pendiente,
     };
 
-/// Reserva del cliente (`ReservaRead` del backend) — `GET /cliente/reservas`,
-/// `POST /cliente/reservas`, `POST /cliente/reservas/{id}/cancelar`.
+/// Reserva del cliente — doc `reservas/{mesaId}_{yyyyMMdd}_{HH}` (doc ID
+/// determinista: la unicidad mesa+slot vive en el ID, paridad del
+/// UNIQUE(mesa,fecha,hora) de MySQL — MIGRA-06).
 ///
-/// [fecha] ("YYYY-MM-DD") y [horaInicio] ("HH:MM:SS") viajan como String a
-/// propósito: el formato ISO-8601 ordena lexicográficamente, así que el
-/// split próximas/pasadas es una comparación de strings contra el hoy local.
+/// * [fecha] es el DateTime del slot (Timestamp en el doc) y [fechaStr]
+///   "yyyy-MM-dd" para comparaciones lexicográficas (próximas/pasadas).
+/// * [hora] es el int del slot (0..23, siempre :00).
+/// * [restauranteNombre] NO vive en el doc: lo enriquece el provider
+///   (join client-side con `restaurantes/{id}`).
+///
+/// `fromJson` SOLO sobrevive para `api_client` (legacy REST) hasta 10-04.
 @freezed
 abstract class Reserva with _$Reserva {
   const factory Reserva({
-    required int id,
-    @JsonKey(name: 'restaurante_id') required int restauranteId,
-    @JsonKey(name: 'restaurante_nombre') required String restauranteNombre,
-    @JsonKey(name: 'mesa_id') required int mesaId,
-    @JsonKey(name: 'mesa_numero') required int mesaNumero,
-    required String fecha,
-    @JsonKey(name: 'hora_inicio') required String horaInicio,
-    @JsonKey(name: 'num_personas') required int numPersonas,
+    required String id,
+    required String restauranteId,
+    @Default('') String restauranteNombre,
+    required String mesaId,
+    required int mesaNumero,
+    required String usuarioId,
+    required DateTime fecha,
+    required String fechaStr,
+    required int hora,
+    required int numPersonas,
     required String estado,
-    @JsonKey(name: 'created_at') required String createdAt,
+    DateTime? createdAt,
   }) = _Reserva;
+
+  /// Mapea el doc `reservas/{mesaId}_{yyyyMMdd}_{HH}`.
+  factory Reserva.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? const <String, dynamic>{};
+    return Reserva(
+      id: doc.id,
+      restauranteId: data['restauranteId'] as String? ?? '',
+      restauranteNombre: data['restauranteNombre'] as String? ?? '',
+      mesaId: data['mesaId'] as String? ?? '',
+      mesaNumero: (data['mesaNumero'] as num?)?.toInt() ?? 0,
+      usuarioId: data['usuarioId'] as String? ?? '',
+      fecha: _dateTimeDe(data['fecha']),
+      fechaStr: data['fechaStr'] as String? ?? '',
+      hora: (data['hora'] as num?)?.toInt() ?? 0,
+      numPersonas: (data['numPersonas'] as num?)?.toInt() ?? 0,
+      estado: data['estado'] as String? ?? 'pendiente',
+      createdAt: data['createdAt'] == null ? null : _dateTimeDe(data['createdAt']),
+    );
+  }
 
   factory Reserva.fromJson(Map<String, dynamic> json) =>
       _$ReservaFromJson(json);
@@ -44,10 +71,18 @@ abstract class Reserva with _$Reserva {
 
   /// True si la reserva es de HOY o futura ([hoy] en formato "YYYY-MM-DD").
   /// La comparación lexicográfica es segura con fechas ISO.
-  bool esProxima(String hoy) => fecha.compareTo(hoy) >= 0;
+  bool esProxima(String hoy) => fechaStr.compareTo(hoy) >= 0;
 
-  /// "19:00:00" → "19:00" (display).
-  String get horaLabel => horaInicio.length >= 5
-      ? horaInicio.substring(0, 5)
-      : horaInicio;
+  /// "19:00" (display) — el slot siempre es :00.
+  String get horaLabel => '${hora.toString().padLeft(2, '0')}:00';
+}
+
+/// Timestamp (Firestore real) → DateTime, tolerando DateTime/String
+/// (fakes y seeds de test) — nunca la fuente de verdad del orden (para
+/// eso está el `orderBy` server-side sobre el Timestamp).
+DateTime _dateTimeDe(Object? raw) {
+  if (raw is Timestamp) return raw.toDate();
+  if (raw is DateTime) return raw;
+  if (raw is String) return DateTime.parse(raw);
+  throw ArgumentError.value(raw, 'fecha', 'tipo de fecha no soportado');
 }

@@ -3,18 +3,22 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'reserva_create.freezed.dart';
 part 'reserva_create.g.dart';
 
-/// Body de `POST /cliente/reservas`.
+/// DTO del wizard de reserva (Phase 10): lo que el cliente elige —
+/// restaurante/fecha/hora/personas. La mesa la asigna `crearReserva`
+/// (transacción determinista) — el cliente NUNCA elige mesa.
 ///
-/// El servidor asigna la mesa automáticamente (Phase 5 Concurrency Design
-/// §3) — el cliente SOLO elige restaurante/fecha/hora/personas.
-/// [fecha] = "YYYY-MM-DD", [horaInicio] = "HH:00:00" (slots hourly :00).
+/// * [restauranteId] es el slug String del doc `restaurantes/{slug}`.
+/// * [fecha] = "YYYY-MM-DD", [hora] = slot 0..23 (siempre :00).
+///
+/// SIN `fromDoc`: nunca se lee de Firestore. `fromJson`/`toJson` solo
+/// sobreviven para `api_client` (legacy REST) hasta su purga en 10-04.
 @freezed
 abstract class ReservaCreate with _$ReservaCreate {
   const factory ReservaCreate({
-    @JsonKey(name: 'restaurante_id') required int restauranteId,
+    required String restauranteId,
     required String fecha,
-    @JsonKey(name: 'hora_inicio') required String horaInicio,
-    @JsonKey(name: 'num_personas') required int numPersonas,
+    required int hora,
+    required int numPersonas,
   }) = _ReservaCreate;
 
   factory ReservaCreate.fromJson(Map<String, dynamic> json) =>

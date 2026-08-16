@@ -7,19 +7,25 @@ part of 'producto.dart';
 // **************************************************************************
 
 _Producto _$ProductoFromJson(Map<String, dynamic> json) => _Producto(
-  id: (json['id'] as num).toInt(),
+  id: json['id'] as String,
+  restauranteId: json['restauranteId'] as String,
+  categoriaId: json['categoriaId'] as String,
   nombre: json['nombre'] as String,
   descripcion: json['descripcion'] as String?,
-  precio: (json['precio'] as num).toDouble(),
-  imagenUrl: json['imagen_url'] as String?,
-  disponible: json['disponible'] as bool,
+  precio: (json['precio'] as num).toInt(),
+  imagenUrl: json['imagenUrl'] as String?,
+  disponible: json['disponible'] as bool? ?? true,
+  activo: json['activo'] as bool? ?? true,
 );
 
 Map<String, dynamic> _$ProductoToJson(_Producto instance) => <String, dynamic>{
   'id': instance.id,
+  'restauranteId': instance.restauranteId,
+  'categoriaId': instance.categoriaId,
   'nombre': instance.nombre,
   'descripcion': instance.descripcion,
   'precio': instance.precio,
-  'imagen_url': instance.imagenUrl,
+  'imagenUrl': instance.imagenUrl,
   'disponible': instance.disponible,
+  'activo': instance.activo,
 };
