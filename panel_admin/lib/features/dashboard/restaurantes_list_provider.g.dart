@@ -8,33 +8,51 @@ part of 'restaurantes_list_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Lista de restaurantes para el dropdown del super_admin (`GET /admin/restaurantes`).
+/// Lista de restaurantes ACTIVOS para el selector del `super_admin`
+/// (Phase 10 — Firestore realtime): `restaurantes where activo == true`
+/// vía snapshots — crear/activar un restaurante lo muestra en vivo.
 ///
-/// Solo lo watch el AppShell cuando `authState.isSuperAdmin` es true. Para
-/// staff este provider nunca se construye (no se necesita).
+/// Solo lo watch-ea el AppShell cuando los claims dicen super_admin.
+/// Defense in depth (patrón del provider legacy): si un staff lo llega a
+/// leer, lanza claro — las rules igualmente le denegarían la query.
+///
+/// Estructura riverpod-3-safe (lección 07-03): TODO el uso de `ref` ocurre
+/// ANTES del primer await.
 
 @ProviderFor(restaurantesList)
 final restaurantesListProvider = RestaurantesListProvider._();
 
-/// Lista de restaurantes para el dropdown del super_admin (`GET /admin/restaurantes`).
+/// Lista de restaurantes ACTIVOS para el selector del `super_admin`
+/// (Phase 10 — Firestore realtime): `restaurantes where activo == true`
+/// vía snapshots — crear/activar un restaurante lo muestra en vivo.
 ///
-/// Solo lo watch el AppShell cuando `authState.isSuperAdmin` es true. Para
-/// staff este provider nunca se construye (no se necesita).
+/// Solo lo watch-ea el AppShell cuando los claims dicen super_admin.
+/// Defense in depth (patrón del provider legacy): si un staff lo llega a
+/// leer, lanza claro — las rules igualmente le denegarían la query.
+///
+/// Estructura riverpod-3-safe (lección 07-03): TODO el uso de `ref` ocurre
+/// ANTES del primer await.
 
 final class RestaurantesListProvider
     extends
         $FunctionalProvider<
-          AsyncValue<List<Restaurante>>,
-          List<Restaurante>,
-          FutureOr<List<Restaurante>>
+          AsyncValue<List<RestauranteResumen>>,
+          List<RestauranteResumen>,
+          Stream<List<RestauranteResumen>>
         >
     with
-        $FutureModifier<List<Restaurante>>,
-        $FutureProvider<List<Restaurante>> {
-  /// Lista de restaurantes para el dropdown del super_admin (`GET /admin/restaurantes`).
+        $FutureModifier<List<RestauranteResumen>>,
+        $StreamProvider<List<RestauranteResumen>> {
+  /// Lista de restaurantes ACTIVOS para el selector del `super_admin`
+  /// (Phase 10 — Firestore realtime): `restaurantes where activo == true`
+  /// vía snapshots — crear/activar un restaurante lo muestra en vivo.
   ///
-  /// Solo lo watch el AppShell cuando `authState.isSuperAdmin` es true. Para
-  /// staff este provider nunca se construye (no se necesita).
+  /// Solo lo watch-ea el AppShell cuando los claims dicen super_admin.
+  /// Defense in depth (patrón del provider legacy): si un staff lo llega a
+  /// leer, lanza claro — las rules igualmente le denegarían la query.
+  ///
+  /// Estructura riverpod-3-safe (lección 07-03): TODO el uso de `ref` ocurre
+  /// ANTES del primer await.
   RestaurantesListProvider._()
     : super(
         from: null,
@@ -51,14 +69,14 @@ final class RestaurantesListProvider
 
   @$internal
   @override
-  $FutureProviderElement<List<Restaurante>> $createElement(
+  $StreamProviderElement<List<RestauranteResumen>> $createElement(
     $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
+  ) => $StreamProviderElement(pointer);
 
   @override
-  FutureOr<List<Restaurante>> create(Ref ref) {
+  Stream<List<RestauranteResumen>> create(Ref ref) {
     return restaurantesList(ref);
   }
 }
 
-String _$restaurantesListHash() => r'00d4eebdd91a1ab95dfafa817d03b4008cb0ea79';
+String _$restaurantesListHash() => r'b1a9b05f6ed954d1200724dd1ef513f21f24ff47';

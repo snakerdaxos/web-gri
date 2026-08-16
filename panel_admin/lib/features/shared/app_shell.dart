@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/firebase_providers.dart';
 import '../../core/theme.dart';
-import '../../core/token_provider.dart';
-import '../../models/restaurante.dart';
 import '../dashboard/restaurante_provider.dart';
 import '../dashboard/restaurantes_list_provider.dart';
 
@@ -18,7 +17,7 @@ import '../dashboard/restaurantes_list_provider.dart';
 ///    Dashboard, Mesas, Pedidos→/cocina, Reservas, Clientes, Reportes,
 ///    Configuración — el flujo placeholder fue eliminado).
 ///  * TopBar: título dinámico + subtítulo. A la derecha: si super_admin,
-///    DropdownButton de restaurantes (cambia currentRestauranteIdProvider);
+///    DropdownButton de restaurantes (cambia seleccionRestauranteProvider);
 ///    si staff, texto nombre+rol. Avatar con iniciales.
 ///  * Body: child (la ruta activa).
 class AppShell extends ConsumerStatefulWidget {
@@ -38,29 +37,35 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void initState() {
     super.initState();
-    // Para super_admin: setear default del restaurante al primer activo si
-    // currentRestauranteIdProvider aún no fue seteado.
+    // Para super_admin: setear default del restaurante al primero activo
+    // si aún no hay selección (claims → lista → selección).
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeInitDefaultRid());
   }
 
-  void _maybeInitDefaultRid() {
-    final user = ref.read(authStateProvider).value;
-    if (user == null || !user.isSuperAdmin) return;
-    if (ref.read(currentRestauranteIdProvider) != null) return;
+  /// Default del super: primer restaurante activo de la lista (Firestore).
+  /// El try/catch cubre claims/list caídos y el unmount a mitad del await
+  /// — el super siempre puede elegir a mano en el dropdown.
+  Future<void> _maybeInitDefaultRid() async {
+    try {
+      final claims = await ref.read(claimsProvider.future);
+      if (claims.role != 'super_admin') return;
+      if (ref.read(seleccionRestauranteProvider) != null) return;
 
-    final list = ref.read(restaurantesListProvider).value;
-    if (list == null || list.isEmpty) return;
-    final firstActive = list.firstWhere(
-      (r) => r.activo,
-      orElse: () => list.first,
-    );
-    ref.read(currentRestauranteIdProvider.notifier).set(firstActive.id);
+      final list = await ref.read(restaurantesListProvider.future);
+      if (list.isEmpty) return;
+      ref.read(seleccionRestauranteProvider.notifier).set(list.first.id);
+    } catch (_) {
+      // Sin default — el selector queda disponible en el topbar.
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authStateProvider).value;
-    final isSuperAdmin = user?.isSuperAdmin ?? false;
+    // Phase 10: identidad de FirebaseAuth + claims (era REST retirada del
+    // shell). claimsAsync carga → vista staff por defecto.
+    final claimsAsync = ref.watch(claimsProvider);
+    final user = ref.watch(firebaseAuthProvider).currentUser;
+    final isSuperAdmin = claimsAsync.value?.role == 'super_admin';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -83,8 +88,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                       location: widget.location,
                       collapsed: collapsed,
                       isSuperAdmin: isSuperAdmin,
-                      userName: user?.nombre ?? 'Usuario',
-                      userRole: _roleLabel(user?.role),
+                      userName: user?.displayName ?? user?.email ?? 'Usuario',
+                      userRole: _roleLabel(claimsAsync.value?.role),
                     ),
                     const Divider(height: 1, color: Color(0xFFEEEEEE)),
                     Expanded(child: widget.child),
@@ -312,7 +317,9 @@ class _TopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final restauranteAsync = ref.watch(restauranteProvider);
+    // Phase 10: restaurante activo EN VIVO del doc restaurantes/{rid}
+    // (staff → claims; super → selección).
+    final restauranteAsync = ref.watch(restauranteActivoProvider);
     final restaurantesListAsync =
         isSuperAdmin ? ref.watch(restaurantesListProvider) : null;
     final (title, subtitle) = _titles[location] ?? _titles['/']!;
@@ -382,7 +389,7 @@ class _TopBar extends ConsumerWidget {
                         ),
                         error: (_, _) => const SizedBox.shrink(),
                         data: (r) => Text(
-                          r.nombre,
+                          r?.nombre ?? 'Sin restaurante',
                           style: const TextStyle(
                             color: GriColors.gray,
                             fontSize: 13,
@@ -417,24 +424,24 @@ class _TopBar extends ConsumerWidget {
   }
 }
 
-/// Dropdown de restaurantes para el topbar del super_admin.
+/// Dropdown de restaurantes para el topbar del super_admin (Phase 10:
+/// ids String de Firestore + selección persistida en
+/// [seleccionRestauranteProvider]).
 class _RestauranteDropdown extends ConsumerWidget {
   const _RestauranteDropdown({required this.restaurantes});
 
-  final List<Restaurante> restaurantes;
+  final List<RestauranteResumen> restaurantes;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selected = ref.watch(currentRestauranteIdProvider);
-    final active = restaurantes.where((r) => r.activo).toList();
-    final items = active.isEmpty ? restaurantes : active;
+    final selected = ref.watch(seleccionRestauranteProvider);
 
-    return DropdownButton<int>(
-      value: items.any((r) => r.id == selected)
+    return DropdownButton<String>(
+      value: restaurantes.any((r) => r.id == selected)
           ? selected
-          : (items.isNotEmpty ? items.first.id : null),
+          : (restaurantes.isNotEmpty ? restaurantes.first.id : null),
       items: [
-        for (final r in items)
+        for (final r in restaurantes)
           DropdownMenuItem(value: r.id, child: Text(r.nombre)),
       ],
       underline: const SizedBox.shrink(),
@@ -444,7 +451,7 @@ class _RestauranteDropdown extends ConsumerWidget {
       ),
       onChanged: (newId) {
         if (newId != null) {
-          ref.read(currentRestauranteIdProvider.notifier).set(newId);
+          ref.read(seleccionRestauranteProvider.notifier).set(newId);
         }
       },
     );

@@ -8,24 +8,42 @@ part of 'login_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Orquesta el login: valida ANTES de tocar red, escribe tokens en storage,
-/// invalida authState (dispara el redirect del goRouter al dashboard).
+/// Orquesta el login del PANEL: firma con FirebaseAuth y enruta por claims
+/// `{role, rid}` (threat model: el cliente NO entra — defense UX; las
+/// rules igualmente denegarían toda query staff).
 ///
-/// Es la ÚNICA puerta de escritura de tokens desde UI (T-04-07).
+/// Enrutado por claims (leídos con `idTokenResult` forceRefresh — evita la
+/// carrera del token cacheado):
+///  * `super_admin` → OK (el shell muestra el selector de restaurantes).
+///  * `admin_restaurante` | `mesero` | `cocina` → OK con rid de claims.
+///  * cualquier otro (`cliente`, sin role) → `signOut` + StateError — la
+///    sesión NO queda abierta para un usuario que no puede usar el panel.
 
 @ProviderFor(LoginController)
 final loginControllerProvider = LoginControllerProvider._();
 
-/// Orquesta el login: valida ANTES de tocar red, escribe tokens en storage,
-/// invalida authState (dispara el redirect del goRouter al dashboard).
+/// Orquesta el login del PANEL: firma con FirebaseAuth y enruta por claims
+/// `{role, rid}` (threat model: el cliente NO entra — defense UX; las
+/// rules igualmente denegarían toda query staff).
 ///
-/// Es la ÚNICA puerta de escritura de tokens desde UI (T-04-07).
+/// Enrutado por claims (leídos con `idTokenResult` forceRefresh — evita la
+/// carrera del token cacheado):
+///  * `super_admin` → OK (el shell muestra el selector de restaurantes).
+///  * `admin_restaurante` | `mesero` | `cocina` → OK con rid de claims.
+///  * cualquier otro (`cliente`, sin role) → `signOut` + StateError — la
+///    sesión NO queda abierta para un usuario que no puede usar el panel.
 final class LoginControllerProvider
     extends $AsyncNotifierProvider<LoginController, void> {
-  /// Orquesta el login: valida ANTES de tocar red, escribe tokens en storage,
-  /// invalida authState (dispara el redirect del goRouter al dashboard).
+  /// Orquesta el login del PANEL: firma con FirebaseAuth y enruta por claims
+  /// `{role, rid}` (threat model: el cliente NO entra — defense UX; las
+  /// rules igualmente denegarían toda query staff).
   ///
-  /// Es la ÚNICA puerta de escritura de tokens desde UI (T-04-07).
+  /// Enrutado por claims (leídos con `idTokenResult` forceRefresh — evita la
+  /// carrera del token cacheado):
+  ///  * `super_admin` → OK (el shell muestra el selector de restaurantes).
+  ///  * `admin_restaurante` | `mesero` | `cocina` → OK con rid de claims.
+  ///  * cualquier otro (`cliente`, sin role) → `signOut` + StateError — la
+  ///    sesión NO queda abierta para un usuario que no puede usar el panel.
   LoginControllerProvider._()
     : super(
         from: null,
@@ -45,12 +63,18 @@ final class LoginControllerProvider
   LoginController create() => LoginController();
 }
 
-String _$loginControllerHash() => r'463450fbc33ab6c79b52d47ddf0b5cb8c831c534';
+String _$loginControllerHash() => r'0db38e4c2a8b3feade771940091c6e7817cce047';
 
-/// Orquesta el login: valida ANTES de tocar red, escribe tokens en storage,
-/// invalida authState (dispara el redirect del goRouter al dashboard).
+/// Orquesta el login del PANEL: firma con FirebaseAuth y enruta por claims
+/// `{role, rid}` (threat model: el cliente NO entra — defense UX; las
+/// rules igualmente denegarían toda query staff).
 ///
-/// Es la ÚNICA puerta de escritura de tokens desde UI (T-04-07).
+/// Enrutado por claims (leídos con `idTokenResult` forceRefresh — evita la
+/// carrera del token cacheado):
+///  * `super_admin` → OK (el shell muestra el selector de restaurantes).
+///  * `admin_restaurante` | `mesero` | `cocina` → OK con rid de claims.
+///  * cualquier otro (`cliente`, sin role) → `signOut` + StateError — la
+///    sesión NO queda abierta para un usuario que no puede usar el panel.
 
 abstract class _$LoginController extends $AsyncNotifier<void> {
   FutureOr<void> build();

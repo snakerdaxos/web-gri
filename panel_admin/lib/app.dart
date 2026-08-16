@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/firebase_providers.dart';
 import 'core/theme.dart';
-import 'core/token_provider.dart';
 import 'features/auth/login_screen.dart';
 import 'features/clientes/clientes_screen.dart';
 import 'features/cocina/cocina_screen.dart';
@@ -14,13 +14,14 @@ import 'features/reportes/reportes_screen.dart';
 import 'features/reservas/reservas_screen.dart';
 import 'features/shared/app_shell.dart';
 
-/// GoRouter con auth guard (T-04-08) + ShellRoute (sidebar persistente).
+/// GoRouter con auth guard + ShellRoute (sidebar persistente).
 ///
-/// `refreshListenable`: ValueNotifier que se incrementa en cada cambio del
-/// authState (login/logout/session-expired) → el redirect se re-evalúa.
+/// Phase 10: `refreshListenable` se dispara en cada cambio del
+/// authStateChanges de FirebaseAuth (login/logout/persistencia del SDK —
+/// sustituyó al authState de la era REST/tokens).
 final goRouterProvider = Provider<GoRouter>((ref) {
   final routerNotifier = ValueNotifier<int>(0);
-  ref.listen(authStateProvider, (_, _) => routerNotifier.value++);
+  ref.listen(authStateChangesProvider, (_, _) => routerNotifier.value++);
   ref.onDispose(routerNotifier.dispose);
 
   return GoRouter(
@@ -28,8 +29,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: routerNotifier,
     redirect: (context, state) {
       // Solo AsyncData con User no-null está "logueado" — isLoading y
-      // AsyncError se tratan como no logueado (T-04-08).
-      final loggedIn = ref.read(authStateProvider).value != null;
+      // AsyncError se tratan como no logueado (misma defensa T-04-08).
+      // El RECHAZO de rol cliente vive en LoginController (defense UX):
+      // un cliente nunca queda con sesión abierta en el panel.
+      final loggedIn = ref.read(authStateChangesProvider).value != null;
       final onLogin = state.matchedLocation == '/login';
 
       if (!loggedIn) return onLogin ? null : '/login';

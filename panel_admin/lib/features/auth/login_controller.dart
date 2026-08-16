@@ -1,18 +1,48 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/api_client.dart';
-import '../../core/auth_storage.dart';
-import '../../core/token_provider.dart';
+import '../../core/firebase_providers.dart';
 
 part 'login_controller.g.dart';
 
-/// Orquesta el login: valida ANTES de tocar red, escribe tokens en storage,
-/// invalida authState (dispara el redirect del goRouter al dashboard).
+/// Roles con los que se entra al panel (must_have 10-05): staff entra
+/// directo al dashboard de SU restaurante (claims rid); `super_admin`
+/// elige restaurante; `cliente` (y cualquier otro) NO entra.
+const _rolesStaff = {'admin_restaurante', 'mesero', 'cocina'};
+
+/// Mapea FirebaseAuthException → mensaje humano (la UI muestra
+/// StateError.message tal cual; contrato igual que la era dio).
+String authErrorMessage(FirebaseAuthException e, {required String fallback}) {
+  switch (e.code) {
+    case 'invalid-credential': // firebase_auth 6.x unifica user/pass malos
+    case 'invalid-login-credentials':
+    case 'wrong-password':
+    case 'user-not-found':
+    case 'user-disabled':
+      return 'Credenciales inválidas';
+    case 'network-request-failed':
+      return 'Sin conexión — verificá tu internet e intentá de nuevo';
+    case 'too-many-requests':
+      return 'Demasiados intentos — esperá un momento';
+    case 'invalid-email':
+      return 'Email inválido';
+    default:
+      return fallback;
+  }
+}
+
+/// Orquesta el login del PANEL: firma con FirebaseAuth y enruta por claims
+/// `{role, rid}` (threat model: el cliente NO entra — defense UX; las
+/// rules igualmente denegarían toda query staff).
 ///
-/// Es la ÚNICA puerta de escritura de tokens desde UI (T-04-07).
+/// Enrutado por claims (leídos con `idTokenResult` forceRefresh — evita la
+/// carrera del token cacheado):
+///  * `super_admin` → OK (el shell muestra el selector de restaurantes).
+///  * `admin_restaurante` | `mesero` | `cocina` → OK con rid de claims.
+///  * cualquier otro (`cliente`, sin role) → `signOut` + StateError — la
+///    sesión NO queda abierta para un usuario que no puede usar el panel.
 @riverpod
 class LoginController extends _$LoginController {
   static final _emailRe = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
@@ -22,7 +52,7 @@ class LoginController extends _$LoginController {
 
   /// Retorna true si el login fue exitoso. Lanza:
   ///  * [ArgumentError] — validación local (sin red).
-  ///  * [StateError] 'Credenciales inválidas' — 401 del API.
+  ///  * [StateError] — mensaje de usuario (credenciales, rol, ...).
   Future<bool> submit(String email, String password) async {
     final trimmed = email.trim();
     if (!_emailRe.hasMatch(trimmed)) {
@@ -37,19 +67,47 @@ class LoginController extends _$LoginController {
     }
 
     state = const AsyncLoading<void>();
+    final auth = ref.read(firebaseAuthProvider);
     try {
-      final pair = await ref.read(apiClientProvider).login(trimmed, password);
-      await ref.read(authStorageProvider).write(pair.access, pair.refresh);
-      // Rebuild del authState → refreshListenable → redirect a '/'.
-      ref.invalidate(authStateProvider);
-      return true;
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw StateError('Credenciales inválidas');
+      await auth.signInWithEmailAndPassword(email: trimmed, password: password);
+
+      // Claims frescos AL INSTANTE (forceRefresh dentro de claimsProvider):
+      // el rid de staff decide el dashboard; el super va al selector.
+      ref.invalidate(claimsProvider);
+      final claims = await ref.read(claimsProvider.future);
+
+      if (claims.role == 'super_admin') {
+        return true; // → shell + selector de restaurantes
       }
-      rethrow;
+      if (_rolesStaff.contains(claims.role)) {
+        if (claims.rid == null || claims.rid!.isEmpty) {
+          await auth.signOut();
+          throw StateError(
+            'Tu cuenta no tiene restaurante asignado — contacta al '
+            'administrador',
+          );
+        }
+        return true; // → dashboard de SU restaurante
+      }
+
+      // cliente / sin role: la sesión no se abre en el panel.
+      await auth.signOut();
+      throw StateError(
+        'Esta aplicación es solo para personal del restaurante',
+      );
+    } on FirebaseAuthException catch (e) {
+      throw StateError(
+        authErrorMessage(e, fallback: 'Error al iniciar sesión'),
+      );
     } finally {
       state = const AsyncData<void>(null);
     }
+  }
+
+  /// Cierra la sesión. authStateChanges emite null → el refreshListenable
+  /// del GoRouter redirige a /login.
+  Future<void> logout() async {
+    await ref.read(firebaseAuthProvider).signOut();
+    ref.invalidate(claimsProvider);
   }
 }
