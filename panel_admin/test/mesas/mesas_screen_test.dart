@@ -1,176 +1,240 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gri_panel_admin/core/api_client.dart';
-import 'package:gri_panel_admin/core/token_provider.dart';
+import 'package:gri_panel_admin/core/firebase_providers.dart';
 import 'package:gri_panel_admin/features/dashboard/mesas_provider.dart';
+import 'package:gri_panel_admin/features/mesas/mesas_crud.dart';
 import 'package:gri_panel_admin/features/mesas/mesas_screen.dart';
-import 'package:gri_panel_admin/models/mesa.dart';
-import 'package:gri_panel_admin/models/user.dart';
 
-/// Tests de la pantalla /mesas (MESA-01): render del grid vivo, creación
-/// vía FAB (espía createMesa), edición vía actions sheet (espía
-/// updateMesa con SOLO campos modificados) y warning de regeneración de
-/// QR al cambiar el número.
-///
-/// Overrides sin red (patrón cola_test): apiClientProvider por fake con
-/// espías, authStateProvider class-based, mesasProvider por valor.
+import '../helpers/firebase_fakes.dart';
 
-/// Fake del AuthState (class-based) — evita secure storage en el runner.
-class _FakeAuthState extends AuthState {
-  _FakeAuthState(this.user);
+/// Tests del CRUD de mesas sobre Firestore (MESA-01, 10-06 Task 1): doc ID
+/// determinista = código QR `GRI-MESA-{rid}-{numero:03d}` (colisión = mesa
+/// duplicada), update quirúrgico de ficha, move-de-doc al cambiar número
+/// (el QR deriva del número — el invariant doc ID == QR se preserva) y el
+/// flujo completo del form (crear/duplicado) contra la pantalla viva.
 
-  final User? user;
-
-  @override
-  Future<User?> build() async => user;
-}
-
-/// Fake del ApiClient que registra create/update (getMesas no se usa:
-/// mesasProvider se overridea por valor).
-class _RecordingApiClient extends ApiClient {
-  final List<(int, int, int?)> createCalls = [];
-  final List<(String, int?, int?, int?)> updateCalls = [];
-
-  @override
-  Future<Mesa> createMesa(
-    int numero,
-    int capacidad, {
-    int? restauranteId,
-  }) async {
-    createCalls.add((numero, capacidad, restauranteId));
-    return Mesa(
-      id: 'GRI-MESA-R1-${numero.toString().padLeft(3, '0')}',
-      restauranteId: 'R1',
-      numero: numero,
-      capacidad: capacidad,
-      estado: EstadoMesa.disponible,
-    );
-  }
-
-  @override
-  Future<Mesa> updateMesa(
-    String mesaId, {
-    int? numero,
-    int? capacidad,
-    int? restauranteId,
-  }) async {
-    updateCalls.add((mesaId, numero, capacidad, restauranteId));
-    return Mesa(
-      id: mesaId,
-      restauranteId: 'R1',
-      numero: numero ?? 1,
-      capacidad: capacidad ?? 4,
-      estado: EstadoMesa.disponible,
-    );
-  }
-}
-
-const _adminUser = User(
-  id: 2,
-  nombre: 'Admin Demo',
-  email: 'admin@demo.gri.dev',
-  role: 'admin_restaurante',
-  restaurantId: 1,
-);
-
-const _mesas = <Mesa>[
-  Mesa(
-    id: 'GRI-MESA-R1-001',
-    restauranteId: 'R1',
-    numero: 1,
-    capacidad: 4,
-    estado: EstadoMesa.disponible,
-  ),
-  Mesa(
-    id: 'GRI-MESA-R1-005',
-    restauranteId: 'R1',
-    numero: 5,
-    capacidad: 2,
-    estado: EstadoMesa.ocupada,
-  ),
-];
-
-Future<void> _pumpScreen(WidgetTester tester, _RecordingApiClient client) async {
-  // Viewport alto: el 2º tile queda fuera del viewport default (800x600)
-  // y los taps del sheet de edición lo necesitan visible.
-  tester.view.physicalSize = const Size(800, 1800);
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.reset);
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        apiClientProvider.overrideWithValue(client),
-        authStateProvider.overrideWith(() => _FakeAuthState(_adminUser)),
-        mesasProvider.overrideWithValue(const AsyncData(_mesas)),
-      ],
-      child: const MaterialApp(home: MesasScreen()),
+ProviderContainer _container(FakeFirebaseFirestore db) {
+  final container = ProviderContainer(overrides: [
+    firestoreProvider.overrideWithValue(db),
+    claimsProvider.overrideWith(
+      (ref) async => (role: 'admin_restaurante', rid: 'demo'),
     ),
+  ]);
+  addTearDown(container.dispose);
+  return container;
+}
+
+Widget _screen(FakeFirebaseFirestore db) {
+  return ProviderScope(
+    overrides: [
+      firestoreProvider.overrideWithValue(db),
+      claimsProvider.overrideWith(
+        (ref) async => (role: 'admin_restaurante', rid: 'demo'),
+      ),
+    ],
+    child: const MaterialApp(home: Scaffold(body: MesasScreen())),
   );
-  await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('(a) renderiza el grid con las mesas del provider + FAB', (tester) async {
-    final client = _RecordingApiClient();
-    await _pumpScreen(tester, client);
+  // ── Bloque 1: doc ID determinista + stream del mapa ──────────────────────
+  test(
+    'crearMesa → doc mesas/GRI-MESA-demo-009 con estado disponible + aparece en el stream',
+    () async {
+      final db = await buildFakeFirestoreConSeed();
+      final container = _container(db);
+
+      await crearMesa(db, rid: 'demo', numero: 9, capacidad: 4);
+
+      final doc = await db.doc('mesas/GRI-MESA-demo-009').get();
+      expect(doc.exists, isTrue, reason: 'doc ID determinista = código QR');
+      final data = doc.data()!;
+      expect(data['restauranteId'], 'demo');
+      expect(data['numero'], 9);
+      expect(data['capacidad'], 4);
+      expect(data['estado'], 'disponible');
+      expect(data['updatedAt'], isA<Timestamp>());
+
+      // El mapa vivo (mesasProvider 10-05) ya refleja el alta.
+      final mesas = await container.read(mesasProvider.future);
+      final nueva = mesas.firstWhere((m) => m.id == 'GRI-MESA-demo-009');
+      expect(nueva.numero, 9);
+      expect(nueva.capacidad, 4);
+    },
+  );
+
+  // ── Bloque 2: colisión = número duplicado ────────────────────────────────
+  test(
+    'crearMesa con número existente → error controlado "Ya existe una mesa con ese número"',
+    () async {
+      final db = await buildFakeFirestoreConSeed();
+
+      await crearMesa(db, rid: 'demo', numero: 9, capacidad: 4);
+      // El seed ya trae 001..003: el 1 también colisiona sin crear antes.
+      expect(
+        () => crearMesa(db, rid: 'demo', numero: 9, capacidad: 2),
+        throwsA(
+          isA<MesaDuplicadaException>().having(
+            (e) => e.toString(),
+            'mensaje controlado',
+            contains('Ya existe una mesa con ese número'),
+          ),
+        ),
+      );
+      expect(
+        () => crearMesa(db, rid: 'demo', numero: 1, capacidad: 2),
+        throwsA(isA<MesaDuplicadaException>()),
+      );
+      // El doc original quedó INTACTO (la colisión no sobreescribe).
+      final doc = await db.doc('mesas/GRI-MESA-demo-009').get();
+      expect(doc.data()!['capacidad'], 4);
+    },
+  );
+
+  // ── Bloque 3: update quirúrgico + delete ─────────────────────────────────
+  test(
+    'actualizarMesa(capacidad) persiste SOLO capacidad (+updatedAt); el resto intacto',
+    () async {
+      final db = await buildFakeFirestoreConSeed();
+      final container = _container(db);
+
+      final mesa1 =
+          (await container.read(mesasProvider.future)).firstWhere((m) => m.numero == 1);
+      await actualizarMesa(db, mesa: mesa1, rid: 'demo', capacidad: 6);
+
+      final doc = await db.doc('mesas/GRI-MESA-demo-001').get();
+      final data = doc.data()!;
+      expect(data['capacidad'], 6, reason: 'capacidad actualizada');
+      expect(data['numero'], 1, reason: 'numero intacto');
+      expect(data['estado'], 'disponible', reason: 'estado intacto');
+      expect(data['restauranteId'], 'demo');
+      expect(doc.id, 'GRI-MESA-demo-001', reason: 'mismo doc (sin cambio de numero)');
+    },
+  );
+
+  test(
+    'actualizarMesa(numero) MUEVE el doc (doc ID = QR deriva del número)',
+    () async {
+      final db = await buildFakeFirestoreConSeed();
+      final container = _container(db);
+
+      final mesa3 =
+          (await container.read(mesasProvider.future)).firstWhere((m) => m.numero == 3);
+      await actualizarMesa(db, mesa: mesa3, rid: 'demo', numero: 7, capacidad: 8);
+
+      // Nuevo doc con el nuevo ID determinista; el viejo desaparece.
+      final nuevo = await db.doc('mesas/GRI-MESA-demo-007').get();
+      expect(nuevo.exists, isTrue);
+      expect(nuevo.data()!['numero'], 7);
+      expect(nuevo.data()!['capacidad'], 8);
+      expect(nuevo.data()!['estado'], 'disponible', reason: 'estado viaja al move');
+      expect(
+        (await db.doc('mesas/GRI-MESA-demo-003').get()).exists,
+        isFalse,
+        reason: 'el doc viejo (QR obsoleto) se elimina',
+      );
+    },
+  );
+
+  test('eliminarMesa quita el doc y desaparece del stream', () async {
+    final db = await buildFakeFirestoreConSeed();
+    final container = _container(db);
+
+    await crearMesa(db, rid: 'demo', numero: 9, capacidad: 4);
+    expect(
+      (await container.read(mesasProvider.future))
+          .any((m) => m.id == 'GRI-MESA-demo-009'),
+      isTrue,
+    );
+
+    await eliminarMesa(db, mesaId: 'GRI-MESA-demo-009');
+
+    expect(
+      (await db.doc('mesas/GRI-MESA-demo-009').get()).exists,
+      isFalse,
+    );
+    expect(
+      (await container.read(mesasProvider.future))
+          .any((m) => m.id == 'GRI-MESA-demo-009'),
+      isFalse,
+      reason: 'el onSnapshot del mapa refleja la baja',
+    );
+  });
+
+  // ── Bloque 4: pantalla + form (wire completo contra Firestore) ───────────
+  testWidgets('(a) grid vivo renderiza las mesas del seed + FAB', (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_screen(db));
+    await tester.pumpAndSettle();
 
     expect(find.text('Mesa 1'), findsOneWidget);
-    expect(find.text('Mesa 5'), findsOneWidget);
+    expect(find.text('Mesa 2'), findsOneWidget);
+    expect(find.text('Mesa 3'), findsOneWidget);
     expect(find.text('Nueva mesa'), findsOneWidget);
-    // Header de la pantalla.
-    expect(find.text('Mesas'), findsOneWidget);
   });
 
-  testWidgets('(b) FAB → form → numero 9 + capacidad 4 → createMesa(9, 4)', (tester) async {
-    final client = _RecordingApiClient();
-    await _pumpScreen(tester, client);
+  testWidgets(
+    '(b) FAB → form → numero 9 + capacidad 4 → doc GRI-MESA-demo-009 + tile en vivo',
+    (tester) async {
+      final db = await buildFakeFirestoreConSeed();
 
-    await tester.tap(find.text('Nueva mesa'));
-    await tester.pumpAndSettle();
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_screen(db));
+      await tester.pumpAndSettle();
 
-    // Dialog de creación: 2 campos vacíos.
-    final fields = find.byType(TextFormField);
-    expect(fields, findsNWidgets(2));
-    await tester.enterText(fields.at(0), '9');
-    await tester.enterText(fields.at(1), '4');
-    await tester.tap(find.text('Guardar'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Nueva mesa'));
+      await tester.pumpAndSettle();
 
-    // Wire exacto: POST /staff/mesas {numero: 9, capacidad: 4}; staff →
-    // sin query param.
-    expect(client.createCalls, [(9, 4, null)]);
-    // Confirmación al usuario (el refresh del grid es por WS, no aquí).
-    expect(find.text('Mesa 9 creada'), findsOneWidget);
-  });
+      final fields = find.byType(TextFormField);
+      expect(fields, findsNWidgets(2));
+      await tester.enterText(fields.at(0), '9');
+      await tester.enterText(fields.at(1), '4');
+      await tester.tap(find.text('Guardar'));
+      await tester.pumpAndSettle();
 
-  testWidgets('(c) edición: cambiar numero 5→6 muestra warning regenera QR y updateMesa solo manda numero', (tester) async {
-    final client = _RecordingApiClient();
-    await _pumpScreen(tester, client);
+      // Write a Firestore con doc ID determinista.
+      final doc = await db.doc('mesas/GRI-MESA-demo-009').get();
+      expect(doc.exists, isTrue);
+      expect(doc.data()!['estado'], 'disponible');
+      // Confirmación + tile nuevo en el grid (stream, sin invalidate manual).
+      expect(find.text('Mesa 9 creada'), findsOneWidget);
+      expect(find.text('Mesa 9'), findsOneWidget);
+    },
+  );
 
-    // Sin warning antes de editar.
-    expect(find.textContaining('regenera'), findsNothing);
+  testWidgets(
+    '(c) crear con número duplicado → SnackBar controlado y doc intacto',
+    (tester) async {
+      final db = await buildFakeFirestoreConSeed();
 
-    // Tile → actions sheet (con edición en /mesas) → Editar mesa.
-    await tester.tap(find.text('Mesa 5'));
-    await tester.pumpAndSettle();
-    expect(find.text('Editar mesa'), findsOneWidget);
-    await tester.tap(find.text('Editar mesa'));
-    await tester.pumpAndSettle();
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_screen(db));
+      await tester.pumpAndSettle();
 
-    // Form en modo edición pre-cargado (5 / 2).
-    final fields = find.byType(TextFormField);
-    await tester.enterText(fields.at(0), '6');
-    await tester.pump();
+      await tester.tap(find.text('Nueva mesa'));
+      await tester.pumpAndSettle();
 
-    // El warning de regeneración aparece SOLO al cambiar el número.
-    expect(find.textContaining('regenera'), findsOneWidget);
+      final fields = find.byType(TextFormField);
+      await tester.enterText(fields.at(0), '2'); // ya existe (seed)
+      await tester.enterText(fields.at(1), '4');
+      await tester.tap(find.text('Guardar'));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Guardar'));
-    await tester.pumpAndSettle();
-
-    // Wire exacto: PATCH /staff/mesas/GRI-MESA-R1-005 {numero: 6} —
-    // capacidad sin cambios NO viaja (doc ID = código QR, Phase 10-05).
-    expect(client.updateCalls, [('GRI-MESA-R1-005', 6, null, null)]);
-  });
+      expect(find.text('Ya existe una mesa con ese número'), findsOneWidget);
+      // El dialog permanece abierto para corregir; el doc no cambió.
+      expect(find.text('Guardar'), findsOneWidget);
+      expect((await db.doc('mesas/GRI-MESA-demo-002').get()).data()!['capacidad'], 4);
+    },
+  );
 }
