@@ -1,92 +1,153 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/api_client.dart';
-import '../../core/env.dart';
-import '../../core/token_provider.dart';
-import '../../core/ws_client.dart';
+import '../../core/firebase_providers.dart';
 import '../../models/dashboard_stats.dart';
+import '../../models/mesa.dart';
 import 'restaurante_provider.dart';
 
 part 'stats_provider.g.dart';
 
-/// Stream de DashboardStats EN VIVO (RT-01/02, 07-02): WS push con
-/// kick-to-refetch — antes polling 10s.
+/// Stats del dashboard DERIVADAS de los 3 streams realtime (10-05 Task 3 —
+/// sin endpoint): mesas por estado + reservas de hoy + pedidos activos,
+/// combinadas con combineLatest para re-emitir ante CUALQUIER cambio.
 ///
-/// Emite el fetch inicial inmediato, luego cada evento WS relevante
-/// (`mesa.estado`, `pedido.creado`, `pedido.estado` — dashboard completo en
-/// vivo) dispara un GET refresh (el evento SOLO es señal). `wsResyncProvider`
-/// (reconexión restablecida) → re-sync total; Timer de 60s como safety net
-/// de un WS muerto silencioso.
-///
-/// Filtra por restaurante:
-///  * staff → restaurante_id=null (backend usa el tenant del token; Plan 04-01
-///    ignora el param para staff).
-///  * super_admin → restaurante_id=currentRestauranteIdProvider.
-///
-/// Si super_admin sin selección (rid null) → emite Stream vacío hasta que se
-/// setee el default (dashboard_screen muestra estado "Selecciona restaurante").
-///
-/// Estructura riverpod-3-safe (lección 07-03): TODO el uso de `ref` ocurre
-/// ANTES del primer await/yield — un rebuild con el generator suspendido
-/// desmonta el ref y un `ref.watch` tardío lanza UnmountedRefException. Los
-/// eventos que llegan durante el GET inicial quedan bufferizados en el
-/// controller single-subscription.
+/// * Queries del bloque interfaces del plan:
+///   * mesas `where restauranteId == rid` (sin orderBy: solo se cuentan).
+///   * reservas `where restauranteId == rid where fecha >= inicioHoy &&
+///     fecha < inicioMañana` — ventana computada en la TZ local del
+///     operador.
+///   * pedidos `where restauranteId == rid where estado in
+///     [enviado, aceptado, en_preparacion]` (misma definición de "activo"
+///     que la cola de cocina).
+/// * Watches ANTES del primer await (lección 07-03, riverpod-3-safe).
 @riverpod
 Stream<DashboardStats> stats(Ref ref) async* {
-  final user = ref.watch(authStateProvider).value;
-  final selectedRid = ref.watch(currentRestauranteIdProvider);
-  final rid = selectedRid ?? user?.restaurantId;
+  final db = ref.watch(firestoreProvider);
+  final rid = await ref.watch(ridActivoProvider.future);
 
   if (rid == null) {
-    // super_admin pre-selección: no hay datos que mostrar todavía.
-    yield* const Stream<DashboardStats>.empty();
+    // super_admin sin restaurante elegido: cards en cero hasta la selección.
+    yield const DashboardStats(
+      mesasDisponibles: 0,
+      mesasOcupadas: 0,
+      mesasReservadas: 0,
+      mesasLimpieza: 0,
+      totalMesas: 0,
+      reservasHoy: 0,
+      pedidosActivos: 0,
+    );
     return;
   }
 
-  // Para super_admin mandamos el rid; para staff lo dejamos en null (backend
-  // resuelve el suyo, defensa T-04-02).
-  final queryRid = user?.isSuperAdmin == true ? rid : null;
-  final client = ref.read(apiClientProvider);
+  // Ventana "hoy" en TZ local truncada a día; mañana = +1 día.
+  final ahora = DateTime.now();
+  final inicioHoy = DateTime(ahora.year, ahora.month, ahora.day);
+  final inicioManana = inicioHoy.add(const Duration(days: 1));
 
-  // Suscripciones y teardown REGISTRADAS ANTES del primer await (gotcha
-  // riverpod 3.4 post-await). El controller single-subscription bufferiza
-  // los refresh que lleguen mientras se entrega el snapshot inicial.
-  final controller = StreamController<DashboardStats>();
-  Future<void> refresh() async {
-    try {
-      final stats = await client.getStats(restauranteId: queryRid);
-      if (!controller.isClosed) controller.add(stats);
-    } catch (e) {
-      // No rompemos el stream: el error va al AsyncValue pero el siguiente
-      // evento puede recuperar. El dashboard lo renderiza con retry.
-      if (!controller.isClosed) controller.addError(e);
+  final mesas$ = db
+      .collection('mesas')
+      .where('restauranteId', isEqualTo: rid)
+      .snapshots();
+  final reservasHoy$ = db
+      .collection('reservas')
+      .where('restauranteId', isEqualTo: rid)
+      .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicioHoy))
+      .where('fecha', isLessThan: Timestamp.fromDate(inicioManana))
+      .snapshots();
+  final pedidosActivos$ = db
+      .collection('pedidos')
+      .where('restauranteId', isEqualTo: rid)
+      .where(
+        'estado',
+        whereIn: const ['enviado', 'aceptado', 'en_preparacion'],
+      )
+      .snapshots();
+
+  yield* _combineLatest3(mesas$, reservasHoy$, pedidosActivos$).map((v) {
+    final mesas = [for (final doc in v.$1.docs) Mesa.fromDoc(doc)];
+    return DashboardStats(
+      mesasDisponibles: mesas
+          .where((m) => m.estado == EstadoMesa.disponible)
+          .length,
+      mesasOcupadas: mesas.where((m) => m.estado == EstadoMesa.ocupada).length,
+      mesasReservadas:
+          mesas.where((m) => m.estado == EstadoMesa.reservada).length,
+      mesasLimpieza:
+          mesas.where((m) => m.estado == EstadoMesa.limpieza).length,
+      totalMesas: mesas.length,
+      reservasHoy: v.$2.size,
+      pedidosActivos: v.$3.size,
+    );
+  });
+}
+
+/// combineLatest de 3 streams sin rxdart: emite apenas TODOS tienen su
+/// primer valor y re-emite con los ÚLTIMOS valores de cada stream ante
+/// cualquier cambio posterior (derivación de stats — Firestore emite el
+/// snapshot inicial inmediato al escuchar, así que la primera emisión
+/// llega con los 3). Los errores se reenvían al stream resultado.
+Stream<(A, B, C)> _combineLatest3<A, B, C>(
+  Stream<A> a,
+  Stream<B> b,
+  Stream<C> c,
+) {
+  late StreamController<(A, B, C)> controller;
+  A? ultimoA;
+  B? ultimoB;
+  C? ultimoC;
+  var cancelado = false;
+  final subs = <StreamSubscription<dynamic>>[];
+
+  void emitir() {
+    if (cancelado) return;
+    if (ultimoA != null && ultimoB != null && ultimoC != null) {
+      controller.add((ultimoA as A, ultimoB as B, ultimoC as C));
     }
   }
 
-  // 1) Eventos WS relevantes → kick-to-refetch (NO mutar estado local).
-  const relevantes = {'mesa.estado', 'pedido.creado', 'pedido.estado'};
-  final sub1 = ref
-      .watch(wsEventsProvider)
-      .where((e) => relevantes.contains(e.type))
-      .listen((_) => refresh());
-  // 2) Reconexión restablecida → re-sync total (RT-03).
-  final sub2 = ref.watch(wsResyncProvider).listen((_) => refresh());
-  // 3) Safety net: polling lento 60s (cubre bugs de WS; barato).
-  final timer = Timer.periodic(
-    Duration(seconds: Env.pollSafetyNetSeconds),
-    (_) => refresh(),
+  controller = StreamController<(A, B, C)>(
+    // sync: la re-emisión entrega EN el evento del snapshot (no en una
+    // microtask posterior) — paridad con `yield*` directo sobre
+    // snapshots(): un read posterior a la escritura ya ve el valor nuevo.
+    sync: true,
+    onListen: () {
+      subs.add(
+        a.listen(
+          (v) {
+            ultimoA = v;
+            emitir();
+          },
+          onError: controller.addError,
+        ),
+      );
+      subs.add(
+        b.listen(
+          (v) {
+            ultimoB = v;
+            emitir();
+          },
+          onError: controller.addError,
+        ),
+      );
+      subs.add(
+        c.listen(
+          (v) {
+            ultimoC = v;
+            emitir();
+          },
+          onError: controller.addError,
+        ),
+      );
+    },
+    onCancel: () async {
+      cancelado = true;
+      for (final sub in subs) {
+        await sub.cancel();
+      }
+    },
   );
-
-  ref.onDispose(() {
-    sub1.cancel();
-    sub2.cancel();
-    timer.cancel();
-    controller.close();
-  });
-
-  // Snapshot inicial inmediato (UX: spinner solo durante el 1er fetch).
-  yield await client.getStats(restauranteId: queryRid);
-  yield* controller.stream;
+  return controller.stream;
 }

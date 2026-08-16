@@ -7,19 +7,23 @@ part of 'mesa.dart';
 // **************************************************************************
 
 _Mesa _$MesaFromJson(Map<String, dynamic> json) => _Mesa(
-  id: (json['id'] as num).toInt(),
+  id: json['id'] as String,
+  restauranteId: json['restauranteId'] as String? ?? '',
   numero: (json['numero'] as num).toInt(),
   capacidad: (json['capacidad'] as num).toInt(),
-  codigoQr: json['codigo_qr'] as String,
   estado: estadoMesaFromJson(json['estado'] as String),
+  updatedAt: json['updatedAt'] == null
+      ? null
+      : DateTime.parse(json['updatedAt'] as String),
 );
 
 Map<String, dynamic> _$MesaToJson(_Mesa instance) => <String, dynamic>{
   'id': instance.id,
+  'restauranteId': instance.restauranteId,
   'numero': instance.numero,
   'capacidad': instance.capacidad,
-  'codigo_qr': instance.codigoQr,
   'estado': _$EstadoMesaEnumMap[instance.estado]!,
+  'updatedAt': instance.updatedAt?.toIso8601String(),
 };
 
 const _$EstadoMesaEnumMap = {

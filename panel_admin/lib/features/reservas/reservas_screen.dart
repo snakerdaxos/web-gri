@@ -57,9 +57,13 @@ class _ReservasScreenState extends ConsumerState<ReservasScreen> {
     final queryRid = user?.isSuperAdmin == true ? rid : null;
 
     try {
-      await ref
-          .read(apiClientProvider)
-          .setMesaEstado(reserva.mesaId, 'ocupada', restauranteId: queryRid);
+      await ref.read(apiClientProvider).setMesaEstado(
+            // mesaId String (doc ID = código QR, Phase 10-05) — el wire
+            // REST legacy recibía el int como path param.
+            reserva.mesaId.toString(),
+            'ocupada',
+            restauranteId: queryRid,
+          );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Mesa ${reserva.mesaNumero} marcada ocupada')),

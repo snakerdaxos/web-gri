@@ -1,28 +1,31 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/api_client.dart';
+import '../../core/firebase_providers.dart';
+import '../../core/state_machines.dart';
 import '../../core/theme.dart';
-import '../../core/token_provider.dart';
 import '../../models/pedido_staff.dart';
-import '../dashboard/restaurante_provider.dart';
 import 'pedidos_staff_provider.dart';
 import 'widgets/pedido_card.dart';
 
-/// Vista cocina (ADMN-05) — cola de pedidos activos con polling 10s.
+/// Vista cocina (ADMN-05) — cola de pedidos activos EN VIVO (Phase 10:
+/// onSnapshot nativo — WS y polling retirados de esta vista, MIGRA-05).
 ///
 /// Vive DENTRO del ShellRoute del panel (sin Scaffold propio de AppShell):
-/// el body es un header + [ListView] de [PedidoCard]. `onAvanzar` llama a
-/// `POST /staff/pedidos/{id}/estado` y refresca SIEMPRE (éxito → nuevo
-/// estado; 409/403 → re-sincroniza con la autoridad del server).
+/// el body es un header + [ListView] de [PedidoCard]. `onAvanzar` escribe
+/// el nuevo estado a Firestore vía [avanzarPedidoStaff] (transición +
+/// matriz rol validadas ANTES del update; las rules re-fuerzan) y la cola
+/// se refresca sola por el snapshot — sin invalidate manual.
 class CocinaScreen extends ConsumerWidget {
   const CocinaScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pedidosAsync = ref.watch(pedidosStaffProvider);
-    final rol = ref.watch(authStateProvider).value?.role ?? '';
+    // Rol de claims (gating de UI; la matriz la re-valida avanzarPedidoStaff
+    // y las rules son la autoridad final).
+    final rol = ref.watch(claimsProvider).value?.role ?? '';
+    final avisos = ref.watch(avisoCuentaProvider).value ?? const [];
 
     // Material ancestor: en producción lo provee el Scaffold del AppShell,
     // pero la pantalla debe ser fiel también standalone (tests/usuarios que
@@ -35,18 +38,36 @@ class CocinaScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Pedidos · Cocina',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: GriColors.text,
-              ),
-            ),
-            const SizedBox(height: 5),
-            const Text(
-              'Cola de pedidos activos (se actualiza cada 10s)',
-              style: TextStyle(color: GriColors.gray),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pedidos · Cocina',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: GriColors.text,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      'Cola de pedidos activos (en vivo)',
+                      style: TextStyle(color: GriColors.gray),
+                    ),
+                  ],
+                ),
+                // Aviso de cuenta EN VIVO (PAGO-01): sesiones activas con
+                // cuentaSolicitada — sustituye el badge del WS. Flexible:
+                // en pantallas angostas el badge se acota y su texto
+                // ellipsiza (sin RenderFlex overflow).
+                if (avisos.isNotEmpty)
+                  Flexible(
+                    child: _CuentaAvisosBadge(cantidad: avisos.length),
+                  ),
+              ],
             ),
             const SizedBox(height: 20),
             Expanded(
@@ -100,8 +121,11 @@ class CocinaScreen extends ConsumerWidget {
     );
   }
 
-  /// POST del avance + feedback accionable. El [ScaffoldMessenger] se
-  /// captura ANTES del await (sin context a través del gap async).
+  /// Avance + feedback accionable. El [ScaffoldMessenger] se captura ANTES
+  /// del await (sin context a través del gap async).
+  ///
+  /// SIN invalidate post-escritura: el onSnapshot de la cola emite el doc
+  /// actualizado por sí solo (server es la fuente de verdad).
   Future<void> _avanzar(
     BuildContext context,
     WidgetRef ref,
@@ -109,27 +133,25 @@ class CocinaScreen extends ConsumerWidget {
     EstadoPedido destino,
   ) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
-    final user = ref.read(authStateProvider).value;
-    final rid = ref.read(currentRestauranteIdProvider) ?? user?.restaurantId;
-    final queryRid = user?.isSuperAdmin == true ? rid : null;
+    final db = ref.read(firestoreProvider);
+    final rol = ref.read(claimsProvider).value?.role ?? '';
 
     try {
-      await ref
-          .read(apiClientProvider)
-          .avanzarPedido(
-            pedido.id,
-            estadoPedidoToJson(destino),
-            restauranteId: queryRid,
-          );
-    } on DioException catch (e) {
-      final code = e.response?.statusCode;
-      final msg = code == 409
-          ? 'Alguien ya movió este pedido — refrescando'
-          : code == 403
-          ? 'Tu rol no puede hacer esta acción'
-          : 'No se pudo actualizar el pedido';
+      await avanzarPedidoStaff(db, rol: rol, pedido: pedido, destino: destino);
+    } on TransicionInvalidaException {
+      // La carrera la ganó otro staff: la cola ya se refrescó sola.
       messenger?.showSnackBar(
-        SnackBar(content: Text(msg), duration: const Duration(seconds: 3)),
+        const SnackBar(
+          content: Text('Alguien ya movió este pedido — refrescando'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } on StateError catch (e) {
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          duration: const Duration(seconds: 3),
+        ),
       );
     } catch (_) {
       messenger?.showSnackBar(
@@ -139,8 +161,46 @@ class CocinaScreen extends ConsumerWidget {
         ),
       );
     }
-    // Refresca SIEMPRE: el server es la autoridad del estado real.
-    ref.invalidate(pedidosStaffProvider);
+  }
+}
+
+/// Badge "pidieron la cuenta" para el header de cocina (amarillo del
+/// mockup, visible a distancia).
+class _CuentaAvisosBadge extends StatelessWidget {
+  const _CuentaAvisosBadge({required this.cantidad});
+
+  final int cantidad;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: GriColors.mesaReservadaBg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('🍽️', style: TextStyle(fontSize: 14)),
+          const SizedBox(width: 6),
+          // Flexible: el texto se acota al ancho que el header le deje
+          // (pantallas angostas) en vez de desbordar el Row del badge.
+          Flexible(
+            child: Text(
+              cantidad == 1
+                  ? '1 mesa pidió la cuenta'
+                  : '$cantidad mesas pidieron la cuenta',
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: GriColors.mesaReservadaFg,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

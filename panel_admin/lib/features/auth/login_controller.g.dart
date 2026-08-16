@@ -63,7 +63,7 @@ final class LoginControllerProvider
   LoginController create() => LoginController();
 }
 
-String _$loginControllerHash() => r'0db38e4c2a8b3feade771940091c6e7817cce047';
+String _$loginControllerHash() => r'06d871d292f391c9560ce675de1af56b431d0ce0';
 
 /// Orquesta el login del PANEL: firma con FirebaseAuth y enruta por claims
 /// `{role, rid}` (threat model: el cliente NO entra — defense UX; las

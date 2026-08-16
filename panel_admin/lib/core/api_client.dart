@@ -109,8 +109,11 @@ class ApiClient {
   /// `PATCH /staff/mesas/{id}` — update parcial. Cambiar `numero` REGENERA
   /// el QR en el server (el impreso anterior queda obsoleto — la UI avisa
   /// antes de guardar). Solo los campos no-null viajan en el body.
+  ///
+  /// Phase 10-05: `mesaId` pasa a String (doc ID = código QR de Firestore)
+  /// — surface compile-compat del CRUD legacy hasta el purge 10-06.
   Future<Mesa> updateMesa(
-    int mesaId, {
+    String mesaId, {
     int? numero,
     int? capacidad,
     int? restauranteId,
@@ -130,8 +133,12 @@ class ApiClient {
   /// `POST /staff/mesas/{id}/estado` — transición de estado de la mesa.
   /// El server es la autoridad: 409 si la transición no es válida (carrera
   /// entre dos staff), 404 cross-tenant (existence hiding).
+  ///
+  /// Phase 10-05: `mesaId` String (doc ID = código QR) — compile-compat
+  /// legacy; el mapa operacional YA escribe directo a Firestore
+  /// (`cambiarEstadoMesa`).
   Future<Mesa> setMesaEstado(
-    int mesaId,
+    String mesaId,
     String estado, {
     int? restauranteId,
   }) async {

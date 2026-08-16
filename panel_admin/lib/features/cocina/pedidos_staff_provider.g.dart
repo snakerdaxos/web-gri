@@ -8,38 +8,9 @@ part of 'pedidos_staff_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Stream de la cola de pedidos activos EN VIVO (RT-01, 07-02): WS push con
-/// kick-to-refetch — antes polling 10s.
-///
-/// Cada evento WS relevante (`pedido.creado`, `pedido.estado`,
-/// `sesion.cuenta` y `mesa.estado` — la cola re-ordena si la mesa cambia)
-/// dispara un GET refresh: el evento SOLO es señal, JAMÁS muta la cola
-/// local (cero drift — el server ya construye la cola con joins display y
-/// orden FIFO FIELD()). `wsResyncProvider` (reconexión restablecida) →
-/// re-sync total; Timer de 60s como safety net.
-///
-/// Watches: authState (tenant del token) + currentRestauranteIdProvider
-/// (dropdown super_admin). `queryRid` SOLO se envía si super_admin — un
-/// staff jamás filtra client-side. El contrato `Stream<List<PedidoStaff>>`
-/// no cambia — los consumers quedan intactos.
 
 @ProviderFor(pedidosStaff)
 final pedidosStaffProvider = PedidosStaffProvider._();
-
-/// Stream de la cola de pedidos activos EN VIVO (RT-01, 07-02): WS push con
-/// kick-to-refetch — antes polling 10s.
-///
-/// Cada evento WS relevante (`pedido.creado`, `pedido.estado`,
-/// `sesion.cuenta` y `mesa.estado` — la cola re-ordena si la mesa cambia)
-/// dispara un GET refresh: el evento SOLO es señal, JAMÁS muta la cola
-/// local (cero drift — el server ya construye la cola con joins display y
-/// orden FIFO FIELD()). `wsResyncProvider` (reconexión restablecida) →
-/// re-sync total; Timer de 60s como safety net.
-///
-/// Watches: authState (tenant del token) + currentRestauranteIdProvider
-/// (dropdown super_admin). `queryRid` SOLO se envía si super_admin — un
-/// staff jamás filtra client-side. El contrato `Stream<List<PedidoStaff>>`
-/// no cambia — los consumers quedan intactos.
 
 final class PedidosStaffProvider
     extends
@@ -51,20 +22,6 @@ final class PedidosStaffProvider
     with
         $FutureModifier<List<PedidoStaff>>,
         $StreamProvider<List<PedidoStaff>> {
-  /// Stream de la cola de pedidos activos EN VIVO (RT-01, 07-02): WS push con
-  /// kick-to-refetch — antes polling 10s.
-  ///
-  /// Cada evento WS relevante (`pedido.creado`, `pedido.estado`,
-  /// `sesion.cuenta` y `mesa.estado` — la cola re-ordena si la mesa cambia)
-  /// dispara un GET refresh: el evento SOLO es señal, JAMÁS muta la cola
-  /// local (cero drift — el server ya construye la cola con joins display y
-  /// orden FIFO FIELD()). `wsResyncProvider` (reconexión restablecida) →
-  /// re-sync total; Timer de 60s como safety net.
-  ///
-  /// Watches: authState (tenant del token) + currentRestauranteIdProvider
-  /// (dropdown super_admin). `queryRid` SOLO se envía si super_admin — un
-  /// staff jamás filtra client-side. El contrato `Stream<List<PedidoStaff>>`
-  /// no cambia — los consumers quedan intactos.
   PedidosStaffProvider._()
     : super(
         from: null,
@@ -91,4 +48,45 @@ final class PedidosStaffProvider
   }
 }
 
-String _$pedidosStaffHash() => r'b5baf62929b2397a7db10a3b52fe1da98f10654f';
+String _$pedidosStaffHash() => r'3c234d91b985b043f682d665d6d8a9713b7c942d';
+
+@ProviderFor(avisoCuenta)
+final avisoCuentaProvider = AvisoCuentaProvider._();
+
+final class AvisoCuentaProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<AvisoCuenta>>,
+          List<AvisoCuenta>,
+          Stream<List<AvisoCuenta>>
+        >
+    with
+        $FutureModifier<List<AvisoCuenta>>,
+        $StreamProvider<List<AvisoCuenta>> {
+  AvisoCuentaProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'avisoCuentaProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$avisoCuentaHash();
+
+  @$internal
+  @override
+  $StreamProviderElement<List<AvisoCuenta>> $createElement(
+    $ProviderPointer pointer,
+  ) => $StreamProviderElement(pointer);
+
+  @override
+  Stream<List<AvisoCuenta>> create(Ref ref) {
+    return avisoCuenta(ref);
+  }
+}
+
+String _$avisoCuentaHash() => r'1f619cf2b60b8bf1987aa42f05907b6da9835aeb';

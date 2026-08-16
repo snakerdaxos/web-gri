@@ -1,17 +1,17 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../core/theme.dart';
+import '../../core/theme.dart';
 
 part 'pedido_staff.freezed.dart';
 part 'pedido_staff.g.dart';
 
-/// Estados de un pedido (espejo del enum backend `EstadoPedido`).
+/// Estados de un pedido (espejo del enum backend `EstadoPedido` — Firestore
+/// guarda los mismos strings).
 ///
-/// La cola activa (`GET /staff/pedidos?activos=true`) solo entrega los 4
-/// primeros; `rechazado`/`pagado` son terminales (F9) pero `rechazado` es
-/// destino válido del botón "Rechazar" y puede llegar en la respuesta del
-/// `POST /staff/pedidos/{id}/estado`.
+/// La cola activa solo entrega los 4 primeros; `rechazado`/`pagado` son
+/// terminales pero `rechazado` es destino válido del botón "Rechazar".
 enum EstadoPedido {
   enviado,
   aceptado,
@@ -21,7 +21,7 @@ enum EstadoPedido {
   pagado,
 }
 
-/// Traduce el string del backend al enum — switch exhaustivo, valor
+/// Traduce el string del doc al enum — switch exhaustivo, valor
 /// desconocido explota temprano (patrón estadoMesaFromJson).
 EstadoPedido estadoPedidoFromJson(String raw) => switch (raw) {
   'enviado' => EstadoPedido.enviado,
@@ -33,8 +33,7 @@ EstadoPedido estadoPedidoFromJson(String raw) => switch (raw) {
   _ => throw ArgumentError('EstadoPedido desconocido: $raw'),
 };
 
-/// Nombre en el wire (snake_case del backend) para el body de
-/// `POST /staff/pedidos/{id}/estado`.
+/// Nombre en el wire (snake_case) para el update de `pedidos/{id}`.
 String estadoPedidoToJson(EstadoPedido e) => switch (e) {
   EstadoPedido.enviado => 'enviado',
   EstadoPedido.aceptado => 'aceptado',
@@ -44,40 +43,94 @@ String estadoPedidoToJson(EstadoPedido e) => switch (e) {
   EstadoPedido.pagado => 'pagado',
 };
 
-/// Una línea de pedido con el snapshot de precio (nombre = join display).
+/// Extrae el número de mesa del código QR del doc ID: `GRI-MESA-demo-003`
+/// → 3. El doc de pedido lleva `mesaId` (= código QR); el número para la
+/// UI se deriva del sufijo numérico (construcción determinista del ID).
+int mesaNumeroDeQr(String mesaId) {
+  final partes = mesaId.split('-');
+  return int.tryParse(partes.isEmpty ? '' : partes.last) ?? 0;
+}
+
+/// Una línea de pedido con el snapshot de precio (int COP — research 10:
+/// sin floats). El subtotal se re-deriva del snapshot al mapear el doc.
 @freezed
 abstract class PedidoStaffItem with _$PedidoStaffItem {
   const factory PedidoStaffItem({
-    @JsonKey(name: 'producto_id') required int productoId,
+    required String productoId,
     required String nombre,
     required int cantidad,
-    @JsonKey(name: 'precio_unitario') required double precioUnitario,
-    required double subtotal,
+    required int precio,
+    required int subtotal,
   }) = _PedidoStaffItem;
 
   factory PedidoStaffItem.fromJson(Map<String, dynamic> json) =>
       _$PedidoStaffItemFromJson(json);
 }
 
-/// Pedido de la cola de cocina/mesero (`PedidoStaffRead`, ADMN-05) —
-/// incluye `usuarioNombre` y el badge `solicitaCuenta` (PAGO-01).
+/// Pedido de la cola de cocina/mesero — doc `pedidos/{autoId}` (Phase 10).
+///
+/// `fromDoc` mapea el shape del research: items snapshot, total int COP,
+/// `clienteNombre` → [usuarioNombre], `mesaId` (código QR) → [mesaNumero]
+/// derivado. `notas`/`solicitaCuenta` quedan como superficie de la UI
+/// (null/false siempre en v1: las notas no viven en el doc shape y el
+/// aviso de cuenta llega por el stream de `sesiones` — 10-05 Task 3).
 @freezed
 abstract class PedidoStaff with _$PedidoStaff {
   const factory PedidoStaff({
-    required int id,
-    @JsonKey(name: 'sesion_id') required int? sesionId,
-    @JsonKey(name: 'mesa_numero') required int mesaNumero,
+    /// AutoId de Firestore.
+    required String id,
+    @Default('') String restauranteId,
+
+    /// Código QR de la mesa (doc ID determinista).
+    @Default('') String mesaId,
+    required String? sesionId,
+
+    /// Derivado de [mesaId] (sufijo numérico del QR).
+    required int mesaNumero,
     @JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson)
     required EstadoPedido estado,
-    required double total,
+    required int total,
     required String? notas,
-    @JsonKey(name: 'created_at') required DateTime createdAt,
+    required DateTime createdAt,
     required List<PedidoStaffItem> items,
-    @JsonKey(name: 'usuario_nombre') required String usuarioNombre,
-    @JsonKey(name: 'solicita_cuenta', defaultValue: false)
-    required bool solicitaCuenta,
-    @JsonKey(name: 'solicitada_en') required DateTime? solicitadaEn,
+    required String usuarioNombre,
+    @Default(false) bool solicitaCuenta,
+    DateTime? solicitadaEn,
   }) = _PedidoStaff;
+
+  /// Mapea el doc `pedidos/{autoId}`.
+  factory PedidoStaff.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? const <String, dynamic>{};
+    final items = <PedidoStaffItem>[];
+    for (final raw in (data['items'] as List? ?? const [])) {
+      final m = (raw as Map).cast<String, dynamic>();
+      final precio = (m['precio'] as num?)?.toInt() ?? 0;
+      final cantidad = (m['cantidad'] as num?)?.toInt() ?? 0;
+      items.add(PedidoStaffItem(
+        productoId: m['productoId']?.toString() ?? '',
+        nombre: m['nombre'] as String? ?? '',
+        cantidad: cantidad,
+        precio: precio,
+        subtotal: precio * cantidad,
+      ));
+    }
+    final mesaId = data['mesaId'] as String? ?? '';
+    return PedidoStaff(
+      id: doc.id,
+      restauranteId: data['restauranteId'] as String? ?? '',
+      mesaId: mesaId,
+      sesionId: data['sesionId'] as String?,
+      mesaNumero: mesaNumeroDeQr(mesaId),
+      estado: estadoPedidoFromJson(data['estado'] as String? ?? 'enviado'),
+      total: (data['total'] as num?)?.toInt() ?? 0,
+      notas: data['notas'] as String?,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      items: items,
+      usuarioNombre: data['clienteNombre'] as String? ?? '',
+      solicitaCuenta: false,
+      solicitadaEn: null,
+    );
+  }
 
   factory PedidoStaff.fromJson(Map<String, dynamic> json) =>
       _$PedidoStaffFromJson(json);
@@ -87,12 +140,13 @@ abstract class PedidoStaff with _$PedidoStaff {
 typedef AccionPedido = ({String label, EstadoPedido destino});
 
 /// Roles que pueden aceptar/rechazar/preparar (TODO menos mesero — espejo
-/// client-side de TRANSITION_ROLES del backend, que es la autoridad).
+/// client-side de la matriz rol×transición de las rules, que son la
+/// autoridad).
 const _rolesCocina = {'cocina', 'admin_restaurante', 'super_admin'};
 
-/// Extensión de presentación — botones según la matriz rol×transición
-/// (PEDI-05). Ocultar es UX: el server re-valida (403) y la transición
-/// (409) sobre el wire.
+/// Extensión de presentación — botones según la matriz rol×transición.
+/// Ocultar es UX: las rules re-validan la transición Y el rol sobre el
+/// doc (doble barrera del threat model).
 extension PedidoStaffActions on PedidoStaff {
   List<AccionPedido> nextActions(String role) => switch (estado) {
     EstadoPedido.enviado =>

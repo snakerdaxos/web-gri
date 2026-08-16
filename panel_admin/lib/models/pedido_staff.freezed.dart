@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$PedidoStaffItem {
 
-@JsonKey(name: 'producto_id') int get productoId; String get nombre; int get cantidad;@JsonKey(name: 'precio_unitario') double get precioUnitario; double get subtotal;
+ String get productoId; String get nombre; int get cantidad; int get precio; int get subtotal;
 /// Create a copy of PedidoStaffItem
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +29,16 @@ $PedidoStaffItemCopyWith<PedidoStaffItem> get copyWith => _$PedidoStaffItemCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PedidoStaffItem&&(identical(other.productoId, productoId) || other.productoId == productoId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.cantidad, cantidad) || other.cantidad == cantidad)&&(identical(other.precioUnitario, precioUnitario) || other.precioUnitario == precioUnitario)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PedidoStaffItem&&(identical(other.productoId, productoId) || other.productoId == productoId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.cantidad, cantidad) || other.cantidad == cantidad)&&(identical(other.precio, precio) || other.precio == precio)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,productoId,nombre,cantidad,precioUnitario,subtotal);
+int get hashCode => Object.hash(runtimeType,productoId,nombre,cantidad,precio,subtotal);
 
 @override
 String toString() {
-  return 'PedidoStaffItem(productoId: $productoId, nombre: $nombre, cantidad: $cantidad, precioUnitario: $precioUnitario, subtotal: $subtotal)';
+  return 'PedidoStaffItem(productoId: $productoId, nombre: $nombre, cantidad: $cantidad, precio: $precio, subtotal: $subtotal)';
 }
 
 
@@ -49,7 +49,7 @@ abstract mixin class $PedidoStaffItemCopyWith<$Res>  {
   factory $PedidoStaffItemCopyWith(PedidoStaffItem value, $Res Function(PedidoStaffItem) _then) = _$PedidoStaffItemCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'producto_id') int productoId, String nombre, int cantidad,@JsonKey(name: 'precio_unitario') double precioUnitario, double subtotal
+ String productoId, String nombre, int cantidad, int precio, int subtotal
 });
 
 
@@ -66,14 +66,14 @@ class _$PedidoStaffItemCopyWithImpl<$Res>
 
 /// Create a copy of PedidoStaffItem
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? productoId = null,Object? nombre = null,Object? cantidad = null,Object? precioUnitario = null,Object? subtotal = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? productoId = null,Object? nombre = null,Object? cantidad = null,Object? precio = null,Object? subtotal = null,}) {
   return _then(PedidoStaffItem(
 productoId: null == productoId ? _self.productoId : productoId // ignore: cast_nullable_to_non_nullable
-as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
+as String,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
 as String,cantidad: null == cantidad ? _self.cantidad : cantidad // ignore: cast_nullable_to_non_nullable
-as int,precioUnitario: null == precioUnitario ? _self.precioUnitario : precioUnitario // ignore: cast_nullable_to_non_nullable
-as double,subtotal: null == subtotal ? _self.subtotal : subtotal // ignore: cast_nullable_to_non_nullable
-as double,
+as int,precio: null == precio ? _self.precio : precio // ignore: cast_nullable_to_non_nullable
+as int,subtotal: null == subtotal ? _self.subtotal : subtotal // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
@@ -158,10 +158,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'producto_id')  int productoId,  String nombre,  int cantidad, @JsonKey(name: 'precio_unitario')  double precioUnitario,  double subtotal)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String productoId,  String nombre,  int cantidad,  int precio,  int subtotal)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PedidoStaffItem() when $default != null:
-return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precioUnitario,_that.subtotal);case _:
+return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precio,_that.subtotal);case _:
   return orElse();
 
 }
@@ -179,10 +179,10 @@ return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precioUnitari
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'producto_id')  int productoId,  String nombre,  int cantidad, @JsonKey(name: 'precio_unitario')  double precioUnitario,  double subtotal)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String productoId,  String nombre,  int cantidad,  int precio,  int subtotal)  $default,) {final _that = this;
 switch (_that) {
 case _PedidoStaffItem():
-return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precioUnitario,_that.subtotal);case _:
+return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precio,_that.subtotal);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -199,10 +199,10 @@ return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precioUnitari
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'producto_id')  int productoId,  String nombre,  int cantidad, @JsonKey(name: 'precio_unitario')  double precioUnitario,  double subtotal)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String productoId,  String nombre,  int cantidad,  int precio,  int subtotal)?  $default,) {final _that = this;
 switch (_that) {
 case _PedidoStaffItem() when $default != null:
-return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precioUnitario,_that.subtotal);case _:
+return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precio,_that.subtotal);case _:
   return null;
 
 }
@@ -214,14 +214,14 @@ return $default(_that.productoId,_that.nombre,_that.cantidad,_that.precioUnitari
 @JsonSerializable()
 
 class _PedidoStaffItem implements PedidoStaffItem {
-  const _PedidoStaffItem({@JsonKey(name: 'producto_id') required this.productoId, required this.nombre, required this.cantidad, @JsonKey(name: 'precio_unitario') required this.precioUnitario, required this.subtotal});
+  const _PedidoStaffItem({required this.productoId, required this.nombre, required this.cantidad, required this.precio, required this.subtotal});
   factory _PedidoStaffItem.fromJson(Map<String, dynamic> json) => _$PedidoStaffItemFromJson(json);
 
-@override@JsonKey(name: 'producto_id') final  int productoId;
+@override final  String productoId;
 @override final  String nombre;
 @override final  int cantidad;
-@override@JsonKey(name: 'precio_unitario') final  double precioUnitario;
-@override final  double subtotal;
+@override final  int precio;
+@override final  int subtotal;
 
 /// Create a copy of PedidoStaffItem
 /// with the given fields replaced by the non-null parameter values.
@@ -236,16 +236,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PedidoStaffItem&&(identical(other.productoId, productoId) || other.productoId == productoId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.cantidad, cantidad) || other.cantidad == cantidad)&&(identical(other.precioUnitario, precioUnitario) || other.precioUnitario == precioUnitario)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PedidoStaffItem&&(identical(other.productoId, productoId) || other.productoId == productoId)&&(identical(other.nombre, nombre) || other.nombre == nombre)&&(identical(other.cantidad, cantidad) || other.cantidad == cantidad)&&(identical(other.precio, precio) || other.precio == precio)&&(identical(other.subtotal, subtotal) || other.subtotal == subtotal));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,productoId,nombre,cantidad,precioUnitario,subtotal);
+int get hashCode => Object.hash(runtimeType,productoId,nombre,cantidad,precio,subtotal);
 
 @override
 String toString() {
-  return 'PedidoStaffItem(productoId: $productoId, nombre: $nombre, cantidad: $cantidad, precioUnitario: $precioUnitario, subtotal: $subtotal)';
+  return 'PedidoStaffItem(productoId: $productoId, nombre: $nombre, cantidad: $cantidad, precio: $precio, subtotal: $subtotal)';
 }
 
 
@@ -256,7 +256,7 @@ abstract mixin class _$PedidoStaffItemCopyWith<$Res> implements $PedidoStaffItem
   factory _$PedidoStaffItemCopyWith(_PedidoStaffItem value, $Res Function(_PedidoStaffItem) _then) = __$PedidoStaffItemCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'producto_id') int productoId, String nombre, int cantidad,@JsonKey(name: 'precio_unitario') double precioUnitario, double subtotal
+ String productoId, String nombre, int cantidad, int precio, int subtotal
 });
 
 
@@ -273,14 +273,14 @@ class __$PedidoStaffItemCopyWithImpl<$Res>
 
 /// Create a copy of PedidoStaffItem
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? productoId = null,Object? nombre = null,Object? cantidad = null,Object? precioUnitario = null,Object? subtotal = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? productoId = null,Object? nombre = null,Object? cantidad = null,Object? precio = null,Object? subtotal = null,}) {
   return _then(_PedidoStaffItem(
 productoId: null == productoId ? _self.productoId : productoId // ignore: cast_nullable_to_non_nullable
-as int,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
+as String,nombre: null == nombre ? _self.nombre : nombre // ignore: cast_nullable_to_non_nullable
 as String,cantidad: null == cantidad ? _self.cantidad : cantidad // ignore: cast_nullable_to_non_nullable
-as int,precioUnitario: null == precioUnitario ? _self.precioUnitario : precioUnitario // ignore: cast_nullable_to_non_nullable
-as double,subtotal: null == subtotal ? _self.subtotal : subtotal // ignore: cast_nullable_to_non_nullable
-as double,
+as int,precio: null == precio ? _self.precio : precio // ignore: cast_nullable_to_non_nullable
+as int,subtotal: null == subtotal ? _self.subtotal : subtotal // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 
@@ -291,7 +291,10 @@ as double,
 /// @nodoc
 mixin _$PedidoStaff {
 
- int get id;@JsonKey(name: 'sesion_id') int? get sesionId;@JsonKey(name: 'mesa_numero') int get mesaNumero;@JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson) EstadoPedido get estado; double get total; String? get notas;@JsonKey(name: 'created_at') DateTime get createdAt; List<PedidoStaffItem> get items;@JsonKey(name: 'usuario_nombre') String get usuarioNombre;@JsonKey(name: 'solicita_cuenta', defaultValue: false) bool get solicitaCuenta;@JsonKey(name: 'solicitada_en') DateTime? get solicitadaEn;
+/// AutoId de Firestore.
+ String get id; String get restauranteId;/// Código QR de la mesa (doc ID determinista).
+ String get mesaId; String? get sesionId;/// Derivado de [mesaId] (sufijo numérico del QR).
+ int get mesaNumero;@JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson) EstadoPedido get estado; int get total; String? get notas; DateTime get createdAt; List<PedidoStaffItem> get items; String get usuarioNombre; bool get solicitaCuenta; DateTime? get solicitadaEn;
 /// Create a copy of PedidoStaff
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -304,16 +307,16 @@ $PedidoStaffCopyWith<PedidoStaff> get copyWith => _$PedidoStaffCopyWithImpl<Pedi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is PedidoStaff&&(identical(other.id, id) || other.id == id)&&(identical(other.sesionId, sesionId) || other.sesionId == sesionId)&&(identical(other.mesaNumero, mesaNumero) || other.mesaNumero == mesaNumero)&&(identical(other.estado, estado) || other.estado == estado)&&(identical(other.total, total) || other.total == total)&&(identical(other.notas, notas) || other.notas == notas)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.usuarioNombre, usuarioNombre) || other.usuarioNombre == usuarioNombre)&&(identical(other.solicitaCuenta, solicitaCuenta) || other.solicitaCuenta == solicitaCuenta)&&(identical(other.solicitadaEn, solicitadaEn) || other.solicitadaEn == solicitadaEn));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PedidoStaff&&(identical(other.id, id) || other.id == id)&&(identical(other.restauranteId, restauranteId) || other.restauranteId == restauranteId)&&(identical(other.mesaId, mesaId) || other.mesaId == mesaId)&&(identical(other.sesionId, sesionId) || other.sesionId == sesionId)&&(identical(other.mesaNumero, mesaNumero) || other.mesaNumero == mesaNumero)&&(identical(other.estado, estado) || other.estado == estado)&&(identical(other.total, total) || other.total == total)&&(identical(other.notas, notas) || other.notas == notas)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other.items, items)&&(identical(other.usuarioNombre, usuarioNombre) || other.usuarioNombre == usuarioNombre)&&(identical(other.solicitaCuenta, solicitaCuenta) || other.solicitaCuenta == solicitaCuenta)&&(identical(other.solicitadaEn, solicitadaEn) || other.solicitadaEn == solicitadaEn));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,sesionId,mesaNumero,estado,total,notas,createdAt,const DeepCollectionEquality().hash(items),usuarioNombre,solicitaCuenta,solicitadaEn);
+int get hashCode => Object.hash(runtimeType,id,restauranteId,mesaId,sesionId,mesaNumero,estado,total,notas,createdAt,const DeepCollectionEquality().hash(items),usuarioNombre,solicitaCuenta,solicitadaEn);
 
 @override
 String toString() {
-  return 'PedidoStaff(id: $id, sesionId: $sesionId, mesaNumero: $mesaNumero, estado: $estado, total: $total, notas: $notas, createdAt: $createdAt, items: $items, usuarioNombre: $usuarioNombre, solicitaCuenta: $solicitaCuenta, solicitadaEn: $solicitadaEn)';
+  return 'PedidoStaff(id: $id, restauranteId: $restauranteId, mesaId: $mesaId, sesionId: $sesionId, mesaNumero: $mesaNumero, estado: $estado, total: $total, notas: $notas, createdAt: $createdAt, items: $items, usuarioNombre: $usuarioNombre, solicitaCuenta: $solicitaCuenta, solicitadaEn: $solicitadaEn)';
 }
 
 
@@ -324,7 +327,7 @@ abstract mixin class $PedidoStaffCopyWith<$Res>  {
   factory $PedidoStaffCopyWith(PedidoStaff value, $Res Function(PedidoStaff) _then) = _$PedidoStaffCopyWithImpl;
 @useResult
 $Res call({
- int id,@JsonKey(name: 'sesion_id') int? sesionId,@JsonKey(name: 'mesa_numero') int mesaNumero,@JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson) EstadoPedido estado, double total, String? notas,@JsonKey(name: 'created_at') DateTime createdAt, List<PedidoStaffItem> items,@JsonKey(name: 'usuario_nombre') String usuarioNombre,@JsonKey(name: 'solicita_cuenta', defaultValue: false) bool solicitaCuenta,@JsonKey(name: 'solicitada_en') DateTime? solicitadaEn
+ String id, String restauranteId, String mesaId, String? sesionId, int mesaNumero,@JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson) EstadoPedido estado, int total, String? notas, DateTime createdAt, List<PedidoStaffItem> items, String usuarioNombre, bool solicitaCuenta, DateTime? solicitadaEn
 });
 
 
@@ -341,14 +344,16 @@ class _$PedidoStaffCopyWithImpl<$Res>
 
 /// Create a copy of PedidoStaff
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? sesionId = freezed,Object? mesaNumero = null,Object? estado = null,Object? total = null,Object? notas = freezed,Object? createdAt = null,Object? items = null,Object? usuarioNombre = null,Object? solicitaCuenta = null,Object? solicitadaEn = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? restauranteId = null,Object? mesaId = null,Object? sesionId = freezed,Object? mesaNumero = null,Object? estado = null,Object? total = null,Object? notas = freezed,Object? createdAt = null,Object? items = null,Object? usuarioNombre = null,Object? solicitaCuenta = null,Object? solicitadaEn = freezed,}) {
   return _then(PedidoStaff(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,sesionId: freezed == sesionId ? _self.sesionId : sesionId // ignore: cast_nullable_to_non_nullable
-as int?,mesaNumero: null == mesaNumero ? _self.mesaNumero : mesaNumero // ignore: cast_nullable_to_non_nullable
+as String,restauranteId: null == restauranteId ? _self.restauranteId : restauranteId // ignore: cast_nullable_to_non_nullable
+as String,mesaId: null == mesaId ? _self.mesaId : mesaId // ignore: cast_nullable_to_non_nullable
+as String,sesionId: freezed == sesionId ? _self.sesionId : sesionId // ignore: cast_nullable_to_non_nullable
+as String?,mesaNumero: null == mesaNumero ? _self.mesaNumero : mesaNumero // ignore: cast_nullable_to_non_nullable
 as int,estado: null == estado ? _self.estado : estado // ignore: cast_nullable_to_non_nullable
 as EstadoPedido,total: null == total ? _self.total : total // ignore: cast_nullable_to_non_nullable
-as double,notas: freezed == notas ? _self.notas : notas // ignore: cast_nullable_to_non_nullable
+as int,notas: freezed == notas ? _self.notas : notas // ignore: cast_nullable_to_non_nullable
 as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,items: null == items ? _self.items : items // ignore: cast_nullable_to_non_nullable
 as List<PedidoStaffItem>,usuarioNombre: null == usuarioNombre ? _self.usuarioNombre : usuarioNombre // ignore: cast_nullable_to_non_nullable
@@ -439,10 +444,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id, @JsonKey(name: 'sesion_id')  int? sesionId, @JsonKey(name: 'mesa_numero')  int mesaNumero, @JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson)  EstadoPedido estado,  double total,  String? notas, @JsonKey(name: 'created_at')  DateTime createdAt,  List<PedidoStaffItem> items, @JsonKey(name: 'usuario_nombre')  String usuarioNombre, @JsonKey(name: 'solicita_cuenta', defaultValue: false)  bool solicitaCuenta, @JsonKey(name: 'solicitada_en')  DateTime? solicitadaEn)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String restauranteId,  String mesaId,  String? sesionId,  int mesaNumero, @JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson)  EstadoPedido estado,  int total,  String? notas,  DateTime createdAt,  List<PedidoStaffItem> items,  String usuarioNombre,  bool solicitaCuenta,  DateTime? solicitadaEn)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PedidoStaff() when $default != null:
-return $default(_that.id,_that.sesionId,_that.mesaNumero,_that.estado,_that.total,_that.notas,_that.createdAt,_that.items,_that.usuarioNombre,_that.solicitaCuenta,_that.solicitadaEn);case _:
+return $default(_that.id,_that.restauranteId,_that.mesaId,_that.sesionId,_that.mesaNumero,_that.estado,_that.total,_that.notas,_that.createdAt,_that.items,_that.usuarioNombre,_that.solicitaCuenta,_that.solicitadaEn);case _:
   return orElse();
 
 }
@@ -460,10 +465,10 @@ return $default(_that.id,_that.sesionId,_that.mesaNumero,_that.estado,_that.tota
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id, @JsonKey(name: 'sesion_id')  int? sesionId, @JsonKey(name: 'mesa_numero')  int mesaNumero, @JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson)  EstadoPedido estado,  double total,  String? notas, @JsonKey(name: 'created_at')  DateTime createdAt,  List<PedidoStaffItem> items, @JsonKey(name: 'usuario_nombre')  String usuarioNombre, @JsonKey(name: 'solicita_cuenta', defaultValue: false)  bool solicitaCuenta, @JsonKey(name: 'solicitada_en')  DateTime? solicitadaEn)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String restauranteId,  String mesaId,  String? sesionId,  int mesaNumero, @JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson)  EstadoPedido estado,  int total,  String? notas,  DateTime createdAt,  List<PedidoStaffItem> items,  String usuarioNombre,  bool solicitaCuenta,  DateTime? solicitadaEn)  $default,) {final _that = this;
 switch (_that) {
 case _PedidoStaff():
-return $default(_that.id,_that.sesionId,_that.mesaNumero,_that.estado,_that.total,_that.notas,_that.createdAt,_that.items,_that.usuarioNombre,_that.solicitaCuenta,_that.solicitadaEn);case _:
+return $default(_that.id,_that.restauranteId,_that.mesaId,_that.sesionId,_that.mesaNumero,_that.estado,_that.total,_that.notas,_that.createdAt,_that.items,_that.usuarioNombre,_that.solicitaCuenta,_that.solicitadaEn);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -480,10 +485,10 @@ return $default(_that.id,_that.sesionId,_that.mesaNumero,_that.estado,_that.tota
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id, @JsonKey(name: 'sesion_id')  int? sesionId, @JsonKey(name: 'mesa_numero')  int mesaNumero, @JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson)  EstadoPedido estado,  double total,  String? notas, @JsonKey(name: 'created_at')  DateTime createdAt,  List<PedidoStaffItem> items, @JsonKey(name: 'usuario_nombre')  String usuarioNombre, @JsonKey(name: 'solicita_cuenta', defaultValue: false)  bool solicitaCuenta, @JsonKey(name: 'solicitada_en')  DateTime? solicitadaEn)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String restauranteId,  String mesaId,  String? sesionId,  int mesaNumero, @JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson)  EstadoPedido estado,  int total,  String? notas,  DateTime createdAt,  List<PedidoStaffItem> items,  String usuarioNombre,  bool solicitaCuenta,  DateTime? solicitadaEn)?  $default,) {final _that = this;
 switch (_that) {
 case _PedidoStaff() when $default != null:
-return $default(_that.id,_that.sesionId,_that.mesaNumero,_that.estado,_that.total,_that.notas,_that.createdAt,_that.items,_that.usuarioNombre,_that.solicitaCuenta,_that.solicitadaEn);case _:
+return $default(_that.id,_that.restauranteId,_that.mesaId,_that.sesionId,_that.mesaNumero,_that.estado,_that.total,_that.notas,_that.createdAt,_that.items,_that.usuarioNombre,_that.solicitaCuenta,_that.solicitadaEn);case _:
   return null;
 
 }
@@ -495,16 +500,21 @@ return $default(_that.id,_that.sesionId,_that.mesaNumero,_that.estado,_that.tota
 @JsonSerializable()
 
 class _PedidoStaff implements PedidoStaff {
-  const _PedidoStaff({required this.id, @JsonKey(name: 'sesion_id') required this.sesionId, @JsonKey(name: 'mesa_numero') required this.mesaNumero, @JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson) required this.estado, required this.total, required this.notas, @JsonKey(name: 'created_at') required this.createdAt, required  List<PedidoStaffItem> items, @JsonKey(name: 'usuario_nombre') required this.usuarioNombre, @JsonKey(name: 'solicita_cuenta', defaultValue: false) required this.solicitaCuenta, @JsonKey(name: 'solicitada_en') required this.solicitadaEn}): _items = items;
+  const _PedidoStaff({required this.id, this.restauranteId = '', this.mesaId = '', required this.sesionId, required this.mesaNumero, @JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson) required this.estado, required this.total, required this.notas, required this.createdAt, required  List<PedidoStaffItem> items, required this.usuarioNombre, this.solicitaCuenta = false, this.solicitadaEn}): _items = items;
   factory _PedidoStaff.fromJson(Map<String, dynamic> json) => _$PedidoStaffFromJson(json);
 
-@override final  int id;
-@override@JsonKey(name: 'sesion_id') final  int? sesionId;
-@override@JsonKey(name: 'mesa_numero') final  int mesaNumero;
+/// AutoId de Firestore.
+@override final  String id;
+@override@JsonKey() final  String restauranteId;
+/// Código QR de la mesa (doc ID determinista).
+@override@JsonKey() final  String mesaId;
+@override final  String? sesionId;
+/// Derivado de [mesaId] (sufijo numérico del QR).
+@override final  int mesaNumero;
 @override@JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson) final  EstadoPedido estado;
-@override final  double total;
+@override final  int total;
 @override final  String? notas;
-@override@JsonKey(name: 'created_at') final  DateTime createdAt;
+@override final  DateTime createdAt;
  final  List<PedidoStaffItem> _items;
 @override List<PedidoStaffItem> get items {
   if (_items is EqualUnmodifiableListView) return _items;
@@ -512,9 +522,9 @@ class _PedidoStaff implements PedidoStaff {
   return EqualUnmodifiableListView(_items);
 }
 
-@override@JsonKey(name: 'usuario_nombre') final  String usuarioNombre;
-@override@JsonKey(name: 'solicita_cuenta', defaultValue: false) final  bool solicitaCuenta;
-@override@JsonKey(name: 'solicitada_en') final  DateTime? solicitadaEn;
+@override final  String usuarioNombre;
+@override@JsonKey() final  bool solicitaCuenta;
+@override final  DateTime? solicitadaEn;
 
 /// Create a copy of PedidoStaff
 /// with the given fields replaced by the non-null parameter values.
@@ -529,16 +539,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PedidoStaff&&(identical(other.id, id) || other.id == id)&&(identical(other.sesionId, sesionId) || other.sesionId == sesionId)&&(identical(other.mesaNumero, mesaNumero) || other.mesaNumero == mesaNumero)&&(identical(other.estado, estado) || other.estado == estado)&&(identical(other.total, total) || other.total == total)&&(identical(other.notas, notas) || other.notas == notas)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.usuarioNombre, usuarioNombre) || other.usuarioNombre == usuarioNombre)&&(identical(other.solicitaCuenta, solicitaCuenta) || other.solicitaCuenta == solicitaCuenta)&&(identical(other.solicitadaEn, solicitadaEn) || other.solicitadaEn == solicitadaEn));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _PedidoStaff&&(identical(other.id, id) || other.id == id)&&(identical(other.restauranteId, restauranteId) || other.restauranteId == restauranteId)&&(identical(other.mesaId, mesaId) || other.mesaId == mesaId)&&(identical(other.sesionId, sesionId) || other.sesionId == sesionId)&&(identical(other.mesaNumero, mesaNumero) || other.mesaNumero == mesaNumero)&&(identical(other.estado, estado) || other.estado == estado)&&(identical(other.total, total) || other.total == total)&&(identical(other.notas, notas) || other.notas == notas)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&const DeepCollectionEquality().equals(other._items, _items)&&(identical(other.usuarioNombre, usuarioNombre) || other.usuarioNombre == usuarioNombre)&&(identical(other.solicitaCuenta, solicitaCuenta) || other.solicitaCuenta == solicitaCuenta)&&(identical(other.solicitadaEn, solicitadaEn) || other.solicitadaEn == solicitadaEn));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,sesionId,mesaNumero,estado,total,notas,createdAt,const DeepCollectionEquality().hash(_items),usuarioNombre,solicitaCuenta,solicitadaEn);
+int get hashCode => Object.hash(runtimeType,id,restauranteId,mesaId,sesionId,mesaNumero,estado,total,notas,createdAt,const DeepCollectionEquality().hash(_items),usuarioNombre,solicitaCuenta,solicitadaEn);
 
 @override
 String toString() {
-  return 'PedidoStaff(id: $id, sesionId: $sesionId, mesaNumero: $mesaNumero, estado: $estado, total: $total, notas: $notas, createdAt: $createdAt, items: $items, usuarioNombre: $usuarioNombre, solicitaCuenta: $solicitaCuenta, solicitadaEn: $solicitadaEn)';
+  return 'PedidoStaff(id: $id, restauranteId: $restauranteId, mesaId: $mesaId, sesionId: $sesionId, mesaNumero: $mesaNumero, estado: $estado, total: $total, notas: $notas, createdAt: $createdAt, items: $items, usuarioNombre: $usuarioNombre, solicitaCuenta: $solicitaCuenta, solicitadaEn: $solicitadaEn)';
 }
 
 
@@ -549,7 +559,7 @@ abstract mixin class _$PedidoStaffCopyWith<$Res> implements $PedidoStaffCopyWith
   factory _$PedidoStaffCopyWith(_PedidoStaff value, $Res Function(_PedidoStaff) _then) = __$PedidoStaffCopyWithImpl;
 @override @useResult
 $Res call({
- int id,@JsonKey(name: 'sesion_id') int? sesionId,@JsonKey(name: 'mesa_numero') int mesaNumero,@JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson) EstadoPedido estado, double total, String? notas,@JsonKey(name: 'created_at') DateTime createdAt, List<PedidoStaffItem> items,@JsonKey(name: 'usuario_nombre') String usuarioNombre,@JsonKey(name: 'solicita_cuenta', defaultValue: false) bool solicitaCuenta,@JsonKey(name: 'solicitada_en') DateTime? solicitadaEn
+ String id, String restauranteId, String mesaId, String? sesionId, int mesaNumero,@JsonKey(fromJson: estadoPedidoFromJson, toJson: estadoPedidoToJson) EstadoPedido estado, int total, String? notas, DateTime createdAt, List<PedidoStaffItem> items, String usuarioNombre, bool solicitaCuenta, DateTime? solicitadaEn
 });
 
 
@@ -566,14 +576,16 @@ class __$PedidoStaffCopyWithImpl<$Res>
 
 /// Create a copy of PedidoStaff
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? sesionId = freezed,Object? mesaNumero = null,Object? estado = null,Object? total = null,Object? notas = freezed,Object? createdAt = null,Object? items = null,Object? usuarioNombre = null,Object? solicitaCuenta = null,Object? solicitadaEn = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? restauranteId = null,Object? mesaId = null,Object? sesionId = freezed,Object? mesaNumero = null,Object? estado = null,Object? total = null,Object? notas = freezed,Object? createdAt = null,Object? items = null,Object? usuarioNombre = null,Object? solicitaCuenta = null,Object? solicitadaEn = freezed,}) {
   return _then(_PedidoStaff(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,sesionId: freezed == sesionId ? _self.sesionId : sesionId // ignore: cast_nullable_to_non_nullable
-as int?,mesaNumero: null == mesaNumero ? _self.mesaNumero : mesaNumero // ignore: cast_nullable_to_non_nullable
+as String,restauranteId: null == restauranteId ? _self.restauranteId : restauranteId // ignore: cast_nullable_to_non_nullable
+as String,mesaId: null == mesaId ? _self.mesaId : mesaId // ignore: cast_nullable_to_non_nullable
+as String,sesionId: freezed == sesionId ? _self.sesionId : sesionId // ignore: cast_nullable_to_non_nullable
+as String?,mesaNumero: null == mesaNumero ? _self.mesaNumero : mesaNumero // ignore: cast_nullable_to_non_nullable
 as int,estado: null == estado ? _self.estado : estado // ignore: cast_nullable_to_non_nullable
 as EstadoPedido,total: null == total ? _self.total : total // ignore: cast_nullable_to_non_nullable
-as double,notas: freezed == notas ? _self.notas : notas // ignore: cast_nullable_to_non_nullable
+as int,notas: freezed == notas ? _self.notas : notas // ignore: cast_nullable_to_non_nullable
 as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,items: null == items ? _self._items : items // ignore: cast_nullable_to_non_nullable
 as List<PedidoStaffItem>,usuarioNombre: null == usuarioNombre ? _self.usuarioNombre : usuarioNombre // ignore: cast_nullable_to_non_nullable

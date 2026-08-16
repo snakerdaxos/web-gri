@@ -1,82 +1,129 @@
-import 'dart:async';
+﻿import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/api_client.dart';
-import '../../core/env.dart';
-import '../../core/token_provider.dart';
-import '../../core/ws_client.dart';
+import '../../core/firebase_providers.dart';
+import '../../core/state_machines.dart';
 import '../../models/pedido_staff.dart';
 import '../dashboard/restaurante_provider.dart';
 
 part 'pedidos_staff_provider.g.dart';
 
-/// Stream de la cola de pedidos activos EN VIVO (RT-01, 07-02): WS push con
-/// kick-to-refetch — antes polling 10s.
+/// Aviso de cuenta en vivo: sesión ACTIVA con `cuentaSolicitada == true`
+/// (PAGO-01 — sustituye el badge del WS de la era REST).
+typedef AvisoCuenta = ({String mesaId, int mesaNumero});
+
+/// Cola de cocina EN VIVO (MIGRA-05): `pedidos where restauranteId == rid
+/// where estado in [enviado, aceptado, en_preparacion] orderBy createdAt
+/// ASC → snapshots()` (índice compuesto 10-01). Un pedido que pasa a
+/// `servido`/`rechazado` desaparece del stream SOLO — sin invalidate ni
+/// refetch (el server es la fuente de verdad).
 ///
-/// Cada evento WS relevante (`pedido.creado`, `pedido.estado`,
-/// `sesion.cuenta` y `mesa.estado` — la cola re-ordena si la mesa cambia)
-/// dispara un GET refresh: el evento SOLO es señal, JAMÁS muta la cola
-/// local (cero drift — el server ya construye la cola con joins display y
-/// orden FIFO FIELD()). `wsResyncProvider` (reconexión restablecida) →
-/// re-sync total; Timer de 60s como safety net.
-///
-/// Watches: authState (tenant del token) + currentRestauranteIdProvider
-/// (dropdown super_admin). `queryRid` SOLO se envía si super_admin — un
-/// staff jamás filtra client-side. El contrato `Stream<List<PedidoStaff>>`
-/// no cambia — los consumers quedan intactos.
+/// El rid viene de [ridActivoProvider] (claims/selección — nunca input
+/// libre; Pitfall 4). Watches ANTES del primer await (lección 07-03).
 @riverpod
 Stream<List<PedidoStaff>> pedidosStaff(Ref ref) async* {
-  final user = ref.watch(authStateProvider).value;
-  final selectedRid = ref.watch(currentRestauranteIdProvider);
-  final rid = selectedRid ?? user?.restaurantId;
+  final db = ref.watch(firestoreProvider);
+  final rid = await ref.watch(ridActivoProvider.future);
 
   if (rid == null) {
-    yield* const Stream<List<PedidoStaff>>.empty();
+    yield const <PedidoStaff>[];
     return;
   }
 
-  final queryRid = user?.isSuperAdmin == true ? rid : null;
-  final client = ref.read(apiClientProvider);
+  yield* db
+      .collection('pedidos')
+      .where('restauranteId', isEqualTo: rid)
+      .where(
+        'estado',
+        whereIn: const ['enviado', 'aceptado', 'en_preparacion'],
+      )
+      .orderBy('createdAt')
+      .snapshots()
+      .map((snap) => [for (final doc in snap.docs) PedidoStaff.fromDoc(doc)]);
+}
 
-  // Snapshot inicial (re-sync de RT-03: estado autoritativo al montar).
-  yield await client.getPedidosActivos(restauranteId: queryRid);
+/// Avisos de cuenta EN VIVO para el badge de cocina: `sesiones where
+/// restauranteId == rid where cuentaSolicitada == true where estado ==
+/// 'activa' → snapshots()`. Cuando el mesero entrega la cuenta la sesión
+/// pasa a `cerrada` y el aviso desaparece solo.
+@riverpod
+Stream<List<AvisoCuenta>> avisoCuenta(Ref ref) async* {
+  final db = ref.watch(firestoreProvider);
+  final rid = await ref.watch(ridActivoProvider.future);
 
-  final controller = StreamController<List<PedidoStaff>>();
-  Future<void> refresh() async {
-    try {
-      controller.add(await client.getPedidosActivos(restauranteId: queryRid));
-    } catch (e) {
-      // No romper el stream: el error va al AsyncValue y el próximo
-      // evento/tick puede recuperar.
-      controller.addError(e);
-    }
+  if (rid == null) {
+    yield const <AvisoCuenta>[];
+    return;
   }
 
-  // 1) Eventos WS relevantes → kick-to-refetch (NO mutar estado local).
-  const relevantes = {
-    'pedido.creado',
-    'pedido.estado',
-    'sesion.cuenta',
-    'mesa.estado',
-  };
-  final sub1 = ref
-      .watch(wsEventsProvider)
-      .where((e) => relevantes.contains(e.type))
-      .listen((_) => refresh());
-  // 2) Reconexión restablecida → re-sync total (RT-03).
-  final sub2 = ref.watch(wsResyncProvider).listen((_) => refresh());
-  // 3) Safety net: polling lento 60s (cubre bugs de WS; barato).
-  final timer = Timer.periodic(
-    Duration(seconds: Env.pollSafetyNetSeconds),
-    (_) => refresh(),
-  );
+  yield* db
+      .collection('sesiones')
+      .where('restauranteId', isEqualTo: rid)
+      .where('cuentaSolicitada', isEqualTo: true)
+      .where('estado', isEqualTo: 'activa')
+      .snapshots()
+      .map((snap) => [
+            for (final doc in snap.docs)
+              (
+                mesaId: doc.data()['mesaId'] as String? ?? doc.id,
+                mesaNumero: mesaNumeroDeQr(
+                  doc.data()['mesaId'] as String? ?? doc.id,
+                ),
+              ),
+          ]);
+}
 
-  ref.onDispose(() {
-    sub1.cancel();
-    sub2.cancel();
-    timer.cancel();
-    controller.close();
+/// Matriz rol×transición de pedidos (espejo client-side de las rules 10-01
+/// — la autoridad). `enviado→aceptado|rechazado` y
+/// `aceptado→en_preparacion`: cocina/admin/super; `en_preparacion→
+/// servido`: además mesero. `pagado` es inalcanzable desde el panel (v1).
+const Map<(String, String), Set<String>> matrizRolPedido = {
+  ('enviado', 'aceptado'): {'cocina', 'admin_restaurante', 'super_admin'},
+  ('enviado', 'rechazado'): {'cocina', 'admin_restaurante', 'super_admin'},
+  ('aceptado', 'en_preparacion'): {
+    'cocina',
+    'admin_restaurante',
+    'super_admin',
+  },
+  ('en_preparacion', 'servido'): {
+    'cocina',
+    'admin_restaurante',
+    'mesero',
+    'super_admin',
+  },
+};
+
+/// Avance de estado de un pedido — doble barrera ANTES del update:
+///
+/// 1. [validarTransicion] de la máquina `pedido`: un salto (p.ej.
+///    enviado→servido) lanza [TransicionInvalidaException] SIN escribir.
+/// 2. [matrizRolPedido]: el rol que no puede hacer esa transición recibe
+///    `StateError('Tu rol no puede hacer esta acción')` SIN escribir.
+/// 3. Update de SOLO `{estado, updatedAt}` — las rules re-validan
+///    transición Y rol sobre el doc (la autoridad final).
+Future<void> avanzarPedidoStaff(
+  FirebaseFirestore db, {
+  required String rol,
+  required PedidoStaff pedido,
+  required EstadoPedido destino,
+}) async {
+  final actual = estadoPedidoToJson(pedido.estado);
+  final nueva = estadoPedidoToJson(destino);
+
+  // 1) Máquina de estados (salto inválido → TransicionInvalidaException).
+  validarTransicion('pedido', actual, nueva);
+
+  // 2) Matriz rol×transición (espejo de las rules).
+  final roles = matrizRolPedido[(actual, nueva)];
+  if (roles == null || !roles.contains(rol)) {
+    throw StateError('Tu rol no puede hacer esta acción');
+  }
+
+  // 3) Update mínimo.
+  await db.doc('pedidos/${pedido.id}').update(<String, dynamic>{
+    'estado': nueva,
+    'updatedAt': FieldValue.serverTimestamp(),
   });
-  yield* controller.stream;
 }

@@ -1,84 +1,58 @@
-import 'dart:async';
+﻿import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/api_client.dart';
-import '../../core/env.dart';
-import '../../core/token_provider.dart';
-import '../../core/ws_client.dart';
+import '../../core/firebase_providers.dart';
+import '../../core/state_machines.dart';
 import '../../models/mesa.dart';
 import 'restaurante_provider.dart';
 
 part 'mesas_provider.g.dart';
 
-/// Stream de mesas EN VIVO (RT-02, 07-02): WS push con kick-to-refetch —
-/// antes polling 10s.
+/// Mapa de mesas del restaurante activo EN VIVO (MIGRA-05):
+/// `mesas where restauranteId == rid orderBy numero ASC → snapshots()` —
+/// sustituye el WS + polling de la era REST (Phase 7).
 ///
-/// El evento WS (`mesa.estado`) SOLO dispara el GET refresh: JAMÁS muta la
-/// lista local (cero drift — el server es la única fuente de verdad y el
-/// snapshot re-GETeado siempre gana). `wsResyncProvider` (reconexión
-/// restablecida) → re-sync total; el Timer de 60s es el safety net que
-/// acota la ventana de un WS muerto silencioso (half-open).
-///
-/// Watches: authState (tenant del token) + currentRestauranteIdProvider
-/// (dropdown super_admin). El contrato `Stream<List<Mesa>>` no cambia — los
-/// consumers quedan intactos.
-///
-/// Estructura riverpod-3-safe (lección 07-03): TODO el uso de `ref` ocurre
-/// ANTES del primer await/yield — un rebuild con el generator suspendido
-/// desmonta el ref y un `ref.watch` tardío lanza UnmountedRefException. Los
-/// eventos que llegan durante el GET inicial quedan bufferizados en el
-/// controller single-subscription.
+/// * El rid viene de [ridActivoProvider] (claims del staff / selección del
+///   super) — NUNCA de un input libre del usuario (Pitfall 4: TODA query
+///   lleva `where restauranteId == rid`; las rules re-evalúan por-doc).
+/// * Watches ANTES del primer await (lección 07-03, riverpod-3-safe).
 @riverpod
 Stream<List<Mesa>> mesas(Ref ref) async* {
-  final user = ref.watch(authStateProvider).value;
-  final selectedRid = ref.watch(currentRestauranteIdProvider);
-  final rid = selectedRid ?? user?.restaurantId;
+  final db = ref.watch(firestoreProvider);
+  final rid = await ref.watch(ridActivoProvider.future);
 
   if (rid == null) {
-    yield* const Stream<List<Mesa>>.empty();
+    // super_admin sin restaurante elegido: mapa vacío hasta la selección.
+    yield const <Mesa>[];
     return;
   }
 
-  final queryRid = user?.isSuperAdmin == true ? rid : null;
-  final client = ref.read(apiClientProvider);
+  yield* db
+      .collection('mesas')
+      .where('restauranteId', isEqualTo: rid)
+      .orderBy('numero')
+      .snapshots()
+      .map((snap) => [for (final doc in snap.docs) Mesa.fromDoc(doc)]);
+}
 
-  // Suscripciones y teardown REGISTRADAS ANTES del primer await (gotcha
-  // riverpod 3.4 post-await). El controller single-subscription bufferiza
-  // los refresh que lleguen mientras se entrega el snapshot inicial.
-  final controller = StreamController<List<Mesa>>();
-  Future<void> refresh() async {
-    try {
-      final mesas = await client.getMesas(restauranteId: queryRid);
-      if (!controller.isClosed) controller.add(mesas);
-    } catch (e) {
-      // No romper el stream: el error va al AsyncValue y el próximo
-      // evento/tick puede recuperar.
-      if (!controller.isClosed) controller.addError(e);
-    }
-  }
+/// Cambio de estado de una mesa desde el mapa operacional (ADMN-04).
+///
+/// 1. [validarTransicion] de la máquina `mesa` ANTES de escribir — un
+///    salto inválido (p.ej. ocupada→disponible) lanza
+///    [TransicionInvalidaException] SIN tocar el doc (barrera
+///    client-side de lo que las rules re-fuerzan con `transMesa`).
+/// 2. Update de SOLO `{estado, updatedAt}` — jamás toca el resto del doc.
+Future<void> cambiarEstadoMesa(
+  FirebaseFirestore db, {
+  required Mesa mesa,
+  required String destino,
+}) async {
+  validarTransicion('mesa', mesa.estado.name, destino);
 
-  // 1) Evento WS relevante → kick-to-refetch (NO mutar estado local).
-  final sub1 = ref
-      .watch(wsEventsProvider)
-      .where((e) => e.type == 'mesa.estado')
-      .listen((_) => refresh());
-  // 2) Reconexión restablecida → re-sync total (RT-03).
-  final sub2 = ref.watch(wsResyncProvider).listen((_) => refresh());
-  // 3) Safety net: polling lento 60s (cubre bugs de WS; barato).
-  final timer = Timer.periodic(
-    Duration(seconds: Env.pollSafetyNetSeconds),
-    (_) => refresh(),
-  );
-
-  ref.onDispose(() {
-    sub1.cancel();
-    sub2.cancel();
-    timer.cancel();
-    controller.close();
+  await db.doc('mesas/${mesa.id}').update(<String, dynamic>{
+    'estado': destino,
+    'updatedAt': FieldValue.serverTimestamp(),
   });
-
-  // Snapshot inicial (re-sync de RT-03: estado autoritativo al montar).
-  yield await client.getMesas(restauranteId: queryRid);
-  yield* controller.stream;
 }

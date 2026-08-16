@@ -1,26 +1,17 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/api_client.dart';
-import '../../core/token_provider.dart';
+import '../../core/firebase_providers.dart';
+import '../../core/state_machines.dart';
 import '../../models/mesa.dart';
-import '../dashboard/restaurante_provider.dart';
+import '../dashboard/mesas_provider.dart';
 import 'mesa_form_dialog.dart';
 import 'qr_dialog.dart';
 
-/// Espejo client-side de `MESA_TRANSITIONS` (backend
-/// `app/core/state_machines.py` — única fuente de verdad es el server).
-///
-/// La UI ofrece SOLO los destinos válidos para el estado actual (UX), pero
-/// el 409 del backend SIEMPRE se maneja: la carrera entre dos staff la
-/// gana el server (ver [_cambiarEstado]).
-const kMesaTransitions = <String, Set<String>>{
-  'disponible': {'reservada', 'ocupada'},
-  'reservada': {'ocupada', 'disponible'},
-  'ocupada': {'limpieza'},
-  'limpieza': {'disponible'},
-};
+/// Alias de la tabla `mesa` de [state_machines] — única fuente client-side
+/// de destinos válidos (port 1:1 de MESA_TRANSITIONS; las rules re-validan
+/// server-side — doble barrera del threat model).
+const kMesaTransitions = mesaTransitions;
 
 /// Labels de negocio por (origen, destino) — el staff nunca ve nombres
 /// crudos de estado salvo en el header del sheet.
@@ -145,10 +136,14 @@ class _MesaActionsSheet extends StatelessWidget {
   }
 }
 
-/// `POST /staff/mesas/{id}/estado` + feedback. El server es la autoridad:
-/// 409 = la transición ya no era válida (otro staff la movió primero) →
-/// SnackBar y la lista se refresca sola por el evento WS `mesa.estado`
-/// (kick-to-refetch del backend — JAMÁS se muta estado local).
+/// Update del estado de la mesa en Firestore + feedback. La mutación
+/// valida la transición ANTES de escribir (`cambiarEstadoMesa` —
+/// [validarTransicion]) y toca SOLO `{estado, updatedAt}`; las rules
+/// re-fuerzan `transMesa` — doble barrera.
+///
+/// [TransicionInvalidaException] = la mesa ya cambió (otro staff la movió
+/// primero) → SnackBar y el mapa se refresca SOLO por el onSnapshot
+/// (JAMÁS se muta estado local).
 Future<void> _cambiarEstado(
   BuildContext context,
   WidgetRef ref,
@@ -157,32 +152,27 @@ Future<void> _cambiarEstado(
 ) async {
   // Capturas síncronas ANTES del await (patrón cocina_screen).
   final messenger = ScaffoldMessenger.maybeOf(context);
-  final user = ref.read(authStateProvider).value;
-  final rid = ref.read(currentRestauranteIdProvider) ?? user?.restaurantId;
-  final queryRid = user?.isSuperAdmin == true ? rid : null;
-  final client = ref.read(apiClientProvider);
+  final db = ref.read(firestoreProvider);
 
   // Cerrar el sheet primero: el feedback (SnackBar) vive en la pantalla.
   Navigator.of(context).pop();
 
   try {
-    await client.setMesaEstado(mesa.id, destino, restauranteId: queryRid);
+    await cambiarEstadoMesa(db, mesa: mesa, destino: destino);
     messenger?.showSnackBar(
       SnackBar(
         content: Text('Mesa ${mesa.numero} → $destino'),
         duration: const Duration(seconds: 3),
       ),
     );
-  } on DioException catch (e) {
+  } on TransicionInvalidaException {
     messenger?.showSnackBar(
-      SnackBar(
+      const SnackBar(
         content: Text(
-          e.response?.statusCode == 409
-              ? 'La mesa cambió de estado (otro usuario la actualizó) '
-                  '— se refrescó la lista'
-              : 'No se pudo actualizar la mesa',
+          'La mesa cambió de estado (otro usuario la actualizó) '
+          '— se refrescó la lista',
         ),
-        duration: const Duration(seconds: 3),
+        duration: Duration(seconds: 3),
       ),
     );
   } catch (_) {
@@ -193,6 +183,6 @@ Future<void> _cambiarEstado(
       ),
     );
   }
-  // Sin invalidate local: el evento WS `mesa.estado` (emitido post-commit
-  // por el backend) dispara el kick-to-refetch del mesasProvider.
+  // Sin invalidate local: el onSnapshot del mesasProvider actualiza el
+  // mapa EN VIVO (MIGRA-05).
 }

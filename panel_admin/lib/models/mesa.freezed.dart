@@ -16,7 +16,9 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Mesa {
 
- int get id; int get numero; int get capacidad;@JsonKey(name: 'codigo_qr') String get codigoQr;@JsonKey(fromJson: estadoMesaFromJson) EstadoMesa get estado;
+/// Doc ID = código QR (ej. `GRI-MESA-demo-001`).
+ String get id;/// Tenant de la mesa — TODA query del panel filtra por el rid de claims.
+ String get restauranteId; int get numero; int get capacidad;@JsonKey(fromJson: estadoMesaFromJson) EstadoMesa get estado; DateTime? get updatedAt;
 /// Create a copy of Mesa
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +31,16 @@ $MesaCopyWith<Mesa> get copyWith => _$MesaCopyWithImpl<Mesa>(this as Mesa, _$ide
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Mesa&&(identical(other.id, id) || other.id == id)&&(identical(other.numero, numero) || other.numero == numero)&&(identical(other.capacidad, capacidad) || other.capacidad == capacidad)&&(identical(other.codigoQr, codigoQr) || other.codigoQr == codigoQr)&&(identical(other.estado, estado) || other.estado == estado));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Mesa&&(identical(other.id, id) || other.id == id)&&(identical(other.restauranteId, restauranteId) || other.restauranteId == restauranteId)&&(identical(other.numero, numero) || other.numero == numero)&&(identical(other.capacidad, capacidad) || other.capacidad == capacidad)&&(identical(other.estado, estado) || other.estado == estado)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,numero,capacidad,codigoQr,estado);
+int get hashCode => Object.hash(runtimeType,id,restauranteId,numero,capacidad,estado,updatedAt);
 
 @override
 String toString() {
-  return 'Mesa(id: $id, numero: $numero, capacidad: $capacidad, codigoQr: $codigoQr, estado: $estado)';
+  return 'Mesa(id: $id, restauranteId: $restauranteId, numero: $numero, capacidad: $capacidad, estado: $estado, updatedAt: $updatedAt)';
 }
 
 
@@ -49,7 +51,7 @@ abstract mixin class $MesaCopyWith<$Res>  {
   factory $MesaCopyWith(Mesa value, $Res Function(Mesa) _then) = _$MesaCopyWithImpl;
 @useResult
 $Res call({
- int id, int numero, int capacidad,@JsonKey(name: 'codigo_qr') String codigoQr,@JsonKey(fromJson: estadoMesaFromJson) EstadoMesa estado
+ String id, String restauranteId, int numero, int capacidad,@JsonKey(fromJson: estadoMesaFromJson) EstadoMesa estado, DateTime? updatedAt
 });
 
 
@@ -66,14 +68,15 @@ class _$MesaCopyWithImpl<$Res>
 
 /// Create a copy of Mesa
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? numero = null,Object? capacidad = null,Object? codigoQr = null,Object? estado = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? restauranteId = null,Object? numero = null,Object? capacidad = null,Object? estado = null,Object? updatedAt = freezed,}) {
   return _then(Mesa(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,numero: null == numero ? _self.numero : numero // ignore: cast_nullable_to_non_nullable
+as String,restauranteId: null == restauranteId ? _self.restauranteId : restauranteId // ignore: cast_nullable_to_non_nullable
+as String,numero: null == numero ? _self.numero : numero // ignore: cast_nullable_to_non_nullable
 as int,capacidad: null == capacidad ? _self.capacidad : capacidad // ignore: cast_nullable_to_non_nullable
-as int,codigoQr: null == codigoQr ? _self.codigoQr : codigoQr // ignore: cast_nullable_to_non_nullable
-as String,estado: null == estado ? _self.estado : estado // ignore: cast_nullable_to_non_nullable
-as EstadoMesa,
+as int,estado: null == estado ? _self.estado : estado // ignore: cast_nullable_to_non_nullable
+as EstadoMesa,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
   ));
 }
 
@@ -158,10 +161,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  int numero,  int capacidad, @JsonKey(name: 'codigo_qr')  String codigoQr, @JsonKey(fromJson: estadoMesaFromJson)  EstadoMesa estado)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String restauranteId,  int numero,  int capacidad, @JsonKey(fromJson: estadoMesaFromJson)  EstadoMesa estado,  DateTime? updatedAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Mesa() when $default != null:
-return $default(_that.id,_that.numero,_that.capacidad,_that.codigoQr,_that.estado);case _:
+return $default(_that.id,_that.restauranteId,_that.numero,_that.capacidad,_that.estado,_that.updatedAt);case _:
   return orElse();
 
 }
@@ -179,10 +182,10 @@ return $default(_that.id,_that.numero,_that.capacidad,_that.codigoQr,_that.estad
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  int numero,  int capacidad, @JsonKey(name: 'codigo_qr')  String codigoQr, @JsonKey(fromJson: estadoMesaFromJson)  EstadoMesa estado)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String restauranteId,  int numero,  int capacidad, @JsonKey(fromJson: estadoMesaFromJson)  EstadoMesa estado,  DateTime? updatedAt)  $default,) {final _that = this;
 switch (_that) {
 case _Mesa():
-return $default(_that.id,_that.numero,_that.capacidad,_that.codigoQr,_that.estado);case _:
+return $default(_that.id,_that.restauranteId,_that.numero,_that.capacidad,_that.estado,_that.updatedAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -199,10 +202,10 @@ return $default(_that.id,_that.numero,_that.capacidad,_that.codigoQr,_that.estad
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  int numero,  int capacidad, @JsonKey(name: 'codigo_qr')  String codigoQr, @JsonKey(fromJson: estadoMesaFromJson)  EstadoMesa estado)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String restauranteId,  int numero,  int capacidad, @JsonKey(fromJson: estadoMesaFromJson)  EstadoMesa estado,  DateTime? updatedAt)?  $default,) {final _that = this;
 switch (_that) {
 case _Mesa() when $default != null:
-return $default(_that.id,_that.numero,_that.capacidad,_that.codigoQr,_that.estado);case _:
+return $default(_that.id,_that.restauranteId,_that.numero,_that.capacidad,_that.estado,_that.updatedAt);case _:
   return null;
 
 }
@@ -213,15 +216,18 @@ return $default(_that.id,_that.numero,_that.capacidad,_that.codigoQr,_that.estad
 /// @nodoc
 @JsonSerializable()
 
-class _Mesa implements Mesa {
-  const _Mesa({required this.id, required this.numero, required this.capacidad, @JsonKey(name: 'codigo_qr') required this.codigoQr, @JsonKey(fromJson: estadoMesaFromJson) required this.estado});
+class _Mesa extends Mesa {
+  const _Mesa({required this.id, this.restauranteId = '', required this.numero, required this.capacidad, @JsonKey(fromJson: estadoMesaFromJson) required this.estado, this.updatedAt}): super._();
   factory _Mesa.fromJson(Map<String, dynamic> json) => _$MesaFromJson(json);
 
-@override final  int id;
+/// Doc ID = código QR (ej. `GRI-MESA-demo-001`).
+@override final  String id;
+/// Tenant de la mesa — TODA query del panel filtra por el rid de claims.
+@override@JsonKey() final  String restauranteId;
 @override final  int numero;
 @override final  int capacidad;
-@override@JsonKey(name: 'codigo_qr') final  String codigoQr;
 @override@JsonKey(fromJson: estadoMesaFromJson) final  EstadoMesa estado;
+@override final  DateTime? updatedAt;
 
 /// Create a copy of Mesa
 /// with the given fields replaced by the non-null parameter values.
@@ -236,16 +242,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Mesa&&(identical(other.id, id) || other.id == id)&&(identical(other.numero, numero) || other.numero == numero)&&(identical(other.capacidad, capacidad) || other.capacidad == capacidad)&&(identical(other.codigoQr, codigoQr) || other.codigoQr == codigoQr)&&(identical(other.estado, estado) || other.estado == estado));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Mesa&&(identical(other.id, id) || other.id == id)&&(identical(other.restauranteId, restauranteId) || other.restauranteId == restauranteId)&&(identical(other.numero, numero) || other.numero == numero)&&(identical(other.capacidad, capacidad) || other.capacidad == capacidad)&&(identical(other.estado, estado) || other.estado == estado)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,numero,capacidad,codigoQr,estado);
+int get hashCode => Object.hash(runtimeType,id,restauranteId,numero,capacidad,estado,updatedAt);
 
 @override
 String toString() {
-  return 'Mesa(id: $id, numero: $numero, capacidad: $capacidad, codigoQr: $codigoQr, estado: $estado)';
+  return 'Mesa(id: $id, restauranteId: $restauranteId, numero: $numero, capacidad: $capacidad, estado: $estado, updatedAt: $updatedAt)';
 }
 
 
@@ -256,7 +262,7 @@ abstract mixin class _$MesaCopyWith<$Res> implements $MesaCopyWith<$Res> {
   factory _$MesaCopyWith(_Mesa value, $Res Function(_Mesa) _then) = __$MesaCopyWithImpl;
 @override @useResult
 $Res call({
- int id, int numero, int capacidad,@JsonKey(name: 'codigo_qr') String codigoQr,@JsonKey(fromJson: estadoMesaFromJson) EstadoMesa estado
+ String id, String restauranteId, int numero, int capacidad,@JsonKey(fromJson: estadoMesaFromJson) EstadoMesa estado, DateTime? updatedAt
 });
 
 
@@ -273,14 +279,15 @@ class __$MesaCopyWithImpl<$Res>
 
 /// Create a copy of Mesa
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? numero = null,Object? capacidad = null,Object? codigoQr = null,Object? estado = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? restauranteId = null,Object? numero = null,Object? capacidad = null,Object? estado = null,Object? updatedAt = freezed,}) {
   return _then(_Mesa(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,numero: null == numero ? _self.numero : numero // ignore: cast_nullable_to_non_nullable
+as String,restauranteId: null == restauranteId ? _self.restauranteId : restauranteId // ignore: cast_nullable_to_non_nullable
+as String,numero: null == numero ? _self.numero : numero // ignore: cast_nullable_to_non_nullable
 as int,capacidad: null == capacidad ? _self.capacidad : capacidad // ignore: cast_nullable_to_non_nullable
-as int,codigoQr: null == codigoQr ? _self.codigoQr : codigoQr // ignore: cast_nullable_to_non_nullable
-as String,estado: null == estado ? _self.estado : estado // ignore: cast_nullable_to_non_nullable
-as EstadoMesa,
+as int,estado: null == estado ? _self.estado : estado // ignore: cast_nullable_to_non_nullable
+as EstadoMesa,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
   ));
 }
 
