@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
-import '../../core/token_provider.dart';
+import '../auth/auth_controller.dart';
 import 'perfil_controller.dart';
 
 /// Tab Perfil (AUTH-05) — muestra y edita el perfil del cliente:
 /// * nombre editable,
-/// * email DISABLED (immutable server-side),
-/// * password opcional (vacía = no cambiar),
+/// * email DISABLED (immutable — se cambia desde Auth, no acá),
+/// * password opcional (vacía = no cambiar; para cambiarla pide la actual),
 /// * cerrar sesión.
 class PerfilScreen extends ConsumerStatefulWidget {
   const PerfilScreen({super.key});
@@ -20,17 +20,19 @@ class PerfilScreen extends ConsumerStatefulWidget {
 class _PerfilScreenState extends ConsumerState<PerfilScreen> {
   final _nombreCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
+  final _passActualCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
 
-  /// El nombre/email se sincronizan UNA vez que el user está disponible (en
-  /// producción el redirect ya garantiza AsyncData(User); el flag evita
-  /// pisar ediciones del usuario en rebuilds posteriores).
+  /// El nombre/email se sincronizan UNA vez que el perfil está disponible
+  /// (en producción el redirect ya garantiza sesión; el flag evita pisar
+  /// ediciones del usuario en rebuilds posteriores).
   bool _synced = false;
 
   @override
   void dispose() {
     _nombreCtrl.dispose();
     _emailCtrl.dispose();
+    _passActualCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
   }
@@ -39,7 +41,15 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
     try {
       await ref
           .read(perfilControllerProvider.notifier)
-          .updatePerfil(_nombreCtrl.text, _passCtrl.text);
+          .actualizarNombre(_nombreCtrl.text);
+      // Password: solo si el user escribió una nueva (vacía = no cambiar).
+      final nueva = _passCtrl.text;
+      if (nueva.isNotEmpty) {
+        await ref
+            .read(perfilControllerProvider.notifier)
+            .cambiarPassword(_passActualCtrl.text, nueva);
+      }
+      _passActualCtrl.clear();
       _passCtrl.clear();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -61,18 +71,18 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
   }
 
   Future<void> _logout() async {
-    await ref.read(authStateProvider.notifier).logout();
+    await ref.read(logoutControllerProvider.notifier).logout();
     // El refreshListenable del GoRouter redirige a /login solo.
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(authStateProvider).value;
+    final perfil = ref.watch(perfilProvider).value;
     final saving = ref.watch(perfilControllerProvider).isLoading;
 
-    if (user != null && !_synced) {
-      _nombreCtrl.text = user.nombre;
-      _emailCtrl.text = user.email;
+    if (perfil != null && !_synced) {
+      _nombreCtrl.text = perfil.nombre;
+      _emailCtrl.text = perfil.email;
       _synced = true;
     }
 
@@ -112,6 +122,18 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                     labelText: 'Email (no editable)',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  key: const ValueKey('perfil-pass-actual'),
+                  controller: _passActualCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Contraseña actual',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lock_outline),
+                    helperText: 'Solo si vas a cambiar la contraseña',
                   ),
                 ),
                 const SizedBox(height: 16),

@@ -62,6 +62,9 @@ dev_dependencies:
   # `flutter test`; ver research "Alternatives Considered").
   fake_cloud_firestore: 4.2.0
   firebase_auth_mocks: 0.15.2
+  # Helper de throws de los mocks (whenCalling) — transitive de
+  # firebase_auth_mocks; directo para importarlo en tests sin lint.
+  mock_exceptions: ^0.8.2
 
 flutter:
   uses-material-design: true

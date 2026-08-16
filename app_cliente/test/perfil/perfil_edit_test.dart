@@ -1,44 +1,41 @@
+// Tests del perfil sobre Firebase (10-02 Task 3): perfilProvider lee
+// usuarios/{uid}; actualizarNombre toca SOLO 'nombre' (assert de keys —
+// rules congelan el resto); cambiarPassword mapea wrong-password.
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gri_cliente/core/api_client.dart';
-import 'package:gri_cliente/core/token_provider.dart';
+import 'package:gri_cliente/core/firebase_providers.dart';
+import 'package:gri_cliente/features/perfil/perfil_controller.dart';
 import 'package:gri_cliente/features/perfil/perfil_screen.dart';
-import 'package:gri_cliente/models/user.dart';
+import 'package:mock_exceptions/mock_exceptions.dart';
 
-/// Tests del perfil (AUTH-05 UI): muestra User, email immutable, Guardar
-/// invoca al controller con el nombre nuevo (fake ApiClient graba la call).
+import '../helpers/firebase_fakes.dart';
 
-class _RecordingApiClient extends ApiClient {
-  final List<({String nombre, String? password})> updateCalls = [];
+const _uid = 'test-uid';
 
-  @override
-  Future<User> updatePerfil({required String nombre, String? password}) async {
-    updateCalls.add((nombre: nombre, password: password));
-    return _user.copyWith(nombre: nombre);
-  }
-}
+/// Doc espejo igual al que escribe el registro/seed.
+///
+/// [uid] parametrizable: mock_exceptions registra los throws en un mapa
+/// GLOBAL claveado por == y MockUser usa EquatableMixin (== por VALOR) —
+/// los tests que registran un throw usan un uid DISTINTO para no
+/// contaminar a los users "value-igual" de los demás tests.
+Future<void> _sembrarUsuario(FakeFirebaseFirestore db, [String uid = _uid]) =>
+    db.collection('usuarios').doc(uid).set({
+      'nombre': 'Carlos Pérez',
+      'email': 'carlos@demo.gri.dev',
+      'role': 'cliente',
+      'restauranteId': null,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
 
-const _user = User(
-  id: 5,
-  nombre: 'Carlos Pérez',
-  email: 'carlos@demo.gri.dev',
-  role: 'cliente',
-  restaurantId: null,
-);
-
-/// Fake del AuthState — siempre logueado como [_user] (class-based provider
-/// → se overrida con overrideWith, no overrideWithValue).
-class _FakeAuthState extends AuthState {
-  @override
-  Future<User?> build() async => _user;
-}
-
-Widget _wrap({required ApiClient client}) {
+Widget _wrap({required FirebaseAuth auth, required FirebaseFirestore db}) {
   return ProviderScope(
     overrides: [
-      apiClientProvider.overrideWithValue(client),
-      authStateProvider.overrideWith(_FakeAuthState.new),
+      firebaseAuthProvider.overrideWithValue(auth),
+      firestoreProvider.overrideWithValue(db),
     ],
     // Scaffold: en producción lo provee el AppShell; el SnackBar del
     // guardado necesita uno en el árbol del test.
@@ -47,48 +44,136 @@ Widget _wrap({required ApiClient client}) {
 }
 
 void main() {
-  testWidgets('muestra nombre y email del User', (tester) async {
-    await tester.pumpWidget(_wrap(client: _RecordingApiClient()));
+  // ── UI: render + edición ──────────────────────────────────────────────
+
+  testWidgets('muestra nombre y email del perfil (usuarios/{uid})',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db);
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: _uid);
+
+    await tester.pumpWidget(_wrap(auth: auth, db: db));
     await tester.pumpAndSettle();
 
     expect(find.text('Carlos Pérez'), findsOneWidget);
     expect(find.text('carlos@demo.gri.dev'), findsOneWidget);
   });
 
-  testWidgets('email disabled; nombre editable', (tester) async {
-    await tester.pumpWidget(_wrap(client: _RecordingApiClient()));
-    await tester.pumpAndSettle();
-
-    final fields = find.byType(TextFormField).evaluate();
-    final nombreField = tester.widget<TextFormField>(find.byType(TextFormField).at(0));
-    final emailField = tester.widget<TextFormField>(find.byType(TextFormField).at(1));
-
-    expect(emailField.enabled, isFalse,
-        reason: 'email es immutable server-side — SIEMPRE disabled');
-    expect(nombreField.enabled, isTrue);
-
-    // Editar el nombre funciona.
-    await tester.enterText(find.byType(TextFormField).at(0), 'Carlitos');
-    await tester.pump();
-    expect(find.text('Carlitos'), findsOneWidget);
-    expect(fields.length, greaterThanOrEqualTo(2));
-  });
-
-  testWidgets('Guardar llama al controller con el nombre nuevo',
+  testWidgets('Guardar actualiza el nombre tocando SOLO ese campo',
       (tester) async {
-    final client = _RecordingApiClient();
-    await tester.pumpWidget(_wrap(client: client));
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db);
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: _uid);
+
+    await tester.pumpWidget(_wrap(auth: auth, db: db));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextFormField).at(0), 'Carlitos Rey');
-    await tester.pump();
+    await tester.enterText(
+        find.byKey(const ValueKey('perfil-nombre')), 'Carlitos Rey');
     await tester.tap(find.text('Guardar'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(client.updateCalls, hasLength(1));
-    expect(client.updateCalls.first.nombre, 'Carlitos Rey');
-    expect(client.updateCalls.first.password, isNull,
-        reason: 'password vacía → no se envía (no cambia)');
+    // El doc quedó con el nombre nuevo y las demás keys INTACTAS
+    // (rules: update solo puede tocar 'nombre').
+    final doc = await db.collection('usuarios').doc(_uid).get();
+    final data = doc.data()!;
+    expect(data['nombre'], 'Carlitos Rey');
+    expect(data['email'], 'carlos@demo.gri.dev');
+    expect(data['role'], 'cliente');
+    expect(data['restauranteId'], isNull);
+    expect(data.keys,
+        unorderedEquals(['nombre', 'email', 'role', 'restauranteId', 'createdAt']));
+
+    expect(find.text('Perfil actualizado ✅'), findsOneWidget);
+  });
+
+  testWidgets('password actual incorrecta → mensaje mapeado en snackbar',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db, 'uid-wrong-pass');
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: 'uid-wrong-pass');
+    // El re-auth del mock rechaza la credencial con wrong-password.
+    whenCalling(Invocation.method(#reauthenticateWithCredential, null))
+        .on(auth.currentUser!)
+        .thenThrow(FirebaseAuthException(code: 'wrong-password'));
+
+    await tester.pumpWidget(_wrap(auth: auth, db: db));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+        find.byKey(const ValueKey('perfil-pass-actual')), 'Incorrecta!9');
+    await tester.enterText(
+        find.byKey(const ValueKey('perfil-password')), 'NuevaPass!23');
+    await tester.tap(find.text('Guardar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Contraseña actual incorrecta'), findsOneWidget);
+  });
+
+  // ── Controller: unidad ────────────────────────────────────────────────
+
+  test('cambiarPassword con actual incorrecta → Contraseña actual incorrecta',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db, 'uid-wrong-pass');
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: 'uid-wrong-pass');
+    whenCalling(Invocation.method(#reauthenticateWithCredential, null))
+        .on(auth.currentUser!)
+        .thenThrow(FirebaseAuthException(code: 'wrong-password'));
+
+    final container = ProviderContainer(overrides: [
+      firebaseAuthProvider.overrideWithValue(auth),
+      firestoreProvider.overrideWithValue(db),
+    ]);
+    addTearDown(container.dispose);
+
+    await expectLater(
+      container.read(perfilControllerProvider.notifier).cambiarPassword(
+            'Incorrecta!9',
+            'NuevaPass!23',
+          ),
+      throwsA(isA<StateError>().having(
+          (e) => e.message, 'message', 'Contraseña actual incorrecta')),
+    );
+  });
+
+  test('cambiarPassword re-autentica y actualiza (happy path)', () async {
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db);
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: _uid);
+
+    final container = ProviderContainer(overrides: [
+      firebaseAuthProvider.overrideWithValue(auth),
+      firestoreProvider.overrideWithValue(db),
+    ]);
+    addTearDown(container.dispose);
+
+    final ok = await container
+        .read(perfilControllerProvider.notifier)
+        .cambiarPassword('Demo!1234', 'NuevaPass!23');
+    expect(ok, isTrue);
+  });
+
+  test('nueva password < 8 → validación local ArgumentError', () async {
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db);
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: _uid);
+
+    final container = ProviderContainer(overrides: [
+      firebaseAuthProvider.overrideWithValue(auth),
+      firestoreProvider.overrideWithValue(db),
+    ]);
+    addTearDown(container.dispose);
+
+    // La validación local corre ANTES de tocar el SDK (orden del código):
+    // corta con ArgumentError sin re-auth.
+    await expectLater(
+      container
+          .read(perfilControllerProvider.notifier)
+          .cambiarPassword('Demo!1234', 'corta'),
+      throwsA(isA<ArgumentError>()),
+    );
   });
 }

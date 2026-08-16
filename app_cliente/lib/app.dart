@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/theme.dart';
-import 'core/token_provider.dart';
+import 'features/auth/auth_controller.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/register_screen.dart';
 import 'features/pedidos/menu_mesa_screen.dart';
@@ -21,7 +21,8 @@ import 'features/shared/app_shell.dart';
 /// GoRouter con auth guard + navegación inferior de 4 tabs.
 ///
 /// * `refreshListenable`: ValueNotifier que se incrementa en cada cambio del
-///   authState (login/logout/session-expired) → el redirect se re-evalúa.
+///   authState (stream de FirebaseAuth — login/logout/restauración de
+///   sesión persistida) → el redirect se re-evalúa.
 /// * [StatefulShellRoute.indexedStack]: 4 branches hermanas (Inicio /
 ///   Restaurantes / Reservas / Perfil) — cada tab preserva su propio estado
 ///   (scroll, datos cargados) al switchear. Es la solución oficial de
@@ -38,8 +39,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/inicio',
     refreshListenable: routerNotifier,
     redirect: (context, state) {
-      // Solo AsyncData con User no-null está "logueado" — isLoading y
-      // AsyncError se tratan como no logueado (misma defensa que el panel).
+      // Solo AsyncData con User no-null está "logueado" — isLoading (sesión
+      // persistida restaurándose) y AsyncError se tratan como no logueado
+      // (misma defensa que el panel).
       final loggedIn = ref.read(authStateProvider).value != null;
       final onAuth = state.matchedLocation.startsWith('/login') ||
           state.matchedLocation.startsWith('/register');
