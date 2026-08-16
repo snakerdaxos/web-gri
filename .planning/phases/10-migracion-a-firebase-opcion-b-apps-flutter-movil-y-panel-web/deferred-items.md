@@ -1,25 +1,21 @@
 # Deferred Items — Phase 10
 
-> Hallazgos fuera de scope descubiertos durante la ejecución. NO corregir
-> inline: pertenecen a los waves/plans indicados.
+## Índices Firestore no definidos en 10-01 (detectados en 10-03)
 
-## 1. Panel admin: pantalla "Clientes" no puede listar `usuarios/`
+10-03 resolvió con orden/filtro **client-side** (resultado idéntico, N chico por restaurante).
+Si el volumen crece y se quiere server-side, agregar a `firestore.indexes.json`:
 
-- **Encontrado en:** 10-01 Task 1 (diseño de rules)
-- **Issue:** `match /usuarios/{uid}` permite read solo a self o super_admin
-  (privacidad de emails). El panel (features/clientes) no podrá hacer query
-  sobre `usuarios/` con rol admin_restaurante — además los clientes son
-  cross-tenant (`restauranteId: null`), así que no hay key por la que
-  filtrarlos por restaurante.
-- **Sugerencia (wave panel):** derivar la lista de clientes del stream de
-  `pedidos where restauranteId == rid` (campos denormalizados `usuarioId` +
-  `clienteNombre`), o ampliar rules si se decide otra política de privacidad.
-- **Owner:** plan del panel (10-05/10-06 según numeración final).
+- `categorias(restauranteId ASC, orden ASC)` — para
+  `where('restauranteId').orderBy('orden')` en restauranteDetalle.
+- `mesas(restauranteId ASC, capacidad ASC, numero ASC)` — para
+  `where('restauranteId').where('capacidad', isGreaterThanOrEqualTo: n).orderBy('numero')`
+  en crearReserva (hoy: where+orderBy numero server-side, capacidad client-side).
 
-## 2. Doble corrida del seed contra emuladores pendiente (sin Java)
+Archivos afectados si se migran a server-side:
+`app_cliente/lib/features/restaurantes/restaurantes_provider.dart`,
+`app_cliente/lib/features/reservas/reserva_controller.dart`.
 
-- **Encontrado en:** 10-01 Task 2 (entorno sin JRE)
-- **Issue:** la prueba de idempotencia en vivo (seed ×2 contra emuladores)
-  no pudo ejecutarse — la máquina no tiene Java. Documentada en
-  docs/FIREBASE_SETUP.md §3.
-- **Owner:** gate de verificación de 10-07 (o cualquier máquina con Java 11+).
+## Otros (fuera de scope de 10-03)
+
+- `documentos/google-services.json` y `documentos/sdk.png` aparecen untracked en el
+  repo — decidir si se ignoran o commitean (no son de este plan).
