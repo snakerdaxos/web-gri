@@ -23,6 +23,9 @@ ProviderContainer _container(FakeFirebaseFirestore db) {
       (ref) async => (role: 'admin_restaurante', rid: 'demo'),
     ),
   ]);
+  // Mantener el stream escuchando (autoDispose): los read(.future)
+  // posteriores a cada write ven el valor NUEVO (patrón stats_render_test).
+  container.listen(mesasProvider, (_, _) {});
   addTearDown(container.dispose);
   return container;
 }

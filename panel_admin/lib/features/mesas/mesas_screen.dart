@@ -7,12 +7,12 @@ import '../dashboard/widgets/mesa_tile.dart';
 import 'mesa_actions_sheet.dart';
 import 'mesa_form_dialog.dart';
 
-/// Pantalla /mesas (MESA-01, 08-03) — grid vivo de mesas + alta/edición.
+/// Pantalla /mesas (MESA-01, 10-06) — grid vivo de mesas + alta/edición.
 ///
-/// * Watch del [mesasProvider] EXISTENTE del dashboard (Stream WS con
-///   kick-to-refetch + safety net 60s) — NO se crea un provider nuevo:
-///   crear/editar una mesa emite `mesa.estado` en el backend → este grid
-///   se refresca solo (las mesas nuevas aparecen sin invalidate manual).
+/// * Watch del [mesasProvider] EXISTENTE del dashboard (`mesas where
+///   restauranteId == rid orderBy numero → snapshots()`) — NO se crea un
+///   provider nuevo: crear/editar/eliminar una mesa (mesas_crud) muta los
+///   docs → este grid se refresca solo por el onSnapshot.
 /// * Tap en un tile → [showMesaActionsSheet] con edición habilitada
 ///   (transiciones de estado + Ver QR + Editar mesa).
 /// * FAB 'Nueva mesa' → [MesaFormDialog] en modo crear.

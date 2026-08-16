@@ -1,22 +1,25 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/api_client.dart';
-import '../../core/token_provider.dart';
+import '../../core/firebase_providers.dart';
 import '../../models/mesa.dart';
 import '../dashboard/restaurante_provider.dart';
+import 'mesas_crud.dart';
 
-/// Form crear/editar mesa (MESA-01, 08-03).
+/// Form crear/editar mesa (MESA-01) sobre Firestore (10-06).
 ///
-/// * [mesa] == null → modo crear (`POST /staff/mesas`); si no → editar
-///   (`PATCH /staff/mesas/{id}` con SOLO los campos modificados).
+/// * [mesa] == null → crear ([crearMesa] con doc ID determinista
+///   `GRI-MESA-{rid}-{numero:03d}`); si no → editar ([actualizarMesa]).
 /// * Al editar con un número distinto al original muestra el warning de
-///   regeneración de QR ANTES de guardar (el server regenera el código
-///   determinista — el impreso anterior queda obsoleto).
-/// * Tras éxito: pop + SnackBar. El grid se refresca SOLO por el evento WS
-///   `mesa.estado` (kick-to-refetch) — JAMÁS se invalida ni muta la lista
+///   regeneración de QR ANTES de guardar: el doc ID (= código QR) deriva
+///   del número, así que la mesa se MUEVE a un doc nuevo — el impreso
+///   anterior queda obsoleto.
+/// * [MesaDuplicadaException] (número ya usado) → SnackBar accionable y
+///   el dialog permanece abierto para corregir.
+/// * Tras éxito: pop + SnackBar. El grid se refresca SOLO por el
+///   onSnapshot del `mesasProvider` — JAMÁS se invalida ni muta la lista
 ///   local desde aquí.
+/// * Edición ofrece `Eliminar` (confirmación) → [eliminarMesa].
 class MesaFormDialog extends ConsumerStatefulWidget {
   const MesaFormDialog({super.key, this.mesa});
 
@@ -54,24 +57,32 @@ class _MesaFormDialogState extends ConsumerState<MesaFormDialog> {
 
   bool get _editando => widget.mesa != null;
 
-  /// El número tipeado difiere del original → el server regenerará el QR.
+  /// El número tipeado difiere del original → la mesa se mueve de doc y el
+  /// QR regenera (doc ID determinista).
   bool get _regeneraQr =>
       _editando &&
       (int.tryParse(_numeroCtrl.text.trim()) ?? -1) != widget.mesa!.numero;
 
-  /// Editar sin cambios → nada que enviar (el backend respondería 422
-  /// "Nada que actualizar"): Guardar queda deshabilitado.
+  /// Editar sin cambios → nada que escribir: Guardar queda deshabilitado.
   bool get _sinCambios =>
       _editando &&
       (int.tryParse(_numeroCtrl.text.trim()) ?? -1) == widget.mesa!.numero &&
       (int.tryParse(_capacidadCtrl.text.trim()) ?? -1) ==
           widget.mesa!.capacidad;
 
-  String? _validarPositivo(String? v) {
+  String? _validarNumero(String? v) {
     final n = int.tryParse(v?.trim() ?? '');
     if (v == null || v.trim().isEmpty) return 'Requerido';
     if (n == null) return 'Debe ser un número';
-    if (n <= 0) return 'Debe ser mayor a 0';
+    if (n < 1 || n > 999) return 'Entre 1 y 999';
+    return null;
+  }
+
+  String? _validarCapacidad(String? v) {
+    final n = int.tryParse(v?.trim() ?? '');
+    if (v == null || v.trim().isEmpty) return 'Requerido';
+    if (n == null) return 'Debe ser un número';
+    if (n < 1 || n > 20) return 'Entre 1 y 20';
     return null;
   }
 
@@ -86,33 +97,29 @@ class _MesaFormDialogState extends ConsumerState<MesaFormDialog> {
     // del gap async). El [WidgetRef] también se lee síncrono.
     final messenger = ScaffoldMessenger.maybeOf(context);
     final navigator = Navigator.of(context);
-    final user = ref.read(authStateProvider).value;
-    final rid = ref.read(currentRestauranteIdProvider) ?? user?.restaurantId;
-    final queryRid = user?.isSuperAdmin == true ? rid : null;
-    final client = ref.read(apiClientProvider);
+    final db = ref.read(firestoreProvider);
+    final rid = await ref.read(ridActivoProvider.future);
 
     try {
+      if (rid == null) throw StateError('No hay restaurante seleccionado');
       if (!_editando) {
-        await client.createMesa(numero, capacidad, restauranteId: queryRid);
+        await crearMesa(db, rid: rid, numero: numero, capacidad: capacidad);
       } else {
         final original = widget.mesa!;
-        await client.updateMesa(
-          original.id,
+        await actualizarMesa(
+          db,
+          mesa: original,
+          rid: rid,
           numero: numero != original.numero ? numero : null,
           capacidad: capacidad != original.capacidad ? capacidad : null,
-          restauranteId: queryRid,
         );
       }
-    } on DioException catch (e) {
+    } on MesaDuplicadaException {
       if (mounted) setState(() => _saving = false);
       messenger?.showSnackBar(
-        SnackBar(
-          content: Text(
-            e.response?.statusCode == 409
-                ? 'Ya existe una mesa con ese número'
-                : 'No se pudo guardar la mesa',
-          ),
-          duration: const Duration(seconds: 3),
+        const SnackBar(
+          content: Text('Ya existe una mesa con ese número'),
+          duration: Duration(seconds: 3),
         ),
       );
       return;
@@ -127,12 +134,62 @@ class _MesaFormDialogState extends ConsumerState<MesaFormDialog> {
       return;
     }
 
-    // Éxito: cerrar + confirmar. El refresh del grid llega por el evento WS
-    // (NO invalidar mesasProvider ni mutar listas locales).
+    // Éxito: cerrar + confirmar. El refresh del grid llega por el
+    // onSnapshot del mesasProvider (NO invalidar ni mutar listas locales).
     navigator.pop();
     messenger?.showSnackBar(
       SnackBar(
         content: Text(_editando ? 'Mesa actualizada' : 'Mesa $numero creada'),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _eliminar() async {
+    final mesa = widget.mesa!;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final navigator = Navigator.of(context);
+    final db = ref.read(firestoreProvider);
+
+    // Confirmación explícita: borrar invalida el QR impreso para siempre.
+    final confirmo = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Eliminar mesa ${mesa.numero}?'),
+        content: const Text(
+          'El código QR impreso para esta mesa dejará de funcionar. '
+          'Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmo != true) return;
+
+    try {
+      await eliminarMesa(db, mesaId: mesa.id);
+    } catch (_) {
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo eliminar la mesa'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+    navigator.pop();
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text('Mesa ${mesa.numero} eliminada'),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -157,7 +214,7 @@ class _MesaFormDialogState extends ConsumerState<MesaFormDialog> {
                 ),
                 keyboardType: TextInputType.number,
                 autofocus: !_editando,
-                validator: _validarPositivo,
+                validator: _validarNumero,
               ),
               const SizedBox(height: 14),
               TextFormField(
@@ -167,7 +224,7 @@ class _MesaFormDialogState extends ConsumerState<MesaFormDialog> {
                   hintText: 'Ej: 4',
                 ),
                 keyboardType: TextInputType.number,
-                validator: _validarPositivo,
+                validator: _validarCapacidad,
               ),
               if (_regeneraQr)
                 Padding(
@@ -186,6 +243,12 @@ class _MesaFormDialogState extends ConsumerState<MesaFormDialog> {
         ),
       ),
       actions: [
+        if (_editando)
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: _saving ? null : _eliminar,
+            child: const Text('Eliminar'),
+          ),
         TextButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
           child: const Text('Cancelar'),
