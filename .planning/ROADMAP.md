@@ -204,13 +204,41 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
 
 ### Phase 11: Corrección Crítica y Profesionalización — Bootstrap, Reglas/Índices y Sistema de Diseño
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** GRI arranca desde una base de datos vacía y se comporta como un producto profesional: un super_admin se crea a sí mismo desde el panel, da de alta restaurantes y equipo sin scripts, el menú del cliente y el del panel cargan sin errores de rules ni de índices, y las dos apps son responsive, accesibles y con identidad GRI.
 **Depends on:** Phase 10
-**Plans:** 0 plans
+**Requirements**: ENV-01, DOC-01, FIX-01, FIX-02, TEST-01, TEST-02, BOOT-01, BOOT-02, BOOT-03, BOOT-04, UX-01, UX-02, UX-03, UX-04, DS-01, DS-02, DS-03, E2E-01, E2E-02
+**Success Criteria** (qué debe ser VERDAD):
+  1. Desde un proyecto Firebase vacío, una persona crea el primer super_admin desde `/bootstrap`, da de alta un restaurante con slug válido y su equipo (admin/mesero/cocina) sin tocar la consola ni `serviceAccountKey.json`
+  2. La segunda invocación de la función de bootstrap falla siempre, incluidas 5 llamadas concurrentes, y queda rastro auditable de quién inicializó la plataforma
+  3. Nadie puede asignar el rol `super_admin` por la callable de staff, y un `admin_restaurante` nunca puede crear usuarios de otro `rid` — demostrado con tests unitarios exhaustivos y e2e con tokens reales
+  4. Un cliente ve el menú de un restaurante que tiene productos agotados y categorías inactivas (bug de query vs rules cerrado), y el menú del panel carga sin `FAILED_PRECONDITION` (índice compuesto declarado)
+  5. `firestore.rules` tiene suite automatizada en las 9 colecciones, existen tests de base vacía en ambas apps, y `npm run audit:indexes` falla si una query nueva se queda sin índice
+  6. Los 5 campos de contraseña permiten ver lo escrito, el registro pide confirmación, ninguna lista queda en blanco sin guía y una URL inexistente muestra un 404 propio
+  7. El navegador, el instalador PWA, el ícono y el splash muestran identidad GRI — cero rastros de "A new Flutter project" y del azul `#0175C2`
+  8. 9 de 9 pantallas del panel adaptan al viewport, la app cliente ya no está encajada en 480px fijos, y los dos overflows conocidos están cerrados con test de regresión
+  9. Las pantallas del camino crítico pasan `androidTapTargetGuideline` y `labeledTapTargetGuideline`, y el texto secundario cumple contraste AA
+  10. `npm run gates` deja en verde los 7 gates (2 suites Flutter, 2 analyze, rules, functions, audit de índices) sin bajar de los baselines 91 + 84
+  11. El runbook `docs/SMOKE-E2E-v2.md` recorre los 11 pasos del flujo completo desde base vacía, incluida la verificación de que el QR de mesa es escaneable
+**Notas**: La identidad visual se CONSERVA (naranja `#FF4C05`, layout del mockup) — es trabajo de consistencia, no de rediseño. El plan Blaze solo hace falta para desplegar Cloud Functions, no para emularlas: toda la fase es desarrollable y testeable sin tocar la facturación, y el despliegue queda aislado en un checkpoint humano que absorbe el pendiente de la Fase 10.
+**Plans:** 16 plans en 10 olas
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 11 to break down)
+- [ ] 11-01-PLAN.md — Ola 1: desbloqueo de entorno (Java, `.firebaserc`), scaffold de `functions/`, arnés de tests de rules y CLAUDE.md corregido
+- [ ] 11-02-PLAN.md — Ola 1: fixture de base vacía + regresión de primer arranque en ambas apps, y cliente de Cloud Functions en el panel
+- [ ] 11-03-PLAN.md — Ola 2: bug del menú del cliente (query vs rules) + índice compuesto de `categorias` + audit estático query↔índice
+- [ ] 11-04-PLAN.md — Ola 2: suite de `firestore.rules` del resto de colecciones, con los tres vectores de escalada conocidos
+- [ ] 11-05-PLAN.md — Ola 2: panel — crear restaurante con slug, estado vacío guiado y confirmación al desactivar
+- [ ] 11-06-PLAN.md — Ola 2: ver/ocultar contraseña en los 5 campos + confirmar contraseña en el registro
+- [ ] 11-07-PLAN.md — Ola 3: Cloud Function de bootstrap del primer super_admin (guarda atómica, auditoría) + pantalla `/bootstrap`
+- [ ] 11-08-PLAN.md — Ola 4: callable `crearUsuarioStaff` con la matriz de roles y su combinatoria de escalada
+- [ ] 11-09-PLAN.md — Ola 4: estados vacíos guiados, branding GRI (ícono, splash, manifest, favicon) y 404 en ambas apps
+- [ ] 11-10-PLAN.md — Ola 5: panel — pantalla de equipo adaptativa por rol + regla de lectura acotada al `rid`
+- [ ] 11-11-PLAN.md — Ola 5: tokens de diseño (espaciado, radios, breakpoints), escala tipográfica y colores semánticos
+- [ ] 11-12-PLAN.md — Ola 6: migración 1:1 de hex crudos y estilos duplicados a los tokens + gate anti-regresión
+- [ ] 11-13-PLAN.md — Ola 7: responsive real (shell del cliente, 6 pantallas del panel, grids fluidos, overflows)
+- [ ] 11-14-PLAN.md — Ola 8: accesibilidad (etiquetas, tap targets de 48dp, contraste AA) con gates `meetsGuideline`
+- [ ] 11-15-PLAN.md — Ola 9: runbook `SMOKE-E2E-v2` desde base vacía + `npm run gates` como ejecutor único
+- [ ] 11-16-PLAN.md — Ola 10: runbook de despliegue + CHECKPOINT HUMANO (Blaze, deploy real, smoke contra el proyecto)
 
 ---
 *Coverage: 50/50 requisitos v1 mapeados (PLAT 5, AUTH 5, REST 2, MENU 2, MESA 6, RESV 5, PEDI 6, RT 3, PAGO 4, CALI 2, ADMN 5, REPO 2, INFR 3). Nota: REQUIREMENTS.md decÃƒÂ­a "47 total" por error aritmÃƒÂ©tico; el conteo real de IDs es 50.*
