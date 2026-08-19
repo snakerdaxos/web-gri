@@ -6,6 +6,7 @@ import '../../core/firebase_providers.dart';
 import '../../core/theme.dart';
 import '../dashboard/restaurante_provider.dart';
 import '../dashboard/restaurantes_list_provider.dart';
+import '../equipo/equipo_provider.dart' show rolesQueGestionanEquipo;
 
 /// AppShell completo (Task 3) — sidebar 250px + topbar con nombre restaurante.
 ///
@@ -79,6 +80,14 @@ class _AppShellState extends ConsumerState<AppShell> {
                 width: sidebarWidth,
                 collapsed: collapsed,
                 location: widget.location,
+                // Gating del ítem 'Equipo'. Es CORTESÍA, no seguridad: evita
+                // que un mesero se tropiece con una pantalla que no le sirve.
+                // Quien decide de verdad son las rules y la callable. Mientras
+                // los claims cargan `value` es null y `contains(null)` es
+                // false, así que el ítem NO aparece: mejor que parpadee a que
+                // se le enseñe un instante a quien no debe verlo.
+                puedeGestionarEquipo:
+                    rolesQueGestionanEquipo.contains(claimsAsync.value?.role),
               ),
               Expanded(
                 child: Column(
@@ -124,10 +133,15 @@ class _Sidebar extends StatelessWidget {
     required this.width,
     required this.collapsed,
     required this.location,
+    required this.puedeGestionarEquipo,
   });
 
   final double width;
   final bool collapsed;
+
+  /// El rol del que ha iniciado sesión gestiona personal (`super_admin` o
+  /// `admin_restaurante`) → se pinta el ítem 'Equipo'.
+  final bool puedeGestionarEquipo;
 
   /// Path de la ruta activa ('/' | '/cocina' | …) — deriva el índice activo.
   final String location;
@@ -139,8 +153,15 @@ class _Sidebar extends StatelessWidget {
     ('📅', 'Reservas'),
     ('👥', 'Clientes'),
     ('📊', 'Reportes'),
+    ('🪪', 'Equipo'),
     ('⚙️', 'Configuración'),
   ];
+
+  /// Índice de 'Equipo' en [_items]/[_routes] — el único ítem con visibilidad
+  /// condicionada por rol (11-10). Se filtra al construir la lista, así que
+  /// `_items` y `_routes` siguen siendo paralelos y el índice activo se sigue
+  /// derivando del path, no de la posición visible.
+  static const _iEquipo = 6;
 
   /// Ruta navegable por índice — 7/7 activos (08-05): '📋 Pedidos' abre la
   /// vista cocina (ADMN-05); '🪑 Mesas' la gestión de mesas + QR (08-03);
@@ -155,12 +176,19 @@ class _Sidebar extends StatelessWidget {
     '/reservas',
     '/clientes',
     '/reportes',
+    '/equipo',
     '/configuracion',
   ];
 
   @override
   Widget build(BuildContext context) {
     final activeIndex = _routes.indexOf(location);
+    // Índices VISIBLES para este rol, en orden. Filtrar aquí (y no dentro del
+    // itemBuilder) mantiene el ListView sin huecos.
+    final visibles = <int>[
+      for (var i = 0; i < _items.length; i++)
+        if (i != _iEquipo || puedeGestionarEquipo) i,
+    ];
     return Container(
       width: width,
       color: GriColors.sidebar,
@@ -209,8 +237,9 @@ class _Sidebar extends StatelessWidget {
           // ── Menu ─────────────────────────────────────────────────────────
           Expanded(
             child: ListView.builder(
-              itemCount: _items.length,
-              itemBuilder: (context, i) {
+              itemCount: visibles.length,
+              itemBuilder: (context, pos) {
+                final i = visibles[pos];
                 final item = _items[i];
                 final isActive = i == activeIndex;
                 final route = _routes[i];
@@ -312,6 +341,7 @@ class _TopBar extends ConsumerWidget {
     '/reservas': ('Reservas', 'Reservas del día'),
     '/clientes': ('Clientes', 'Clientes del restaurante'),
     '/reportes': ('Reportes', 'Ventas y platos más vendidos'),
+    '/equipo': ('Equipo', 'Personal con acceso al panel'),
     '/configuracion': ('Configuración', 'Menú y administración'),
   };
 

@@ -10,6 +10,8 @@ import 'features/clientes/clientes_screen.dart';
 import 'features/cocina/cocina_screen.dart';
 import 'features/configuracion/configuracion_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
+import 'features/equipo/equipo_provider.dart' show rolesQueGestionanEquipo;
+import 'features/equipo/equipo_screen.dart';
 import 'features/mesas/mesas_screen.dart';
 import 'features/reportes/reportes_screen.dart';
 import 'features/reservas/reservas_screen.dart';
@@ -24,6 +26,12 @@ import 'features/shared/not_found_screen.dart';
 final goRouterProvider = Provider<GoRouter>((ref) {
   final routerNotifier = ValueNotifier<int>(0);
   ref.listen(authStateChangesProvider, (_, _) => routerNotifier.value++);
+  // También los CLAIMS: el gating de `/equipo` depende del rol, y los claims
+  // se resuelven DESPUÉS del evento de sesión. Sin este listener, un
+  // `admin_restaurante` que abriera /equipo por URL sería evaluado con los
+  // claims todavía en `AsyncLoading` y el redirect no se volvería a ejecutar
+  // al llegar el rol.
+  ref.listen(claimsProvider, (_, _) => routerNotifier.value++);
   ref.onDispose(routerNotifier.dispose);
 
   return GoRouter(
@@ -58,6 +66,20 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       if (!loggedIn) return esPublica ? null : '/login';
       if (state.matchedLocation == '/login') return '/';
+
+      // Gating de `/equipo` por rol. ESTO NO ES SEGURIDAD: es lo que impide
+      // llegar por URL en web (el ítem del sidebar ya está oculto). La
+      // autorización real son `firestore.rules` (listado del equipo acotado al
+      // rid) y la callable `crearUsuarioStaff` (alta), las dos con suite propia
+      // contra emuladores.
+      //
+      // Mientras los claims cargan NO se decide: `.value` es null y expulsar
+      // ahí echaría a un admin legítimo. El `ref.listen(claimsProvider)` de
+      // arriba re-evalúa este redirect en cuanto el rol llega.
+      if (state.matchedLocation == '/equipo') {
+        final rol = ref.read(claimsProvider).value?.role;
+        if (rol != null && !rolesQueGestionanEquipo.contains(rol)) return '/';
+      }
       return null;
     },
     routes: [
@@ -84,6 +106,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/reportes',
             builder: (_, _) => const ReportesScreen(),
+          ),
+          GoRoute(
+            path: '/equipo',
+            builder: (_, _) => const EquipoScreen(),
           ),
           GoRoute(
             path: '/configuracion',
