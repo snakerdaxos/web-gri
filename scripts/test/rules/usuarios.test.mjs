@@ -21,6 +21,8 @@
 // mantener el espejo honesto es defensa en profundidad, no cosmética.
 //
 //   read   : el propio usuario | super_admin
+//            | admin_restaurante cuyo rid == resource.data.restauranteId
+//              (AMPLIADO EN 11-10 — pantalla de gestión de equipo del panel)
 //   create : el propio uid + role == 'cliente' + restauranteId == null
 //   update : el propio uid + hasOnly(['nombre'])
 //   delete : false
@@ -30,22 +32,38 @@
 
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 
 import {
   adminDemo,
+  adminOtro,
   anon,
   cliente,
+  cocina,
   initEnv,
+  mesero,
   sembrar,
   superAdmin,
 } from './_contexts.mjs';
 
 const RID = 'demo';
+const RID_OTRO = 'otro';
 
 const YO = 'uid-cliente'; // uid por defecto de cliente()
 const OTRO_UID = 'uid-cliente-intruso';
 const UID_ADMIN = 'uid-admin-demo'; // uid por defecto de adminDemo()
+const UID_MESERO = 'uid-mesero-demo'; // uid por defecto de mesero()
+const UID_ADMIN_OTRO = 'uid-admin-otro'; // uid por defecto de adminOtro()
 const UID_NUEVO = 'uid-recien-registrado';
 
 const AHORA = new Date('2026-08-19T12:00:00Z');
@@ -88,8 +106,31 @@ describe('firestore.rules — usuarios', () => {
         restauranteId: RID,
         createdAt: AHORA,
       });
+      // Segundo miembro del equipo de `demo`: sin él, la query del equipo
+      // devolvería un solo doc y no distinguiría "lista el equipo" de
+      // "lee su propio perfil".
+      await setDoc(doc(db, 'usuarios', UID_MESERO), {
+        email: 'mesero@demo.com',
+        nombre: 'Mesero Demo',
+        role: 'mesero',
+        restauranteId: RID,
+        createdAt: AHORA,
+      });
+      // Staff de OTRO tenant: el objetivo del cruce de restaurante.
+      await setDoc(doc(db, 'usuarios', UID_ADMIN_OTRO), {
+        email: 'admin@otro.com',
+        nombre: 'Admin Otro',
+        role: 'admin_restaurante',
+        restauranteId: RID_OTRO,
+        createdAt: AHORA,
+      });
     });
   });
+
+  /** La query REAL del panel: `usuarios where restauranteId == <rid>`. */
+  function queryEquipo(db, rid) {
+    return query(collection(db, 'usuarios'), where('restauranteId', '==', rid));
+  }
 
   // --- create: AUTO-REGISTRO — el vector de escalada vertical ----------------
 
@@ -230,21 +271,95 @@ describe('firestore.rules — usuarios', () => {
       await assertSucceeds(getDoc(doc(superAdmin(env), 'usuarios', YO)));
     });
 
-    it('// AMPLIADO EN 11-10 — el ADMIN del restaurante NO puede leer el perfil de su equipo', async () => {
-      // Comportamiento ACTUAL, afirmado a propósito: hoy la regla solo deja
-      // leer el propio doc o todo al super_admin, así que la pantalla de
-      // gestión de equipo del panel NO PUEDE EXISTIR todavía.
+    it('AMPLIADO EN 11-10 — el ADMIN del restaurante SÍ lee el perfil de su equipo', async () => {
+      // CAMBIO DE VEREDICTO CONSCIENTE (plan 11-10). Hasta este plan la regla
+      // solo dejaba leer el propio doc o todo al super_admin, y por eso la
+      // pantalla de gestión de equipo del panel no podía existir. El comentario
+      // que 11-04 dejó aquí (`// AMPLIADO EN 11-10`) señalaba exactamente esto.
       //
-      // El plan 11-10 AMPLIARÁ la regla para que un `admin_restaurante` lea los
-      // perfiles de su propio rid. Cuando eso ocurra, este test debe cambiar de
-      // veredicto **conscientemente** — no es una regresión, es el cambio que
-      // ese plan viene a hacer. La ampliación debe quedar acotada al rid del
-      // llamador (decisión del CONTEXT de la fase).
-      await assertFails(getDoc(doc(adminDemo(env), 'usuarios', YO)));
+      // ⚠️ EL CASO ANTERIOR ERA UN VERDE POR EL MOTIVO EQUIVOCADO ESPERANDO
+      // A OCURRIR: leía `usuarios/YO`, que es un CLIENTE con
+      // `restauranteId: null`. Con la regla ampliada ese `assertFails` SEGUIRÍA
+      // PASANDO (null != 'demo') sin haber ejercitado jamás la ampliación, y
+      // el nombre del test habría mentido. Por eso el caso positivo lee un doc
+      // de STAFF del propio rid, y el negativo del cliente se conserva aparte
+      // como aserción de ACOTAMIENTO (ver el bloque de abajo).
+      await assertSucceeds(getDoc(doc(adminDemo(env), 'usuarios', UID_MESERO)));
     });
 
     it('ANÓNIMO no puede leer ningún perfil', async () => {
       await assertFails(getDoc(doc(anon(env), 'usuarios', YO)));
+    });
+  });
+
+  // --- read del EQUIPO: la ampliación del plan 11-10 --------------------------
+  //
+  // Lo que se concede: `admin_restaurante` lee los docs de `usuarios` cuyo
+  // `restauranteId` sea SU rid. Ni un permiso más. Los casos de abajo prueban
+  // las DOS direcciones: que la lectura legítima funciona y que cada forma de
+  // salirse (sin filtro, otro tenant, otro rol) queda denegada.
+  //
+  // ⚠️ Firestore evalúa las rules contra la CONSULTA, no contra los documentos
+  // devueltos: una query sin el `where('restauranteId', '==', rid)` se deniega
+  // ENTERA aunque todos los docs que devolvería fueran legibles. Ese es el modo
+  // de fallo del bug del menú (11-03) y por eso el provider del panel replica
+  // el filtro (`panel_admin/lib/features/equipo/equipo_provider.dart`).
+
+  describe('read del equipo — acotado al rid del admin llamador (11-10)', () => {
+    it('el ADMIN de demo LISTA su equipo con where restauranteId == demo: PERMITIDO', async () => {
+      await assertSucceeds(getDocs(queryEquipo(adminDemo(env), RID)));
+    });
+
+    it('el ADMIN de demo SIN el where de rid: DENEGADO (la query es all-or-nothing)', async () => {
+      await assertFails(getDocs(collection(adminDemo(env), 'usuarios')));
+    });
+
+    it('el ADMIN de demo con where restauranteId == "otro": DENEGADO (cruce de tenant)', async () => {
+      await assertFails(getDocs(queryEquipo(adminDemo(env), RID_OTRO)));
+    });
+
+    it('el ADMIN de demo leyendo el doc suelto de un usuario de "otro": DENEGADO', async () => {
+      await assertFails(getDoc(doc(adminDemo(env), 'usuarios', UID_ADMIN_OTRO)));
+    });
+
+    it('el ADMIN de OTRO listando el equipo de demo: DENEGADO (la dirección contraria)', async () => {
+      await assertFails(getDocs(queryEquipo(adminOtro(env), RID)));
+    });
+
+    it('ACOTAMIENTO — el ADMIN de demo NO lee el perfil de un CLIENTE (restauranteId null)', async () => {
+      // La ampliación es por `restauranteId == rid()`, no "todo el que pase por
+      // el restaurante": los clientes tienen `restauranteId: null` y siguen
+      // fuera. La lista de clientes del panel se pliega desde `pedidos`
+      // (`clientes_provider.dart`), justamente porque esto está cerrado.
+      await assertFails(getDoc(doc(adminDemo(env), 'usuarios', YO)));
+    });
+
+    it('el MESERO de demo listando el equipo de demo: DENEGADO (solo admin, no todo el staff)', async () => {
+      await assertFails(getDocs(queryEquipo(mesero(env), RID)));
+    });
+
+    it('COCINA de demo listando el equipo de demo: DENEGADO', async () => {
+      await assertFails(getDocs(queryEquipo(cocina(env), RID)));
+    });
+
+    it('el MESERO de demo leyendo el doc suelto de su compañero admin: DENEGADO', async () => {
+      await assertFails(getDoc(doc(mesero(env), 'usuarios', UID_ADMIN)));
+    });
+
+    it('el MESERO sigue leyendo SU PROPIO perfil (no se rompió la rama de siempre)', async () => {
+      await assertSucceeds(getDoc(doc(mesero(env), 'usuarios', UID_MESERO)));
+    });
+
+    it('un CLIENTE no puede listar usuarios ni replicando el filtro', async () => {
+      await assertFails(getDocs(queryEquipo(cliente(env, YO), RID)));
+    });
+
+    it('ANÓNIMO no puede listar usuarios', async () => {
+      await assertFails(getDocs(queryEquipo(anon(env), RID)));
+    });
+
+    it('el SUPER_ADMIN sigue listando usuarios SIN filtro (rama isSuper intacta)', async () => {
+      await assertSucceeds(getDocs(collection(superAdmin(env), 'usuarios')));
     });
   });
 

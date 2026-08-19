@@ -163,7 +163,33 @@ service cloud.firestore {
 
     // ---- usuarios (espejo de perfil — NUNCA autoriza) · 0 access-calls ----
     match /usuarios/{uid} {
-      allow read: if signedIn() && (request.auth.uid == uid || isSuper());
+      // AMPLIADO EN 11-10 (gestión de equipo del panel). Antes: solo el propio
+      // usuario o el super_admin. Sin la tercera rama un `admin_restaurante` no
+      // puede LISTAR su propio equipo y la pantalla /equipo NO PUEDE EXISTIR:
+      // el restaurante seguiría dependiendo de un script con clave de servicio
+      // para saber quién trabaja en él.
+      //
+      // QUÉ CONCEDE, EXACTAMENTE: leer los docs de `usuarios` cuyo
+      // `restauranteId` sea el rid del llamador, y SOLO al rol
+      // `admin_restaurante` — ni mesero ni cocina, que no gestionan personal.
+      // Los CLIENTES quedan fuera por construcción (`restauranteId == null`
+      // nunca iguala a un rid), así que esto no abre el padrón de clientes:
+      // la tabla de clientes del panel se sigue plegando desde `pedidos`.
+      //
+      // ⚠️ LA QUERY DEL PANEL DEBE REPLICAR EL FILTRO. Firestore evalúa las
+      // rules contra la CONSULTA, no contra los documentos devueltos: sin
+      // `where('restauranteId', isEqualTo: rid)` la lista se deniega ENTERA
+      // aunque todos los docs fueran legibles. Es el mismo modo de fallo del
+      // bug del menú (11-03) y lo vigila `scripts/audit_indexes.mjs`
+      // (tabla PARIDAD_RULES_QUERY, entrada `usuarios`).
+      //
+      // Presupuesto de access-calls INTACTO: la rama no hace ningún `get()`.
+      // El doc espejo `usuarios/{uid}` sigue sin autorizar NADA — el rid y el
+      // rol del llamador salen del token, no del documento leído.
+      allow read: if signedIn() && (request.auth.uid == uid
+                                    || isSuper()
+                                    || (role() == 'admin_restaurante'
+                                        && resource.data.restauranteId == rid()));
       // Auto-registro: SOLO cliente y sin restaurante. El rol real viaja en
       // claims (el cliente no puede auto-ascenderse a staff).
       allow create: if signedIn() && request.auth.uid == uid
