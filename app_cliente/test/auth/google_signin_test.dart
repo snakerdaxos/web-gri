@@ -364,6 +364,24 @@ void main() {
 
         final size = tester.getSize(find.byKey(ValueKey(pantalla.key)));
         expect(size.height, greaterThanOrEqualTo(48.0));
+
+        // ⚠️ El assert de arriba NO tiene dientes por sí solo: quitar el
+        // `minimumSize` del widget lo deja VERDE, porque el padding vertical
+        // (12+12) más el contenido ya suman 48 por casualidad. Verificado
+        // rompiendo a propósito (rotura K), igual que el caso de 48x48 de
+        // 11-06. Lo que de verdad sostiene el mínimo cuando el bloque de
+        // tokens (11-19) toque el padding es el `minimumSize` DECLARADO —
+        // así que se afirma también sobre el estilo resuelto.
+        final boton = tester.widget<OutlinedButton>(
+          find.byKey(ValueKey(pantalla.key)),
+        );
+        final minimo = boton.style?.minimumSize?.resolve(<WidgetState>{});
+        expect(
+          minimo?.height,
+          greaterThanOrEqualTo(48.0),
+          reason: 'el mínimo táctil debe estar DECLARADO, no depender del '
+              'padding que 11-19 va a cambiar',
+        );
       });
 
       testWidgets('${pantalla.nombre}: el botón está etiquetado para lectores',

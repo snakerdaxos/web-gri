@@ -110,6 +110,10 @@ void main() {
 
     expect(find.text('Ingresar'), findsOneWidget);
 
+    // El bloque de Google (11-17) alargó la card: en el viewport de 800x600 del
+    // test el enlace queda por debajo del pliegue. Es scrollable (no es un bug
+    // de producto), así que el test debe desplazarse como haría el usuario.
+    await tester.ensureVisible(find.text('¿No tienes cuenta? Regístrate'));
     await tester.tap(find.text('¿No tienes cuenta? Regístrate'));
     await tester.pumpAndSettle();
 
@@ -121,6 +125,10 @@ void main() {
       'register: requiere nombre + email válido + password ≥ 8 para habilitar',
       (tester) async {
     await tester.pumpWidget(_wrap());
+    // El bloque de Google (11-17) alargó la card: en el viewport de 800x600 del
+    // test el enlace queda por debajo del pliegue. Es scrollable (no es un bug
+    // de producto), así que el test debe desplazarse como haría el usuario.
+    await tester.ensureVisible(find.text('¿No tienes cuenta? Regístrate'));
     await tester.tap(find.text('¿No tienes cuenta? Regístrate'));
     await tester.pumpAndSettle();
 
@@ -358,6 +366,10 @@ void main() {
   testWidgets('register: contraseñas distintas avisan y bloquean el envío',
       (tester) async {
     await tester.pumpWidget(_wrap());
+    // El bloque de Google (11-17) alargó la card: en el viewport de 800x600 del
+    // test el enlace queda por debajo del pliegue. Es scrollable (no es un bug
+    // de producto), así que el test debe desplazarse como haría el usuario.
+    await tester.ensureVisible(find.text('¿No tienes cuenta? Regístrate'));
     await tester.tap(find.text('¿No tienes cuenta? Regístrate'));
     await tester.pumpAndSettle();
 
@@ -373,6 +385,10 @@ void main() {
   testWidgets('register: al corregir la confirmación desaparece el aviso',
       (tester) async {
     await tester.pumpWidget(_wrap());
+    // El bloque de Google (11-17) alargó la card: en el viewport de 800x600 del
+    // test el enlace queda por debajo del pliegue. Es scrollable (no es un bug
+    // de producto), así que el test debe desplazarse como haría el usuario.
+    await tester.ensureVisible(find.text('¿No tienes cuenta? Regístrate'));
     await tester.tap(find.text('¿No tienes cuenta? Regístrate'));
     await tester.pumpAndSettle();
 
@@ -396,6 +412,10 @@ void main() {
     // luego edita el primer campo. Si el aviso no reapareciera, el botón
     // quedaría habilitado con dos valores distintos.
     await tester.pumpWidget(_wrap());
+    // El bloque de Google (11-17) alargó la card: en el viewport de 800x600 del
+    // test el enlace queda por debajo del pliegue. Es scrollable (no es un bug
+    // de producto), así que el test debe desplazarse como haría el usuario.
+    await tester.ensureVisible(find.text('¿No tienes cuenta? Regístrate'));
     await tester.tap(find.text('¿No tienes cuenta? Regístrate'));
     await tester.pumpAndSettle();
 
@@ -417,6 +437,10 @@ void main() {
   testWidgets('register: los dos campos de contraseña tienen ojo INDEPENDIENTE',
       (tester) async {
     await tester.pumpWidget(_wrap());
+    // El bloque de Google (11-17) alargó la card: en el viewport de 800x600 del
+    // test el enlace queda por debajo del pliegue. Es scrollable (no es un bug
+    // de producto), así que el test debe desplazarse como haría el usuario.
+    await tester.ensureVisible(find.text('¿No tienes cuenta? Regístrate'));
     await tester.tap(find.text('¿No tienes cuenta? Regístrate'));
     await tester.pumpAndSettle();
 
@@ -438,6 +462,10 @@ void main() {
       'register: la contraseña declara autofillHints.password (paridad con login)',
       (tester) async {
     await tester.pumpWidget(_wrap());
+    // El bloque de Google (11-17) alargó la card: en el viewport de 800x600 del
+    // test el enlace queda por debajo del pliegue. Es scrollable (no es un bug
+    // de producto), así que el test debe desplazarse como haría el usuario.
+    await tester.ensureVisible(find.text('¿No tienes cuenta? Regístrate'));
     await tester.tap(find.text('¿No tienes cuenta? Regístrate'));
     await tester.pumpAndSettle();
 

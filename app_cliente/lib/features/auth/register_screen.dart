@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../shared/google_boton.dart';
 import '../shared/password_field.dart';
 import 'auth_controller.dart';
 
@@ -82,6 +83,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
+  /// Registro con Google (11-17). El primer ingreso crea el espejo
+  /// `usuarios/{uid}` como cliente; una cancelación no muestra error.
+  Future<void> _google() async {
+    try {
+      await ref.read(googleSignInControllerProvider.notifier).ingresar();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_errorMsg(e)),
+          backgroundColor: GriColors.chipCanceladaFg,
+        ),
+      );
+    }
+  }
+
   String _errorMsg(Object e) => switch (e) {
         StateError s => s.message,
         ArgumentError a => a.message?.toString() ?? 'Entrada inválida',
@@ -91,6 +108,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final submitting = ref.watch(registerControllerProvider).isLoading;
+    final googleEnVuelo = ref.watch(googleSignInControllerProvider).isLoading;
 
     return Scaffold(
       backgroundColor: GriColors.background,
@@ -195,6 +213,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               ),
                             )
                           : const Text('Crear cuenta'),
+                    ),
+                    const SizedBox(height: 20),
+                    const SeparadorAuth(),
+                    const SizedBox(height: 20),
+                    GoogleBoton(
+                      botonKey: const ValueKey('register-google'),
+                      cargando: googleEnVuelo,
+                      onPressed: _google,
                     ),
                     const SizedBox(height: 16),
                     TextButton(

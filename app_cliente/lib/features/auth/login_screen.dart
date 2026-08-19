@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../shared/google_boton.dart';
 import '../shared/password_field.dart';
 import 'auth_controller.dart';
 
@@ -62,6 +63,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  /// Ingreso con Google (11-17). Una cancelación devuelve false y NO se
+  /// muestra como error: el usuario vuelve a esta misma pantalla en silencio.
+  Future<void> _google() async {
+    try {
+      await ref.read(googleSignInControllerProvider.notifier).ingresar();
+      // Sin push manual: el redirect del goRouter manda a /inicio.
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_errorMsg(e)),
+          backgroundColor: GriColors.chipCanceladaFg,
+        ),
+      );
+    }
+  }
+
   String _errorMsg(Object e) => switch (e) {
         StateError s => s.message,
         ArgumentError a => a.message?.toString() ?? 'Entrada inválida',
@@ -72,6 +90,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     // Re-watch para que isLoading reactive el rebuild del botón.
     final submitting = ref.watch(loginControllerProvider).isLoading;
+    final googleEnVuelo = ref.watch(googleSignInControllerProvider).isLoading;
 
     return Scaffold(
       backgroundColor: GriColors.background,
@@ -173,6 +192,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             )
                           : const Text('Ingresar'),
+                    ),
+                    const SizedBox(height: 20),
+                    const SeparadorAuth(),
+                    const SizedBox(height: 20),
+                    GoogleBoton(
+                      botonKey: const ValueKey('login-google'),
+                      cargando: googleEnVuelo,
+                      onPressed: _google,
                     ),
                     const SizedBox(height: 16),
                     TextButton(

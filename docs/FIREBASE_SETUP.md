@@ -326,7 +326,78 @@ GRI-MESA-{restauranteId}-{numero:3 dígitos}   →   GRI-MESA-demo-001 .. GRI-ME
   `get()` directo a `mesas/{codigo}` — O(1), sin endpoint ni índice.
 - Unicidad garantizada por construcción (doc ID único en la colección).
 
-## 9. Troubleshooting
+## 9. Ingreso con Google — solo app cliente (11-17)
+
+El **panel admin NO** tiene ingreso con Google: el staff se crea con la callable
+`crearUsuarioStaff` y no se auto-registra. Esto es solo de `app_cliente`.
+
+### 9.1 El Web client ID es público y vive versionado
+
+```
+703827387403-o05u1u7gffibbfqo4419ds3pjcul12g2.apps.googleusercontent.com
+```
+
+Vive como constante en **`app_cliente/lib/core/google_auth.dart`**, no en
+`--dart-define` ni en `.env`. Es una credencial **pública**: viaja en el cliente
+por diseño y el client **secret** no interviene en este flujo (ni debe entrar al
+repo). Versionarla elimina una fuente de deriva y un test afirma su valor exacto
+(`test/auth/google_signin_test.dart`), porque un carácter mal copiado solo se
+manifiesta en runtime como `DEVELOPER_ERROR` o como un `idToken` nulo.
+
+**NO** se añade `<meta name="google-signin-client_id">` a `web/index.html`: ese
+meta lo lee `google_sign_in_web`, y la rama Web usa `signInWithPopup`, que
+resuelve el client ID desde la configuración de la app Web del propio proyecto.
+Añadirlo crearía una segunda copia del valor con riesgo de deriva y sin ningún
+consumidor.
+
+### 9.2 Dos ramas de plataforma
+
+| Plataforma | Mecanismo | ¿Necesita trámite? |
+|---|---|---|
+| **Web** | `FirebaseAuth.signInWithPopup(GoogleAuthProvider())` | **No.** Funciona con el proveedor Google habilitado en Authentication |
+| **Android / iOS** | `google_sign_in` 7.x → `idToken` → `GoogleAuthProvider.credential` → `signInWithCredential` | **Sí:** la huella SHA-1 |
+
+### 9.3 Android exige la huella SHA-1
+
+Sin ella Google Sign-In falla con `DEVELOPER_ERROR` (**código 10**), un error
+opaco que no dice qué falta.
+
+1. Firebase Console → ⚙ Configuración del proyecto → General → Tus apps.
+2. Elegir la app Android **`com.gri.gri_cliente`** (ID terminado en
+   `1f0746d200e4e12ce6d30e`). **NO** la de `gri.app` — ver §9.5.
+3. "Añadir huella digital" y pegar la SHA-1 de la máquina de desarrollo.
+
+> **Al firmar una release hay que registrar TAMBIÉN la SHA-1 del keystore de
+> producción**, o el ingreso con Google fallará solo en el APK firmado, que es
+> el peor momento para descubrirlo.
+
+### 9.4 El emulador de Auth NO implementa el flujo de Google
+
+No hay forma de probar el handshake real contra emuladores: hay que apuntar al
+proyecto **real** (`p-gri-b5b40`). Por eso la cobertura automatizada de
+`test/auth/google_signin_test.dart` se detiene deliberadamente en la costura
+`googleAuthAccionProvider` (espejo, traducción de errores, estado del botón) y
+**el handshake queda para verificación manual** — el runbook de smoke E2E lo
+recoge marcado como "solo contra el proyecto real".
+
+### 9.5 ⚠️ `documentos/google-services.json` NO debe copiarse
+
+El proyecto tiene **DOS** apps Android registradas:
+
+| packageName | appId | Estado |
+|---|---|---|
+| `com.gri.gri_cliente` | `1:703827387403:android:1f0746d200e4e12ce6d30e` | **la buena** — coincide con el `applicationId` de `android/app/build.gradle.kts` |
+| `gri.app` | `1:703827387403:android:b55b9ee758dc5108e6d30e` | registro viejo, **sin** `oauth_client` |
+
+`documentos/google-services.json` es del registro **viejo** (`gri.app`). Hoy no
+está conectado a nada, pero **copiarlo a `app_cliente/android/app/` rompería
+Firebase en Android** de una forma muy difícil de diagnosticar (el plugin Gradle
+de google-services lo leería y sobreescribiría la configuración correcta).
+
+**La configuración de las apps vive en `lib/firebase_options.dart`
+(`flutterfire configure`), NO en `google-services.json`.**
+
+## 10. Troubleshooting
 
 | Síntoma | Causa | Solución |
 |---|---|---|
