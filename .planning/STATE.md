@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 9/21 planes [#########------------] 43%
+Phase 11: 10/21 planes [##########-----------] 48%
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -40,7 +40,8 @@ Phase 11: 9/21 planes [#########------------] 43%
 - [x] 11-07 Bootstrap del primer super_admin: callable con guarda atomica ANTES de toda consulta + doble factor (email_verified + secreto en tiempo constante, sin cortocircuito, mensaje unico), centinela blindado en rules, pantalla /bootstrap exenta del guard e invalidacion de claims. 13 roturas deliberadas — 06ba232, 8dc3e35, 28c1714
 - [x] 11-18 Branding GRI en las DOS apps: generador determinista de 13 assets (SDF, sin fuentes ni descargas), identidad web en los 4 archivos, shell de carga verificado en Chrome real, icono adaptive + splash Android 12, audit:branding y verify:shell. 18 roturas deliberadas — 69d1481, fa4fe06, 12b97e5
 - [x] 11-08 Alta de staff con custom claims: matriz de autorizacion PURA (sin imports de firebase, 27 casos en 61ms) + callable crearUsuarioStaff idempotente con anti-secuestro de 3 ramas (la tercera consulta el doc espejo, porque un cliente auto-registrado no lleva claim role) + 14 e2e con tokens reales. 18 roturas deliberadas — 94f35f1, 5761769, b7b59a8
-- [ ] 11-09 .. 11-17, 11-19 .. 11-21
+- [x] 11-09 Estados vacios guiados + 404 propio en las dos apps: EmptyState (resistente al desbordamiento) cierra la pantalla EN BLANCO del menu post-escaneo del QR; errorBuilder cableado en los dos GoRouter mostrando SOLO uri.path y por detras del guard de sesion. 11 roturas deliberadas — b1719ca, e5c921b, 2840752
+- [ ] 11-10 .. 11-17, 11-19 .. 11-21
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -50,9 +51,9 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 
 ## Test Baselines (final Firebase)
 
-- app_cliente: 112 passed + analyze 0 (11-06: +16 de toggle de contrasena y confirmacion en el registro)
-- panel_admin: 157 passed + analyze 0 (11-07: +18 — 5 sobre el GoRouter real y 13 de pantalla/controlador de /bootstrap)
-- TOTAL apps: 269 (baseline previa 251, sin regresion)
+- app_cliente: 122 passed + analyze 0 (11-09: +10 — 4 de menu_vacio, 1 en base_vacia, 5 de router_404). MEDIDO EN DOS MITADES: 11-17 tenia test/auth y lib/features/auth abiertos en vuelo, asi que `flutter test` a secas salia rojo por archivos ajenos; test/auth por separado +50 y todo lo demas +99
+- panel_admin: 163 passed + analyze 0 (11-09: +6 de router_404, incluido el caso de indistinguibilidad sin sesion)
+- TOTAL apps: 285 atribuible a 11-09 (269 + 16), sin regresion. El total real sera mayor cuando 11-17 cierre sus tests de Google Sign-In
 - Cloud Functions e2e: 25 passed via `cd scripts && npm run test:functions` (11-07 bootstrap 11 + 11-08 crearUsuarioStaff 14, emuladores auth+functions+firestore reales)
 - Cloud Functions unitarios: 34 passed via `cd functions && npm test` (11-08; matriz pura 27 + contratos de fuente 7). OJO: `node --test test/` NO funciona en Node 24, el script usa el glob test/*.test.js
 - firestore.rules: 208 passed via `cd scripts && npm run test:rules` (11-04: +190 — mesas 26, sesiones 29, pedidos 36, reservas 27, calificaciones 21, usuarios 22, restaurantes 29)
@@ -124,6 +125,13 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-08: HALLAZGO — el gate `grep -c "e.message"` es CIEGO a `err.message` y `err?.message` (el punto es comodin en grep y exige la letra e delante). Demostrado en vivo: con la fuga puesta, el gate PASA. Todo gate de grep debe probarse contra la forma REAL de la fuga
 - 11-08: al reves que 11-07, aqui cada denegacion tiene mensaje PROPIO: alli el llamador podia ser anonimo y el texto unico evitaba un oraculo; aqui ya es staff autenticado (T-11-08-06 acepta la enumeracion) y el mensaje distinto es lo que da dientes a los tests
 
+- 11-09: `context.go('/')` NO sirve en app_cliente — esa app no tiene ruta raiz (su initialLocation es '/inicio'). El plan lo indicaba para las DOS apps; en el cliente el boton de salida del 404 habria caido en OTRO 404. Verificado por rotura deliberada
+- 11-09: un estado vacio con icono + titular + guia + boton es MUCHO mas alto que el `Text` gris al que sustituye y desborda donde el otro no. `EmptyState` elige con un LayoutBuilder: scrollable con altura ACOTADA (Scaffold body, SliverFillRemaining), rigido con altura LIBRE — un SingleChildScrollView dentro de un ListView lanza por viewport sin acotar
+- 11-09: en `flutter test` la fuente por defecto pinta cada caracter como un cuadro del tamano de la fuente, asi que un titular de 31 caracteres ocupa 144px de ALTO. Cualquier medida de layout tomada en widget test es del orden de magnitud equivocado respecto al render real: sirve para detectar desbordes, no para validar espaciado
+- 11-09: el CTA de un estado vacio NUNCA debe llamarse igual que el de la rama de error ('Reintentar'). Ademas de mentir sobre lo que paso, rompe la asercion `find.text('Reintentar') findsNothing` que 11-02 dejo para distinguir 'no hay datos' de 'no pude leerlos'
+- 11-09: el 404 muestra SOLO `uri.path`. `uri.toString()` filtraria el query string, que es justo donde viajan tokens e ids; el test junta el `data` de TODOS los Text del arbol para afirmarlo, no solo el del widget que yo mire
+- 11-09: el `redirect` de GoRouter se evalua ANTES que el `errorBuilder`, asi que el 404 no sirve para sondear rutas internas. El caso con dientes no es 'sin sesion va a login' sino que una ruta que EXISTE y una que NO dan la MISMA respuesta
+
 ## Performance Metrics
 
 | Phase | Plan | Duracion | Tareas | Archivos |
@@ -136,12 +144,13 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | 11 | 06 | ~40 min | 2 | 9 |
 | 11 | 07 | ~65 min | 3 | 15 |
 | 11 | 18 | ~31 min | 3 | 55 |
+| 11 | 09 | ~50 min | 2 | 12 |
 
 ## Session
 
 - Last session: 2026-08-19
-- Stopped at: Completado 11-08-PLAN.md (alta de staff con custom claims: matriz pura + callable idempotente + e2e con tokens reales). Siguiente: segun el orden de olas de la fase
-- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-08-SUMMARY.md
+- Stopped at: Completado 11-09-PLAN.md (estados vacios guiados + 404 propio en las dos apps; 11 roturas deliberadas). Ejecutado en paralelo con 11-08 y 11-17.
+- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-10-PLAN.md
 
 ## Blockers / Notas
 
@@ -167,3 +176,7 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-18 PENDIENTE DE VERIFICACION HUMANA: que el logo se VEA bien no es automatizable. Tampoco se ha visto el icono ni el splash arrancando en un Android real (no se ejecuto `flutter build apk`), ni se ha instalado ninguna de las dos PWA. Lo verificado son los recursos generados y sus dimensiones, no su render por el sistema.
 - 11-18: si `Firebase.initializeApp` fallara, no habria primer frame y el shell de carga se quedaria en "Cargando" indefinidamente — NO hay pantalla de error. Deuda conocida.
 - 11-18: `npm run verify:shell` exige `flutter build web --release` previo en las dos apps y Chrome instalado; falla ruidosamente si falta cualquiera de los dos (no se auto-desactiva).
+- 11-09: UX-02 y UX-04 tampoco existen en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11): `requirements.mark-complete` los devuelve como not_found. Quedan en el frontmatter del SUMMARY.
+- 11-09: `panel_admin/test/router_404_test.dart` lleva el MISMO filtro de `A RenderFlex overflowed` que `bootstrap_router_test.dart` (desborde de 85px del sidebar del AppShell, deuda preexistente de 11-07). Al corregir el sidebar hay que retirar el filtro en LOS DOS archivos.
+- 11-09: `test:rules` y `test:functions` NO se ejecutaron en este plan — dependen de los emuladores y 11-08 los estaba usando en paralelo (colision de puertos). El plan no toca rules, indexes ni functions. Si se ejecutaron `audit:indexes` y `audit:branding`, ambos exit 0.
+- 11-09 PENDIENTE DE VERIFICACION HUMANA: que los copies nuevos SE LEAN bien y que las pantallas se VEAN bien en un dispositivo real. Un widget test prueba que una cadena se renderiza, no que este bien escrita. Tampoco se ha comprobado que el emoji del 404 se renderice en Android/Chrome reales (en flutter test se pinta como un cuadro y el test pasaria igual si faltara el glifo), ni que el 404 se alcance escribiendo la URL en la barra del navegador del panel (los tests navegan con router.go()).
