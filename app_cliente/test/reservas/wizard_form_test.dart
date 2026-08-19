@@ -31,15 +31,17 @@ const _mesasSeed = [
   'GRI-MESA-demo-003',
 ];
 
-Widget _wrap(FakeFirebaseFirestore db) => ProviderScope(
+Widget _wrap(FakeFirebaseFirestore db,
+        {String nombre = 'Restaurante Demo GRI'}) =>
+    ProviderScope(
       overrides: [
         firebaseAuthProvider.overrideWithValue(mockAuth()),
         firestoreProvider.overrideWithValue(db),
       ],
-      child: const MaterialApp(
+      child: MaterialApp(
         home: ReservaWizardScreen(
           restauranteId: 'demo',
-          restauranteNombre: 'Restaurante Demo GRI',
+          restauranteNombre: nombre,
         ),
       ),
     );
@@ -297,4 +299,81 @@ void main() {
     // Sin writes: las 3 del seed siguen siendo las únicas.
     expect((await db.collection('reservas').get()).docs, hasLength(3));
   });
+
+  // ── Desbordamiento del resumen (11-13) ────────────────────────────────────
+  //
+  // `_ResumenRow` pintaba etiqueta y valor en un `Row(spaceBetween)` con los
+  // dos `Text` sin acotar. Un `Row` da a sus hijos restricciones de ancho
+  // INFINITAS, así que el valor se maquetaba a su ancho natural y, en cuanto
+  // no cabía, salía la banda amarilla y negra de RenderFlex. Con un nombre de
+  // restaurante largo (que el super_admin escribe a mano en el panel) y una
+  // pantalla estrecha, es un caso corriente, no un extremo.
+  //
+  // PROHIBIDO cerrar esto filtrando la excepción: el desbordamiento se
+  // arregla, no se silencia. Por eso el caso afirma también DÓNDE queda el
+  // texto, no solo que no lance.
+  group('_ResumenRow — no desborda con nombres largos', () {
+    // 60 caracteres: "Restaurante " (12) + 48 más.
+    const nombre60 = 'Restaurante El Rincón de la Abuela Doña Mercedes Bogotá D.C.';
+
+    Future<void> pumpConfirmar(WidgetTester tester, double ancho) async {
+      tester.view
+        ..devicePixelRatio = 1.0
+        ..physicalSize = Size(ancho, 900);
+      addTearDown(tester.view.reset);
+      final db = await buildFakeFirestoreConSeed();
+      await tester.pumpWidget(_wrap(db, nombre: nombre60));
+      await _llenarHastaConfirmar(tester);
+    }
+
+    testWidgets('a 320px con 60 caracteres no hay RenderFlex overflow',
+        (tester) async {
+      assert(nombre60.length == 60, 'el caso se define por su longitud');
+      await pumpConfirmar(tester, 320);
+
+      expect(tester.takeException(), isNull,
+          reason: 'cualquier excepción aquí es el overflow: flutter_test '
+              'convierte "A RenderFlex overflowed" en un FlutterError');
+      expect(find.text(nombre60), findsOneWidget);
+    });
+
+    testWidgets('a 320px el valor se recorta y NO invade la etiqueta',
+        (tester) async {
+      await pumpConfirmar(tester, 320);
+
+      final valor = tester.widget<Text>(find.text(nombre60));
+      expect(valor.overflow, TextOverflow.ellipsis,
+          reason: 'sin ellipsis el texto se corta a mitad de glifo o se '
+              'reparte en tantas líneas que rompe el ritmo de la lista');
+
+      final rEtiqueta = tester.getRect(find.text('Restaurante'));
+      final rValor = tester.getRect(find.text(nombre60));
+      expect(rValor.left, greaterThanOrEqualTo(rEtiqueta.right),
+          reason: 'la etiqueta tiene que seguir siendo legible entera');
+      expect(rValor.right, lessThanOrEqualTo(320.0),
+          reason: 'y el valor no puede salirse de la pantalla');
+    });
+
+    testWidgets('a 480px la fila conserva su geometría (borde derecho y alto)',
+        (tester) async {
+      await pumpConfirmar(tester, 480);
+
+      final rEtiqueta = tester.getRect(find.text('Restaurante'));
+      final rValor = tester.getRect(find.text(nombre60));
+
+      // OJO CON LO QUE ESTO PRUEBA Y LO QUE NO. Al meter el valor en un
+      // `Expanded`, la CAJA del párrafo pasa a ocupar todo el hueco libre, así
+      // que `rValor.left` cambia respecto a antes de 11-13 — pero los glifos
+      // siguen pegados a la derecha por el `textAlign: right`. Un widget test
+      // no puede afirmar la posición de un glifo: lo que sí se afirma es el
+      // borde derecho (donde empieza a leerse el valor de derecha a izquierda)
+      // y que la etiqueta no se ha movido.
+      expect(rEtiqueta.left, 16.0 + 24.0,
+          reason: 'padding del Stepper + padding de la tarjeta; si la etiqueta '
+              'se mueve es que el arreglo tocó el espaciado');
+      expect(rValor.right, closeTo(480.0 - 16.0 - 24.0, 0.01),
+          reason: 'el valor sigue alineado al borde derecho de la tarjeta');
+    });
+  });
+
 }
