@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-last_updated: "2026-08-19T16:50:00.000Z"
+last_updated: "2026-08-19T17:11:17.114Z"
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 52
-  completed_plans: 37
-  percent: 69
+  completed_plans: 38
+  percent: 73
 ---
 
 # STATE
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Un cliente puede sentarse en una mesa, escanear su QR, pedir del menu y recibir su comida en tiempo real sin intermediarios.
-**Current focus:** Phase 11 — Correccion critica y profesionalizacion (plan 05/20 completado)
+**Current focus:** Phase 11 — Correccion critica y profesionalizacion (plan 06/20 completado)
 
 ## Roadmap Evolution
 
@@ -29,14 +29,15 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 5/20 planes [#####---------------] 25%
+Phase 11: 6/20 planes [######--------------] 30%
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
 - [x] 11-03 Correccion del menu: query vs rules + indice compuesto + audit estatico (P0 de la fase) — 23151d8, 5aa08d0, 7caeb71, 52d2db6, 74ceacb
 - [x] 11-04 Suite completa de firestore.rules: 7 colecciones nuevas, 190 casos, 3 vectores de escalada verificados por rotura deliberada — 0d2cafc, a0828f0, 4825e26
 - [x] 11-05 Alta de restaurante desde el producto: slug canonico + crearRestaurante + dialogo con vista previa + estado vacio guiado + confirmacion al desactivar — 5d02e98, c2e62d2, 66afa5b, 72b9234, f137263
-- [ ] 11-06 .. 11-20
+- [x] 11-06 Ver/ocultar contrasena en los 5 campos + confirmar contrasena en el registro: PasswordField por app (48x48 verificado anulando los defaults del framework), 12 roturas deliberadas — 958d59f, 3723572, fd5a3e7, f3c2f99
+- [ ] 11-07 .. 11-20
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -46,9 +47,9 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 
 ## Test Baselines (final Firebase)
 
-- app_cliente: 96 passed + analyze 0 (11-03: +2 de filtrado del menu)
-- panel_admin: 132 passed + analyze 0 (11-05: +21 slug, +9 alta de restaurante, +6 tab Restaurantes)
-- TOTAL apps: 228 (baseline previa 192, sin regresion)
+- app_cliente: 112 passed + analyze 0 (11-06: +16 de toggle de contrasena y confirmacion en el registro)
+- panel_admin: 139 passed + analyze 0 (11-06: +7 de toggle de contrasena en el login)
+- TOTAL apps: 251 (baseline previa 228, sin regresion)
 - firestore.rules: 208 passed via `cd scripts && npm run test:rules` (11-04: +190 — mesas 26, sesiones 29, pedidos 36, reservas 27, calificaciones 21, usuarios 22, restaurantes 29)
 - indices/paridad: `cd scripts && npm run audit:indexes` — 21 queries clasificadas, 0 fallos, exit 0
 - Cloud Functions: sin tests aun (llegan en 11-07/11-08); `npm run test:functions` ya cableado
@@ -100,17 +101,22 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | 11 | 02 | ~30 min | 3 | 13 |
 | 11 | 03 | ~13 min | 3 | 10 |
 | 11 | 05 | ~15 min | 3 | 8 |
+| 11 | 06 | ~40 min | 2 | 9 |
 
 ## Session
 
 - Last session: 2026-08-19
-- Stopped at: Completado 11-05-PLAN.md (alta de restaurante desde el panel: slug + crearRestaurante + dialogo + estado vacio guiado + confirmacion). Siguiente: 11-06-PLAN.md
-- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-06-PLAN.md
+- Stopped at: Completado 11-06-PLAN.md (ver/ocultar contrasena en los 5 campos + confirmar contrasena en el registro). Siguiente: 11-07-PLAN.md
+- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-07-PLAN.md
 
 ## Blockers / Notas
 
 - ENV-01, DOC-01 y TEST-02 (requisitos de la Fase 11 segun ROADMAP.md) NO existen en .planning/REQUIREMENTS.md, que solo contiene los requisitos v1: `requirements.mark-complete` los reporta como not_found (reconfirmado en 11-02).
 - 11-03: FIX-01, FIX-02 y TEST-01 tampoco existen en .planning/REQUIREMENTS.md (mismo motivo que ENV-01/DOC-01/TEST-02): `requirements.mark-complete` no puede marcarlos.
+- 11-06: UX-01 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo). Queda registrado en el frontmatter del SUMMARY.
+- 11-06: el `<verify>` de la Tarea 2 del plan (`grep -rc ... | grep -q '^0$'`) esta MAL ESCRITO — con `-r` sobre un directorio grep antepone el nombre de archivo y `^0$` nunca casa. Se ejecuto tal cual (exit=1) y ademas el equivalente semantico, que si pasa. Cualquier plan futuro que copie ese patron debe usar `grep -rn ... ; test $? -eq 1`.
+- 11-06 AVISO PARA EL BLOQUE 3 (tokens/responsive): si se centraliza `inputDecorationTheme` con `suffixIconConstraints`, el area tactil de 48x48 del ojo depende de ello. El caso `PasswordField: los 48x48 los pone el widget...` existe en las DOS apps para detectar esa regresion.
+- 11-06 PENDIENTE DE VERIFICACION HUMANA: la lectura del boton por TalkBack/VoiceOver y el aspecto real del ojo en las 4 pantallas no son observables en `flutter test`.
 - PENDIENTE DE SELLADO HUMANO (11-15/11-16): el indice categorias(restauranteId, orden) queda DECLARADO en firestore.indexes.json pero NO verificado — el emulador no valida indices compuestos. Requiere `firebase deploy --only firestore:indexes` contra p-gri-b5b40 y abrir el menu del panel.
 - Los handlers state.advance-plan / state.update-progress / state.record-metric / state.record-session siguen sin parsear este STATE.md (reconfirmado en 11-02); se actualiza a mano. `roadmap.update-plan-progress 11` si funciona.
 - 11-02 (DIFERIDO, ver phases/11-*/deferred-items.md): StatCard del panel desborda 31px cuando el grid pasa a 4 columnas (viewport >=1100px). Preexistente; debe entrar en el bloque de responsive/tokens.
