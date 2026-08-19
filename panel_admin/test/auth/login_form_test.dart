@@ -344,6 +344,36 @@ void main() {
     expect(_ojo(const ValueKey('login-password')), findsOneWidget);
   });
 
+  testWidgets('PasswordField: dos instancias NO comparten estado',
+      (tester) async {
+    // El panel hoy tiene UN solo campo de contraseña, así que ningún test de
+    // pantalla puede detectar un `_obscure` compartido (verificado: hacerlo
+    // `static` dejaba la suite entera en verde). Este caso cubre ese hueco
+    // antes de que 11-07 traiga formularios con dos campos.
+    final a = TextEditingController();
+    final b = TextEditingController();
+    addTearDown(a.dispose);
+    addTearDown(b.dispose);
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Column(children: [
+          PasswordField(
+              fieldKey: const ValueKey('uno'), controller: a, labelText: 'Uno'),
+          PasswordField(
+              fieldKey: const ValueKey('dos'), controller: b, labelText: 'Dos'),
+        ]),
+      ),
+    ));
+
+    await tester.tap(_ojo(const ValueKey('uno')));
+    await tester.pump();
+
+    expect(_obscuro(tester, const ValueKey('uno')), isFalse);
+    expect(_obscuro(tester, const ValueKey('dos')), isTrue,
+        reason: 'cada instancia guarda su propio estado');
+  });
+
   testWidgets(
       'login: la ValueKey login-password sigue viva y el campo sigue escribiéndose',
       (tester) async {

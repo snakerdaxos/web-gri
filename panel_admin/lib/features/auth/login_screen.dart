@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import '../shared/password_field.dart';
 import 'login_controller.dart';
 
 /// Pantalla de login (PLAT-01) — card centrada con logo GRI, email+password.
@@ -136,16 +137,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           _emailRe.hasMatch((v ?? '').trim()) ? null : 'Email inválido',
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      key: const ValueKey('login-password'),
+                    PasswordField(
+                      fieldKey: const ValueKey('login-password'),
                       controller: _passCtrl,
-                      obscureText: true,
+                      labelText: 'Contraseña',
                       autofillHints: const [AutofillHints.password],
-                      decoration: const InputDecoration(
-                        labelText: 'Contraseña',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
                       validator: (v) =>
                           (v ?? '').length >= 8 ? null : 'Mínimo 8 caracteres',
                       onFieldSubmitted: (_) => _canSubmit ? _submit() : null,
