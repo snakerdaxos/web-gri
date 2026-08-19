@@ -53,11 +53,28 @@ export const PROJECT_ID = 'demo-gri-rules';
 
 /**
  * Arranca el entorno de test contra el emulador de Firestore ya levantado.
+ *
+ * ⚠️ PASAR SIEMPRE UN `namespace` PROPIO POR ARCHIVO DE TEST (11-03).
+ *
+ * `node --test` ejecuta los archivos de test en PARALELO, un proceso por
+ * archivo, y todos hablan con el MISMO emulador. Si dos archivos comparten
+ * `projectId`, comparten base de datos: el `clearFirestore()` del `beforeEach`
+ * de uno BORRA el seed que el otro acaba de escribir, y los tests fallan de
+ * forma intermitente y por la razón equivocada (un `snap.size` en 0, no un
+ * `permission-denied`). Cada `projectId` es un namespace independiente dentro
+ * del emulador, así que un sufijo por archivo aísla de verdad.
+ *
+ * Se detectó ejecutando la suite completa por primera vez con 3 archivos: en
+ * solitario pasaban los 16 casos; juntos, `categorias` y `productos` se
+ * pisaban entre sí. El npm script además fija `--test-concurrency=1` como red
+ * de seguridad para que olvidarse del namespace no vuelva a poder romper nada.
+ *
+ * @param {string} [namespace] sufijo único por archivo de test, p.ej. 'categorias'
  * @returns {Promise<import('@firebase/rules-unit-testing').RulesTestEnvironment>}
  */
-export function initEnv() {
+export function initEnv(namespace) {
   return initializeTestEnvironment({
-    projectId: PROJECT_ID,
+    projectId: namespace ? `${PROJECT_ID}-${namespace}` : PROJECT_ID,
     firestore: {
       rules: readFileSync(RUTA_RULES, 'utf8'),
     },

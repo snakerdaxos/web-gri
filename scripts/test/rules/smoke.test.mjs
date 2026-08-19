@@ -28,7 +28,7 @@ describe('smoke — arnés de tests de firestore.rules', () => {
   let env;
 
   before(async () => {
-    env = await initEnv();
+    env = await initEnv('smoke');
   });
 
   after(async () => {

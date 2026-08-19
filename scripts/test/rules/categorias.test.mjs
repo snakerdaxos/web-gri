@@ -56,7 +56,7 @@ describe('firestore.rules — categorias', () => {
   let env;
 
   before(async () => {
-    env = await initEnv();
+    env = await initEnv('categorias');
   });
 
   after(async () => {

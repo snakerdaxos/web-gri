@@ -43,7 +43,7 @@ describe('firestore.rules — productos', () => {
   let env;
 
   before(async () => {
-    env = await initEnv();
+    env = await initEnv('productos');
   });
 
   after(async () => {
