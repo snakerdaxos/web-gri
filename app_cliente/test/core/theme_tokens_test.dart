@@ -91,22 +91,56 @@ void main() {
       expect(GriBreakpoints.expanded, 840.0);
     });
 
-    test('contenidoMax ES el maxWidth que aplica hoy el AppShell', () {
+    test('el AppShell no reintroduce un ancho literal (paridad token↔código)',
+        () {
       // Gate de paridad token↔código (patrón de 11-17,
       // firebase_options_coherencia_test.dart). El token no vale nada si el
       // shell sigue con su literal por su cuenta.
+      //
+      // REESCRITO EN 11-13, tal y como su versión anterior pedía que se
+      // hiciera ("si el shell dejó de acotar el contenido, este gate quedó
+      // ciego y hay que reescribirlo, no borrarlo"). Hasta 11-13 el shell
+      // tenía UN literal (`BoxConstraints(maxWidth: 480)`) y el gate lo
+      // comparaba con el token. Ahora el ancho se CALCULA en un LayoutBuilder,
+      // así que ya no hay literal que comparar: lo que se afirma aquí es que
+      // no ha vuelto ninguno y que los dos tokens se usan de verdad.
+      //
+      // El gate que mide el ancho EFECTIVO (360 → libre, 600 → contenidoMax,
+      // 1200 → contenidoMaxAmplio) es `test/shared/app_shell_responsive_test
+      // .dart`, y es estrictamente más fuerte que este: renderiza y mide en
+      // vez de leer el fuente.
       final src = _leer('lib/features/shared/app_shell.dart');
-      final anchos = RegExp(r'BoxConstraints\(maxWidth:\s*([0-9.]+)')
+
+      final literales = RegExp(r'BoxConstraints\(maxWidth:\s*([0-9.]+)')
           .allMatches(src)
-          .map((m) => double.parse(m.group(1)!))
-          .toSet();
-      expect(anchos, isNotEmpty,
-          reason: 'no se encontró ningún BoxConstraints(maxWidth: …) en el '
-              'AppShell — si el shell dejó de acotar el contenido, este gate '
-              'quedó ciego y hay que reescribirlo, no borrarlo');
-      expect(anchos, {GriBreakpoints.contenidoMax},
-          reason: 'el AppShell usa $anchos pero el token dice '
-              '${GriBreakpoints.contenidoMax}');
+          .map((m) => m.group(1)!)
+          .toList();
+      expect(literales, isEmpty,
+          reason: 'el AppShell volvió a acotar el contenido con el literal '
+              '$literales en vez de con GriBreakpoints');
+
+      for (final token in const [
+        'GriBreakpoints.contenidoMax',
+        'GriBreakpoints.contenidoMaxAmplio',
+        'GriBreakpoints.expanded',
+      ]) {
+        expect(src, contains(token),
+            reason: 'el AppShell ya no menciona $token: o dejó de acotar el '
+                'contenido, o volvió a decidir el ancho por su cuenta');
+      }
+    });
+
+    test('contenidoMaxAmplio ensancha de verdad y no se pasa de expanded', () {
+      // 11-13. Las dos aserciones son la definición del token:
+      //  · si alguien lo iguala a contenidoMax, el arreglo del ancho fijo
+      //    desaparece sin que nada más se ponga rojo;
+      //  · si alguien lo sube por encima de `expanded`, a 840px el techo sería
+      //    más ancho que el propio viewport y no acotaría nada.
+      expect(GriBreakpoints.contenidoMaxAmplio, 720.0);
+      expect(GriBreakpoints.contenidoMaxAmplio,
+          greaterThan(GriBreakpoints.contenidoMax));
+      expect(GriBreakpoints.contenidoMaxAmplio,
+          lessThanOrEqualTo(GriBreakpoints.expanded));
     });
   });
 

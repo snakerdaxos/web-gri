@@ -28,8 +28,15 @@ import 'package:gri_cliente/features/shared/app_shell.dart';
 const _kSonda = Key('sonda-contenido');
 const _kSondaSafe = Key('sonda-contenido-con-safearea');
 
-Widget _sonda([Key key = _kSonda]) =>
-    SizedBox.expand(child: ColoredBox(key: key, color: const Color(0xFF000000)));
+/// Último `MediaQueryData` que vio el contenido montado dentro del shell.
+/// Lo usa el caso que documenta POR QUÉ el `SafeArea` lleva `bottom: false`.
+MediaQueryData? _mqDelContenido;
+
+Widget _sonda([Key key = _kSonda]) => Builder(builder: (ctx) {
+      _mqDelContenido = MediaQuery.of(ctx);
+      return SizedBox.expand(
+          child: ColoredBox(key: key, color: const Color(0xFF000000)));
+    });
 
 /// Rama que trae su PROPIO `SafeArea`, como hacen hoy `menu_mesa_screen`,
 /// `pedido_estado_screen` y `reserva_wizard_screen`.
@@ -162,15 +169,52 @@ void main() {
               'anidada no debe reaplicar el inset. 44 y no 88');
     });
 
-    testWidgets('la BottomNavigationBar no gana un hueco extra por abajo',
+    testWidgets('no hay banda muerta entre el contenido y la barra inferior',
         (tester) async {
-      await _pump(tester, ancho: 390, padTop: 44, padBottom: 34);
+      await _pump(tester, ancho: 390, alto: 800, padTop: 44, padBottom: 34);
       final contenido = tester.getRect(find.byKey(_kSonda));
       final nav = tester.getRect(find.byType(BottomNavigationBar));
       expect(contenido.bottom, nav.top,
-          reason: 'el `bottom: false` del SafeArea es deliberado: el Scaffold '
-              'ya le pasa el inset inferior a la BottomNavigationBar. Con '
-              '`bottom: true` aparecerían 34px de banda muerta entre ambos');
+          reason: 'cualquier inset inferior aplicado al body ADEMÁS del que ya '
+              'gestiona el Scaffold deja una franja de fondo entre el '
+              'contenido y la barra');
+      expect(nav.bottom, 800.0,
+          reason: 'y la barra tiene que llegar al borde físico de la pantalla');
+    });
+
+    testWidgets('el inset inferior se lo queda la barra, no el contenido',
+        (tester) async {
+      await _pump(tester, ancho: 390, alto: 800, padBottom: 0);
+      final sinGesto = tester.getRect(find.byType(BottomNavigationBar)).height;
+
+      await _pump(tester, ancho: 390, alto: 800, padBottom: 34);
+      final conGesto = tester.getRect(find.byType(BottomNavigationBar)).height;
+
+      expect(conGesto - sinGesto, 34.0,
+          reason: 'la BottomNavigationBar del Scaffold CRECE exactamente el '
+              'inset de la barra de gestos. Si alguien envuelve el Scaffold '
+              'entero en un SafeArea, la barra deja de crecer y el inset pasa '
+              'a comerse el contenido');
+    });
+
+    testWidgets(
+        'MEDIDO: dentro del body el inset inferior YA viene consumido — por eso '
+        '`bottom: false` es documentación de intención, no un arreglo',
+        (tester) async {
+      await _pump(tester, ancho: 390, alto: 800, padTop: 44, padBottom: 34);
+
+      expect(_mqDelContenido!.padding.bottom, 0.0,
+          reason: 'HALLAZGO de 11-13: el Scaffold ya pone padding.bottom a 0 '
+              'en el MediaQuery del body cuando hay bottomNavigationBar, así '
+              'que `SafeArea(bottom: true)` sería un NO-OP y NO añadiría el '
+              'hueco que el plan temía (verificado con una rotura deliberada '
+              'que dejó la suite entera en verde). Esta aserción sí tiene '
+              'dientes: si el shell perdiera la BottomNavigationBar, el inset '
+              'volvería a llegar al body y `bottom: false` pasaría a ser un '
+              'bug real — el contenido quedaría bajo la barra de gestos');
+      expect(_mqDelContenido!.padding.top, 0.0,
+          reason: 'y el superior lo consume el SafeArea del propio shell: por '
+              'eso las 3 pantallas que ya traen SafeArea propio no duplican');
     });
   });
 

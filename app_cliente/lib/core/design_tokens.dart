@@ -116,6 +116,19 @@ abstract final class GriBreakpoints {
 
   /// 840 — por encima, tablet/escritorio (Material 3 "expanded").
   static const double expanded = 840;
+
+  /// 720 — ancho máximo de la columna de contenido a partir de [expanded]
+  /// (11-13). El shell de la app cliente estaba encajado en [contenidoMax] a
+  /// CUALQUIER ancho, así que en un navegador de escritorio la app se veía
+  /// como una tira estrecha con dos bandas enormes. Por encima de 840 la
+  /// columna se ensancha; por debajo NO cambia nada (el tramo 0–840 es
+  /// idéntico al de antes de 11-13, que es la mitigación de T-11-13-01).
+  ///
+  /// Es el ÚNICO valor NUEVO de este archivo: no estaba vigente en el repo.
+  /// 720 = 1.5 × [contenidoMax], y sigue por debajo de los 840 del salto
+  /// "expanded" de M3, así que nunca deja el contenido más ancho que el
+  /// viewport donde empieza a aplicarse.
+  static const double contenidoMaxAmplio = 720;
 }
 
 /// Escala tipográfica REAL de la app cliente, con nombre por SIGNIFICADO.
