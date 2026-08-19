@@ -33,29 +33,20 @@ void main() {
   late ProviderContainer container;
 
   Future<void> montar(WidgetTester tester) async {
-    // El panel es una app de ESCRITORIO. 1000x900 mantiene el grid de stats en
-    // 3 columnas (el desborde de StatCard aparece a partir de 1100px — deuda
-    // diferida de 11-02).
+    // El panel es una app de ESCRITORIO. 1000x900 es un ancho de ventana
+    // representativo.
     tester.view.physicalSize = const Size(1000, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    // DEUDA PREEXISTENTE, NO DE ESTE PLAN. El sidebar del AppShell es un
-    // Container de 220px fijos y el Row de su logo pide ~248px: desborda 85px
-    // a CUALQUIER ancho de ventana (app_shell.dart:171 y :264). Este es el
-    // primer test del repo que renderiza el AppShell entero —los del dashboard
-    // pumpean DashboardScreen suelta—, así que el defecto nunca había saltado.
-    // Se filtra SOLO el desborde de RenderFlex; cualquier otra excepción sigue
-    // haciendo fallar el test. Anotado en deferred-items.md para el bloque 3;
-    // cuando se corrija, ESTE FILTRO DEBE RETIRARSE.
-    final onErrorPrevio = FlutterError.onError;
-    FlutterError.onError = (details) {
-      if (details.exceptionAsString().contains('A RenderFlex overflowed')) {
-        return;
-      }
-      onErrorPrevio?.call(details);
-    };
-    addTearDown(() => FlutterError.onError = onErrorPrevio);
+    // ── FILTRO DE OVERFLOW RETIRADO EN 11-21 ──────────────────────────────
+    // Aquí vivía un `FlutterError.onError` que se tragaba las excepciones de
+    // desborde de RenderFlex para que estos casos pudieran quedarse en verde
+    // con el sidebar roto. Los cuatro desbordes que lo motivaban están
+    // cerrados (sidebar 85px + ítem de menú 33px + topbar 77px + cabecera del
+    // mapa de mesas 148px) y su regresión la vigila
+    // `test/shared/app_shell_layout_test.dart`. NO VOLVER A PONERLO: un filtro
+    // así deja de ocultar un defecto conocido y pasa a ocultar los que vengan.
 
     ctrl = StreamController<User?>.broadcast();
     final db = await buildFakeFirestoreVacio();

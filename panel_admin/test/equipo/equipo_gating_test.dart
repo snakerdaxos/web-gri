@@ -38,18 +38,10 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    // DEUDA PREEXISTENTE, NO DE ESTE PLAN (heredado de
-    // bootstrap_router_test.dart): el Row del logo del sidebar desborda a
-    // cualquier ancho. Se filtra SOLO el desborde de RenderFlex; cualquier
-    // otra excepción sigue haciendo fallar el test.
-    final onErrorPrevio = FlutterError.onError;
-    FlutterError.onError = (details) {
-      if (details.exceptionAsString().contains('A RenderFlex overflowed')) {
-        return;
-      }
-      onErrorPrevio?.call(details);
-    };
-    addTearDown(() => FlutterError.onError = onErrorPrevio);
+    // ── FILTRO DE OVERFLOW RETIRADO EN 11-21 ──────────────────────────────
+    // Aquí vivía el mismo filtro heredado de bootstrap_router_test.dart. El
+    // sidebar ya no desborda; su regresión la vigila
+    // `test/shared/app_shell_layout_test.dart`. NO VOLVER A PONERLO.
 
     ctrl = StreamController<User?>.broadcast();
     final db = await buildFakeFirestoreConSeed();

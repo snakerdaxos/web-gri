@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_panel_admin/core/firebase_providers.dart';
 import 'package:gri_panel_admin/features/dashboard/dashboard_screen.dart';
+import 'package:gri_panel_admin/features/dashboard/widgets/stat_card.dart';
 import 'package:gri_panel_admin/features/dashboard/mesas_provider.dart';
 import 'package:gri_panel_admin/features/dashboard/restaurante_provider.dart';
 import 'package:gri_panel_admin/features/dashboard/stats_provider.dart';
@@ -128,12 +129,19 @@ Future<void> _pumpDashboard(
   required String role,
   String? rid,
   String? seleccion,
+  Size tamano = const Size(800, 1800),
 }) async {
-  // 800 de ancho ⇒ el grid de stat cards cae a 1 columna (mismo camino que
-  // los tests de render de arriba). A ~1140px el grid pasa a 4 columnas y
-  // StatCard desborda 31px por su childAspectRatio 2.6: bug de responsive
-  // PREEXISTENTE, ajeno a este plan (anotado en deferred-items.md).
-  tester.view.physicalSize = const Size(800, 1800);
+  // 800 de ancho por defecto. OJO: el comentario original decía «cae a 1
+  // columna» y era FALSO — 800 >= GriBreakpoints.compact (750), así que el
+  // grid está a 2 columnas. Corregido en 11-21 y afirmado por un caso.
+  //
+  // 11-21: ese 800 NO era neutral. Se eligió para ESQUIVAR el desborde de
+  // 31px que StatCard producía a partir de ~1100px, cuando el grid pasa a 4
+  // columnas y el `childAspectRatio: 2.6` le dejaba 87px de alto para 115 de
+  // contenido. El desborde está cerrado (alto fijo [alturaStatCard] en vez de
+  // ratio) y ahora hay un caso a 1200px —el ancho que lo reproducía— que lo
+  // afirma ausente. El default se conserva para no tocar los casos de guía.
+  tester.view.physicalSize = tamano;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
@@ -344,6 +352,92 @@ void main() {
     expect(find.text('Pedidos activos'), findsOneWidget);
     expect(find.text('Aún no hay restaurantes en la plataforma'), findsNothing);
     expect(find.text('Selecciona un restaurante'), findsNothing);
+  });
+
+  // ── El ancho que rompía: 1200px, grid a 4 columnas (11-21) ────────────
+
+  testWidgets(
+      'a 1200px (grid de stats a 4 columnas) el dashboard no desborda',
+      (tester) async {
+    final desbordes = <String>[];
+    final onErrorPrevio = FlutterError.onError;
+    // OVERFLOW-DETECTOR: se recoge para poder AFIRMAR que no hay ninguno y
+    // enseñar los píxeles exactos si aparece. No es un filtro: el expect de
+    // abajo pone el caso rojo. Ver test/shared/sin_filtros_overflow_test.dart.
+    FlutterError.onError = (details) {
+      final txt = details.exceptionAsString();
+      if (txt.contains('A RenderFlex overflowed')) {
+        desbordes.add(txt.split('\n').first);
+        return;
+      }
+      onErrorPrevio?.call(details);
+    };
+    try {
+      final db = await buildFakeFirestoreConSeed();
+      await _pumpDashboard(
+        tester,
+        db,
+        role: 'admin_restaurante',
+        rid: 'demo',
+        tamano: const Size(1200, 1800),
+      );
+    } finally {
+      FlutterError.onError = onErrorPrevio;
+    }
+
+    expect(
+      desbordes,
+      isEmpty,
+      reason: 'el dashboard a 1200px desborda: ${desbordes.join(" | ")}',
+    );
+    expect(find.text('Mesas disponibles'), findsOneWidget);
+  });
+
+  testWidgets(
+      'a 1200px las 4 stat cards siguen cabiendo en su celda del grid',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _pumpDashboard(
+      tester,
+      db,
+      role: 'admin_restaurante',
+      rid: 'demo',
+      tamano: const Size(1200, 1800),
+    );
+
+    final cards = find.byType(StatCard);
+    expect(cards, findsNWidgets(4));
+    // Las 4 en la MISMA fila (grid a 4 columnas) — el número de columnas del
+    // tramo >= 1100 no se movió.
+    final ys = <double>{
+      for (var i = 0; i < 4; i++) tester.getTopLeft(cards.at(i)).dy,
+    };
+    expect(ys.length, 1, reason: 'las 4 cards deben ir en una sola fila');
+
+    // Y el alto de la celda es el declarado, no un derivado del ancho.
+    expect(tester.getSize(cards.first).height, alturaStatCard);
+  });
+
+  testWidgets(
+      'a 800px el grid de stats sigue en 2 columnas (el tramo intermedio no se '
+      'movió)', (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _pumpDashboard(tester, db, role: 'admin_restaurante', rid: 'demo');
+
+    final cards = find.byType(StatCard);
+    expect(cards, findsNWidgets(4));
+    // HALLAZGO 11-21: el comentario de este helper decía «800 de ancho ⇒ el
+    // grid cae a 1 columna». Es FALSO: 800 >= GriBreakpoints.compact (750),
+    // así que el tramo que se estaba ejercitando siempre fue el de 2 columnas.
+    // Medido, no supuesto — este caso lo afirma.
+    final xs = <double>{
+      for (var i = 0; i < 4; i++) tester.getTopLeft(cards.at(i)).dx,
+    };
+    expect(xs.length, 2, reason: '2 columnas ⇒ dos coordenadas x distintas');
+    final ys = <double>{
+      for (var i = 0; i < 4; i++) tester.getTopLeft(cards.at(i)).dy,
+    };
+    expect(ys.length, 2, reason: '2 columnas ⇒ dos filas');
   });
 
   testWidgets(
