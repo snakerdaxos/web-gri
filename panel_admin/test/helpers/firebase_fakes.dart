@@ -111,6 +111,22 @@ Future<FakeFirebaseFirestore> buildFakeFirestoreConSeed() async {
   return db;
 }
 
+/// FakeFirestore COMPLETAMENTE VACÍO — escenario de PRIMER ARRANQUE.
+///
+/// Existe porque [buildFakeFirestoreConSeed] siempre pre-siembra, así que el
+/// estado de una base recién creada —antes de que exista ningún restaurante—
+/// era el único que nunca se había probado: `.planning/codebase/TESTING.md`
+/// lo documenta como punto ciego ("no test in either suite constructs a bare
+/// FakeFirebaseFirestore"). Ese punto ciego es exactamente por donde se
+/// colaron los bugs de primer arranque que la Fase 11 repara, con las 175
+/// pruebas en verde.
+///
+/// Uso: idéntico al del seed — `firestoreProvider.overrideWithValue(db)`.
+/// NO añadir seed aquí bajo ninguna circunstancia: su valor está en la
+/// ausencia total de documentos.
+Future<FakeFirebaseFirestore> buildFakeFirestoreVacio() async =>
+    FakeFirebaseFirestore();
+
 /// MockFirebaseAuth firmado con un usuario de test (uid estable
 /// 'test-uid' por defecto para que los docs usuarios/{uid} sean
 /// predecibles en los tests).
