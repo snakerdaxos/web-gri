@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 12/21 planes [############---------] 57%
+Phase 11: 13/21 planes [#############--------] 62%
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -43,7 +43,8 @@ Phase 11: 12/21 planes [############---------] 57%
 - [x] 11-09 Estados vacios guiados + 404 propio en las dos apps: EmptyState (resistente al desbordamiento) cierra la pantalla EN BLANCO del menu post-escaneo del QR; errorBuilder cableado en los dos GoRouter mostrando SOLO uri.path y por detras del guard de sesion. 11 roturas deliberadas — b1719ca, e5c921b, 2840752
 - [x] 11-10 Gestion de equipo del panel: la regla de usuarios se abre por PRIMERA VEZ a docs ajenos, acotada a role()=='admin_restaurante' && resource.data.restauranteId==rid() (clientes fuera por construccion, restauranteId null); pantalla /equipo unica adaptativa + formulario que NO manda restauranteId siendo admin (la callable lo deriva del claim) + gating en sidebar y router. 2 verdes por el motivo equivocado cazados (uno HEREDADO de 11-04) y 1 gate del plan inejecutable. 21 roturas deliberadas — 7f3f9a2, 5ef72b6, 69799e8
 - [x] 11-11 Base del sistema de diseno: GriSpacing/GriRadius/GriBreakpoints/GriText en las DOS apps, griTextTheme con los 15 slots DECLARADOS (valores de M3 medidos con sonda: la escala de GRI NO cabe ahi porque esos slots los consume el chrome), GriSemanticColors registrada, models/pedido.dart pierde su segunda paleta, panel con elevatedButtonTheme + griCardDecoration + 4 estilos con nombre. 17 roturas deliberadas; 1 test propio RETIRADO por estar verde por construccion — 3e5f931, 6ad9a63, 808487b, 7d0528a
-- [ ] 11-11 .. 11-17, 11-19 .. 11-21
+- [x] 11-13 TODO lo visible de la app cliente: SafeArea(bottom:false) cierra el bug del espacio superior reportado por el usuario; el ConstrainedBox fijo de 480 pasa a techo adaptativo (0-840 IDENTICO, >=840 pasa a 720); overflow del wizard cerrado + 2 mas del mismo tipo hallados en el barrido; 37 emojis -> Icon de Material con GriIcons; primera red de seguridad del AppShell (17 casos de geometria real). 21 roturas deliberadas, 2 VERDES cazadas (SafeArea(bottom:true) es un no-op medido; el textAlign no lo veia getRect). Suite ENTERA verde a 320px con canario — 85f0f45, 81323f5, 6207ded, f5b6049, a0a83d9, da167b8, 65c1c17
+- [ ] 11-12, 11-14 .. 11-17, 11-19 .. 11-21
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -53,6 +54,7 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 
 ## Test Baselines (final Firebase)
 
+- 11-13: app_cliente 178 -> 206 (+28); analyze 0. Desglose: +17 app_shell_responsive_test (nuevo), +4 wizard_form_test, +2 sin_emojis_test (nuevo), +4 iconos_test (nuevo), +1 theme_tokens_test. MEDIDO tambien con la suite ENTERA forzada a 320px (flutter_test_config.dart temporal): 206 verdes y CERO `RenderFlex overflowed`
 - 11-11: app_cliente 158 -> 178 (+20) y panel_admin 163 -> 189 (+26); analyze 0 en las dos. OJO: `flutter test` en panel_admin da 226 porque 11-10 aporta +37 en test/equipo (medido aparte con `flutter test test/equipo`)
 
 - app_cliente: 122 passed + analyze 0 (11-09: +10 — 4 de menu_vacio, 1 en base_vacia, 5 de router_404). MEDIDO EN DOS MITADES: 11-17 tenia test/auth y lib/features/auth abiertos en vuelo, asi que `flutter test` a secas salia rojo por archivos ajenos; test/auth por separado +50 y todo lo demas +99
@@ -144,6 +146,16 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-11: un MaterialColor (Colors.red) dentro de un ThemeExtension rompe el contrato de lerp — Color.lerp devuelve siempre un Color plano y Color.== compara el runtimeType, asi que lerp(otro, 0) dejaba de ser igual a this. Los tokens de color se declaran como Color plano
 - 11-11: textoSecundarioAccesible (#6E6E6E) se DECLARA pero NO se aplica en ningun sitio; aplicarlo es de 11-14. GriColors.gray sigue siendo #777777 y hay dos tests por app que lo impiden cambiar
 
+- 11-13: HALLAZGO — `SafeArea(bottom: true)` en el AppShell es un NO-OP, no un bug. El Scaffold ya pone padding.bottom a 0 en el MediaQuery del body cuando declara bottomNavigationBar (MEDIDO con sonda). La premisa "no negociable" del plan (que duplicarlo anadiria un hueco) es FALSA: la rotura deliberada dejo la suite entera en verde. `bottom: false` se conserva como documentacion de intencion y la asercion se reescribio por tres que si tienen dientes
+- 11-13: el ConstrainedBox del shell NO se borra, se convierte en techo adaptativo. De 0 a 840px el ancho es IDENTICO al anterior (afirmado a 360/600/839, el borde exacto); solo por encima de 840 pasa de 480 a GriBreakpoints.contenidoMaxAmplio (720), unico valor NUEVO de design_tokens.dart
+- 11-13: HALLAZGO — la fuente por defecto de `flutter test` pinta cada glifo como un cuadrado de fontSize, asi que el texto mide ~2x lo que mide en Roboto real ('Elige una hora'@16 -> 224px vs ~105px). Un barrido de overflow a 320px produce FALSOS POSITIVOS: hay que medir con TextPainter antes de declarar un bug. El desborde de _ResumenRow es real con cualquier fuente (840 vs ~170px de hueco); los otros dos solo aparecen con el texto ampliado por accesibilidad
+- 11-13: HALLAZGO — una asercion que mide la CAJA del parrafo no ve el textAlign. Con Expanded, la caja ocupa todo el hueco se alinee como se alinee; quitar textAlign.end dejo la suite entera en verde. Se lee la posicion de los GLIFOS con RenderParagraph.getBoxesForSelection
+- 11-13: HALLAZGO — el grep de inventario del plan (rangos 1F300-1FAFF y 2600-27BF) NO cubre U+2B50, asi que se dejaba fuera las 4 apariciones de la estrella, que estan en su propia tabla de equivalencias. Total real 54, no ~46. Cuarto gate de grep defectuoso de la fase (11-06, 11-08 x2, 11-13)
+- 11-13: HALLAZGO — el gate `<verification>` del plan (`grep -rn "RenderFlex overflowed" app_cliente/test`) da FALSO POSITIVO: casa con un comentario explicativo dentro de un `reason:`. Confunde "hay un filtro" con "alguien menciona la frase"
+- 11-13: la regla que separa "icono" de "texto expresivo" es la PERSISTENCIA del elemento: chip/tab/tarjeta/estado vacio/metadatos de fila -> icono (se sustituye); SnackBar o frase conversacional -> texto (se conserva con // EMOJI-OK: motivo)
+- 11-13: un emoji DENTRO de una frase se traduce con WidgetSpan (iconoInline), no con Row — el Row cambia el salto de linea del parrafo y con dos iconos en la misma frase exigiria anidar
+- 11-13: el gate de paridad token<->codigo de 11-11 se REESCRIBIO, tal y como su propio comentario pedia ("hay que reescribirlo, no borrarlo"): ya no hay literal que comparar, asi que afirma que NO vuelve ninguno y que los tres tokens se usan. El gate fuerte es el nuevo, que renderiza y mide
+
 ## Performance Metrics
 
 | Phase | Plan | Duracion | Tareas | Archivos |
@@ -158,11 +170,12 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | 11 | 18 | ~31 min | 3 | 55 |
 | 11 | 09 | ~50 min | 2 | 12 |
 | 11 | 11 | ~95 min | 2 | 8 |
+| 11 | 13 | ~110 min | 3 | 23 |
 
 ## Session
 
 - Last session: 2026-08-19
-- Stopped at: Completado 11-11-PLAN.md (base del sistema de diseno en las dos apps; 17 roturas deliberadas). Ejecutado en paralelo con 11-10.
+- Stopped at: Completado 11-13-PLAN.md (todo lo visible de la app cliente: zona segura, responsive, overflow e iconos; 21 roturas deliberadas, 2 verdes cazadas). Ejecutado en paralelo con 11-21.
 - Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-12-PLAN.md
 
 ## Blockers / Notas
@@ -197,3 +210,8 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-11 CAMBIO VISUAL DELIBERADO Y ACOTADO (unico del plan): registrar elevatedButtonTheme alinea los 2 ElevatedButton del panel que NO declaraban estilo (reportes_screen.dart:140 "Consultar" y reservas_screen.dart:221 "Marcar ocupada"), que renderizaban #FFF1ED sobre #8F4C37 — el derivado de ColorScheme.fromSeed, que NO es la marca — con el naranja #FF4C05 de los otros 10 CTA. PENDIENTE DE VERIFICACION HUMANA: no se ha visto renderizado. Revertirlo es borrar elevatedButtonTheme de griTheme (la rotura M confirma que el test lo detecta).
 - 11-11: `test:rules` y `test:functions` NO se ejecutaron — dependen de los emuladores y 11-10 estaba en vuelo tocando firestore.rules. El plan no toca rules, indices ni functions. Si se ejecutaron `audit:indexes` (22 queries, 0 fallos, exit 0) y `audit:branding` (exit 0).
 - 11-11 PENDIENTE DE VERIFICACION HUMANA: que la escala GriText sea la correcta para el mockup. Se derivo CONTANDO los TextStyle inline mas repetidos, no de un diseno.
+- 11-13: DS-02 y DS-03 tampoco existen en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11): `requirements.mark-complete` los devuelve como not_found. Quedan en el frontmatter del SUMMARY.
+- 11-13 PENDIENTE DE VERIFICACION HUMANA: (1) el espacio superior en un movil REAL con notch — es literalmente lo que reporto el usuario y flutter test no puede cerrarlo del todo; (2) el aspecto a >=840px en un navegador (columna de 720); (3) los 37 iconos, en especial soup_kitchen_outlined ("cocinando") y sensors ("en vivo"), y el gris de los estados vacios, que es el UNICO color nuevo del plan; (4) que el Wrap de los controles del Stepper se vea igual que el Row cuando los dos botones caben.
+- 11-13 AVISO PARA 11-14: el boton QR de la home sigue midiendo 45x45 (< 48 de Material) y hay un test que lo CONGELA en 45 — al subirlo hay que actualizar test/restaurantes/iconos_test.dart. Los iconos sin texto al lado ya llevan semanticLabel.
+- 11-13 AVISO PARA 11-19: todo Icon sale de GriIcons y su `size` esta atado al fontSize del Text que sustituyo; si mueves codigo, actualiza los archivo:linea de docs/ICONOS-app_cliente.md.
+- 11-13 (AJENO, sin commitear): `app_cliente/lib/features/restaurantes/restaurantes_provider.g.dart` aparecio REGENERADO por build_runner durante la ejecucion sin que este plan lo ejecutara. Queda en el arbol de trabajo sin estagear y sin explicacion. Tambien quedan sin estagear los 13 archivos de panel_admin (11-21, en vuelo) y .planning/config.json (parallelization 1 -> 3, del orquestador).
