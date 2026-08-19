@@ -106,6 +106,64 @@ final class FirestoreProvider
 
 String _$firestoreHash() => r'864285def6284159b44f9598dcde96347e0c1dce';
 
+/// Cliente de Cloud Functions. La REGIÓN va declarada explícitamente en los DOS
+/// lados (aquí y en el `onCall` de functions/): un desajuste produce un 404 opaco
+/// que en Flutter Web se disfraza de error de CORS.
+
+@ProviderFor(firebaseFunctions)
+final firebaseFunctionsProvider = FirebaseFunctionsProvider._();
+
+/// Cliente de Cloud Functions. La REGIÓN va declarada explícitamente en los DOS
+/// lados (aquí y en el `onCall` de functions/): un desajuste produce un 404 opaco
+/// que en Flutter Web se disfraza de error de CORS.
+
+final class FirebaseFunctionsProvider
+    extends
+        $FunctionalProvider<
+          FirebaseFunctions,
+          FirebaseFunctions,
+          FirebaseFunctions
+        >
+    with $Provider<FirebaseFunctions> {
+  /// Cliente de Cloud Functions. La REGIÓN va declarada explícitamente en los DOS
+  /// lados (aquí y en el `onCall` de functions/): un desajuste produce un 404 opaco
+  /// que en Flutter Web se disfraza de error de CORS.
+  FirebaseFunctionsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'firebaseFunctionsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$firebaseFunctionsHash();
+
+  @$internal
+  @override
+  $ProviderElement<FirebaseFunctions> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  FirebaseFunctions create(Ref ref) {
+    return firebaseFunctions(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(FirebaseFunctions value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<FirebaseFunctions>(value),
+    );
+  }
+}
+
+String _$firebaseFunctionsHash() => r'fecf1eb1c9d200e8353202c6e7907989e6a347d0';
+
 /// Stream de sesión: emite `User?` en cada login/logout + el usuario
 /// persistido al arrancar (persistencia nativa del SDK). Lo consume el
 /// redirect del GoRouter (`authStateChangesProvider`).

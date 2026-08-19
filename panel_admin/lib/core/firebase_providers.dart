@@ -9,6 +9,7 @@
 // Para claims/routing NO se mockea el token: se overridea directo el
 // provider de claims (`claimsProvider`) con valores.
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -21,6 +22,13 @@ FirebaseAuth firebaseAuth(Ref ref) => FirebaseAuth.instance;
 /// Instancia única de [FirebaseFirestore] (keepAlive — vive toda la app).
 @Riverpod(keepAlive: true)
 FirebaseFirestore firestore(Ref ref) => FirebaseFirestore.instance;
+
+/// Cliente de Cloud Functions. La REGIÓN va declarada explícitamente en los DOS
+/// lados (aquí y en el `onCall` de functions/): un desajuste produce un 404 opaco
+/// que en Flutter Web se disfraza de error de CORS.
+@Riverpod(keepAlive: true)
+FirebaseFunctions firebaseFunctions(Ref ref) =>
+    FirebaseFunctions.instanceFor(region: 'us-central1');
 
 /// Stream de sesión: emite `User?` en cada login/logout + el usuario
 /// persistido al arrancar (persistencia nativa del SDK). Lo consume el
