@@ -264,7 +264,7 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
 
 **Orden**: a peticion del usuario lo VISIBLE va antes que la limpieza interna. Los planes visuales estan cortados POR APP (11-13 cliente / 11-21 panel) para poder ejecutarse en paralelo sin compartir un solo archivo; accesibilidad va detras porque un `Icon` acepta `semanticLabel` de forma nativa; y las migraciones a tokens (11-12 / 11-19), que por requisito no cambian ni un color renderizado, van al final y tambien en paralelo, migrando codigo ya asentado en vez de codigo que iba a reescribirse.
 **Notas**: La identidad visual se CONSERVA (naranja `#FF4C05`, layout del mockup) — es trabajo de consistencia, no de rediseño. El plan Blaze solo hace falta para desplegar Cloud Functions, no para emularlas: toda la fase es desarrollable y testeable sin tocar la facturación, y el despliegue está partido en dos checkpoints (rules/índices sin Blaze en 11-16; funciones con Blaze en 11-20) para que la prueba real del bug del índice no quede rehén de una decisión de facturación.
-**Plans:** 14/21 plans executed
+**Plans:** 15/21 plans executed
 
 Plans:
 
@@ -282,7 +282,7 @@ Plans:
 - [x] 11-10-PLAN.md — Ola 5: panel — pantalla de equipo adaptativa por rol + regla de lectura acotada al `rid` (11-10-SUMMARY.md)
 - [x] 11-11-PLAN.md — Ola 5: tokens de diseño (espaciado, radios, breakpoints), escala tipográfica y colores semánticos
 - [x] 11-13-PLAN.md — Ola 6 (VISIBLE, en paralelo): TODO lo visual de app_cliente — zona segura (SafeArea), fin del maxWidth 480, overflow del wizard y sus ~46 emojis → iconos
-- [ ] 11-21-PLAN.md — Ola 6 (VISIBLE, en paralelo): TODO lo visual de panel_admin — sidebar 85px, StatCard 31px, ResponsivePage, overflow de reservas y sus ~47 emojis → iconos
+- [x] 11-21-PLAN.md — Ola 6 (VISIBLE, en paralelo): TODO lo visual de panel_admin — sidebar 85px, StatCard 31px, ResponsivePage, overflow de reservas y sus ~47 emojis → iconos
 - [ ] 11-14-PLAN.md — Ola 7: accesibilidad (etiquetas, tap targets de 48dp, contraste AA sin tocar la paleta) con gates `meetsGuideline`
 - [ ] 11-12-PLAN.md — Ola 8 (limpieza interna, en paralelo): migración 1:1 de hex crudos y estilos duplicados del PANEL + gate anti-regresión
 - [ ] 11-19-PLAN.md — Ola 8 (limpieza interna, en paralelo): migración 1:1 de hex crudos y `TextStyle` de la APP CLIENTE + gate anti-regresión

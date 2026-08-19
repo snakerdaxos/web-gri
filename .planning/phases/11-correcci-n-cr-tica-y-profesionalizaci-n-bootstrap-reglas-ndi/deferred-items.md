@@ -60,3 +60,20 @@
 - **Por qué queda anotado:** cualquiera que clone el repo con un `.dart_tool` heredado se va a topar
   con el mismo error y va a creer que el `pubspec.yaml` está mal. Debería mencionarse en el runbook
   de arranque del bloque 4.
+
+## 11-21 — `MesaTile` se recorta 1.9px de alto por debajo de ~560px de ventana (panel)
+
+- **Encontrado durante:** 11-21 Tarea 2, sondando el shell a 450/500/550/600px.
+- **Medido:** a 550px de ventana (sidebar colapsado → 480 de contenido) el tile mide
+  175×159.1 y su `Column` interior pide 121px en una caja de 119.1 → `A RenderFlex overflowed
+  by 1.9 pixels on the bottom`, una vez por tile. A 600px ya no ocurre.
+- **Por qué NO se arregla aquí:** el alto del tile sale de `childAspectRatio: 1.1`; bajarlo
+  cambia el aspecto de la ficha de mesa a TODOS los anchos, y la decisión visual de la fase
+  está bloqueada. Además el número es del entorno de test: con la fuente de test cada glifo
+  ocupa 1 em, así que las tres líneas del tile piden 121px; con una fuente proporcional piden
+  ~74 y sobra sitio. No hay evidencia de que se vea en producción.
+- **Qué haría falta:** decidir con el usuario si a anchos < 600 el mapa de mesas debe bajar a
+  1 columna (tiles más anchos y por tanto más altos) o si el tile debe tener una variante
+  compacta. Es una decisión de diseño, no un arreglo.
+- **Gate que lo cubriría:** el bucle de `test/shared/responsive_test.dart` está a 600px; bajarlo
+  a 550 lo pone rojo el día que se decida.

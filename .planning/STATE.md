@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-last_updated: "2026-08-19T22:05:00.000Z"
+last_updated: "2026-08-19T23:03:50.895Z"
 progress:
   total_phases: 11
   completed_phases: 10
-  total_plans: 52
-  completed_plans: 42
-  percent: 81
+  total_plans: 53
+  completed_plans: 47
+  percent: 89
 ---
 
 # STATE
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 13/21 planes [#############--------] 62%
+Phase 11: 14/21 planes [##############-------] 67%
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -44,7 +44,8 @@ Phase 11: 13/21 planes [#############--------] 62%
 - [x] 11-10 Gestion de equipo del panel: la regla de usuarios se abre por PRIMERA VEZ a docs ajenos, acotada a role()=='admin_restaurante' && resource.data.restauranteId==rid() (clientes fuera por construccion, restauranteId null); pantalla /equipo unica adaptativa + formulario que NO manda restauranteId siendo admin (la callable lo deriva del claim) + gating en sidebar y router. 2 verdes por el motivo equivocado cazados (uno HEREDADO de 11-04) y 1 gate del plan inejecutable. 21 roturas deliberadas — 7f3f9a2, 5ef72b6, 69799e8
 - [x] 11-11 Base del sistema de diseno: GriSpacing/GriRadius/GriBreakpoints/GriText en las DOS apps, griTextTheme con los 15 slots DECLARADOS (valores de M3 medidos con sonda: la escala de GRI NO cabe ahi porque esos slots los consume el chrome), GriSemanticColors registrada, models/pedido.dart pierde su segunda paleta, panel con elevatedButtonTheme + griCardDecoration + 4 estilos con nombre. 17 roturas deliberadas; 1 test propio RETIRADO por estar verde por construccion — 3e5f931, 6ad9a63, 808487b, 7d0528a
 - [x] 11-13 TODO lo visible de la app cliente: SafeArea(bottom:false) cierra el bug del espacio superior reportado por el usuario; el ConstrainedBox fijo de 480 pasa a techo adaptativo (0-840 IDENTICO, >=840 pasa a 720); overflow del wizard cerrado + 2 mas del mismo tipo hallados en el barrido; 37 emojis -> Icon de Material con GriIcons; primera red de seguridad del AppShell (17 casos de geometria real). 21 roturas deliberadas, 2 VERDES cazadas (SafeArea(bottom:true) es un no-op medido; el textAlign no lo veia getRect). Suite ENTERA verde a 320px con canario — 85f0f45, 81323f5, 6207ded, f5b6049, a0a83d9, da167b8, 65c1c17
-- [ ] 11-12, 11-14 .. 11-17, 11-19 .. 11-21
+- [x] 11-21 TODO lo visible del panel admin: 7 desbordes de RenderFlex cerrados (4 del plan + 3 que no estaban: sidebar COLAPSADO 5px+13px x8 por geometria pura, topbar 77px, cabecera del mapa 148px, cabecera de cocina 150px a 450) y los TRES filtros de overflow del repo retirados (el plan solo conocia 1); ResponsivePage con techo de 1200 en las 12 pantallas contadas del arbol; 33 emojis -> Icon de Material con GriIcons, incluido uno camuflado como una secuencia de escape que ningun grep de glifos veia. 29 roturas deliberadas, 3 VERDES cazadas (el gate del plan no distingue filtro de detector; find.byIcon es tautologico respecto a QUE icono se eligio). HALLAZGO: los 85px del sidebar son de la fuente de TEST, no hay evidencia de que se vieran en produccion. panel_admin 226 -> 280 -- 4872666, 7e0d330, 67859cc, dea78d7, 9c67d7e, 5e55e8b
+- [ ] 11-12, 11-14 .. 11-17, 11-19, 11-20
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -53,6 +54,8 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 3. Smoke e2e flujo completo ([A]-[M] emuladores o [P] real)
 
 ## Test Baselines (final Firebase)
+
+- 11-21: panel_admin 226 -> 280 (+54); analyze 0. Desglose: +9 app_shell_layout_test (nuevo), +34 responsive_test (nuevo), +1 sin_filtros_overflow_test (nuevo), +4 sin_emojis_test (nuevo), +4 stats_render_test, +3 reservas_screen_test. Los 3 filtros de FlutterError.onError que tapaban desbordes (bootstrap_router 11-07, router_404 11-09, equipo_gating 11-10) estan RETIRADOS
 
 - 11-13: app_cliente 178 -> 206 (+28); analyze 0. Desglose: +17 app_shell_responsive_test (nuevo), +4 wizard_form_test, +2 sin_emojis_test (nuevo), +4 iconos_test (nuevo), +1 theme_tokens_test. MEDIDO tambien con la suite ENTERA forzada a 320px (flutter_test_config.dart temporal): 206 verdes y CERO `RenderFlex overflowed`
 - 11-11: app_cliente 158 -> 178 (+20) y panel_admin 163 -> 189 (+26); analyze 0 en las dos. OJO: `flutter test` en panel_admin da 226 porque 11-10 aporta +37 en test/equipo (medido aparte con `flutter test test/equipo`)
