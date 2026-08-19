@@ -8,7 +8,7 @@
     "seed": "node seed_firebase.mjs",
     "audit:indexes": "node audit_indexes.mjs",
     "test:rules": "node run_emulators.mjs --only firestore --project demo-gri -- node --test --test-concurrency=1 scripts/test/rules/*.test.mjs",
-    "test:functions": "node run_emulators.mjs --only auth,functions,firestore --project demo-gri -- node --test --test-concurrency=1 scripts/test/functions/*.test.mjs",
+    "test:functions": "node run_emulators.mjs --set-env BOOTSTRAP_EMAIL=fundador@demo.gri.dev --set-env BOOTSTRAP_SECRET=secreto-solo-para-emulador-no-usar-en-produccion --only auth,functions,firestore --project demo-gri -- node --test --test-concurrency=1 scripts/test/functions/*.e2e.mjs scripts/test/functions/*.test.mjs",
     "test": "npm run test:rules && npm run test:functions"
   },
   "dependencies": {
