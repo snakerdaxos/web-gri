@@ -221,11 +221,11 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
   11. `npm run gates` deja en verde los 8 gates (2 suites Flutter, 2 analyze, rules, functions, audit de índices, audit de branding) sin bajar de los baselines 91 + 84
   12. El runbook `docs/SMOKE-E2E-v2.md` recorre el flujo completo desde base vacía, incluidas la verificación de que el QR de mesa es escaneable y el ingreso con Google
 **Notas**: La identidad visual se CONSERVA (naranja `#FF4C05`, layout del mockup) — es trabajo de consistencia, no de rediseño. El plan Blaze solo hace falta para desplegar Cloud Functions, no para emularlas: toda la fase es desarrollable y testeable sin tocar la facturación, y el despliegue está partido en dos checkpoints (rules/índices sin Blaze en 11-16; funciones con Blaze en 11-20) para que la prueba real del bug del índice no quede rehén de una decisión de facturación.
-**Plans:** 1/20 plans executed
+**Plans:** 2/20 plans executed
 
 Plans:
 - [x] 11-01-PLAN.md — Ola 1: desbloqueo de entorno (Java, `.firebaserc`), scaffold de `functions/` con `.env.demo-gri`, arnés de tests de rules y CLAUDE.md corregido
-- [ ] 11-02-PLAN.md — Ola 1: fixture de base vacía + regresión de primer arranque, cliente de Cloud Functions en el panel y guía de arranque en el dashboard
+- [x] 11-02-PLAN.md — Ola 1: fixture de base vacía + regresión de primer arranque, cliente de Cloud Functions en el panel y guía de arranque en el dashboard
 - [ ] 11-03-PLAN.md — Ola 2: bug del menú del cliente (query vs rules) + índice compuesto de `categorias` + audit de índices y de paridad rules↔query
 - [ ] 11-04-PLAN.md — Ola 2: suite de `firestore.rules` del resto de colecciones, con los tres vectores de escalada conocidos
 - [ ] 11-05-PLAN.md — Ola 2: panel — crear restaurante con slug (y seleccionarlo al vuelo), estado vacío guiado y confirmación al desactivar
