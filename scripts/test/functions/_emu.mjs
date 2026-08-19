@@ -163,6 +163,37 @@ export function llamarBootstrap(data) {
   return httpsCallable(fns, 'bootstrapPlataforma')(data);
 }
 
+/** Invoca `crearUsuarioStaff` como el panel (plan 11-08). */
+export function llamarCrearStaff(data) {
+  return httpsCallable(fns, 'crearUsuarioStaff')(data);
+}
+
+/**
+ * Siembra un usuario CON claims y devuelve su uid (plan 11-08).
+ *
+ * EL ORDEN ES LO ÚNICO QUE IMPORTA AQUÍ: los claims se fijan ANTES de que el
+ * test haga `login()`. El idToken se acuña en el `signIn`, así que asignar
+ * claims después dejaría un token SIN ellos y la función vería un llamador
+ * anónimo de rol. Un e2e escrito al revés y sin `getIdToken(true)` es un falso
+ * negativo garantizado: todos los casos "denegado" pasarían por el motivo
+ * equivocado.
+ */
+export async function crearUsuarioConClaims({ email, password, claims }) {
+  const uid = await crearUsuario({ email, password });
+  await getAuthAdmin(appAdmin).setCustomUserClaims(uid, claims);
+  return uid;
+}
+
+/**
+ * Siembra un restaurante mínimo (plan 11-08). `crearUsuarioStaff` exige que el
+ * restaurante destino EXISTA para no crear staff huérfano.
+ */
+export async function crearRestaurante(rid, extra = {}) {
+  await getFirestore(appAdmin)
+    .doc(`restaurantes/${rid}`)
+    .set({ nombre: `Restaurante ${rid}`, activo: true, ...extra });
+}
+
 /**
  * Deja el emulador como recién arrancado: sin usuarios de Auth, sin centinela
  * y sin documentos en `usuarios`.
@@ -180,7 +211,11 @@ export async function limpiar() {
     await adminAuth.deleteUsers(users.map((u) => u.uid));
   }
 
-  for (const col of ['usuarios', 'plataforma']) {
+  // `restaurantes` se añadió en 11-08: `crearUsuarioStaff` exige que el
+  // restaurante destino exista, así que cada caso siembra el suyo y no puede
+  // heredar el del anterior (heredarlo convertiría el caso `not-found` en un
+  // verde por el motivo equivocado).
+  for (const col of ['usuarios', 'plataforma', 'restaurantes']) {
     const snap = await db.collection(col).get();
     await Promise.all(snap.docs.map((d) => d.ref.delete()));
   }
