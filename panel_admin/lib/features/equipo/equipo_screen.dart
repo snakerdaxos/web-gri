@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import 'equipo_provider.dart';
 import 'staff_form_dialog.dart';
 import '../shared/responsive_page.dart';
+import '../../core/gri_icons.dart';
 
 /// Gestión de equipo del restaurante (BOOT-04) — la pieza que hace al
 /// restaurante autosuficiente: hasta aquí, dar de alta a un mesero exigía
@@ -130,7 +131,7 @@ class _EquipoVacio extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🪪', style: TextStyle(fontSize: 40)),
+            const Icon(GriIcons.equipo, size: 40, color: GriColors.gray),
             const SizedBox(height: 12),
             const Text(
               'Todavía no hay nadie en el equipo',

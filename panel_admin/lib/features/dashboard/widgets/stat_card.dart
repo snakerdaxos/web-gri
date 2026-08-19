@@ -11,6 +11,10 @@ import '../../../core/theme.dart';
 /// El color del icono lo decide el caller ([iconBg] + [iconFg]) según el tipo
 /// de stat: disponible=verde, ocupada=naranja, reservas=amarillo, pedidos=azul
 /// (mockup `.orange/.green/.yellow/.blue`).
+///
+/// 11-21: [icono] era un `String emoji` pintado como `Text(fontSize: 25)`. El
+/// `Icon` lo sustituye con `size: 25` — el mismo número — y con el `iconFg`
+/// que el caller ya pasaba, que antes solo teñía a los emojis monocromos.
 class StatCard extends StatelessWidget {
   const StatCard({
     super.key,
@@ -18,14 +22,14 @@ class StatCard extends StatelessWidget {
     required this.value,
     required this.iconBg,
     required this.iconFg,
-    required this.emoji,
+    required this.icono,
   });
 
   final String label;
   final int value;
   final Color iconBg;
   final Color iconFg;
-  final String emoji;
+  final IconData icono;
 
   @override
   Widget build(BuildContext context) {
@@ -85,10 +89,7 @@ class StatCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
             ),
             alignment: Alignment.center,
-            child: Text(
-              emoji,
-              style: TextStyle(fontSize: 25, color: iconFg),
-            ),
+            child: Icon(icono, size: 25, color: iconFg),
           ),
         ],
       ),

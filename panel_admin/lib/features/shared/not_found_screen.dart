@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import 'responsive_page.dart';
+import '../../core/gri_icons.dart';
 
 /// Pantalla 404 propia del panel (11-09).
 ///
@@ -45,7 +46,13 @@ class NotFoundScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('\u{1F9ED}', style: TextStyle(fontSize: 40)),
+              // Era un emoji escrito como secuencia de escape, invisible a
+              // cualquier grep de glifos. size 40 = su fontSize.
+              const Icon(
+                GriIcons.rutaDesconocida,
+                size: 40,
+                color: GriColors.gray,
+              ),
               const SizedBox(height: 8),
               const Text('Página no encontrada'),
               const SizedBox(height: 4),

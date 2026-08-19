@@ -3,6 +3,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../models/mesa.dart';
 import 'print_service.dart';
+import '../../core/gri_icons.dart';
 
 /// Muestra el código QR imprimible de una mesa (MESA-03, 08-03).
 ///
@@ -40,12 +41,14 @@ Future<void> showQrDialog(BuildContext context, Mesa mesa) {
         ),
       ),
       actions: [
-        TextButton(
+        TextButton.icon(
           // web-only: imprime la vista actual del browser (el dialog queda
           // como contenido principal). No existe en la VM — jamás tapear
           // este botón en widget tests.
           onPressed: printCurrentView,
-          child: const Text('🖨️ Imprimir'),
+          // size 14 = el labelLarge que el emoji heredaba dentro del boton.
+          icon: const Icon(GriIcons.imprimir, size: 14),
+          label: const Text('Imprimir'),
         ),
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(),

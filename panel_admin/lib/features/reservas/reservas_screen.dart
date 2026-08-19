@@ -9,6 +9,7 @@ import '../../models/reserva.dart';
 import 'reservas_provider.dart';
 import '../shared/responsive_page.dart';
 import '../../core/design_tokens.dart';
+import '../../core/gri_icons.dart';
 
 /// Pantalla /reservas (RESV-05 UI, 10-06): reservas de HOY del tenant EN
 /// VIVO (`reservasHoyProvider` — misma query del dashboard, onSnapshot).
@@ -95,7 +96,7 @@ class ReservasScreen extends ConsumerWidget {
           children: [
             Row(
               children: [
-                const Text('📅', style: TextStyle(fontSize: 18)),
+                const Icon(GriIcons.reservas, size: 18, color: GriColors.text),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(

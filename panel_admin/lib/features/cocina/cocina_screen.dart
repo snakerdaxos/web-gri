@@ -8,6 +8,7 @@ import '../../models/pedido_staff.dart';
 import 'pedidos_staff_provider.dart';
 import 'widgets/pedido_card.dart';
 import '../shared/responsive_page.dart';
+import '../../core/gri_icons.dart';
 
 /// Vista cocina (ADMN-05) — cola de pedidos activos EN VIVO (Phase 10:
 /// onSnapshot nativo — WS y polling retirados de esta vista, MIGRA-05).
@@ -98,8 +99,17 @@ class CocinaScreen extends ConsumerWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          // El emoji de fiesta iba dentro de la frase. Pasa a
+                          // icono encima, del mismo tamano que el texto que
+                          // acompanaba (18), en el mismo gris.
+                          Icon(
+                            GriIcons.todoAlDia,
+                            size: 18,
+                            color: GriColors.gray,
+                          ),
+                          SizedBox(height: 6),
                           Text(
-                            'No hay pedidos activos 🎉',
+                            'No hay pedidos activos',
                             style: TextStyle(
                               fontSize: 18,
                               color: GriColors.gray,
@@ -165,7 +175,7 @@ class CocinaScreen extends ConsumerWidget {
             const Divider(height: 1),
             for (final a in avisos)
               ListTile(
-                leading: const Text('🍽️', style: TextStyle(fontSize: 20)),
+                leading: const Icon(GriIcons.marca, size: 20),
                 title: Text('Mesa ${a.mesaNumero}'),
                 subtitle: const Text(
                   'Entregar cuenta cierra la sesión y pasa la mesa a limpieza',
@@ -279,7 +289,11 @@ class _CuentaAvisosBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🍽️', style: TextStyle(fontSize: 14)),
+            const Icon(
+              GriIcons.marca,
+              size: 14,
+              color: GriColors.mesaReservadaFg,
+            ),
             const SizedBox(width: 6),
             // Flexible: el texto se acota al ancho que el header le deje
             // (pantallas angostas) en vez de desbordar el Row del badge.

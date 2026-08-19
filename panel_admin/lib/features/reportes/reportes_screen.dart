@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/reporte.dart';
 import 'reportes_provider.dart';
 import '../shared/responsive_page.dart';
+import '../../core/gri_icons.dart';
 
 /// Pantalla /reportes (REPO-01/02, 10-06): ventas por rango + top platos,
 /// computados EN EL CLIENTE desde pedidos `servido` (fold — sin backend).
@@ -126,14 +127,15 @@ class ReportesScreenState extends ConsumerState<ReportesScreen> {
               children: [
                 OutlinedButton.icon(
                   onPressed: _pickDesde,
-                  icon: const Text('📅'),
+                  // size 14 = el labelLarge que el emoji heredaba del boton.
+                  icon: const Icon(GriIcons.reservas, size: 14),
                   label: Text(
                     _desde != null ? _fmt.format(_desde!) : 'Inicio',
                   ),
                 ),
                 OutlinedButton.icon(
                   onPressed: _pickHasta,
-                  icon: const Text('📅'),
+                  icon: const Icon(GriIcons.reservas, size: 14),
                   label: Text(
                     _hasta != null ? _fmt.format(_hasta!) : 'Fin',
                   ),
@@ -246,7 +248,7 @@ class _Contenido extends StatelessWidget {
           children: [
             Expanded(
               child: _ResumenCard(
-                emoji: '💵',
+                icono: GriIcons.ventas,
                 label: 'Total vendido',
                 value: formatCOP(reporte.totalVentas),
               ),
@@ -254,7 +256,7 @@ class _Contenido extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _ResumenCard(
-                emoji: '🧾',
+                icono: GriIcons.ticket,
                 label: 'Pedidos',
                 value: '${reporte.numeroPedidos}',
               ),
@@ -332,12 +334,12 @@ class _Contenido extends StatelessWidget {
 /// viaja formateado con formatCOP).
 class _ResumenCard extends StatelessWidget {
   const _ResumenCard({
-    required this.emoji,
+    required this.icono,
     required this.label,
     required this.value,
   });
 
-  final String emoji;
+  final IconData icono;
   final String label;
   final String value;
 
@@ -384,7 +386,9 @@ class _ResumenCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
             ),
             alignment: Alignment.center,
-            child: Text(emoji, style: const TextStyle(fontSize: 25)),
+            // size 25 = el fontSize del emoji que sustituye; el color es el
+            // azul del propio recuadro, que antes ponia la fuente de emoji.
+            child: Icon(icono, size: 25, color: const Color(0xFF3478F6)),
           ),
         ],
       ),

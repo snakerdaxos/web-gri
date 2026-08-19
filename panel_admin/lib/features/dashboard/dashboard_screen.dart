@@ -14,6 +14,7 @@ import 'widgets/mesa_tile.dart';
 import 'widgets/stat_card.dart';
 import '../../core/design_tokens.dart';
 import '../shared/responsive_page.dart';
+import '../../core/gri_icons.dart';
 
 /// Dashboard (ADMN-01 + ADMN-02) — 4 stat cards + mapa de mesas coloreado.
 ///
@@ -145,28 +146,28 @@ class DashboardScreen extends ConsumerWidget {
                       value: s.mesasDisponibles,
                       iconBg: GriColors.statIconDisponibleBg,
                       iconFg: GriColors.mesaDisponibleDot,
-                      emoji: '🪑',
+                      icono: GriIcons.mesas,
                     ),
                     StatCard(
                       label: 'Mesas ocupadas',
                       value: s.mesasOcupadas,
                       iconBg: GriColors.statIconOcupadaBg,
                       iconFg: GriColors.primary,
-                      emoji: '👥',
+                      icono: GriIcons.clientes,
                     ),
                     StatCard(
                       label: 'Reservas hoy',
                       value: s.reservasHoy,
                       iconBg: GriColors.statIconReservasBg,
                       iconFg: GriColors.mesaReservadaDot,
-                      emoji: '📅',
+                      icono: GriIcons.reservas,
                     ),
                     StatCard(
                       label: 'Pedidos activos',
                       value: s.pedidosActivos,
                       iconBg: GriColors.statIconPedidosBg,
                       iconFg: GriColors.mesaLimpiezaDot,
-                      emoji: '📋',
+                      icono: GriIcons.pedidos,
                     ),
                   ],
                 ),
@@ -378,9 +379,15 @@ class _GuiaSinRestaurante extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            plataformaVacia ? '🏪' : '👇',
-            style: const TextStyle(fontSize: 34),
+          // size 34 = el fontSize del emoji que sustituye.
+          //
+          // El '👇' apuntaba HACIA ABAJO a un control que está ARRIBA (el
+          // selector vive en el topbar): la sustitución corrige además el
+          // significado, no solo la fuente.
+          Icon(
+            plataformaVacia ? GriIcons.restaurante : GriIcons.selectorArriba,
+            size: 34,
+            color: GriColors.gray,
           ),
           const SizedBox(height: 12),
           Text(

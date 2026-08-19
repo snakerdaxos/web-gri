@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
 import '../../../models/mesa.dart';
+import '../../../core/gri_icons.dart';
 
 /// Tile individual del mapa de mesas (ADMN-02).
 ///
@@ -58,12 +59,31 @@ class MesaTile extends StatelessWidget {
               style: TextStyle(fontSize: 13, color: fg),
             ),
             const SizedBox(height: 5),
-            Text(
-              '👥 ${mesa.capacidad} personas',
-              style: TextStyle(
-                fontSize: 12,
-                color: fg.withValues(alpha: 0.8),
-              ),
+            // El '👥' iba DENTRO del texto; pasa a ser un Icon del mismo
+            // tamaño (12) y del mismo color a la izquierda. `mainAxisSize.min`
+            // + `Flexible` para que el Row no pueda desbordar el tile.
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  GriIcons.clientes,
+                  size: 12,
+                  color: fg.withValues(alpha: 0.8),
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    '${mesa.capacidad} personas',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: fg.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

@@ -8,6 +8,7 @@ import '../dashboard/restaurante_provider.dart';
 import '../dashboard/restaurantes_list_provider.dart';
 import '../equipo/equipo_provider.dart' show rolesQueGestionanEquipo;
 import '../../core/design_tokens.dart';
+import '../../core/gri_icons.dart';
 
 /// AppShell completo (Task 3) — sidebar 250px + topbar con nombre restaurante.
 ///
@@ -147,15 +148,15 @@ class _Sidebar extends StatelessWidget {
   /// Path de la ruta activa ('/' | '/cocina' | …) — deriva el índice activo.
   final String location;
 
-  static const _items = <(String, String)>[
-    ('🏠', 'Dashboard'),
-    ('🪑', 'Mesas'),
-    ('📋', 'Pedidos'),
-    ('📅', 'Reservas'),
-    ('👥', 'Clientes'),
-    ('📊', 'Reportes'),
-    ('🪪', 'Equipo'),
-    ('⚙️', 'Configuración'),
+  static const _items = <(IconData, String)>[
+    (GriIcons.dashboard, 'Dashboard'),
+    (GriIcons.mesas, 'Mesas'),
+    (GriIcons.pedidos, 'Pedidos'),
+    (GriIcons.reservas, 'Reservas'),
+    (GriIcons.clientes, 'Clientes'),
+    (GriIcons.reportes, 'Reportes'),
+    (GriIcons.equipo, 'Equipo'),
+    (GriIcons.configuracion, 'Configuración'),
   ];
 
   /// Índice de 'Equipo' en [_items]/[_routes] — el único ítem con visibilidad
@@ -219,7 +220,13 @@ class _Sidebar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 alignment: Alignment.center,
-                child: const Text('🍽️', style: TextStyle(fontSize: 24)),
+                // size 24 = el fontSize exacto del emoji que sustituye.
+                child: const Icon(
+                  GriIcons.marca,
+                  size: 24,
+                  color: Colors.white,
+                  semanticLabel: 'GRI',
+                ),
               ),
               if (!collapsed) ...[
                 const SizedBox(width: 12),
@@ -269,7 +276,7 @@ class _Sidebar extends StatelessWidget {
                 final isActive = i == activeIndex;
                 final route = _routes[i];
                 return _MenuItem(
-                  emoji: item.$1,
+                  icono: item.$1,
                   label: item.$2,
                   active: isActive,
                   collapsed: collapsed,
@@ -288,14 +295,14 @@ class _Sidebar extends StatelessWidget {
 
 class _MenuItem extends StatelessWidget {
   const _MenuItem({
-    required this.emoji,
+    required this.icono,
     required this.label,
     required this.active,
     required this.collapsed,
     required this.onTap,
   });
 
-  final String emoji;
+  final IconData icono;
   final String label;
   final bool active;
   final bool collapsed;
@@ -328,10 +335,16 @@ class _MenuItem extends StatelessWidget {
               children: [
                 SizedBox(
                   width: 25,
-                  child: Text(
-                    emoji,
-                    style: const TextStyle(fontSize: 18),
-                    textAlign: TextAlign.center,
+                  // size 18 = el fontSize del Text que sustituye; el color es
+                  // el MISMO que el de la etiqueta (antes lo ponía la fuente
+                  // de emoji del sistema, que es justo lo que se quería dejar
+                  // de depender). Colapsado el icono queda solo, así que
+                  // lleva su etiqueta semántica.
+                  child: Icon(
+                    icono,
+                    size: 18,
+                    color: fg,
+                    semanticLabel: collapsed ? label : null,
                   ),
                 ),
                 if (!collapsed) ...[

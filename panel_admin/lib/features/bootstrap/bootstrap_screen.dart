@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../shared/password_field.dart';
 import 'bootstrap_controller.dart';
 import '../shared/responsive_page.dart';
+import '../../core/gri_icons.dart';
 
 /// Pantalla `/bootstrap` (BOOT-01): crea el PRIMER `super_admin` de la
 /// plataforma invocando la callable `bootstrapPlataforma`.
@@ -300,7 +301,12 @@ class _LogoBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: const Center(
-        child: Text('🍽️', style: TextStyle(fontSize: 32)),
+        child: Icon(
+          GriIcons.marca,
+          size: 32,
+          color: Colors.white,
+          semanticLabel: 'GRI',
+        ),
       ),
     );
   }

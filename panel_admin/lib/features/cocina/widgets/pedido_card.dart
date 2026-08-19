@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/format.dart';
 import '../../../core/theme.dart';
 import '../../../models/pedido_staff.dart';
+import '../../../core/gri_icons.dart';
 
 /// Card de un pedido de la cola de cocina (ADMN-05).
 ///
@@ -142,12 +143,28 @@ class PedidoCard extends StatelessWidget {
                       // ── Notas ────────────────────────────────────────────
                       if (pedido.notas != null) ...[
                         const SizedBox(height: 8),
-                        Text(
-                          '📝 “${pedido.notas}”',
-                          style: const TextStyle(
-                            fontStyle: FontStyle.italic,
-                            color: GriColors.gray,
-                          ),
+                        // El emoji de nota iba dentro del literal; pasa a
+                        // Icon del tamano del texto que acompana (14, el
+                        // bodyMedium del tema) y del mismo gris.
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              GriIcons.notas,
+                              size: 14,
+                              color: GriColors.gray,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '“${pedido.notas}”',
+                                style: const TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  color: GriColors.gray,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                       const SizedBox(height: 6),
@@ -247,7 +264,7 @@ class _CuentaBadge extends StatelessWidget {
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('🍽️', style: TextStyle(fontSize: 14)),
+          Icon(GriIcons.marca, size: 14, color: GriColors.mesaReservadaFg),
           SizedBox(width: 6),
           Text(
             'pidió la cuenta',

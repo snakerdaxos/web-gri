@@ -5,6 +5,7 @@ import '../../core/firebase_providers.dart';
 import '../../models/mesa.dart';
 import '../dashboard/restaurante_provider.dart';
 import 'mesas_crud.dart';
+import '../../core/gri_icons.dart';
 
 /// Form crear/editar mesa (MESA-01) sobre Firestore (10-06).
 ///
@@ -229,13 +230,28 @@ class _MesaFormDialogState extends ConsumerState<MesaFormDialog> {
               if (_regeneraQr)
                 Padding(
                   padding: const EdgeInsets.only(top: 14),
-                  child: Text(
-                    '⚠️ Cambiar el número regenera el código QR de la mesa '
-                    '— el QR impreso anterior quedará obsoleto',
-                    style: const TextStyle(
-                      color: Color(0xFFE65100),
-                      fontSize: 13,
-                    ),
+                  // El emoji de aviso iba dentro del literal; pasa a Icon
+                  // del tamano del texto (13) y del MISMO ambar del aviso.
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        GriIcons.aviso,
+                        size: 13,
+                        color: Color(0xFFE65100),
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Cambiar el número regenera el código QR de la mesa '
+                          '— el QR impreso anterior quedará obsoleto',
+                          style: TextStyle(
+                            color: Color(0xFFE65100),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
             ],

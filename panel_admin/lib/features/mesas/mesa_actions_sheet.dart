@@ -7,6 +7,7 @@ import '../../models/mesa.dart';
 import '../dashboard/mesas_provider.dart';
 import 'mesa_form_dialog.dart';
 import 'qr_dialog.dart';
+import '../../core/gri_icons.dart';
 
 /// Alias de la tabla `mesa` de [state_machines] — única fuente client-side
 /// de destinos válidos (port 1:1 de MESA_TRANSITIONS; las rules re-validan
@@ -120,13 +121,13 @@ class _MesaActionsSheet extends StatelessWidget {
             ),
           const Divider(height: 1),
           ListTile(
-            leading: const Text('📷', style: TextStyle(fontSize: 20)),
+            leading: const Icon(GriIcons.verQr, size: 20),
             title: const Text('Ver código QR'),
             onTap: onVerQr,
           ),
           if (showEdit)
             ListTile(
-              leading: const Text('✏️', style: TextStyle(fontSize: 20)),
+              leading: const Icon(GriIcons.editar, size: 20),
               title: const Text('Editar mesa'),
               onTap: onEditar,
             ),
