@@ -1,11 +1,11 @@
 {
-    "name": "gri_cliente",
-    "short_name": "gri_cliente",
+    "name": "GRI",
+    "short_name": "GRI",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F7F7F7",
+    "theme_color": "#FF4C05",
+    "description": "GRI — reserva mesa, escanea el QR de tu mesa y pide del menú desde tu móvil.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

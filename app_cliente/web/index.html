@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -18,21 +18,123 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="GRI — reserva mesa, escanea el QR y pide del menú desde tu móvil.">
+  <meta name="theme-color" content="#FF4C05">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="gri_cliente">
+  <meta name="apple-mobile-web-app-title" content="GRI">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>gri_cliente</title>
+  <title>GRI</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Shell de carga con marca (11-18).
+
+    Motivo: `main()` hace `await bootstrap()` (inicialización de Firebase)
+    ANTES de `runApp`, así que sin esto la pestaña se queda en BLANCO durante
+    toda esa espera y el producto se lee como "roto" en vez de "cargando".
+
+    El color de fondo es el `AppColors.background` de ESTA app (#F7F7F7,
+    app_cliente/lib/core/theme.dart:22). El del panel es distinto a propósito
+    (#F5F6F8): vienen de dos mockups distintos.
+  -->
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #F7F7F7;
+    }
+    #gri-loading {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background-color: #F7F7F7;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   Helvetica, Arial, sans-serif;
+      opacity: 1;
+      transition: opacity 220ms ease-out;
+    }
+    #gri-loading.gri-oculto { opacity: 0; }
+    #gri-loading .gri-logo {
+      width: 88px;
+      height: 88px;
+      display: block;
+    }
+    #gri-loading .gri-wordmark {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #222222;
+    }
+    #gri-loading .gri-spinner {
+      width: 26px;
+      height: 26px;
+      border: 3px solid rgba(255, 76, 5, 0.22);
+      border-top-color: #FF4C05;
+      border-radius: 50%;
+      animation: gri-giro 900ms linear infinite;
+    }
+    #gri-loading .gri-texto {
+      font-size: 13px;
+      color: #777777;
+    }
+    @keyframes gri-giro { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      #gri-loading .gri-spinner { animation-duration: 2400ms; }
+      #gri-loading { transition: none; }
+    }
+  </style>
 </head>
 <body>
+  <div id="gri-loading" role="status" aria-live="polite" aria-label="Cargando GRI">
+    <img class="gri-logo" src="icons/Icon-192.png" width="88" height="88" alt="">
+    <div class="gri-wordmark">GRI</div>
+    <div class="gri-spinner"></div>
+    <div class="gri-texto">Cargando…</div>
+  </div>
+
+  <script>
+    // Retirada del shell. `flutter-first-frame` lo emite el propio engine de
+    // Flutter sobre `window` cuando pinta el PRIMER frame de la app — es decir,
+    // después de `await bootstrap()` y de `runApp`, que es exactamente el
+    // instante en el que el shell deja de tener sentido.
+    //
+    // Este listener se registra de forma SÍNCRONA, antes de que el script
+    // `async` de abajo llegue siquiera a ejecutarse, así que no puede perderse
+    // el evento.
+    //
+    // NO se toca el orden de inicialización de Firebase ni el bootstrap de
+    // Flutter: esto solo escucha.
+    (function () {
+      var retirado = false;
+      function retirar() {
+        if (retirado) return;
+        retirado = true;
+        var shell = document.getElementById('gri-loading');
+        if (!shell) return;
+        shell.classList.add('gri-oculto');
+        // El `remove()` va por temporizador y no por `transitionend` para que
+        // el shell desaparezca aunque el navegador no dispare la transición
+        // (prefers-reduced-motion, pestaña en segundo plano…). Un shell que no
+        // se retira deja la app INUTILIZABLE: T-11-18-02.
+        window.setTimeout(function () { shell.remove(); }, 260);
+      }
+      window.addEventListener('flutter-first-frame', retirar);
+    })();
+  </script>
+
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
