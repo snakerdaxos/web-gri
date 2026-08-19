@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 8/21 planes [########-------------] 38%
+Phase 11: 9/21 planes [#########------------] 43%
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -39,7 +39,8 @@ Phase 11: 8/21 planes [########-------------] 38%
 - [x] 11-06 Ver/ocultar contrasena en los 5 campos + confirmar contrasena en el registro: PasswordField por app (48x48 verificado anulando los defaults del framework), 12 roturas deliberadas — 958d59f, 3723572, fd5a3e7, f3c2f99
 - [x] 11-07 Bootstrap del primer super_admin: callable con guarda atomica ANTES de toda consulta + doble factor (email_verified + secreto en tiempo constante, sin cortocircuito, mensaje unico), centinela blindado en rules, pantalla /bootstrap exenta del guard e invalidacion de claims. 13 roturas deliberadas — 06ba232, 8dc3e35, 28c1714
 - [x] 11-18 Branding GRI en las DOS apps: generador determinista de 13 assets (SDF, sin fuentes ni descargas), identidad web en los 4 archivos, shell de carga verificado en Chrome real, icono adaptive + splash Android 12, audit:branding y verify:shell. 18 roturas deliberadas — 69d1481, fa4fe06, 12b97e5
-- [ ] 11-08 .. 11-17, 11-19 .. 11-21
+- [x] 11-08 Alta de staff con custom claims: matriz de autorizacion PURA (sin imports de firebase, 27 casos en 61ms) + callable crearUsuarioStaff idempotente con anti-secuestro de 3 ramas (la tercera consulta el doc espejo, porque un cliente auto-registrado no lleva claim role) + 14 e2e con tokens reales. 18 roturas deliberadas — 94f35f1, 5761769, b7b59a8
+- [ ] 11-09 .. 11-17, 11-19 .. 11-21
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -52,12 +53,13 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - app_cliente: 112 passed + analyze 0 (11-06: +16 de toggle de contrasena y confirmacion en el registro)
 - panel_admin: 157 passed + analyze 0 (11-07: +18 — 5 sobre el GoRouter real y 13 de pantalla/controlador de /bootstrap)
 - TOTAL apps: 269 (baseline previa 251, sin regresion)
-- Cloud Functions e2e: 11 passed via `cd scripts && npm run test:functions` (11-07, emuladores auth+functions+firestore reales)
+- Cloud Functions e2e: 25 passed via `cd scripts && npm run test:functions` (11-07 bootstrap 11 + 11-08 crearUsuarioStaff 14, emuladores auth+functions+firestore reales)
+- Cloud Functions unitarios: 34 passed via `cd functions && npm test` (11-08; matriz pura 27 + contratos de fuente 7). OJO: `node --test test/` NO funciona en Node 24, el script usa el glob test/*.test.js
 - firestore.rules: 208 passed via `cd scripts && npm run test:rules` (11-04: +190 — mesas 26, sesiones 29, pedidos 36, reservas 27, calificaciones 21, usuarios 22, restaurantes 29)
 - indices/paridad: `cd scripts && npm run audit:indexes` — 21 queries clasificadas, 0 fallos, exit 0
 - branding: `cd scripts && npm run audit:branding` — 2 apps, 4 archivos, 0 rastros de plantilla, exit 0 (11-18; 15 roturas deliberadas)
 - shell de carga: `cd scripts && npm run verify:shell` — 2 apps en Chrome headless por CDP, shell retirado en <1s (11-18; 3 roturas deliberadas). EXIGE `flutter build web --release` previo en las dos apps
-- Cloud Functions: `bootstrapPlataforma` con 11 casos e2e contra emuladores reales (11-07); `crearUsuarioStaff` sigue sin tests (llega en 11-08)
+- Cloud Functions: `bootstrapPlataforma` (11-07, 11 casos e2e) y `crearUsuarioStaff` (11-08, 14 casos e2e + 34 unitarios). NINGUNA de las dos esta DESPLEGADA en p-gri-b5b40
 - backend FastAPI: archivado (215 tests referencia MySQL, no se mantiene)
 
 ## Stack actual
@@ -113,11 +115,21 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-18: los fondos `#F7F7F7` (cliente) y `#F5F6F8` (panel) DIFIEREN a proposito y `audit_branding.mjs` los afirma POR APP. Si el bloque de tokens cambia `AppColors.background` de una app, hay que actualizar `backgroundEsperado` en ese script EN EL MISMO COMMIT
 - 11-18: la asercion `<title> menciona GRI` NO es la que caza el titulo de plantilla (`gri_cliente` contiene "GRI" en mayusculas); lo caza la lista de nombres de paquete Dart. Las dos comprobaciones son necesarias
 
+- 11-08: la decision de autorizacion se aisla como modulo PURO sin imports de Firebase (functions/src/auth-matrix.js); es lo que permite probar la combinatoria COMPLETA de escaladas en 61ms sin emulador, que es donde vive de verdad la seguridad de la matriz
+- 11-08: el rid efectivo se DERIVA del claim del llamador, JAMAS del payload. Un admin_restaurante no puede elegir restaurante aunque mienta en el body
+- 11-08: la prohibicion de asignar super_admin es ABSOLUTA, no relativa al llamador — ni el propio super_admin puede crear otro por esta via (caso e2e dedicado). El unico super nace de bootstrapPlataforma
+- 11-08: el anti-secuestro por correo tiene TRES ramas y la tercera consulta el DOC ESPEJO, no los claims: un cliente auto-registrado no lleva claim role (11-04), asi que mirar claims no ve nada y cualquiera que conozca el correo de un cliente lo convertiria en su mesero
+- 11-08: riesgo residual ACEPTADO — una cuenta en Auth sin claims Y sin doc espejo se deja pasar porque es indistinguible de un alta de staff incompleta; cerrarlo romperia la reparacion idempotente, unica mitigacion de la no-atomicidad Auth/Firestore
+- 11-08: HALLAZGO — un caso de denegacion que solo asserta el CODIGO puede estar verde por otro control que comparte codigo. ESCALADA HORIZONTAL seguia verde con los claims sin llegar al token; ahora asserta la identidad del MENSAJE y la rotura del arnes pasa de tumbar 10 casos a 11
+- 11-08: HALLAZGO — el gate `grep -c "e.message"` es CIEGO a `err.message` y `err?.message` (el punto es comodin en grep y exige la letra e delante). Demostrado en vivo: con la fuga puesta, el gate PASA. Todo gate de grep debe probarse contra la forma REAL de la fuga
+- 11-08: al reves que 11-07, aqui cada denegacion tiene mensaje PROPIO: alli el llamador podia ser anonimo y el texto unico evitaba un oraculo; aqui ya es staff autenticado (T-11-08-06 acepta la enumeracion) y el mensaje distinto es lo que da dientes a los tests
+
 ## Performance Metrics
 
 | Phase | Plan | Duracion | Tareas | Archivos |
 | --- | --- | --- | --- | --- |
 | 11 | 01 | ~25 min | 3 | 14 |
+| 11 | 08 | ~2h 14min | 3 | 8 |
 | 11 | 02 | ~30 min | 3 | 13 |
 | 11 | 03 | ~13 min | 3 | 10 |
 | 11 | 05 | ~15 min | 3 | 8 |
@@ -128,8 +140,8 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 ## Session
 
 - Last session: 2026-08-19
-- Stopped at: Completado 11-18-PLAN.md (branding GRI en las dos apps: assets generados, web, shell de carga, icono y splash del movil, 2 gates nuevos). Siguiente: 11-08-PLAN.md
-- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-08-PLAN.md
+- Stopped at: Completado 11-08-PLAN.md (alta de staff con custom claims: matriz pura + callable idempotente + e2e con tokens reales). Siguiente: segun el orden de olas de la fase
+- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-08-SUMMARY.md
 
 ## Blockers / Notas
 
@@ -147,7 +159,7 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-05: la MITAD del bootstrap sigue abierta — un restaurante creado desde el panel aun no tiene staff propio hasta la callable de 11-07/11-08.
 - 11-07: BOOT-01 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11): `requirements.mark-complete BOOT-01` devuelve not_found. Queda en el frontmatter del SUMMARY.
 - 11-07 PENDIENTE DE SELLADO HUMANO: la funcion `bootstrapPlataforma` y el `match /plataforma` NO estan desplegados. Hasta `firebase deploy --only functions,firestore:rules --project p-gri-b5b40`, produccion sigue sin la callable y con el centinela sin regla explicita. Runbook en docs/FIREBASE_SETUP.md §4.1 (exige BOOTSTRAP_EMAIL y BOOTSTRAP_SECRET en functions/.env ANTES del deploy).
-- 11-07 PARA 11-08: reutilizar `scripts/test/functions/_emu.mjs` tal cual. AVISO: su `limpiar()` borra TODOS los usuarios de Auth y las colecciones `usuarios` y `plataforma`; si 11-08 siembra otras, debe ampliar la lista. El glob de `test:functions` ya recoge *.e2e.mjs y *.test.mjs.
+- 11-08 (cumplido el aviso de 11-07): `scripts/test/functions/_emu.mjs` reutilizado y AMPLIADO — `limpiar()` borra ahora tambien `restaurantes`, y expone `llamarCrearStaff()`, `crearUsuarioConClaims()` (claims ANTES del login: el idToken se acuña en el signIn) y `crearRestaurante()`. Quien siembre otras colecciones debe ampliar la lista.
 - 11-07: la resistencia real a un ataque de temporizacion NO esta medida (solo se verifica que timingSafeEqual esta y que una longitud distinta deniega sin lanzar). `maxInstances: 3` esta declarado pero el emulador no lo aplica. App Check sigue DIFERIDO.
 - 11-18: UX-03 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11): `requirements.mark-complete UX-03` devuelve not_found. Queda en el frontmatter del SUMMARY.
 - 11-18 (DIFERIDO, ver deferred-items.md): `orientation: portrait-primary` en panel_admin/web/manifest.json — bloquearia una PWA instalada del panel en vertical, y el panel se disena a partir de 1100px. Va al bloque de responsive.
