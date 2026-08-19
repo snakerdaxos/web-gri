@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-last_updated: "2026-08-19T16:11:59.676Z"
+last_updated: "2026-08-19T16:29:00.000Z"
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 52
-  completed_plans: 35
+  completed_plans: 36
   percent: 67
 ---
 
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Un cliente puede sentarse en una mesa, escanear su QR, pedir del menu y recibir su comida en tiempo real sin intermediarios.
-**Current focus:** Phase 11 — Correccion critica y profesionalizacion (plan 02/20 completado)
+**Current focus:** Phase 11 — Correccion critica y profesionalizacion (plan 04/20 completado)
 
 ## Roadmap Evolution
 
@@ -29,12 +29,13 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 3/20 planes [###-----------------] 15%
+Phase 11: 4/20 planes [####----------------] 20%
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
 - [x] 11-03 Correccion del menu: query vs rules + indice compuesto + audit estatico (P0 de la fase) — 23151d8, 5aa08d0, 7caeb71, 52d2db6, 74ceacb
-- [ ] 11-04 .. 11-20
+- [x] 11-04 Suite completa de firestore.rules: 7 colecciones nuevas, 190 casos, 3 vectores de escalada verificados por rotura deliberada — 0d2cafc, a0828f0, 4825e26
+- [ ] 11-05 .. 11-20
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -47,7 +48,7 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - app_cliente: 96 passed + analyze 0 (11-03: +2 de filtrado del menu)
 - panel_admin: 96 passed + analyze 0 (11-02: +3 base vacia, +5 contrato Functions, +4 guia dashboard)
 - TOTAL apps: 192 (baseline previa 175, sin regresion)
-- firestore.rules: 18 passed via `cd scripts && npm run test:rules` (11-03: +16 de categorias y productos)
+- firestore.rules: 208 passed via `cd scripts && npm run test:rules` (11-04: +190 — mesas 26, sesiones 29, pedidos 36, reservas 27, calificaciones 21, usuarios 22, restaurantes 29)
 - indices/paridad: `cd scripts && npm run audit:indexes` — 21 queries clasificadas, 0 fallos, exit 0
 - Cloud Functions: sin tests aun (llegan en 11-07/11-08); `npm run test:functions` ya cableado
 - backend FastAPI: archivado (215 tests referencia MySQL, no se mantiene)
@@ -77,6 +78,13 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-03: el emulador de Firestore NO valida indices compuestos; audit_indexes.mjs es mitigacion ESTATICA, no prueba. La verificacion real del indice es el checkpoint humano de 11-16
 - 11-03: la exencion de la paridad rules-query debe DECLARARSE con // AUDIT-STAFF; una exencion silenciosa cuenta como fallo
 - 11-03: todo archivo de test de rules DEBE llamar initEnv('<namespace>') — node --test paraleliza por archivo contra un emulador compartido y sin namespace propio los clearFirestore() se pisan
+- 11-04: un gate de seguridad no esta verificado hasta que se ROMPE la regla que protege y la suite se pone en rojo por los casos correctos (6 roturas aplicadas y revertidas en el plan)
+- 11-04: un caso limite debe aislarse con su propio fixture (mesa de capacidad 30 para el tope de 20 comensales); si otra condicion lo deniega antes, el test esta verde por la razon equivocada
+- 11-04: se afirman tambien los bordes PERMITIDOS (50 items, 20 personas, 1 estrella) — un <= convertido en < no rompe ningun assertFails
+- 11-04: fake_cloud_firestore NO tiene motor de rules; los 192 tests Flutter prueban FILTRADO, jamas AUTORIZACION. La unica prueba de autorizacion es npm run test:rules
+- 11-04: la suite verde y el proyecto seguro son afirmaciones INDEPENDIENTES — hasta firebase deploy --only firestore:rules, p-gri-b5b40 puede correr una version mas laxa
+- 11-04: HALLAZGO — el super_admin no puede cerrar sesiones, cancelar reservas ni cambiar estado de mesa (staffOf compara contra rid() y el super no tiene rid); en pedidos SI esta contemplado con isSuper(). Asimetria real, a decidir en 11-10/11-16
+- 11-04: 11-07 debe mantener en verde el bloque default-deny de plataforma/bootstrap; 11-10 debe cambiar conscientemente el caso // AMPLIADO EN 11-10 de usuarios.test.mjs
 
 ## Performance Metrics
 

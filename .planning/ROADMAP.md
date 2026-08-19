@@ -227,7 +227,7 @@ Plans:
 - [x] 11-01-PLAN.md — Ola 1: desbloqueo de entorno (Java, `.firebaserc`), scaffold de `functions/` con `.env.demo-gri`, arnés de tests de rules y CLAUDE.md corregido
 - [x] 11-02-PLAN.md — Ola 1: fixture de base vacía + regresión de primer arranque, cliente de Cloud Functions en el panel y guía de arranque en el dashboard
 - [x] 11-03-PLAN.md — Ola 2: bug del menú del cliente (query vs rules) + índice compuesto de `categorias` + audit de índices y de paridad rules↔query
-- [ ] 11-04-PLAN.md — Ola 2: suite de `firestore.rules` del resto de colecciones, con los tres vectores de escalada conocidos
+- [x] 11-04-PLAN.md — Ola 2: suite de `firestore.rules` del resto de colecciones, con los tres vectores de escalada conocidos
 - [ ] 11-05-PLAN.md — Ola 2: panel — crear restaurante con slug (y seleccionarlo al vuelo), estado vacío guiado y confirmación al desactivar
 - [ ] 11-06-PLAN.md — Ola 2: ver/ocultar contraseña en los 5 campos + confirmar contraseña en el registro
 - [ ] 11-07-PLAN.md — Ola 3: Cloud Function de bootstrap del primer super_admin (guarda atómica, correo verificado + secreto) + pantalla `/bootstrap` con ruta exenta del guard
