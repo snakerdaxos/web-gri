@@ -86,8 +86,12 @@ Widget _screen(FakeFirebaseFirestore db) {
   );
 }
 
-Future<void> _pump(WidgetTester tester, FakeFirebaseFirestore db) async {
-  tester.view.physicalSize = const Size(1200, 1800);
+Future<void> _pump(
+  WidgetTester tester,
+  FakeFirebaseFirestore db, {
+  Size tamano = const Size(1200, 1800),
+}) async {
+  tester.view.physicalSize = tamano;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(_screen(db));
@@ -190,5 +194,102 @@ void main() {
 
     expect(find.text('Sin reservas para hoy'), findsOneWidget);
     expect(find.byType(ListView), findsNothing);
+  });
+
+  // ── Geometría de la tarjeta (11-21) ──────────────────────────────────────
+  //
+  // El `_ReservaCard` era un Row único con hora (20 bold) + Expanded + chip +
+  // DOS botones sin acotar. Con la tarjeta estrecha, el chip y los botones se
+  // salían de la tarjeta.
+
+  testWidgets(
+      '(g) a 650px de contenido la tarjeta NO desborda: los botones bajan a '
+      'una segunda fila', (tester) async {
+    final desbordes = <String>[];
+    final onErrorPrevio = FlutterError.onError;
+    // OVERFLOW-DETECTOR: se recogen para AFIRMAR que la lista queda vacía.
+    // Ver test/shared/sin_filtros_overflow_test.dart.
+    FlutterError.onError = (details) {
+      final txt = details.exceptionAsString();
+      if (txt.contains('A RenderFlex overflowed')) {
+        desbordes.add(txt.split('\n').first);
+        return;
+      }
+      onErrorPrevio?.call(details);
+    };
+    try {
+      final db = await buildFakeFirestoreConSeed();
+      await _seedHoy(db);
+      await _pump(tester, db, tamano: const Size(650, 1200));
+    } finally {
+      FlutterError.onError = onErrorPrevio;
+    }
+
+    expect(desbordes, isEmpty,
+        reason: 'la tarjeta de reserva desborda a 650px: '
+            '${desbordes.join(" | ")}');
+
+    // Y sigue siendo usable: el chip y los dos botones están todos.
+    expect(find.text('confirmada'), findsOneWidget);
+    expect(find.text('No-show'), findsNWidgets(2));
+    expect(find.text('Marcar ocupada'), findsOneWidget);
+
+    // Segunda fila REAL: el botón queda por DEBAJO del chip, no a su lado.
+    final chip = tester.getRect(find.text('confirmada').first);
+    final boton = tester.getRect(find.text('Marcar ocupada').first);
+    expect(boton.top, greaterThan(chip.bottom),
+        reason: 'a 650px las acciones deben ir en una segunda fila');
+  });
+
+  testWidgets(
+      '(h) a 1200px la tarjeta conserva EXACTAMENTE la fila única de siempre',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _seedHoy(db);
+    await _pump(tester, db, tamano: const Size(1200, 1800));
+
+    final hora = tester.getRect(find.text('12:00'));
+    final chip = tester.getRect(find.text('confirmada'));
+    final boton = tester.getRect(find.text('Marcar ocupada'));
+
+    // Todo en la misma banda vertical (una sola fila) y en el orden de
+    // siempre: hora → … → chip → botones.
+    expect(chip.center.dy, closeTo(hora.center.dy, 2));
+    expect(boton.center.dy, closeTo(hora.center.dy, 2));
+    expect(chip.left, greaterThan(hora.right));
+    expect(boton.left, greaterThan(chip.right));
+  });
+
+  testWidgets(
+      '(i) la cabecera con la fecha tampoco desborda en una columna estrecha',
+      (tester) async {
+    // La pantalla suelta a 420px: es el ancho al que la cabecera
+    // «📅 Reservas de hoy (dd/MM/yyyy)» dejaba de caber. Se pumpea SIN el
+    // shell a propósito — dentro del shell este ancho ya no se alcanza sin
+    // arrastrar también los tiles del dashboard, y lo que se quiere aislar
+    // aquí es la cabecera.
+    final desbordes = <String>[];
+    final onErrorPrevio = FlutterError.onError;
+    // OVERFLOW-DETECTOR: se recogen para AFIRMAR que la lista queda vacía.
+    FlutterError.onError = (details) {
+      final txt = details.exceptionAsString();
+      if (txt.contains('A RenderFlex overflowed')) {
+        desbordes.add(txt.split('\n').first);
+        return;
+      }
+      onErrorPrevio?.call(details);
+    };
+    try {
+      final db = await buildFakeFirestoreConSeed();
+      await _seedHoy(db);
+      await _pump(tester, db, tamano: const Size(420, 1200));
+    } finally {
+      FlutterError.onError = onErrorPrevio;
+    }
+
+    expect(desbordes, isEmpty,
+        reason: 'la cabecera de /reservas desborda a 420px: '
+            '${desbordes.join(" | ")}');
+    expect(find.textContaining('Reservas de hoy'), findsOneWidget);
   });
 }

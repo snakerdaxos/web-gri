@@ -83,28 +83,46 @@ void main() {
       expect(GriBreakpoints.expanded, 1100.0);
     });
 
-    test('los anchos del AppShell y del dashboard SON los del token', () {
-      // Gate de paridad token↔código (patrón de 11-17). Recoge TODOS los
-      // literales de `constraints.maxWidth <|>= N` de las 3 pantallas que
-      // hoy deciden layout por ancho y exige que el conjunto sea exactamente
-      // {compact, expanded}.
+    test('las pantallas de layout usan los TOKENS, no literales sueltos', () {
+      // ── REESCRITO EN 11-21, tal y como pedía su propio mensaje de fallo ───
+      // La versión de 11-11 recogía los literales de `maxWidth <|>= N` de las
+      // 3 pantallas de layout y exigía que el conjunto fuese {750, 1100}. Ese
+      // gate protegía contra que alguien tocara el número en la pantalla sin
+      // tocar el token. En 11-21 las tres comparaciones pasaron a leer
+      // `GriBreakpoints.compact` / `.expanded` directamente, así que ya NO
+      // QUEDA ningún literal que comparar: el modo de fallo que vigilaba dejó
+      // de existir por construcción, y el gate, tal cual, se ponía rojo por
+      // haber DESAPARECIDO su objeto.
+      //
+      // Lo que se vigila ahora es lo que sí puede volver a pasar: que alguien
+      // reintroduzca un número suelto, o que las pantallas dejen de mirar el
+      // token.
       final fuentes = [
         'lib/features/shared/app_shell.dart',
         'lib/features/dashboard/dashboard_screen.dart',
         'lib/features/mesas/mesas_screen.dart',
       ];
-      final anchos = <double>{};
+      final literales = <String>[];
+      var referenciasAToken = 0;
       for (final ruta in fuentes) {
-        anchos.addAll(RegExp(r'maxWidth\s*(?:<|>=|<=|>)\s*([0-9.]+)')
-            .allMatches(_leer(ruta))
-            .map((m) => double.parse(m.group(1)!)));
+        final src = _leer(ruta);
+        literales.addAll(
+          RegExp(r'maxWidth\s*(?:<|>=|<=|>)\s*([0-9][0-9.]*)')
+              .allMatches(src)
+              .map((m) => '$ruta: ${m.group(0)}'),
+        );
+        // Ojo: `ancho >= GriBreakpoints.x` también cuenta — desde 11-21 el
+        // dashboard mira el ancho que le pasa ResponsivePage, no `maxWidth`.
+        referenciasAToken +=
+            RegExp(r'GriBreakpoints\.(compact|expanded)').allMatches(src).length;
       }
-      expect(anchos, isNotEmpty,
-          reason: 'ninguna de las 3 pantallas compara ya contra maxWidth: el '
-              'gate quedó ciego y hay que reescribirlo, no borrarlo');
-      expect(anchos, {GriBreakpoints.compact, GriBreakpoints.expanded},
-          reason: 'el código usa $anchos; los tokens dicen '
-              '{${GriBreakpoints.compact}, ${GriBreakpoints.expanded}}');
+      expect(literales, isEmpty,
+          reason: 'un ancho de layout escrito a mano vuelve a poder divergir '
+              'del token: ${literales.join(", ")}');
+      expect(referenciasAToken, greaterThanOrEqualTo(3),
+          reason: 'las pantallas de layout han dejado de mirar '
+              'GriBreakpoints: el gate se quedó ciego, hay que reescribirlo, '
+              'no borrarlo (referencias encontradas: $referenciasAToken)');
     });
   });
 
