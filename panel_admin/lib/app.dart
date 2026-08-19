@@ -14,6 +14,7 @@ import 'features/mesas/mesas_screen.dart';
 import 'features/reportes/reportes_screen.dart';
 import 'features/reservas/reservas_screen.dart';
 import 'features/shared/app_shell.dart';
+import 'features/shared/not_found_screen.dart';
 
 /// GoRouter con auth guard + ShellRoute (sidebar persistente).
 ///
@@ -28,6 +29,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
     refreshListenable: routerNotifier,
+    // 404 propio en vez de la pantalla roja de Flutter. EL ORDEN IMPORTA: el
+    // `redirect` de abajo se evalúa ANTES que este `errorBuilder`, así que sin
+    // sesión una ruta desconocida sigue yendo a /login — el 404 no sirve para
+    // sondear qué rutas internas existen (T-11-09-03). Cubierto por
+    // test/router_404_test.dart, con su caso negativo.
+    errorBuilder: (context, state) => NotFoundScreen(uri: state.uri),
     redirect: (context, state) {
       // Solo AsyncData con User no-null está "logueado" — isLoading y
       // AsyncError se tratan como no logueado (misma defensa T-04-08).

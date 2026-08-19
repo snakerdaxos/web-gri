@@ -16,6 +16,7 @@ import 'features/reservas/mis_reservas_screen.dart';
 import 'features/reservas/reserva_wizard_screen.dart';
 import 'features/sesion_qr/scan_screen.dart';
 import 'features/shared/app_shell.dart';
+import 'features/shared/not_found_screen.dart';
 
 /// GoRouter con auth guard + navegación inferior de 4 tabs.
 ///
@@ -37,6 +38,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/inicio',
     refreshListenable: routerNotifier,
+    // Una URL inexistente caía en la pantalla roja de error de Flutter, que
+    // es una pantalla de desarrollo. OJO AL ORDEN: el `redirect` de abajo se
+    // evalúa ANTES que esto, así que sin sesión una ruta desconocida sigue
+    // yendo a /login y el 404 no filtra qué rutas internas existen
+    // (T-11-09-03). Cubierto por test/router_404_test.dart.
+    errorBuilder: (context, state) => NotFoundScreen(uri: state.uri),
     redirect: (context, state) {
       // Solo AsyncData con User no-null está "logueado" — isLoading (sesión
       // persistida restaurándose) y AsyncError se tratan como no logueado
