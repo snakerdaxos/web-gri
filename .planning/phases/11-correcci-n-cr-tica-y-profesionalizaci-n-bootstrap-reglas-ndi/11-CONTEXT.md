@@ -99,8 +99,11 @@ llamador con alcances distintos, y debe validar el claim del llamador antes de c
   la app Android. Sin ella, Google Sign-In falla en Android con `DEVELOPER_ERROR` (código 10).
   SHA-1 de depuración de esta máquina: `31:E5:A7:1F:21:66:7D:C4:42:90:DB:2C:25:43:2D:C5:48:BD:8F:E2`
   SHA-256: `82:6F:00:51:09:9D:F4:EF:9A:91:C3:37:E6:0E:53:26:81:36:03:54:E1:58:BA:67:4D:D6:86:82:2C:6D:8A:9A`
-- Falta el **Web client ID** de OAuth (`703827387403-….apps.googleusercontent.com`). Se necesita como
-  `serverClientId` en Android (para obtener el idToken) y como client ID en Flutter Web.
+- **Web client ID (entregado por el usuario 2026-08-19):**
+  `703827387403-o05u1u7gffibbfqo4419ds3pjcul12g2.apps.googleusercontent.com`
+  Se usa como `serverClientId` en Android (para obtener el idToken) y como client ID en Flutter Web.
+  Es una credencial **pública** (viaja en el cliente) — versionarla es correcto; el client *secret*
+  no se necesita y no debe entrar al repo.
 - `google_sign_in` no está en `app_cliente/pubspec.yaml`. `firebase_auth` es 6.5.7.
 
 **Requisitos funcionales:**
