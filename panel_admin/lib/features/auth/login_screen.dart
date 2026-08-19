@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../shared/password_field.dart';
@@ -170,6 +171,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             )
                           : const Text('Iniciar sesión'),
+                    ),
+                    const SizedBox(height: 8),
+                    // Camino de PRIMER ARRANQUE: sin esto, la pantalla de
+                    // bootstrap solo sería alcanzable escribiendo la URL a
+                    // mano. Discreto a propósito: se usa una vez en la vida
+                    // del proyecto.
+                    Center(
+                      child: TextButton(
+                        onPressed: () => context.go('/bootstrap'),
+                        child: const Text(
+                          '¿Primera vez? Inicializar plataforma',
+                          style: TextStyle(
+                            color: GriColors.gray,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),

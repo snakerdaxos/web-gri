@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'core/firebase_providers.dart';
 import 'core/theme.dart';
 import 'features/auth/login_screen.dart';
+import 'features/bootstrap/bootstrap_screen.dart';
 import 'features/clientes/clientes_screen.dart';
 import 'features/cocina/cocina_screen.dart';
 import 'features/configuracion/configuracion_screen.dart';
@@ -33,14 +34,30 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // El RECHAZO de rol cliente vive en LoginController (defense UX):
       // un cliente nunca queda con sesión abierta en el panel.
       final loggedIn = ref.read(authStateChangesProvider).value != null;
-      final onLogin = state.matchedLocation == '/login';
 
-      if (!loggedIn) return onLogin ? null : '/login';
-      if (onLogin) return '/';
+      // `/bootstrap` es EXENTA EN AMBOS SENTIDOS y el `return null` es
+      // incondicional a propósito. NO "limpiar" esto:
+      // `createUserWithEmailAndPassword` emite un evento de authStateChanges,
+      // el `refreshListenable` de arriba re-evalúa este redirect, y sin la
+      // exención el usuario sería expulsado de /bootstrap hacia '/' CON LA
+      // CALLABLE TODAVÍA EN VUELO — dejando la reversión de la cuenta sin
+      // pantalla donde ejecutarse. La navegación de salida la hace la propia
+      // pantalla con `context.go('/')` cuando termina.
+      // Cubierto por test/bootstrap/bootstrap_router_test.dart.
+      if (state.matchedLocation == '/bootstrap') return null;
+
+      const rutasPublicas = {'/login', '/bootstrap'};
+      final esPublica = rutasPublicas.contains(state.matchedLocation);
+
+      if (!loggedIn) return esPublica ? null : '/login';
+      if (state.matchedLocation == '/login') return '/';
       return null;
     },
     routes: [
       GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      // FUERA del ShellRoute: el bootstrap no tiene sidebar (no hay
+      // restaurante ni sesión de staff todavía).
+      GoRoute(path: '/bootstrap', builder: (_, _) => const BootstrapScreen()),
       ShellRoute(
         // state.uri.path → AppShell deriva el ítem activo del sidebar.
         builder: (_, state, child) =>
