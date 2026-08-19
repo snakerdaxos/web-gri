@@ -6,6 +6,7 @@ import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 import '../../models/restaurante.dart';
 import '../shared/empty_state.dart';
+import '../../core/design_tokens.dart';
 import 'restaurantes_provider.dart';
 
 /// Tab Restaurantes (REST-01) — lista de restaurantes activos con
@@ -56,7 +57,7 @@ class RestaurantesListScreen extends ConsumerWidget {
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              padding: const EdgeInsets.fromLTRB(GriSpacing.md, GriSpacing.sm, GriSpacing.md, GriSpacing.lg),
               sliver: SliverList.builder(
                 itemCount: restaurantes.length,
                 itemBuilder: (_, i) =>
@@ -82,9 +83,9 @@ class _ErrorView extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(GriIcons.menu, size: 40, color: GriColors.gray),
-          const SizedBox(height: 8),
+          const SizedBox(height: GriSpacing.sm),
           Text(message, textAlign: TextAlign.center),
-          const SizedBox(height: 16),
+          const SizedBox(height: GriSpacing.md),
           ElevatedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh),
@@ -106,7 +107,7 @@ class _RestauranteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: GriSpacing.md),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => context.push('/restaurantes/${restaurante.id}'),
@@ -124,17 +125,13 @@ class _RestauranteCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(GriSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     restaurante.nombre,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: GriColors.text,
-                    ),
+                    style: GriText.tituloSeccion.copyWith(color: GriColors.text),
                   ),
                   if (restaurante.tipoCocina != null ||
                       restaurante.direccion != null) ...[
@@ -152,7 +149,7 @@ class _RestauranteCard extends StatelessWidget {
                     children: [
                       const Icon(GriIcons.calificacion,
                           color: GriColors.calificacionEstrella, size: 14),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: GriSpacing.xs),
                       Text(
                         restaurante.ratingLabel,
                         style: const TextStyle(

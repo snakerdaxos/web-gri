@@ -160,9 +160,26 @@ abstract final class GriText {
   static const TextStyle tituloCard =
       TextStyle(fontSize: 16, fontWeight: FontWeight.bold);
 
-  /// 15 bold — etiqueta de botón grande (3 usos inline).
+  /// 15 bold — 3 usos inline. OJO (medido en 11-19): solo UNO de los tres es
+  /// de verdad la etiqueta de un botón (`calificacion_sheet.dart`); los otros
+  /// dos son el contador de cantidad del carrito y el banner "Cuenta
+  /// solicitada". El nombre viene de 11-11, que derivó la escala CONTANDO
+  /// estilos repetidos, no de un diseño.
   static const TextStyle boton =
       TextStyle(fontSize: 15, fontWeight: FontWeight.bold);
+
+  /// 16 bold — etiqueta del CTA principal. 9 usos inline, y los NUEVE son
+  /// botones (login, registro, perfil, carrito, enviar pedido, pedir la
+  /// cuenta, abrir mesa, confirmar reserva, reservar mesa).
+  ///
+  /// Vale lo MISMO que [tituloCard] a propósito: son el mismo par
+  /// tamaño/peso con dos significados distintos, y en app_cliente no hay ni
+  /// un solo título de tarjeta a 16 bold (el doc de [tituloCard] habla de
+  /// "12 usos" que en esta app no existen — ver 11-19-SUMMARY.md). Se separan
+  /// para que 11-14 pueda tocar la tipografía de los CTA sin arrastrar las
+  /// tarjetas, no porque hoy rendericen distinto.
+  static const TextStyle botonGrande =
+      TextStyle(fontSize: 16, fontWeight: FontWeight.bold);
 
   /// 16 — texto de lectura (13 usos inline de `fontSize: 16`).
   static const TextStyle cuerpo = TextStyle(fontSize: 16);
@@ -185,6 +202,7 @@ abstract final class GriText {
     'tituloSeccion': tituloSeccion,
     'tituloCard': tituloCard,
     'boton': boton,
+    'botonGrande': botonGrande,
     'cuerpo': cuerpo,
     'cuerpoCompacto': cuerpoCompacto,
     'auxiliar': auxiliar,

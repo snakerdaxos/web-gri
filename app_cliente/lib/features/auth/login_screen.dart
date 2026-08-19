@@ -6,6 +6,7 @@ import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 import '../shared/google_boton.dart';
 import '../shared/password_field.dart';
+import '../../core/design_tokens.dart';
 import 'auth_controller.dart';
 
 /// Pantalla de login del cliente — card centrada con logo GRI, email +
@@ -97,11 +98,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       backgroundColor: GriColors.background,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(GriSpacing.lg),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
             child: Container(
-              padding: const EdgeInsets.all(32),
+              padding: const EdgeInsets.all(GriSpacing.xl),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(15),
@@ -119,26 +120,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Center(
+                    Center(
                       child: Column(
                         children: [
-                          _LogoBadge(),
-                          SizedBox(height: 16),
+                          const _LogoBadge(),
+                          const SizedBox(height: GriSpacing.md),
                           Text(
                             'GRI',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: GriColors.text,
-                            ),
+                            style: GriText.tituloPantalla.copyWith(color: GriColors.text),
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: GriSpacing.xs),
                           Text(
                             'Reserva y pide desde tu mesa',
-                            style: TextStyle(
-                              color: GriColors.gray,
-                              fontSize: 14,
-                            ),
+                            style: GriText.cuerpoCompacto.copyWith(color: GriColors.gray),
                           ),
                         ],
                       ),
@@ -158,7 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ? null
                           : 'Email inválido',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: GriSpacing.md),
                     PasswordField(
                       fieldKey: const ValueKey('login-password'),
                       controller: _passCtrl,
@@ -168,7 +162,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           (v ?? '').length >= 8 ? null : 'Mínimo 8 caracteres',
                       onFieldSubmitted: (_) => _canSubmit ? _submit() : null,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: GriSpacing.lg),
                     ElevatedButton(
                       onPressed: (submitting || !_canSubmit) ? null : _submit,
                       style: ElevatedButton.styleFrom(
@@ -178,10 +172,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             GriColors.primary.withValues(alpha: 0.4),
                         disabledForegroundColor: Colors.white70,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        textStyle: GriText.botonGrande,
                       ),
                       child: submitting
                           ? const SizedBox(
@@ -202,7 +193,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       cargando: googleEnVuelo,
                       onPressed: _google,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: GriSpacing.md),
                     TextButton(
                       onPressed: () => context.push('/register'),
                       child: const Text('¿No tienes cuenta? Regístrate'),

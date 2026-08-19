@@ -6,6 +6,7 @@ import '../../core/format.dart';
 import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 import '../shared/empty_state.dart';
+import '../../core/design_tokens.dart';
 import 'restaurantes_provider.dart';
 
 /// Detalle del restaurante (REST-02) — datos + menú por categorías
@@ -38,9 +39,9 @@ class RestauranteDetalleScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(GriIcons.menu, size: 40, color: GriColors.gray),
-              const SizedBox(height: 8),
+              const SizedBox(height: GriSpacing.sm),
               const Text('Error al cargar el restaurante'),
-              const SizedBox(height: 16),
+              const SizedBox(height: GriSpacing.md),
               ElevatedButton.icon(
                 onPressed: () =>
                     ref.invalidate(restauranteDetalleProvider(restauranteId)),
@@ -51,7 +52,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
           ),
         ),
         data: (detalle) => ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(GriSpacing.md),
           children: [
             // ── Info del restaurante ────────────────────────────────────────
             Card(
@@ -69,7 +70,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(GriSpacing.md),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -89,7 +90,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                           ),
                         ],
                         if (detalle.descripcion != null) ...[
-                          const SizedBox(height: 8),
+                          const SizedBox(height: GriSpacing.sm),
                           Text(detalle.descripcion!),
                         ],
                         const SizedBox(height: 10),
@@ -97,7 +98,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                           children: [
                             const Icon(GriIcons.calificacion,
                                 color: GriColors.calificacionEstrella, size: 14),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: GriSpacing.xs),
                             Text(
                               detalle.ratingLabel,
                               style: const TextStyle(
@@ -107,7 +108,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: GriSpacing.md),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
@@ -134,7 +135,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: GriSpacing.sm),
 
             // ── Menú por categorías ────────────────────────────────────────
             if (detalle.categorias.isEmpty)
@@ -144,7 +145,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
               // es dejar de resolverlo de dos maneras distintas). Sin acción:
               // esta pantalla ya ofrece 'Reservar una mesa' más arriba.
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
+                padding: EdgeInsets.symmetric(vertical: GriSpacing.lg),
                 child: EmptyState(
                   icono: GriIcons.resumenPedido,
                   titulo: 'Este restaurante aún no tiene menú',
@@ -164,8 +165,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                   ),
                   subtitle: Text(
                     '${categoria.productos.length} ítems',
-                    style: const TextStyle(
-                        color: GriColors.gray, fontSize: 12),
+                    style: GriText.auxiliar.copyWith(color: GriColors.gray),
                   ),
                   children: [
                     for (final producto in categoria.productos)

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/firebase_providers.dart';
 import '../../core/theme.dart';
 import '../../core/tx_mutex.dart';
+import '../../core/design_tokens.dart';
 
 /// Error de dominio de calificación con mensaje user-friendly.
 class CalificacionException implements Exception {
@@ -198,14 +199,14 @@ class _CalificacionSheetState extends ConsumerState<CalificacionSheet> {
         children: [
           const Text(
             '¿Cómo estuvo todo?',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: GriText.tituloSeccion,
           ),
-          const SizedBox(height: 4),
-          const Text(
+          const SizedBox(height: GriSpacing.xs),
+          Text(
             'Tu calificación ayuda a otros comensales',
-            style: TextStyle(color: GriColors.gray, fontSize: 12),
+            style: GriText.auxiliar.copyWith(color: GriColors.gray),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: GriSpacing.md),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -220,7 +221,7 @@ class _CalificacionSheetState extends ConsumerState<CalificacionSheet> {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: GriSpacing.md),
           TextField(
             controller: _comentario,
             maxLines: 3,
@@ -231,7 +232,7 @@ class _CalificacionSheetState extends ConsumerState<CalificacionSheet> {
               border: OutlineInputBorder(),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: GriSpacing.md),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -254,10 +255,7 @@ class _CalificacionSheetState extends ConsumerState<CalificacionSheet> {
                   : const Icon(Icons.send),
               label: Text(
                 _enviando ? 'Enviando…' : 'Enviar calificación',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: GriText.boton,
               ),
             ),
           ),

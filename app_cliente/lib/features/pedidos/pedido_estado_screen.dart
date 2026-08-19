@@ -10,6 +10,7 @@ import '../../models/pedido.dart';
 import '../../models/sesion_mesa.dart';
 import '../pagos/calificacion_sheet.dart';
 import '../sesion_qr/sesion_provider.dart';
+import '../../core/design_tokens.dart';
 import 'pedidos_provider.dart';
 
 /// Estado de los pedidos de la sesión (PEDI-04 UI) — cards con chips de
@@ -107,9 +108,9 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(GriIcons.enVivo, size: 40, color: GriColors.gray),
-              const SizedBox(height: 8),
+              const SizedBox(height: GriSpacing.sm),
               const Text('Error al cargar tus pedidos'),
-              const SizedBox(height: 16),
+              const SizedBox(height: GriSpacing.md),
               ElevatedButton.icon(
                 onPressed: () => ref.invalidate(pedidosSessionProvider),
                 icon: const Icon(Icons.refresh),
@@ -126,9 +127,9 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
                 children: [
                   const Icon(GriIcons.cocinando,
                       size: 40, color: GriColors.gray),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: GriSpacing.sm),
                   const Text('Aún no hay pedidos en esta sesión'),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: GriSpacing.md),
                   ElevatedButton(
                     onPressed: () => context.push('/mesa'),
                     style: ElevatedButton.styleFrom(
@@ -142,14 +143,14 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
             );
           }
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(GriSpacing.md),
             children: [
-              const Padding(
-                padding: EdgeInsets.only(bottom: 12),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
                 child: Center(
                   child: Text(
                     'Se actualiza automáticamente',
-                    style: TextStyle(color: GriColors.gray, fontSize: 12),
+                    style: GriText.auxiliar.copyWith(color: GriColors.gray),
                   ),
                 ),
               ),
@@ -176,7 +177,7 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
       // (los CTAs viven en los cards de pedidos servidos).
       return const SafeArea(
         child: Padding(
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
+          padding: EdgeInsets.fromLTRB(GriSpacing.md, GriSpacing.sm, GriSpacing.md, 12),
           child: Center(
             child: Text(
               // ignore: lines_longer_than_80_chars
@@ -192,7 +193,7 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        padding: const EdgeInsets.fromLTRB(GriSpacing.md, GriSpacing.sm, GriSpacing.md, 12),
         child: yaPedida
             ? Container(
                 width: double.infinity,
@@ -205,19 +206,15 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
                 // con el MISMO tamano (15 = el fontSize del Text) y el mismo
                 // color. La cadena queda sin el glifo para que el lector de
                 // pantalla no lea "marca de verificacion" detras de la frase.
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       'Cuenta solicitada',
-                      style: TextStyle(
-                        color: GriColors.chipConfirmadaFg,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
+                      style: GriText.boton.copyWith(color: GriColors.chipConfirmadaFg),
                     ),
-                    SizedBox(width: 4),
-                    Icon(GriIcons.confirmado,
+                    const SizedBox(width: GriSpacing.xs),
+                    const Icon(GriIcons.confirmado,
                         size: 15, color: GriColors.chipConfirmadaFg),
                   ],
                 ),
@@ -244,10 +241,7 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
                       : const Icon(Icons.receipt_long),
                   label: const Text(
                     'Pedir la cuenta',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: GriText.botonGrande,
                   ),
                 ),
               ),
@@ -269,7 +263,7 @@ class _PedidoCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(GriSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -299,16 +293,12 @@ class _PedidoCard extends StatelessWidget {
                 const Spacer(),
                 Text(
                   formatCOP(pedido.total),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: GriColors.primary,
-                  ),
+                  style: GriText.botonGrande.copyWith(color: GriColors.primary),
                 ),
               ],
             ),
             if (onCalificar != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: GriSpacing.sm),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
@@ -339,18 +329,14 @@ class _EstadoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: GriSpacing.xs),
       decoration: BoxDecoration(
         color: pedido.estadoBg(context),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         pedido.estadoLabel,
-        style: TextStyle(
-          color: pedido.estadoColor(context),
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
+        style: GriText.chip.copyWith(color: pedido.estadoColor(context)),
       ),
     );
   }

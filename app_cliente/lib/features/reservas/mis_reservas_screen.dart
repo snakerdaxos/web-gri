@@ -7,6 +7,7 @@ import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 import '../../models/reserva.dart';
 import '../shared/icono_inline.dart';
+import '../../core/design_tokens.dart';
 import 'reserva_controller.dart';
 import 'reservas_provider.dart';
 
@@ -47,9 +48,9 @@ class MisReservasScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(GriIcons.reservas, size: 40, color: GriColors.gray),
-              const SizedBox(height: 8),
+              const SizedBox(height: GriSpacing.sm),
               const Text('Error al cargar tus reservas'),
-              const SizedBox(height: 16),
+              const SizedBox(height: GriSpacing.md),
               ElevatedButton.icon(
                 onPressed: () {
                   if (uid != null) ref.invalidate(misReservasProvider(uid));
@@ -67,9 +68,9 @@ class MisReservasScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(GriIcons.reservas, size: 40, color: GriColors.gray),
-                  SizedBox(height: 8),
+                  SizedBox(height: GriSpacing.sm),
                   Text('Aún no tienes reservas'),
-                  SizedBox(height: 4),
+                  SizedBox(height: GriSpacing.xs),
                   Text(
                     'Toca el botón + para crear una',
                     style: TextStyle(color: GriColors.gray),
@@ -84,17 +85,13 @@ class MisReservasScreen extends ConsumerWidget {
           final pasadas = reservas.where((r) => !r.esProxima(hoy)).toList();
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(GriSpacing.md),
             children: [
-              const Text(
+              Text(
                 'Mis reservas',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: GriColors.text,
-                ),
+                style: GriText.tituloPantalla.copyWith(color: GriColors.text),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: GriSpacing.md),
               _Seccion(
                 titulo: 'Próximas',
                 vacio: 'No tienes reservas próximas',
@@ -103,7 +100,7 @@ class MisReservasScreen extends ConsumerWidget {
                 saving: saving,
               ),
               if (pasadas.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: GriSpacing.sm),
                 _Seccion(
                   titulo: 'Pasadas',
                   vacio: '',
@@ -142,17 +139,13 @@ class _Seccion extends ConsumerWidget {
       children: [
         Text(
           titulo,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: GriColors.primary,
-          ),
+          style: GriText.botonGrande.copyWith(color: GriColors.primary),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: GriSpacing.sm),
         if (reservas.isEmpty) ...[
           if (vacio.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: GriSpacing.sm),
               child:
                   Text(vacio, style: const TextStyle(color: GriColors.gray)),
             ),
@@ -189,7 +182,7 @@ class _ReservaCard extends ConsumerWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(GriSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -200,14 +193,10 @@ class _ReservaCard extends ConsumerWidget {
                   child: Text(
                     reserva.restauranteNombre,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: GriColors.text,
-                    ),
+                    style: GriText.botonGrande.copyWith(color: GriColors.text),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: GriSpacing.sm),
                 EstadoChip(estado: reserva.estado),
               ],
             ),
@@ -216,7 +205,7 @@ class _ReservaCard extends ConsumerWidget {
               iconoInline(GriIcons.reservas),
               TextSpan(text: ' ${reserva.fechaStr} · ${reserva.horaLabel}'),
             ])),
-            const SizedBox(height: 4),
+            const SizedBox(height: GriSpacing.xs),
             Text.rich(TextSpan(children: [
               iconoInline(GriIcons.mesa),
               TextSpan(text: ' Mesa ${reserva.mesaNumero} · '),
@@ -314,10 +303,7 @@ class EstadoChip extends StatelessWidget {
       ),
       child: Text(
         estado[0].toUpperCase() + estado.substring(1),
-        style: TextStyle(
-          fontSize: 12,
-          color: GriColors.estadoChipFg(estado),
-        ),
+        style: GriText.auxiliar.copyWith(color: GriColors.estadoChipFg(estado)),
       ),
     );
   }

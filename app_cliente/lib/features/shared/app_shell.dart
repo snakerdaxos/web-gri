@@ -92,7 +92,7 @@ class AppShell extends StatelessWidget {
           for (final (icono, label) in _tabs)
             BottomNavigationBarItem(
               icon: Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: GriSpacing.xs),
                 // size 20 = el fontSize EXACTO que tenia el Text del emoji.
                 // El color lo pone la BottomNavigationBar
                 // (selected/unselectedItemColor), igual que antes.

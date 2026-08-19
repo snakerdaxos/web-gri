@@ -9,6 +9,7 @@ import '../../models/producto.dart';
 import '../restaurantes/restaurantes_provider.dart';
 import '../sesion_qr/sesion_provider.dart';
 import '../shared/empty_state.dart';
+import '../../core/design_tokens.dart';
 import 'carrito_controller.dart';
 import 'pedidos_provider.dart';
 
@@ -68,9 +69,9 @@ class MenuMesaScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(GriIcons.menu, size: 40, color: GriColors.gray),
-              const SizedBox(height: 8),
+              const SizedBox(height: GriSpacing.sm),
               const Text('No tienes una sesión activa'),
-              const SizedBox(height: 16),
+              const SizedBox(height: GriSpacing.md),
               ElevatedButton(
                 onPressed: () => context.push('/sesion/scan'),
                 style: ElevatedButton.styleFrom(
@@ -104,9 +105,9 @@ class MenuMesaScreen extends ConsumerWidget {
             children: [
               const Icon(GriIcons.resumenPedido,
                   size: 40, color: GriColors.gray),
-              const SizedBox(height: 8),
+              const SizedBox(height: GriSpacing.sm),
               const Text('Error al cargar el menú'),
-              const SizedBox(height: 16),
+              const SizedBox(height: GriSpacing.md),
               ElevatedButton.icon(
                 onPressed: () => ref.invalidate(
                     restauranteDetalleProvider(sesion.restauranteId)),
@@ -135,7 +136,7 @@ class MenuMesaScreen extends ConsumerWidget {
             );
           }
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(GriSpacing.md),
             children: [
               for (final categoria in detalle.categorias)
                 ExpansionTile(
@@ -150,7 +151,7 @@ class MenuMesaScreen extends ConsumerWidget {
                   subtitle: Text(
                     '${categoria.productos.length} ítems',
                     style:
-                        const TextStyle(color: GriColors.gray, fontSize: 12),
+                        GriText.auxiliar.copyWith(color: GriColors.gray),
                   ),
                   children: [
                     for (final producto in categoria.productos)
@@ -163,7 +164,7 @@ class MenuMesaScreen extends ConsumerWidget {
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          padding: const EdgeInsets.fromLTRB(GriSpacing.md, GriSpacing.sm, GriSpacing.md, 12),
           child: SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -183,10 +184,7 @@ class MenuMesaScreen extends ConsumerWidget {
                     ? 'Tu carrito está vacío'
                     // Total informativo — el real lo responde el server.
                     : 'Carrito (${cart.itemCount}) · ${formatCOP(cart.total)}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: GriText.botonGrande,
               ),
             ),
           ),
@@ -247,7 +245,7 @@ class _ProductoRow extends ConsumerWidget {
               color: GriColors.primary,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: GriSpacing.sm),
           if (linea == null)
             IconButton(
               icon: const Icon(Icons.add_circle_outline),
@@ -265,10 +263,7 @@ class _ProductoRow extends ConsumerWidget {
             ),
             Text(
               '${linea.cantidad}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-              ),
+              style: GriText.boton,
             ),
             IconButton(
               icon: const Icon(Icons.add_circle_outline),
@@ -320,18 +315,14 @@ class _CarritoSheetState extends ConsumerState<_CarritoSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
+              Text(
                 'Tu pedido',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: GriColors.text,
-                ),
+                style: GriText.tituloSeccion.copyWith(color: GriColors.text),
               ),
               const SizedBox(height: 12),
               for (final l in cart.values)
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  padding: const EdgeInsets.symmetric(vertical: GriSpacing.xs),
                   child: Row(
                     children: [
                       Expanded(
@@ -351,11 +342,7 @@ class _CarritoSheetState extends ConsumerState<_CarritoSheet> {
                   const Spacer(),
                   Text(
                     formatCOP(cart.total),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: GriColors.primary,
-                    ),
+                    style: GriText.tituloSeccion.copyWith(color: GriColors.primary),
                   ),
                 ],
               ),
@@ -380,10 +367,7 @@ class _CarritoSheetState extends ConsumerState<_CarritoSheet> {
                       )
                     : const Text(
                         'Enviar pedido',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: GriText.botonGrande,
                       ),
               ),
             ],

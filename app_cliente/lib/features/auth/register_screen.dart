@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../shared/google_boton.dart';
 import '../shared/password_field.dart';
+import '../../core/design_tokens.dart';
 import 'auth_controller.dart';
 
 /// Registro de cliente — nombre + email + password + confirmación. Tras un
@@ -120,11 +121,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(GriSpacing.lg),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
             child: Container(
-              padding: const EdgeInsets.all(32),
+              padding: const EdgeInsets.all(GriSpacing.xl),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(15),
@@ -153,7 +154,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       validator: (v) =>
                           (v ?? '').trim().isEmpty ? 'El nombre es obligatorio' : null,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: GriSpacing.md),
                     TextFormField(
                       key: const ValueKey('register-email'),
                       controller: _emailCtrl,
@@ -168,7 +169,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ? null
                           : 'Email inválido',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: GriSpacing.md),
                     PasswordField(
                       fieldKey: const ValueKey('register-password'),
                       controller: _passCtrl,
@@ -179,7 +180,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       validator: (v) =>
                           (v ?? '').length >= 8 ? null : 'Mínimo 8 caracteres',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: GriSpacing.md),
                     PasswordField(
                       fieldKey: const ValueKey('register-password-2'),
                       controller: _pass2Ctrl,
@@ -188,7 +189,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       validator: _errorConfirmacion,
                       onFieldSubmitted: (_) => _canSubmit ? _submit() : null,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: GriSpacing.lg),
                     ElevatedButton(
                       onPressed: (submitting || !_canSubmit) ? null : _submit,
                       style: ElevatedButton.styleFrom(
@@ -198,10 +199,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             GriColors.primary.withValues(alpha: 0.4),
                         disabledForegroundColor: Colors.white70,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        textStyle: GriText.botonGrande,
                       ),
                       child: submitting
                           ? const SizedBox(
@@ -222,7 +220,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       cargando: googleEnVuelo,
                       onPressed: _google,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: GriSpacing.md),
                     TextButton(
                       onPressed: () => context.pop(),
                       child: const Text('Ya tengo cuenta — Ingresar'),

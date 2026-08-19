@@ -164,6 +164,12 @@ void main() {
           const TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
       expect(GriText.boton,
           const TextStyle(fontSize: 15, fontWeight: FontWeight.bold));
+      // 11-19: mismo par tamaño/peso que tituloCard, otro significado.
+      expect(GriText.botonGrande,
+          const TextStyle(fontSize: 16, fontWeight: FontWeight.bold));
+      expect(GriText.botonGrande, GriText.tituloCard,
+          reason: 'si algún día divergen, la migración de 11-19 deja de ser '
+              'pixel-neutral en 9 CTA y hay que decidirlo con el usuario');
       expect(GriText.cuerpo, const TextStyle(fontSize: 16));
       expect(GriText.cuerpoCompacto, const TextStyle(fontSize: 14));
       expect(GriText.auxiliar, const TextStyle(fontSize: 12));
@@ -435,6 +441,41 @@ void main() {
         expect(g.begin, Alignment.topLeft);
         expect(g.end, Alignment.bottomRight);
       }
+    });
+
+    testWidgets('la home RENDERIZA los tamaños de siempre tras migrar a GriText',
+        (tester) async {
+      // 11-19, Tarea 2. Los números están escritos a mano (24/bold y 16/bold),
+      // NO leídos del token: así, tocar `GriText.tituloPantalla` o
+      // `GriText.botonGrande` pone esto rojo. Sin este caso, romper un estilo
+      // de la escala solo tumbaba su propia aserción literal — ninguna
+      // pantalla lo notaba (MEDIDO con las roturas G y H del plan).
+      final db = await buildFakeFirestoreConSeed();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          firestoreProvider.overrideWithValue(db),
+          firebaseAuthProvider.overrideWithValue(mockAuth(displayName: 'Ana')),
+        ],
+        child: MaterialApp(theme: griTheme, home: const HomeScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      final saludo = tester.renderObject<RenderParagraph>(
+          find.textContaining('¡Hola, Ana!'));
+      expect(saludo.text.style?.fontSize, 24.0);
+      expect(saludo.text.style?.fontWeight, FontWeight.bold);
+      expect(saludo.text.style?.color, const Color(0xFF222222),
+          reason: 'el color lo sigue poniendo el punto de uso, no la escala');
+
+      // El CTA es un `Text.rich` (icono + texto en el mismo párrafo), así que
+      // `find.text` no lo encuentra: hay que ir al RichText.
+      final cta = tester
+          .widgetList<RichText>(find.byType(RichText))
+          .map((r) => r.text)
+          .whereType<TextSpan>()
+          .firstWhere((t) => t.toPlainText().contains('Reservar una mesa'));
+      expect(cta.style?.fontSize, 16.0);
+      expect(cta.style?.fontWeight, FontWeight.bold);
     });
 
     testWidgets('el bloque de Google conserva sus dos grises', (tester) async {

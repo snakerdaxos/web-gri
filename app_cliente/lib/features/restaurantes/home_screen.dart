@@ -12,6 +12,7 @@ import '../reservas/mis_reservas_screen.dart' show EstadoChip;
 import '../reservas/reservas_provider.dart';
 import '../sesion_qr/sesion_provider.dart';
 import '../shared/icono_inline.dart';
+import '../../core/design_tokens.dart';
 import 'restaurantes_provider.dart';
 
 /// Tab Inicio — réplica del mockup indexcliente.html:
@@ -53,7 +54,7 @@ class HomeScreen extends ConsumerWidget {
         // ── Header (mockup): logo GRI + botón QR ──────────────────────────
         Container(
           color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: GriSpacing.md),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -95,24 +96,20 @@ class HomeScreen extends ConsumerWidget {
               Text(
                 // ignore: lines_longer_than_80_chars
                 '¡Hola, ${user?.displayName ?? ''}! 👋', // EMOJI-OK: saludo
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: GriColors.text,
-                ),
+                style: GriText.tituloPantalla.copyWith(color: GriColors.text),
               ),
               const SizedBox(height: 5),
               const Text(
                 '¿Dónde quieres comer hoy?',
                 style: TextStyle(color: GriColors.gray),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: GriSpacing.lg),
 
               // ── Tarjeta del primer restaurante ───────────────────────────
               if (primera != null) _RestauranteCard(id: primera.id, nombre: primera.nombre, tipoCocina: primera.tipoCocina, calificacionLabel: primera.ratingLabel)
               else if (restaurantesAsync.isLoading)
                 const Center(child: Padding(
-                  padding: EdgeInsets.all(24),
+                  padding: EdgeInsets.all(GriSpacing.lg),
                   child: CircularProgressIndicator(),
                 ))
               else
@@ -148,7 +145,7 @@ class HomeScreen extends ConsumerWidget {
 
               // ── Próxima reserva ──────────────────────────────────────────
               if (proxima != null) ...[
-                const SizedBox(height: 24),
+                const SizedBox(height: GriSpacing.lg),
                 _ProximaReservaCard(reserva: proxima),
               ],
             ],
@@ -192,20 +189,16 @@ class _SesionBanner extends StatelessWidget {
           Row(
             children: [
               const Icon(GriIcons.mesa, size: 20, color: Colors.white),
-              const SizedBox(width: 8),
+              const SizedBox(width: GriSpacing.sm),
               Expanded(
                 child: Text(
                   'Estás en la Mesa ${sesion.mesaNumero}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: GriText.tituloSeccion.copyWith(color: Colors.white),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: GriSpacing.xs),
           Text.rich(
             TextSpan(children: [
               iconoInline(GriIcons.direccion),
@@ -214,7 +207,7 @@ class _SesionBanner extends StatelessWidget {
             style: const TextStyle(color: Colors.white70),
           ),
           if (sesion.cuentaSolicitada) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: GriSpacing.sm),
             const Text.rich(
               TextSpan(children: [
                 TextSpan(text: 'Cuenta solicitada '),
@@ -386,7 +379,7 @@ class _RestauranteCard extends StatelessWidget {
                   children: [
                     const Icon(GriIcons.calificacion,
                         color: GriColors.calificacionEstrella, size: 14),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: GriSpacing.xs),
                     Text(
                       calificacionLabel,
                       style: const TextStyle(
@@ -418,10 +411,7 @@ class _RestauranteCard extends StatelessWidget {
                         ),
                         TextSpan(text: ' Reservar una mesa'),
                       ]),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: GriText.botonGrande,
                     ),
                   ),
                 ),
@@ -472,11 +462,11 @@ class _ActionCard extends StatelessWidget {
                   color: GriColors.text,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: GriSpacing.xs),
               Text(
                 subtitulo,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: GriColors.gray),
+                style: GriText.auxiliar.copyWith(color: GriColors.gray),
               ),
             ],
           ),

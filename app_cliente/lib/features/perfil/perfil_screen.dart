@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../auth/auth_controller.dart';
 import '../shared/password_field.dart';
+import '../../core/design_tokens.dart';
 import 'perfil_controller.dart';
 
 /// Tab Perfil (AUTH-05) — muestra y edita el perfil del cliente:
@@ -91,13 +92,9 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const Text(
+        Text(
           'Mi perfil',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: GriColors.text,
-          ),
+          style: GriText.tituloPantalla.copyWith(color: GriColors.text),
         ),
         const SizedBox(height: 20),
         Card(
@@ -115,7 +112,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                     prefixIcon: Icon(Icons.person_outline),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: GriSpacing.md),
                 TextFormField(
                   key: const ValueKey('perfil-email'),
                   controller: _emailCtrl,
@@ -126,14 +123,14 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: GriSpacing.md),
                 PasswordField(
                   fieldKey: const ValueKey('perfil-pass-actual'),
                   controller: _passActualCtrl,
                   labelText: 'Contraseña actual',
                   helperText: 'Solo si vas a cambiar la contraseña',
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: GriSpacing.md),
                 PasswordField(
                   fieldKey: const ValueKey('perfil-password'),
                   controller: _passCtrl,
@@ -150,10 +147,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                         GriColors.primary.withValues(alpha: 0.4),
                     disabledForegroundColor: Colors.white70,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    textStyle: GriText.botonGrande,
                   ),
                   child: saving
                       ? const SizedBox(
@@ -170,7 +164,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: GriSpacing.md),
         TextButton.icon(
           onPressed: _logout,
           icon: const Icon(Icons.logout, color: GriColors.chipCanceladaFg),

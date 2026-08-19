@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../models/restaurante.dart';
 import '../../models/reserva_create.dart';
 import '../restaurantes/restaurantes_provider.dart';
+import '../../core/design_tokens.dart';
 import 'reserva_controller.dart';
 
 /// Wizard de reserva (RESV-01) — Stepper fecha → hora → personas → confirmar
@@ -85,7 +86,7 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
             return const SizedBox.shrink(); // el último step tiene su botón.
           }
           return Padding(
-            padding: const EdgeInsets.only(top: 16),
+            padding: const EdgeInsets.only(top: GriSpacing.md),
             // 11-13: `Wrap` en vez de `Row`. Mientras los dos botones quepan
             // se comporta EXACTAMENTE igual que el Row (misma fila, mismos
             // 8px de separación); cuando no caben, baja el segundo a otra
@@ -117,7 +118,7 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(GriSpacing.md),
           child: SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -129,10 +130,7 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
                     GriColors.primary.withValues(alpha: 0.4),
                 disabledForegroundColor: Colors.white70,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                textStyle: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                textStyle: GriText.botonGrande,
               ),
               child: saving
                   ? const SizedBox(
@@ -250,10 +248,10 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
         _ResumenRow(label: 'Fecha', value: _fecha?.let(_fmt) ?? '—'),
         _ResumenRow(label: 'Hora', value: _hora ?? '—'),
         _ResumenRow(label: 'Personas', value: '$_personas'),
-        const SizedBox(height: 8),
-        const Text(
+        const SizedBox(height: GriSpacing.sm),
+        Text(
           'Al confirmar, el sistema te asignará una mesa automáticamente.',
-          style: TextStyle(color: GriColors.gray, fontSize: 12),
+          style: GriText.auxiliar.copyWith(color: GriColors.gray),
         ),
       ],
     );
@@ -400,7 +398,7 @@ class _PersonasSelector extends StatelessWidget {
           onPressed: value > 1 ? () => onChanged(value - 1) : null,
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: GriSpacing.lg),
           child: Text(
             '$value',
             style: const TextStyle(

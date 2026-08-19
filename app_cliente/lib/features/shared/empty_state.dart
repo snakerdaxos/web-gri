@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/design_tokens.dart';
 import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 
@@ -55,23 +56,23 @@ class EmptyState extends StatelessWidget {
     // Único añadido sobre el patrón original: margen. Los textos guía son más
     // largos que los titulares sueltos que había y sin él tocan el borde al
     // hacer wrap. No altera el espaciado ENTRE elementos.
-    const margen = EdgeInsets.symmetric(horizontal: 24, vertical: 24);
+    const margen = EdgeInsets.symmetric(horizontal: GriSpacing.lg, vertical: GriSpacing.lg);
 
     final columna = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         // size 40 = el fontSize que tenía el Text del emoji.
         Icon(icono, size: 40, color: GriColors.gray),
-        const SizedBox(height: 8),
+        const SizedBox(height: GriSpacing.sm),
         Text(titulo, textAlign: TextAlign.center),
-        const SizedBox(height: 4),
+        const SizedBox(height: GriSpacing.xs),
         Text(
           guia,
           textAlign: TextAlign.center,
           style: const TextStyle(color: GriColors.gray),
         ),
         if (accion != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: GriSpacing.md),
           accion!,
         ],
       ],

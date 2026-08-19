@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/theme.dart';
+import '../../core/design_tokens.dart';
 import 'sesion_provider.dart';
 
 /// Escanear QR de la mesa (MESA-05) — dos vías, ambas de primera clase:
@@ -150,7 +151,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                   errorBuilder: (context, error) => Container(
                     color: Colors.black87,
                     alignment: Alignment.center,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(GriSpacing.md),
                     child: const Text(
                       'No pudimos iniciar la cámara 😕\n' // EMOJI-OK: tono empático
                       'Usa el código manual de abajo.',
@@ -234,10 +235,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                         )
                       : const Text(
                           'Abrir mesa',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: GriText.botonGrande,
                         ),
                 ),
               ],

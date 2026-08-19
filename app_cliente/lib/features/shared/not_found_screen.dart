@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../../core/design_tokens.dart';
 
 /// Pantalla 404 propia de la app cliente (11-09).
 ///
@@ -36,31 +37,27 @@ class NotFoundScreen extends StatelessWidget {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            padding: const EdgeInsets.symmetric(horizontal: GriSpacing.lg, vertical: GriSpacing.lg),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('\u{1F9ED}', style: TextStyle(fontSize: 40)),
-                const SizedBox(height: 8),
+                const SizedBox(height: GriSpacing.sm),
                 const Text('Página no encontrada'),
-                const SizedBox(height: 4),
+                const SizedBox(height: GriSpacing.xs),
                 const Text(
                   'El enlace que abriste no existe o ya no está disponible.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: GriColors.gray),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: GriSpacing.sm),
                 // Solo el path. Ver el bloque de seguridad de arriba.
                 Text(
                   uri.path,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: GriColors.gray,
-                    fontSize: 12,
-                    fontFamily: 'monospace',
-                  ),
+                  style: GriText.auxiliar.copyWith(color: GriColors.gray, fontFamily: 'monospace'),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: GriSpacing.md),
                 ElevatedButton(
                   // '/inicio', NO '/'. Esta app no tiene ruta raíz (su
                   // initialLocation es '/inicio'): con `context.go('/')` el
