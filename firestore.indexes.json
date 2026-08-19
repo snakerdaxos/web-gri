@@ -72,6 +72,14 @@
         { "fieldPath": "restauranteId", "order": "ASCENDING" },
         { "fieldPath": "numero", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "categorias",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "restauranteId", "order": "ASCENDING" },
+        { "fieldPath": "orden", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

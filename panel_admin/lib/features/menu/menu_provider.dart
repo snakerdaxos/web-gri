@@ -33,11 +33,17 @@ Stream<List<CategoriaStaff>> staffMenu(Ref ref) async* {
   }
 
   final cats$ = db
+      // El staff lee por la rama menuStaffOf() de la regla, no por la
+      // publica: DEBE ver las categorias inactivas para poder reactivarlas.
+      // AUDIT-STAFF: lectura de staff, exenta de la paridad rules-query.
       .collection('categorias')
       .where('restauranteId', isEqualTo: rid)
       .orderBy('orden')
       .snapshots();
   final prods$ = db
+      // Idem: el staff gestiona inactivos y agotados; filtrar por
+      // activo/disponible aqui le ocultaria justo lo que debe editar.
+      // AUDIT-STAFF: lectura de staff, exenta de la paridad rules-query.
       .collection('productos')
       .where('restauranteId', isEqualTo: rid)
       .snapshots();
