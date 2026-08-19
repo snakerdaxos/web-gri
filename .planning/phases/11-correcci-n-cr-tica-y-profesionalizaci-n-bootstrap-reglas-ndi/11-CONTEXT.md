@@ -38,7 +38,26 @@ actual — todos viven en el contrato con Firestore real o en la capa visual.
 - Motivo: es la única opción que hace el producto autosuficiente — el `super_admin` da de alta un
   restaurante y su equipo desde el panel, sin consola ni scripts ni clave de servicio en manos de nadie.
 - Implica añadir Cloud Functions (Node) al stack y el plan Blaze en Firebase.
-- La función debe validar que quien llama tiene claim `role == 'super_admin'` antes de crear nada.
+
+**Delegación de roles — LOCKED (decisión del usuario, 2026-08-19):** la función acepta DOS tipos de
+llamador con alcances distintos, y debe validar el claim del llamador antes de crear nada:
+
+| Llamador | Puede crear usuarios de | Roles que puede asignar |
+|---|---|---|
+| `super_admin` | cualquier restaurante | `admin_restaurante`, `mesero`, `cocina` |
+| `admin_restaurante` | **solo su propio** `rid` | `mesero`, `cocina` (y `admin_restaurante`, ver abajo) |
+
+- El `super_admin` da de alta el restaurante y su `admin_restaurante` inicial.
+- A partir de ahí, ese admin gestiona su propio equipo sin depender del super_admin — pero el
+  super_admin conserva la capacidad de hacerlo también.
+- **A resolver al planear:** si un `admin_restaurante` puede crear otro `admin_restaurante` de su
+  mismo restaurante. Recomendación: sí, acotado a su propio `rid` (permite tener dos socios/gerentes
+  y evita un único punto de fallo humano); nunca puede crear un `super_admin`.
+- Escalada de privilegios prohibida en todos los casos: nadie puede asignar `super_admin`, y un
+  `admin_restaurante` nunca puede tocar un `rid` distinto al suyo. Esto se valida **en la función**,
+  no en el cliente, y debe tener tests dedicados.
+- El panel necesita la pantalla de gestión de equipo correspondiente, visible según el rol del que
+  ha iniciado sesión.
 
 ### Alcance visual — LOCKED (decisión del usuario, 2026-08-19)
 - Se **conserva la identidad visual actual** (naranja `#FF4C05`, layout del mockup).
