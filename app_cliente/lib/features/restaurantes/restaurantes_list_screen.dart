@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 import '../../models/restaurante.dart';
 import '../shared/empty_state.dart';
@@ -38,7 +39,7 @@ class RestaurantesListScreen extends ConsumerWidget {
             // algo falló cuando lo único que pasa es que aún no hay datos.
             SliverFillRemaining(
               child: EmptyState(
-                icono: '🍽️',
+                icono: GriIcons.menu,
                 titulo: 'No hay restaurantes disponibles',
                 guia: 'Aún no hay restaurantes publicados en GRI. '
                     'Vuelve a intentarlo en un momento.',
@@ -80,7 +81,7 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('🍽️', style: TextStyle(fontSize: 40)),
+          const Icon(GriIcons.menu, size: 40, color: GriColors.gray),
           const SizedBox(height: 8),
           Text(message, textAlign: TextAlign.center),
           const SizedBox(height: 16),
@@ -96,7 +97,7 @@ class _ErrorView extends StatelessWidget {
 }
 
 /// Card de restaurante estilo mockup: imagen placeholder (gradiente naranja
-/// con emoji), nombre, tipo de cocina + dirección, calificación "⭐ —".
+/// con icono), nombre, tipo de cocina + dirección, calificación.
 class _RestauranteCard extends StatelessWidget {
   const _RestauranteCard({required this.restaurante});
 
@@ -123,7 +124,7 @@ class _RestauranteCard extends StatelessWidget {
                 ),
               ),
               child: const Center(
-                child: Text('🍽️', style: TextStyle(fontSize: 44)),
+                child: Icon(GriIcons.menu, size: 44, color: Colors.white),
               ),
             ),
             Padding(
@@ -153,9 +154,9 @@ class _RestauranteCard extends StatelessWidget {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Text('⭐ ',
-                          style: TextStyle(
-                              color: Color(0xFFF5A623), fontSize: 14)),
+                      const Icon(GriIcons.calificacion,
+                          color: Color(0xFFF5A623), size: 14),
+                      const SizedBox(width: 4),
                       Text(
                         restaurante.ratingLabel,
                         style: const TextStyle(

@@ -161,7 +161,7 @@ class _CalificacionSheetState extends ConsumerState<CalificacionSheet> {
       Navigator.of(context).pop();
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('¡Gracias por calificar! 🙌'),
+          content: Text('¡Gracias por calificar! 🙌'), // EMOJI-OK: celebración
           backgroundColor: GriColors.green,
         ),
       );

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
+import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 import '../../models/producto.dart';
 import '../restaurantes/restaurantes_provider.dart';
@@ -66,7 +67,7 @@ class MenuMesaScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('🍽️', style: TextStyle(fontSize: 40)),
+              const Icon(GriIcons.menu, size: 40, color: GriColors.gray),
               const SizedBox(height: 8),
               const Text('No tienes una sesión activa'),
               const SizedBox(height: 16),
@@ -101,7 +102,8 @@ class MenuMesaScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('📋', style: TextStyle(fontSize: 40)),
+              const Icon(GriIcons.resumenPedido,
+                  size: 40, color: GriColors.gray),
               const SizedBox(height: 8),
               const Text('Error al cargar el menú'),
               const SizedBox(height: 16),
@@ -127,7 +129,7 @@ class MenuMesaScreen extends ConsumerWidget {
           // del carrito siguen ahí (cubierto por menu_vacio_test.dart).
           if (detalle.categorias.isEmpty) {
             return const EmptyState(
-              icono: '📋',
+              icono: GriIcons.resumenPedido,
               titulo: 'Este restaurante aún no publicó su menú',
               guia: 'Avísale al mesero para que tome tu pedido en la mesa.',
             );

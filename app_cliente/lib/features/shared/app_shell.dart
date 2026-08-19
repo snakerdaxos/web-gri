@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/design_tokens.dart';
+import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 
 /// Shell de la app cliente — bottom nav de 4 tabs (mockup indexcliente.html).
@@ -43,11 +44,14 @@ class AppShell extends StatelessWidget {
 
   final StatefulNavigationShell navigationShell;
 
-  static const _tabs = <(String, String)>[
-    ('🏠', 'Inicio'),
-    ('🔍', 'Restaurantes'),
-    ('📅', 'Reservas'),
-    ('👤', 'Perfil'),
+  /// Icono + etiqueta de los 4 tabs. Los iconos salen de [GriIcons] (11-13):
+  /// antes eran los emojis `🏠 🔍 📅 👤` pintados como `Text`, cuya forma
+  /// depende de la fuente del sistema operativo.
+  static const _tabs = <(IconData, String)>[
+    (GriIcons.inicio, 'Inicio'),
+    (GriIcons.buscar, 'Restaurantes'),
+    (GriIcons.reservas, 'Reservas'),
+    (GriIcons.perfil, 'Perfil'),
   ];
 
   @override
@@ -85,11 +89,14 @@ class AppShell extends StatelessWidget {
         selectedFontSize: 12,
         unselectedFontSize: 12,
         items: [
-          for (final (emoji, label) in _tabs)
+          for (final (icono, label) in _tabs)
             BottomNavigationBarItem(
               icon: Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(emoji, style: const TextStyle(fontSize: 20)),
+                // size 20 = el fontSize EXACTO que tenia el Text del emoji.
+                // El color lo pone la BottomNavigationBar
+                // (selected/unselectedItemColor), igual que antes.
+                child: Icon(icono, size: 20),
               ),
               label: label,
             ),

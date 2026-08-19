@@ -152,7 +152,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
                     alignment: Alignment.center,
                     padding: const EdgeInsets.all(16),
                     child: const Text(
-                      'No pudimos iniciar la cámara 😕\n'
+                      'No pudimos iniciar la cámara 😕\n' // EMOJI-OK: tono empático
                       'Usa el código manual de abajo.',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white),

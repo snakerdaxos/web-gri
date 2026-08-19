@@ -54,7 +54,8 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
       _passCtrl.clear();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Perfil actualizado ✅')),
+        // ignore: lines_longer_than_80_chars
+        const SnackBar(content: Text('Perfil actualizado ✅')), // EMOJI-OK: aviso amable
       );
     } catch (e) {
       if (!mounted) return;

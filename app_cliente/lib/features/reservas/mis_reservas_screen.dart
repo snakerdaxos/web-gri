@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/firebase_providers.dart';
+import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 import '../../models/reserva.dart';
+import '../shared/icono_inline.dart';
 import 'reserva_controller.dart';
 import 'reservas_provider.dart';
 
@@ -44,7 +46,7 @@ class MisReservasScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('📅', style: TextStyle(fontSize: 40)),
+              const Icon(GriIcons.reservas, size: 40, color: GriColors.gray),
               const SizedBox(height: 8),
               const Text('Error al cargar tus reservas'),
               const SizedBox(height: 16),
@@ -64,7 +66,7 @@ class MisReservasScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('📅', style: TextStyle(fontSize: 40)),
+                  Icon(GriIcons.reservas, size: 40, color: GriColors.gray),
                   SizedBox(height: 8),
                   Text('Aún no tienes reservas'),
                   SizedBox(height: 4),
@@ -210,11 +212,17 @@ class _ReservaCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 10),
-            Text('📅 ${reserva.fechaStr} · ${reserva.horaLabel}'),
+            Text.rich(TextSpan(children: [
+              iconoInline(GriIcons.reservas),
+              TextSpan(text: ' ${reserva.fechaStr} · ${reserva.horaLabel}'),
+            ])),
             const SizedBox(height: 4),
-            Text(
-              '🪑 Mesa ${reserva.mesaNumero} · 👥 ${reserva.numPersonas} personas',
-            ),
+            Text.rich(TextSpan(children: [
+              iconoInline(GriIcons.mesa),
+              TextSpan(text: ' Mesa ${reserva.mesaNumero} · '),
+              iconoInline(GriIcons.personas),
+              TextSpan(text: ' ${reserva.numPersonas} personas'),
+            ])),
             if (puedeCancelar) ...[
               const SizedBox(height: 12),
               Align(

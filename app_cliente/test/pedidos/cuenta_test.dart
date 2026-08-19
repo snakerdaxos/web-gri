@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_cliente/core/firebase_providers.dart';
+import 'package:gri_cliente/core/gri_icons.dart';
 import 'package:gri_cliente/features/pedidos/pedido_estado_screen.dart';
 import 'package:gri_cliente/features/pedidos/pedidos_provider.dart';
 import 'package:gri_cliente/features/sesion_qr/sesion_provider.dart';
@@ -63,7 +64,10 @@ void main() {
     await _pump(tester);
 
     expect(find.text('Pedir la cuenta'), findsOneWidget);
-    expect(find.text('Cuenta solicitada ✓'), findsNothing);
+    // 11-13: el ✓ dejó de ser un glifo dentro de la cadena y es un Icon.
+    // Cambia el FINDER, no lo que se afirma.
+    expect(find.text('Cuenta solicitada'), findsNothing);
+    expect(find.byIcon(GriIcons.confirmado), findsNothing);
     // Pagos DIFERIDOS (locked 10-04): no existe UI de pago en la app.
     expect(find.textContaining('Pagar'), findsNothing);
   });
@@ -84,7 +88,8 @@ void main() {
 
     expect(find.textContaining('el mesero viene en camino'), findsOneWidget);
     // El botón desaparece y queda la confirmación visible (idempotente UX).
-    expect(find.text('Cuenta solicitada ✓'), findsOneWidget);
+    expect(find.text('Cuenta solicitada'), findsOneWidget);
+    expect(find.byIcon(GriIcons.confirmado), findsOneWidget);
     expect(find.text('Pedir la cuenta'), findsNothing);
     expect(find.textContaining('Pagar'), findsNothing);
   });
@@ -105,7 +110,8 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Cuenta solicitada ✓'), findsOneWidget);
+    expect(find.text('Cuenta solicitada'), findsOneWidget);
+    expect(find.byIcon(GriIcons.confirmado), findsOneWidget);
     expect(find.text('Pedir la cuenta'), findsNothing);
     expect(find.textContaining('Pagar'), findsNothing);
   });

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 
 /// Estado vacío guiado, compartido por las listas de la app cliente (11-09).
@@ -7,7 +8,7 @@ import '../../core/theme.dart';
 /// ── QUÉ ES Y QUÉ NO ES ────────────────────────────────────────────────────
 /// Esto es una EXTRACCIÓN, no un rediseño. La estructura, los tamaños, los
 /// colores y el espaciado salen tal cual del patrón que ya era bueno en esta
-/// app (`mis_reservas_screen.dart` y `pedido_estado_screen.dart`): emoji a 40,
+/// app (`mis_reservas_screen.dart` y `pedido_estado_screen.dart`): icono a 40,
 /// 8px, titular con el estilo por defecto, 4px, guía en [GriColors.gray] y —si
 /// hay acción— 16px y el botón. La identidad visual está BLOQUEADA por decisión
 /// del usuario (11-CONTEXT §"Alcance visual"): aquí no se introduce ni un color
@@ -31,8 +32,12 @@ class EmptyState extends StatelessWidget {
     this.accion,
   });
 
-  /// Emoji del estado (mismo lenguaje visual que el resto de la app: 🍽️ 📅 📋).
-  final String icono;
+  /// Icono del estado, SIEMPRE de [GriIcons].
+  ///
+  /// 11-13: era un `String` con un emoji. El tamaño (40) y la posición no
+  /// cambian — lo que cambia es que el glifo deja de depender de la fuente
+  /// del sistema.
+  final IconData icono;
 
   /// Titular corto: QUÉ pasa.
   final String titulo;
@@ -55,7 +60,8 @@ class EmptyState extends StatelessWidget {
     final columna = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(icono, style: const TextStyle(fontSize: 40)),
+        // size 40 = el fontSize que tenía el Text del emoji.
+        Icon(icono, size: 40, color: GriColors.gray),
         const SizedBox(height: 8),
         Text(titulo, textAlign: TextAlign.center),
         const SizedBox(height: 4),

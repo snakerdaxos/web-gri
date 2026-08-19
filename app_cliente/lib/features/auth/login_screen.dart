@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 import '../shared/google_boton.dart';
 import '../shared/password_field.dart';
@@ -230,7 +231,9 @@ class _LogoBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: const Center(
-        child: Text('🍽️', style: TextStyle(fontSize: 32)),
+        // size 32 = el fontSize que tenia el Text del emoji.
+        child: Icon(GriIcons.menu,
+            size: 32, color: Colors.white, semanticLabel: 'GRI'),
       ),
     );
   }

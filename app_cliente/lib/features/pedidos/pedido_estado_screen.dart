@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/firebase_providers.dart';
 import '../../core/format.dart';
+import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 import '../../models/pedido.dart';
 import '../../models/sesion_mesa.dart';
@@ -105,7 +106,7 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('📡', style: TextStyle(fontSize: 40)),
+              const Icon(GriIcons.enVivo, size: 40, color: GriColors.gray),
               const SizedBox(height: 8),
               const Text('Error al cargar tus pedidos'),
               const SizedBox(height: 16),
@@ -123,7 +124,8 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('🧑‍🍳', style: TextStyle(fontSize: 40)),
+                  const Icon(GriIcons.cocinando,
+                      size: 40, color: GriColors.gray),
                   const SizedBox(height: 8),
                   const Text('Aún no hay pedidos en esta sesión'),
                   const SizedBox(height: 16),
@@ -177,7 +179,8 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
           padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: Center(
             child: Text(
-              'Sesión cerrada — ¡gracias por tu visita! 🙌',
+              // ignore: lines_longer_than_80_chars
+              'Sesión cerrada — ¡gracias por tu visita! 🙌', // EMOJI-OK: despedida
               style: TextStyle(color: GriColors.gray),
             ),
           ),
@@ -198,15 +201,25 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
                   color: GriColors.chipConfirmadaBg,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Center(
-                  child: Text(
-                    'Cuenta solicitada ✓',
-                    style: TextStyle(
-                      color: GriColors.chipConfirmadaFg,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
+                // El ✓ era un glifo dentro del texto: pasa a Icon en un Row
+                // con el MISMO tamano (15 = el fontSize del Text) y el mismo
+                // color. La cadena queda sin el glifo para que el lector de
+                // pantalla no lea "marca de verificacion" detras de la frase.
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Cuenta solicitada',
+                      style: TextStyle(
+                        color: GriColors.chipConfirmadaFg,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                     ),
-                  ),
+                    SizedBox(width: 4),
+                    Icon(GriIcons.confirmado,
+                        size: 15, color: GriColors.chipConfirmadaFg),
+                  ],
                 ),
               )
             : SizedBox(

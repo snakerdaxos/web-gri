@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
+import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 import '../shared/empty_state.dart';
 import 'restaurantes_provider.dart';
@@ -36,7 +37,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('🍽️', style: TextStyle(fontSize: 40)),
+              const Icon(GriIcons.menu, size: 40, color: GriColors.gray),
               const SizedBox(height: 8),
               const Text('Error al cargar el restaurante'),
               const SizedBox(height: 16),
@@ -68,7 +69,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                       ),
                     ),
                     child: const Center(
-                      child: Text('🍽️', style: TextStyle(fontSize: 52)),
+                      child: Icon(GriIcons.menu, size: 52, color: Colors.white),
                     ),
                   ),
                   Padding(
@@ -98,9 +99,9 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            const Text('⭐ ',
-                                style: TextStyle(
-                                    color: Color(0xFFF5A623), fontSize: 14)),
+                            const Icon(GriIcons.calificacion,
+                                color: Color(0xFFF5A623), size: 14),
+                            const SizedBox(width: 4),
                             Text(
                               detalle.ratingLabel,
                               style: const TextStyle(
@@ -149,7 +150,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: EmptyState(
-                  icono: '📋',
+                  icono: GriIcons.resumenPedido,
                   titulo: 'Este restaurante aún no tiene menú',
                   guia: 'Cuando publique sus platos los verás aquí.',
                 ),

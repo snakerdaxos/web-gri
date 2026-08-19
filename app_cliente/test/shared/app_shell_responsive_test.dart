@@ -20,6 +20,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gri_cliente/core/design_tokens.dart';
+import 'package:gri_cliente/core/gri_icons.dart';
+import 'package:gri_cliente/core/theme.dart';
 import 'package:gri_cliente/features/shared/app_shell.dart';
 
 /// Sonda que ocupa TODO lo que el shell le conceda. Su `Rect` es, por tanto,
@@ -215,6 +217,63 @@ void main() {
       expect(_mqDelContenido!.padding.top, 0.0,
           reason: 'y el superior lo consume el SafeArea del propio shell: por '
               'eso las 3 pantallas que ya traen SafeArea propio no duplican');
+    });
+  });
+
+  // ── Iconografía de la barra inferior (11-13) ──────────────────────────────
+  group('AppShell — los 4 tabs son Icon, no emojis', () {
+    testWidgets('4 Icon de GriIcons, ninguno pintado como texto',
+        (tester) async {
+      await _pump(tester, ancho: 390);
+
+      final barra = find.byType(BottomNavigationBar);
+      for (final icono in const [
+        GriIcons.inicio,
+        GriIcons.buscar,
+        GriIcons.reservas,
+        GriIcons.perfil,
+      ]) {
+        expect(find.descendant(of: barra, matching: find.byIcon(icono)),
+            findsOneWidget,
+            reason: 'falta el icono del tab (o hay dos tabs con el mismo)');
+      }
+
+      // Los labels siguen siendo Text; el ICONO ya no puede serlo. Si alguien
+      // devuelve un emoji al registro `_tabs`, aquí aparecería un 5.º Text.
+      expect(find.descendant(of: barra, matching: find.byType(Text)),
+          findsNWidgets(4),
+          reason: 'en la barra solo deben quedar los 4 Text de las etiquetas');
+      for (final label in const [
+        'Inicio',
+        'Restaurantes',
+        'Reservas',
+        'Perfil'
+      ]) {
+        expect(find.descendant(of: barra, matching: find.text(label)),
+            findsOneWidget);
+      }
+    });
+
+    testWidgets('el size del icono es el fontSize que tenía el emoji (20)',
+        (tester) async {
+      await _pump(tester, ancho: 390);
+      final icono =
+          tester.widget<Icon>(find.byIcon(GriIcons.inicio));
+      expect(icono.size, 20.0,
+          reason: 'regla de 11-13 (T-11-13-05): el icono NO puede cambiar de '
+              'tamaño respecto al Text del emoji que sustituye');
+    });
+
+    testWidgets('el color activo/inactivo lo sigue poniendo la barra',
+        (tester) async {
+      await _pump(tester, ancho: 390);
+      final barra = tester
+          .widget<BottomNavigationBar>(find.byType(BottomNavigationBar));
+      expect(barra.selectedItemColor, GriColors.primary);
+      expect(barra.unselectedItemColor, GriColors.gray);
+      // Y el Icon NO fija color propio: si lo fijara, ganaría al de la barra
+      // y el tab activo dejaría de pintarse de naranja.
+      expect(tester.widget<Icon>(find.byIcon(GriIcons.inicio)).color, isNull);
     });
   });
 

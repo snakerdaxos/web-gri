@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/firebase_providers.dart';
+import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 import '../../models/reserva.dart';
 import '../../models/sesion_mesa.dart';
@@ -10,6 +11,7 @@ import '../auth/auth_controller.dart';
 import '../reservas/mis_reservas_screen.dart' show EstadoChip;
 import '../reservas/reservas_provider.dart';
 import '../sesion_qr/sesion_provider.dart';
+import '../shared/icono_inline.dart';
 import 'restaurantes_provider.dart';
 
 /// Tab Inicio — réplica del mockup indexcliente.html:
@@ -91,7 +93,8 @@ class HomeScreen extends ConsumerWidget {
 
               // ── Welcome ──────────────────────────────────────────────────
               Text(
-                '¡Hola, ${user?.displayName ?? ''}! 👋',
+                // ignore: lines_longer_than_80_chars
+                '¡Hola, ${user?.displayName ?? ''}! 👋', // EMOJI-OK: saludo
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -125,7 +128,7 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: _ActionCard(
-                      emoji: '📷',
+                      icono: GriIcons.escanearQr,
                       titulo: 'Escanear mesa',
                       subtitulo: 'Ordena desde tu celular',
                       onTap: () => context.push('/sesion/scan'),
@@ -134,7 +137,7 @@ class HomeScreen extends ConsumerWidget {
                   const SizedBox(width: 15),
                   Expanded(
                     child: _ActionCard(
-                      emoji: '📅',
+                      icono: GriIcons.reservas,
                       titulo: 'Mis reservas',
                       subtitulo: 'Consulta tus reservas',
                       onTap: () => context.go('/reservas'),
@@ -192,7 +195,7 @@ class _SesionBanner extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text('🪑', style: TextStyle(fontSize: 20)),
+              const Icon(GriIcons.mesa, size: 20, color: Colors.white),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -207,14 +210,24 @@ class _SesionBanner extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            '📍 ${sesion.restauranteNombre}',
+          Text.rich(
+            TextSpan(children: [
+              iconoInline(GriIcons.direccion),
+              TextSpan(text: ' ${sesion.restauranteNombre}'),
+            ]),
             style: const TextStyle(color: Colors.white70),
           ),
           if (sesion.cuentaSolicitada) ...[
             const SizedBox(height: 8),
-            const Text(
-              'Cuenta solicitada ✓',
+            const Text.rich(
+              TextSpan(children: [
+                TextSpan(text: 'Cuenta solicitada '),
+                WidgetSpan(
+                  alignment: PlaceholderAlignment.middle,
+                  child: Icon(GriIcons.confirmado,
+                      size: 14, color: Colors.white),
+                ),
+              ]),
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -287,7 +300,10 @@ class _LogoIcon extends StatelessWidget {
         color: GriColors.primary,
         borderRadius: BorderRadius.circular(10),
       ),
-      child: const Center(child: Text('🍽️', style: TextStyle(fontSize: 22))),
+      child: const Center(
+        child: Icon(GriIcons.menu,
+            size: 22, color: Colors.white, semanticLabel: 'GRI'),
+      ),
     );
   }
 }
@@ -309,7 +325,10 @@ class _QrButton extends StatelessWidget {
           width: 45,
           height: 45,
           child: Center(
-            child: Text('📷', style: TextStyle(fontSize: 22)),
+            child: Icon(GriIcons.escanearQr,
+                size: 22,
+                color: GriColors.primary,
+                semanticLabel: 'Escanear QR de la mesa'),
           ),
         ),
       ),
@@ -318,7 +337,7 @@ class _QrButton extends StatelessWidget {
 }
 
 /// Tarjeta restaurante del home (mockup .restaurant): gradiente + info +
-/// botón "📅 Reservar una mesa".
+/// botón "Reservar una mesa" con el icono de calendario.
 class _RestauranteCard extends StatelessWidget {
   const _RestauranteCard({
     required this.id,
@@ -350,7 +369,7 @@ class _RestauranteCard extends StatelessWidget {
               ),
             ),
             child: const Center(
-              child: Text('🍽️', style: TextStyle(fontSize: 60)),
+              child: Icon(GriIcons.menu, size: 60, color: Colors.white),
             ),
           ),
           Padding(
@@ -373,8 +392,9 @@ class _RestauranteCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Text('⭐ ',
-                        style: TextStyle(color: Color(0xFFF5A623), fontSize: 14)),
+                    const Icon(GriIcons.calificacion,
+                        color: Color(0xFFF5A623), size: 14),
+                    const SizedBox(width: 4),
                     Text(
                       calificacionLabel,
                       style: const TextStyle(
@@ -398,8 +418,14 @@ class _RestauranteCard extends StatelessWidget {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text(
-                      '📅 Reservar una mesa',
+                    child: const Text.rich(
+                      TextSpan(children: [
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Icon(GriIcons.reservas, size: 16),
+                        ),
+                        TextSpan(text: ' Reservar una mesa'),
+                      ]),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -418,13 +444,13 @@ class _RestauranteCard extends StatelessWidget {
 
 class _ActionCard extends StatelessWidget {
   const _ActionCard({
-    required this.emoji,
+    required this.icono,
     required this.titulo,
     required this.subtitulo,
     required this.onTap,
   });
 
-  final String emoji;
+  final IconData icono;
   final String titulo;
   final String subtitulo;
   final VoidCallback onTap;
@@ -443,7 +469,8 @@ class _ActionCard extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              Text(emoji, style: const TextStyle(fontSize: 30)),
+              // size 30 = el fontSize que tenia el Text del emoji.
+              Icon(icono, size: 30, color: GriColors.primary),
               const SizedBox(height: 10),
               Text(
                 titulo,
@@ -500,12 +527,22 @@ class _ProximaReservaCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text('📅 ${reserva.fechaStr} · ${reserva.horaLabel}'),
+          Text.rich(TextSpan(children: [
+            iconoInline(GriIcons.reservas),
+            TextSpan(text: ' ${reserva.fechaStr} · ${reserva.horaLabel}'),
+          ])),
           const SizedBox(height: 6),
-          Text('🪑 Mesa ${reserva.mesaNumero} · '
-              '👥 ${reserva.numPersonas} personas'),
+          Text.rich(TextSpan(children: [
+            iconoInline(GriIcons.mesa),
+            TextSpan(text: ' Mesa ${reserva.mesaNumero} · '),
+            iconoInline(GriIcons.personas),
+            TextSpan(text: ' ${reserva.numPersonas} personas'),
+          ])),
           const SizedBox(height: 6),
-          Text('📍 ${reserva.restauranteNombre}'),
+          Text.rich(TextSpan(children: [
+            iconoInline(GriIcons.direccion),
+            TextSpan(text: ' ${reserva.restauranteNombre}'),
+          ])),
         ],
       ),
     );
