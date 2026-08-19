@@ -40,6 +40,10 @@ Widget _wrap(FakeFirebaseFirestore db,
       ],
       child: MaterialApp(
         home: ReservaWizardScreen(
+          // La key depende del nombre a propósito: un `pumpWidget` con otro
+          // nombre pero sin key REUTILIZA el State (mismo runtimeType) y el
+          // wizard se quedaría en el step al que llegó la vez anterior.
+          key: ValueKey(nombre),
           restauranteId: 'demo',
           restauranteNombre: nombre,
         ),
@@ -316,13 +320,14 @@ void main() {
     // 60 caracteres: "Restaurante " (12) + 48 más.
     const nombre60 = 'Restaurante El Rincón de la Abuela Doña Mercedes Bogotá D.C.';
 
-    Future<void> pumpConfirmar(WidgetTester tester, double ancho) async {
+    Future<void> pumpConfirmar(WidgetTester tester, double ancho,
+        {String nombre = nombre60}) async {
       tester.view
         ..devicePixelRatio = 1.0
         ..physicalSize = Size(ancho, 900);
       addTearDown(tester.view.reset);
       final db = await buildFakeFirestoreConSeed();
-      await tester.pumpWidget(_wrap(db, nombre: nombre60));
+      await tester.pumpWidget(_wrap(db, nombre: nombre));
       await _llenarHastaConfirmar(tester);
     }
 
@@ -354,25 +359,34 @@ void main() {
           reason: 'y el valor no puede salirse de la pantalla');
     });
 
-    testWidgets('a 480px la fila conserva su geometría (borde derecho y alto)',
+    testWidgets('a 480px un nombre largo no mueve ni la etiqueta ni el margen',
         (tester) async {
-      await pumpConfirmar(tester, 480);
-
-      final rEtiqueta = tester.getRect(find.text('Restaurante'));
-      final rValor = tester.getRect(find.text(nombre60));
-
       // OJO CON LO QUE ESTO PRUEBA Y LO QUE NO. Al meter el valor en un
       // `Expanded`, la CAJA del párrafo pasa a ocupar todo el hueco libre, así
-      // que `rValor.left` cambia respecto a antes de 11-13 — pero los glifos
-      // siguen pegados a la derecha por el `textAlign: right`. Un widget test
-      // no puede afirmar la posición de un glifo: lo que sí se afirma es el
-      // borde derecho (donde empieza a leerse el valor de derecha a izquierda)
-      // y que la etiqueta no se ha movido.
-      expect(rEtiqueta.left, 16.0 + 24.0,
-          reason: 'padding del Stepper + padding de la tarjeta; si la etiqueta '
-              'se mueve es que el arreglo tocó el espaciado');
-      expect(rValor.right, closeTo(480.0 - 16.0 - 24.0, 0.01),
-          reason: 'el valor sigue alineado al borde derecho de la tarjeta');
+      // que su `left` ya no es el del texto: los glifos siguen pegados a la
+      // derecha por el `textAlign: end`, pero un widget test NO puede afirmar
+      // la posición de un glifo. Lo que sí se puede afirmar —y es lo que
+      // importa— es que la fila ocupa el MISMO rectángulo con un nombre corto
+      // que con uno de 60 caracteres. Sin el arreglo, el largo empujaba la
+      // fila 616px fuera de la pantalla.
+      const corto = 'Demo';
+
+      await pumpConfirmar(tester, 480, nombre: corto);
+      final etiquetaCorto = tester.getRect(find.text('Restaurante'));
+      final valorCorto = tester.getRect(find.text(corto));
+
+      await pumpConfirmar(tester, 480, nombre: nombre60);
+      final etiquetaLargo = tester.getRect(find.text('Restaurante'));
+      final valorLargo = tester.getRect(find.text(nombre60));
+
+      expect(etiquetaLargo, etiquetaCorto,
+          reason: 'la etiqueta no puede moverse por lo que valga el valor');
+      expect(valorLargo.right, valorCorto.right,
+          reason: 'y el valor sigue terminando en el mismo borde derecho');
+      expect(valorLargo.right, lessThanOrEqualTo(480.0));
+      expect(valorLargo.height, valorCorto.height,
+          reason: 'una sola línea: el ellipsis evita que el nombre largo '
+              'estire la fila a lo alto y descuadre el resumen');
     });
   });
 

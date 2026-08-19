@@ -86,7 +86,15 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
           }
           return Padding(
             padding: const EdgeInsets.only(top: 16),
-            child: Row(
+            // 11-13: `Wrap` en vez de `Row`. Mientras los dos botones quepan
+            // se comporta EXACTAMENTE igual que el Row (misma fila, mismos
+            // 8px de separación); cuando no caben, baja el segundo a otra
+            // línea en vez de desbordar. Un `Row` no puede encoger un botón,
+            // así que aquí no bastaba un `Expanded`.
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 ElevatedButton(
                   onPressed: details.onStepContinue,
@@ -96,13 +104,11 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
                   ),
                   child: const Text('Continuar'),
                 ),
-                if (_currentStep > 0) ...[
-                  const SizedBox(width: 8),
+                if (_currentStep > 0)
                   TextButton(
                     onPressed: details.onStepCancel,
                     child: const Text('Atrás'),
                   ),
-                ],
               ],
             ),
           );
@@ -187,6 +193,12 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
             alignment: Alignment.centerLeft,
             child: DropdownButtonFormField<String>(
               initialValue: _hora,
+              // 11-13: sin `isExpanded` el Row interno del dropdown se maqueta
+              // al ancho NATURAL de su contenido y desborda en pantallas
+              // estrechas o con el texto ampliado por accesibilidad. El campo
+              // ya ocupaba todo el ancho disponible (lo pone el
+              // InputDecorator), así que la flecha no se mueve.
+              isExpanded: true,
               hint: const Text('Elige una hora'),
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
@@ -351,9 +363,21 @@ class _ResumenRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: GriColors.gray)),
-          Text(value,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: GriColors.text)),
+          // 11-13: el valor va en Expanded + ellipsis. Un `Row` reparte
+          // restricciones INFINITAS de ancho a sus hijos, así que el `Text`
+          // se maquetaba a su ancho natural y desbordaba en cuanto el nombre
+          // del restaurante era largo (medido: 41px a 320 y 616px a 480 con
+          // 60 caracteres). El `Expanded` le da el hueco REAL que queda y el
+          // `textAlign: end` mantiene el valor pegado a la derecha, que es
+          // exactamente donde lo dejaba el `spaceBetween`.
+          // Ni tipografía ni espaciado cambian.
+          Expanded(
+            child: Text(value,
+                textAlign: TextAlign.end,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, color: GriColors.text)),
+          ),
         ],
       ),
     );
