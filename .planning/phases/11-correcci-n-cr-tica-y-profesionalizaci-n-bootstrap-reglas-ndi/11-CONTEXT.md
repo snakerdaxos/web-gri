@@ -45,14 +45,15 @@ llamador con alcances distintos, y debe validar el claim del llamador antes de c
 | Llamador | Puede crear usuarios de | Roles que puede asignar |
 |---|---|---|
 | `super_admin` | cualquier restaurante | `admin_restaurante`, `mesero`, `cocina` |
-| `admin_restaurante` | **solo su propio** `rid` | `mesero`, `cocina` (y `admin_restaurante`, ver abajo) |
+| `admin_restaurante` | **solo su propio** `rid` | `admin_restaurante`, `mesero`, `cocina` |
 
 - El `super_admin` da de alta el restaurante y su `admin_restaurante` inicial.
 - A partir de ahí, ese admin gestiona su propio equipo sin depender del super_admin — pero el
   super_admin conserva la capacidad de hacerlo también.
-- **A resolver al planear:** si un `admin_restaurante` puede crear otro `admin_restaurante` de su
-  mismo restaurante. Recomendación: sí, acotado a su propio `rid` (permite tener dos socios/gerentes
-  y evita un único punto de fallo humano); nunca puede crear un `super_admin`.
+- **RESUELTO (decisión del usuario, 2026-08-19): sí.** Un `admin_restaurante` puede crear otro
+  `admin_restaurante`, siempre acotado a su propio `rid`. Permite tener dos socios o gerentes y evita
+  que el restaurante quede bloqueado si esa única persona pierde el acceso. Nunca puede crear un
+  `super_admin` ni tocar otro `rid`.
 - Escalada de privilegios prohibida en todos los casos: nadie puede asignar `super_admin`, y un
   `admin_restaurante` nunca puede tocar un `rid` distinto al suyo. Esto se valida **en la función**,
   no en el cliente, y debe tener tests dedicados.
