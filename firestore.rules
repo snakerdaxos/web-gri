@@ -287,5 +287,16 @@ service cloud.firestore {
                     && request.resource.data.estrellas <= 5;
       allow update, delete: if false;  // inmutable
     }
+
+    // ---- plataforma (centinela de bootstrap) · 0 access-calls ----
+    // Solo el Admin SDK (que salta las rules) lo toca, desde la callable
+    // `bootstrapPlataforma` (functions/src/bootstrap-plataforma.js).
+    // Ningun cliente —ni siquiera el super_admin— debe poder leerlo ni
+    // borrarlo: borrarlo RE-ABRIRIA el bootstrap y con el la puerta a un
+    // segundo super_admin (T-11-07-04).
+    // El bloque "colecciones no declaradas — default deny" de
+    // scripts/test/rules/restaurantes.test.mjs (plan 11-04) se escribio ANTES
+    // que esta regla y debe seguir en verde con ella.
+    match /plataforma/{doc} { allow read, write: if false; }
   }
 }

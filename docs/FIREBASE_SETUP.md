@@ -165,6 +165,64 @@ Firestore Database → Create database).
   claims de un usuario YA logueado: cerrar sesión y re-loguearse, o llamar
   `await user.getIdToken(true)` para forzar el refresh.
 
+## 4.1 Inicializar una plataforma nueva (`/bootstrap`)
+
+Para arrancar una plataforma **desde cero** ya no hace falta el seed ni una
+clave de servicio: la callable `bootstrapPlataforma`
+(`functions/src/bootstrap-plataforma.js`) crea el PRIMER `super_admin` y
+después queda inerte para siempre.
+
+> ⚠️ **Las dos variables deben fijarse ANTES del despliegue.** Si faltan, la
+> función no promueve a nadie (*fail closed*) y responde
+> `failed-precondition`. Cambiarlas después exige un nuevo `deploy`.
+
+**1. Configurar el secreto del despliegue.**
+
+```bash
+cp functions/.env.example functions/.env
+```
+
+Rellenar en `functions/.env` (este archivo **NO se commitea**):
+
+| Variable | Qué es |
+|---|---|
+| `BOOTSTRAP_EMAIL` | Correo exacto de la persona que será el primer `super_admin`. Debe ser un buzón que esa persona **pueda verificar**: la función exige `email_verified == true`. |
+| `BOOTSTRAP_SECRET` | Cadena larga y aleatoria. Es el segundo factor. NUNCA reutilizar el de `.env.demo-gri`. Generar, p. ej., con `openssl rand -base64 48`. |
+
+**Por qué el correo NO basta.** El registro con email/contraseña está ABIERTO
+(lo usa la app cliente): cualquiera que conozca el correo del fundador podría
+registrarlo primero. Por eso hacen falta los dos factores —correo verificado y
+secreto de despliegue— y no uno.
+
+**2. Desplegar la función y las rules.**
+
+```bash
+cd scripts
+npx firebase deploy --only functions,firestore:rules --project p-gri-b5b40
+```
+
+**3. Abrir `/bootstrap` en el panel** (hay un enlace discreto en el login:
+*"¿Primera vez? Inicializar plataforma"*).
+
+**4. Crear la cuenta con el correo autorizado** y pegar el secreto. La pantalla
+crea la cuenta, invoca la callable, refresca los claims y entra al panel ya como
+`super_admin`.
+
+**5. Verificar el correo** si Firebase aún no lo marcó como verificado (las
+cuentas de Google llegan ya verificadas; las de email/contraseña necesitan el
+enlace de confirmación). Sin `email_verified == true` la función responde
+`No puedes inicializar esta plataforma.`
+
+**Qué pasa si algo falla.** Los cinco motivos de denegación devuelven el MISMO
+mensaje y el mismo código a propósito (no revelar cuál falló). Revisar, en
+orden: que el correo coincida exactamente, que esté verificado, que el secreto
+sea el del despliegue, y que la plataforma no tenga ya un `super_admin`.
+
+**Cierre de la puerta.** El centinela `plataforma/bootstrap` marca la
+plataforma como inicializada. Está bloqueado en `firestore.rules`
+(`allow read, write: if false`): **ningún** cliente puede leerlo ni borrarlo,
+ni siquiera el `super_admin`. Borrarlo re-abriría el bootstrap.
+
 ## 5. Deploy de rules + índices
 
 > ⚠️ **Advertencia:** reglas mal desplegadas cortan TODO el acceso a Firestore
@@ -279,3 +337,5 @@ GRI-MESA-{restauranteId}-{numero:3 dígitos}   →   GRI-MESA-demo-001 .. GRI-ME
 | Emuladores no arrancan | Falta Java | Usar `node scripts/run_emulators.mjs` (resuelve Java solo, §2.1) o definir `JAVA_HOME` |
 | `npm install --prefix scripts` falla en Windows | npm resuelve mal el package.json | `cd scripts; npm install` |
 | Seed contra proyecto real falla con permisos | Service account sin roles / Firestore no creado | Regenerar key (§3) y crear Firestore en Console |
+| `/bootstrap` responde `failed-precondition` | `BOOTSTRAP_EMAIL` o `BOOTSTRAP_SECRET` no llegaron al despliegue | Rellenar `functions/.env` y **re-desplegar** la función (§4.1) |
+| `/bootstrap` responde `No puedes inicializar esta plataforma.` | Correo distinto, correo sin verificar, secreto incorrecto, o la plataforma YA está inicializada | El mensaje es el mismo para los 4 casos **a propósito**; revisarlos en ese orden (§4.1) |

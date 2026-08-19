@@ -30,13 +30,13 @@
 //                          admin_restaurante → solo su propio rid. Nadie puede
 //                          asignar super_admin.
 //
-// En ESTE plan (11-01) el codebase queda deliberadamente SIN exports: es el
-// andamiaje para que el emulador de Functions arranque.
+// Estado: `bootstrapPlataforma` exportada desde el plan 11-07.
+// `crearUsuarioStaff` sigue pendiente (plan 11-08).
 // ============================================================================
 
 import { initializeApp } from 'firebase-admin/app';
 
 initializeApp();
 
-// export { bootstrapPlataforma } from './src/bootstrap.js';   // plan 11-07
-// export { crearUsuarioStaff } from './src/staff.js';         // plan 11-08
+export { bootstrapPlataforma } from './src/bootstrap-plataforma.js';  // plan 11-07
+// export { crearUsuarioStaff } from './src/staff.js';                 // plan 11-08
