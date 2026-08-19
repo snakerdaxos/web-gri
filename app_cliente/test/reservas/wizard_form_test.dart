@@ -1,5 +1,6 @@
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_cliente/core/firebase_providers.dart';
@@ -361,14 +362,14 @@ void main() {
 
     testWidgets('a 480px un nombre largo no mueve ni la etiqueta ni el margen',
         (tester) async {
-      // OJO CON LO QUE ESTO PRUEBA Y LO QUE NO. Al meter el valor en un
+      // OJO CON LO QUE MIDE `getRect` AQUÍ. Al meter el valor en un
       // `Expanded`, la CAJA del párrafo pasa a ocupar todo el hueco libre, así
-      // que su `left` ya no es el del texto: los glifos siguen pegados a la
-      // derecha por el `textAlign: end`, pero un widget test NO puede afirmar
-      // la posición de un glifo. Lo que sí se puede afirmar —y es lo que
-      // importa— es que la fila ocupa el MISMO rectángulo con un nombre corto
-      // que con uno de 60 caracteres. Sin el arreglo, el largo empujaba la
-      // fila 616px fuera de la pantalla.
+      // que su `left` ya no es donde empieza el texto. Por eso este caso
+      // afirma el rectángulo de la FILA (que no debe moverse) y, más abajo,
+      // la posición de los GLIFOS dentro de esa caja vía `RenderParagraph`
+      // —que es lo único que demuestra que el valor sigue pegado a la
+      // derecha, como lo dejaba el `spaceBetween` de antes—.
+      // Sin el arreglo, el nombre largo empujaba la fila 616px fuera.
       const corto = 'Demo';
 
       await pumpConfirmar(tester, 480, nombre: corto);
@@ -387,6 +388,29 @@ void main() {
       expect(valorLargo.height, valorCorto.height,
           reason: 'una sola línea: el ellipsis evita que el nombre largo '
               'estire la fila a lo alto y descuadre el resumen');
+    });
+
+    testWidgets('los glifos del valor siguen pegados a la derecha', (tester) async {
+      // ESTE es el caso que da dientes al `textAlign: TextAlign.end`. Con un
+      // nombre corto el párrafo ocupa toda la anchura del Expanded, así que
+      // ni el rect del Text ni el de la fila cambian al quitar el textAlign:
+      // se comprobó con una rotura deliberada que dejó la suite ENTERA en
+      // verde. Lo único que se mueve son los glifos DENTRO de la caja, y eso
+      // se lee del RenderParagraph.
+      const corto = 'Demo';
+      await pumpConfirmar(tester, 480, nombre: corto);
+
+      final parrafo = tester.renderObject<RenderParagraph>(find.text(corto));
+      final cajas = parrafo.getBoxesForSelection(
+          const TextSelection(baseOffset: 0, extentOffset: corto.length));
+      expect(cajas, isNotEmpty,
+          reason: 'sin cajas de glifo esta aserción no comprobaría nada');
+
+      final derechaGlifos = cajas.last.right;
+      expect(derechaGlifos, closeTo(parrafo.size.width, 0.5),
+          reason: 'el texto tiene que terminar donde termina su caja: si se '
+              'pierde el textAlign.end, el valor salta al borde IZQUIERDO del '
+              'hueco y el resumen deja de leerse en columna');
     });
   });
 
