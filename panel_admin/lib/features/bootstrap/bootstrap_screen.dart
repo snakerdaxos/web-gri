@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../shared/password_field.dart';
 import 'bootstrap_controller.dart';
+import '../shared/responsive_page.dart';
 
 /// Pantalla `/bootstrap` (BOOT-01): crea el PRIMER `super_admin` de la
 /// plataforma invocando la callable `bootstrapPlataforma`.
@@ -116,12 +117,15 @@ class _BootstrapScreenState extends ConsumerState<BootstrapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: GriColors.background,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Container(
+      // Mismo patrón que login_screen: [ResponsivePage] sustituye al
+      // `Center + scroll(padding 24) + ConstrainedBox(400)` copiado a mano, y
+      // el techo lleva el padding sumado para que la tarjeta siga en 400.
+      body: ResponsivePage(
+        maxWidth: ResponsivePage.anchoMaxFormularioConPadding,
+        alineacion: Alignment.center,
+        padding: const EdgeInsets.all(24),
+        builder: (context, ancho) => SingleChildScrollView(
+          child: Container(
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -278,7 +282,6 @@ class _BootstrapScreenState extends ConsumerState<BootstrapScreen> {
               ),
             ),
           ),
-        ),
       ),
     );
   }

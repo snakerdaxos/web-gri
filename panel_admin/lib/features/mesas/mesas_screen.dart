@@ -6,6 +6,8 @@ import '../dashboard/mesas_provider.dart';
 import '../dashboard/widgets/mesa_tile.dart';
 import 'mesa_actions_sheet.dart';
 import 'mesa_form_dialog.dart';
+import '../dashboard/dashboard_screen.dart' show mesaGridDelegate;
+import '../shared/responsive_page.dart';
 
 /// Pantalla /mesas (MESA-01, 10-06) — grid vivo de mesas + alta/edición.
 ///
@@ -35,12 +37,8 @@ class MesasScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('Nueva mesa'),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          // Responsive 4/3/2 (mismo criterio del mapa del dashboard).
-          final crossAxis = constraints.maxWidth >= 1100
-              ? 4
-              : (constraints.maxWidth >= 750 ? 3 : 2);
+      body: ResponsivePage(
+        builder: (context, ancho) {
           return SingleChildScrollView(
             padding: const EdgeInsets.all(30),
             child: Column(
@@ -81,13 +79,12 @@ class MesasScreen extends ConsumerWidget {
                         ),
                       );
                     }
-                    return GridView.count(
-                      crossAxisCount: crossAxis,
+                    return GridView(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 20,
-                      crossAxisSpacing: 20,
-                      childAspectRatio: 1.1,
+                      // El MISMO delegate que el mapa del dashboard: las dos
+                      // rejillas de mesas no pueden divergir.
+                      gridDelegate: mesaGridDelegate,
                       children: [
                         for (final m in mesas)
                           MesaTile(

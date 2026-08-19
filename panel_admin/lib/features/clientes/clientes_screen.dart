@@ -7,6 +7,7 @@ import '../../core/format.dart';
 import '../../core/theme.dart';
 import 'clientes_provider.dart';
 import 'historial_dialog.dart';
+import '../shared/responsive_page.dart';
 
 /// Tabla de clientes del restaurante (ADMN-03) — usuarios con pedidos en
 /// el tenant (DERIVADOS de pedidos: fold distinct por usuarioId con el
@@ -29,9 +30,9 @@ class ClientesScreen extends ConsumerWidget {
     // (patrón cocina_screen).
     return Material(
       color: GriColors.background,
-      child: Padding(
+      child: ResponsivePage(
         padding: const EdgeInsets.all(24),
-        child: Column(
+        builder: (context, ancho) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(

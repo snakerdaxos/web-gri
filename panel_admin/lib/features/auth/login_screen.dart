@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../shared/password_field.dart';
 import 'login_controller.dart';
+import '../shared/responsive_page.dart';
 
 /// Pantalla de login (PLAT-01) — card centrada con logo GRI, email+password.
 ///
@@ -78,12 +79,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       backgroundColor: GriColors.background,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Container(
+      // El `Center + SingleChildScrollView(padding 24) + ConstrainedBox(400)`
+      // que había aquí es exactamente lo que hace [ResponsivePage]; el techo
+      // es 400+24+24 para que la TARJETA siga midiendo 400 clavados (el
+      // padding vivía por fuera del cap). Verificado en responsive_test.
+      body: ResponsivePage(
+        maxWidth: ResponsivePage.anchoMaxFormularioConPadding,
+        alineacion: Alignment.center,
+        padding: const EdgeInsets.all(24),
+        builder: (context, ancho) => SingleChildScrollView(
+          child: Container(
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -194,7 +199,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
           ),
-        ),
       ),
     );
   }

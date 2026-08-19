@@ -8,6 +8,7 @@ import '../dashboard/restaurante_provider.dart';
 import '../menu/menu_screen.dart';
 import 'restaurante_form_dialog.dart';
 import 'restaurantes_admin_provider.dart';
+import '../shared/responsive_page.dart';
 
 /// Pantalla /configuracion — hub de administración (decisión discreta 08:
 /// el sidebar de 7 ítems no tiene entrada Menú; Configuración queda
@@ -55,13 +56,18 @@ class ConfiguracionScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              // El techo se aplica al CONTENIDO de los tabs, no a la barra:
+              // el TabBar es una franja blanca de ancho completo (chrome del
+              // shell) y recortarla a 1200 sí sería un cambio de aspecto.
               Expanded(
-                child: TabBarView(
-                  children: [
-                    const MenuScreen(),
-                    const _RestauranteTab(),
-                    if (isSuperAdmin) const _RestaurantesTab(),
-                  ],
+                child: ResponsivePage(
+                  builder: (context, ancho) => TabBarView(
+                    children: [
+                      const MenuScreen(),
+                      const _RestauranteTab(),
+                      if (isSuperAdmin) const _RestaurantesTab(),
+                    ],
+                  ),
                 ),
               ),
             ],

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import 'equipo_provider.dart';
 import 'staff_form_dialog.dart';
+import '../shared/responsive_page.dart';
 
 /// Gestión de equipo del restaurante (BOOT-04) — la pieza que hace al
 /// restaurante autosuficiente: hasta aquí, dar de alta a un mesero exigía
@@ -38,9 +39,9 @@ class EquipoScreen extends ConsumerWidget {
     // (patrón clientes_screen).
     return Material(
       color: GriColors.background,
-      child: Padding(
+      child: ResponsivePage(
         padding: const EdgeInsets.all(24),
-        child: Column(
+        builder: (context, ancho) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(

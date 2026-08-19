@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../dashboard/restaurante_provider.dart';
 import '../dashboard/restaurantes_list_provider.dart';
 import '../equipo/equipo_provider.dart' show rolesQueGestionanEquipo;
+import '../../core/design_tokens.dart';
 
 /// AppShell completo (Task 3) — sidebar 250px + topbar con nombre restaurante.
 ///
@@ -70,7 +71,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final collapsed = constraints.maxWidth < 750;
+        final collapsed = constraints.maxWidth < GriBreakpoints.compact;
         final sidebarWidth = collapsed ? 70.0 : 250.0;
 
         return Scaffold(

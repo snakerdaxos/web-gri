@@ -7,6 +7,8 @@ import '../../core/state_machines.dart';
 import '../../core/theme.dart';
 import '../../models/reserva.dart';
 import 'reservas_provider.dart';
+import '../shared/responsive_page.dart';
+import '../../core/design_tokens.dart';
 
 /// Pantalla /reservas (RESV-05 UI, 10-06): reservas de HOY del tenant EN
 /// VIVO (`reservasHoyProvider` — misma query del dashboard, onSnapshot).
@@ -86,21 +88,25 @@ class ReservasScreen extends ConsumerWidget {
       // Material ancestor: en producción lo provee el Scaffold del AppShell;
       // standalone (tests) sin esto Flutter inyecta estilos fallback.
       color: GriColors.background,
-      child: Padding(
+      child: ResponsivePage(
         padding: const EdgeInsets.all(24),
-        child: Column(
+        builder: (context, ancho) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
                 const Text('📅', style: TextStyle(fontSize: 18)),
                 const SizedBox(width: 8),
-                Text(
-                  'Reservas de hoy (${DateFormat('dd/MM/yyyy').format(DateTime.now())})',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: GriColors.text,
+                Expanded(
+                  child: Text(
+                    'Reservas de hoy (${DateFormat('dd/MM/yyyy').format(DateTime.now())})',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: GriColors.text,
+                    ),
                   ),
                 ),
               ],
@@ -171,59 +177,120 @@ class _ReservaCard extends StatelessWidget {
 
   static final DateFormat _hora = DateFormat('HH:mm');
 
+  /// Ancho de tarjeta por debajo del cual las acciones bajan a una segunda
+  /// fila.
+  ///
+  /// La fila única necesita, con la métrica de fuente más ancha posible,
+  /// ~650px solo para las partes de tamaño FIJO (hora + chip + los dos
+  /// botones). 900 deja margen de sobra y, sobre todo, está por encima de
+  /// cualquier ancho de escritorio en el que hoy se ve el panel: a 1200 la
+  /// disposición es EXACTAMENTE la de siempre, una sola fila.
+  static const double _anchoFilaUnica = 900;
+
   @override
   Widget build(BuildContext context) {
     final viva = reserva.estado == 'confirmada' || reserva.estado == 'pendiente';
+
+    final hora = Text(
+      _hora.format(reserva.fecha),
+      style: const TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: GriColors.text,
+      ),
+    );
+    final info = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Mesa ${reserva.mesaNumero}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: GriColors.text,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '${reserva.numPersonas} personas',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: GriColors.gray, fontSize: 13),
+        ),
+      ],
+    );
+    final botonNoShow = OutlinedButton(
+      onPressed: () => onNoShow(reserva),
+      child: const Text('No-show'),
+    );
+    final botonOcupada = reserva.estado == 'confirmada'
+        ? ElevatedButton(
+            onPressed: () => onMarcarOcupada(reserva),
+            child: const Text('Marcar ocupada'),
+          )
+        : null;
+    // Con la separación EXACTA de siempre (8) para la fila única.
+    final acciones = <Widget>[
+      botonNoShow,
+      if (botonOcupada != null) ...[const SizedBox(width: 8), botonOcupada],
+    ];
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            // Hora del slot (Timestamp → HH:mm local).
-            Text(
-              _hora.format(reserva.fecha),
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: GriColors.text,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        // LayoutBuilder y no MediaQuery: lo que decide es el ancho de la
+        // TARJETA (que depende del sidebar y del techo de ResponsivePage), no
+        // el de la ventana.
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final filaUnica = constraints.maxWidth >= _anchoFilaUnica;
+
+            if (filaUnica) {
+              // Disposición histórica, intacta.
+              return Row(
                 children: [
-                  Text(
-                    'Mesa ${reserva.mesaNumero}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: GriColors.text,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${reserva.numPersonas} personas',
-                    style: const TextStyle(color: GriColors.gray, fontSize: 13),
+                  hora,
+                  const SizedBox(width: 16),
+                  Expanded(child: info),
+                  _EstadoChip(estado: reserva.estado),
+                  if (viva) ...[
+                    const SizedBox(width: 12),
+                    ...acciones,
+                  ],
+                ],
+              );
+            }
+
+            // Tarjeta estrecha: los botones bajan enteros a una segunda fila
+            // en vez de empujar el chip fuera de la tarjeta.
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    hora,
+                    const SizedBox(width: 16),
+                    Expanded(child: info),
+                    _EstadoChip(estado: reserva.estado),
+                  ],
+                ),
+                if (viva) ...[
+                  const SizedBox(height: 12),
+                  // Wrap y no Row: en una columna MUY estrecha los dos
+                  // botones tampoco caben uno al lado del otro (medido: 60px
+                  // de desborde a 420px de ancho de pantalla).
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: GriSpacing.sm,
+                    runSpacing: GriSpacing.sm,
+                    children: [botonNoShow, ?botonOcupada],
                   ),
                 ],
-              ),
-            ),
-            _EstadoChip(estado: reserva.estado),
-            if (viva) ...[
-              const SizedBox(width: 12),
-              OutlinedButton(
-                onPressed: () => onNoShow(reserva),
-                child: const Text('No-show'),
-              ),
-              const SizedBox(width: 8),
-              if (reserva.estado == 'confirmada')
-                ElevatedButton(
-                  onPressed: () => onMarcarOcupada(reserva),
-                  child: const Text('Marcar ocupada'),
-                ),
-            ],
-          ],
+              ],
+            );
+          },
         ),
       ),
     );

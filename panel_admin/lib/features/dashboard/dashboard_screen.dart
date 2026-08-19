@@ -12,6 +12,8 @@ import 'stats_provider.dart';
 import 'widgets/mesa_legend.dart';
 import 'widgets/mesa_tile.dart';
 import 'widgets/stat_card.dart';
+import '../../core/design_tokens.dart';
+import '../shared/responsive_page.dart';
 
 /// Dashboard (ADMN-01 + ADMN-02) — 4 stat cards + mapa de mesas coloreado.
 ///
@@ -28,6 +30,31 @@ import 'widgets/stat_card.dart';
 /// suficiente. Si alguien cambia la tipografía de la card y deja de caber, el
 /// test se pone rojo en vez de recortarse en silencio.
 const double alturaStatCard = 130;
+
+/// Delegate del grid de mesas, compartido por el mapa del dashboard y
+/// `/mesas` para que los dos no puedan divergir.
+///
+/// `maxCrossAxisExtent` en vez de `crossAxisCount`: el grid deja de tener un
+/// tope de 4 escrito a mano y el tile deja de poder crecer sin límite.
+///
+/// 325 NO es un número redondo: es el que hace que los saltos de columna caigan
+/// donde ya caían con la regla anterior (`ancho >= 1100 ? 4 : ancho >= 750 ? 3
+/// : 2`), teniendo en cuenta el padding de 30 de la pantalla y el
+/// `crossAxisSpacing` de 20 — 2·(325+20) = 690 = 750−60 y 3·(325+20) = 1035 ≈
+/// 1100−60. `responsive_test.dart` compara columna a columna contra la regla
+/// histórica a 700, 800, 1030 (ventana 1280), 1190 (ventana 1440) y 1200.
+///
+/// LÍMITE CONOCIDO: por debajo de ~500px de contenido la regla nueva da 1
+/// columna donde la vieja daba 2. Es un ancho al que un panel de escritorio no
+/// se usa, y una ficha de mesa de 170px no era legible de todas formas.
+const SliverGridDelegateWithMaxCrossAxisExtent mesaGridDelegate =
+    SliverGridDelegateWithMaxCrossAxisExtent(
+  maxCrossAxisExtent: 325,
+  mainAxisSpacing: 20,
+  crossAxisSpacing: 20,
+  // MesaTile minHeight 130 + padding interno.
+  childAspectRatio: 1.1,
+);
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -60,16 +87,14 @@ class DashboardScreen extends ConsumerWidget {
     // directos) — el InkWell de los MesaTile (08-03) lo exige.
     return Material(
       color: GriColors.background,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
+      child: ResponsivePage(
+        builder: (context, ancho) {
         // Responsive crossAxisCount del grid de stat cards (4/2/1).
-        final statCrossAxis = constraints.maxWidth >= 1100
+        // Los umbrales son los MISMOS de siempre (GriBreakpoints 750/1100):
+        // moverlos sería un cambio visual prohibido por la fase.
+        final statCrossAxis = ancho >= GriBreakpoints.expanded
             ? 4
-            : (constraints.maxWidth >= 750 ? 2 : 1);
-        // Responsive crossAxisCount del grid de mesas (4/3/2).
-        final mesaCrossAxis = constraints.maxWidth >= 1100
-            ? 4
-            : (constraints.maxWidth >= 750 ? 3 : 2);
+            : (ancho >= GriBreakpoints.compact ? 2 : 1);
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(30),
@@ -227,14 +252,16 @@ class DashboardScreen extends ConsumerWidget {
                             ),
                           );
                         }
-                        return GridView.count(
-                          crossAxisCount: mesaCrossAxis,
+                        return GridView(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          mainAxisSpacing: 20,
-                          crossAxisSpacing: 20,
-                          // MesaTile minHeight 130 + padding interno.
-                          childAspectRatio: 1.1,
+                          // Grid FLUIDO (11-21): el número de columnas sale
+                          // del ancho de tile, no de un tope de 4. Con el
+                          // techo de 1200 de [ResponsivePage] el resultado es
+                          // el MISMO que el 4/3/2 de antes a todos los anchos
+                          // (verificado a 1280 y 1440 en responsive_test), y
+                          // deja de tener un máximo escrito a mano.
+                          gridDelegate: mesaGridDelegate,
                           children: [
                             // Mapa operacional (ADMN-04): tap → sheet con
                             // SOLO transiciones válidas + Ver QR (la
@@ -260,7 +287,7 @@ class DashboardScreen extends ConsumerWidget {
           ), // Column (mapa de mesas)
         ); // SingleChildScrollView
       }, // builder
-      ), // LayoutBuilder (child: de Material)
+      ), // ResponsivePage (child: de Material)
     ); // Material
   }
 }

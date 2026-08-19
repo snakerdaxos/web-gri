@@ -7,6 +7,7 @@ import '../../models/categoria_staff.dart';
 import 'categoria_form_dialog.dart';
 import 'menu_provider.dart';
 import 'producto_form_dialog.dart';
+import '../shared/responsive_page.dart';
 
 /// Gestión del menú (MENU-01/02) — vive como tab de /configuracion
 /// (decisión discreta 08: el sidebar de 7 ítems no tiene entrada Menú).
@@ -27,7 +28,11 @@ class MenuScreen extends ConsumerWidget {
     // (patrón cocina_screen).
     return Material(
       color: GriColors.background,
-      child: Column(
+      // Sin `padding` propio: esta pantalla ya lo pone en sus hijos
+      // (fromLTRB(24,16,24,4) en la cabecera y fromLTRB(24,8,24,24) en la
+      // lista) y homogeneizarlos sería un cambio visual, fuera de alcance.
+      child: ResponsivePage(
+        builder: (context, ancho) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
@@ -105,6 +110,7 @@ class MenuScreen extends ConsumerWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

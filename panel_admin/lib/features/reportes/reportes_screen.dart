@@ -6,6 +6,7 @@ import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../models/reporte.dart';
 import 'reportes_provider.dart';
+import '../shared/responsive_page.dart';
 
 /// Pantalla /reportes (REPO-01/02, 10-06): ventas por rango + top platos,
 /// computados EN EL CLIENTE desde pedidos `servido` (fold — sin backend).
@@ -113,9 +114,9 @@ class ReportesScreenState extends ConsumerState<ReportesScreen> {
       // Material ancestor: en producción lo provee el Scaffold del AppShell;
       // standalone (tests) sin esto Flutter inyecta estilos fallback.
       color: GriColors.background,
-      child: Padding(
+      child: ResponsivePage(
         padding: const EdgeInsets.all(24),
-        child: Column(
+        builder: (context, ancho) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Wrap(

@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/pedido_staff.dart';
 import 'pedidos_staff_provider.dart';
 import 'widgets/pedido_card.dart';
+import '../shared/responsive_page.dart';
 
 /// Vista cocina (ADMN-05) — cola de pedidos activos EN VIVO (Phase 10:
 /// onSnapshot nativo — WS y polling retirados de esta vista, MIGRA-05).
@@ -33,31 +34,41 @@ class CocinaScreen extends ConsumerWidget {
     // (48px) a los Text sin fontSize explícito.
     return Material(
       color: GriColors.background,
-      child: Padding(
+      child: ResponsivePage(
         padding: const EdgeInsets.all(30),
-        child: Column(
+        builder: (context, ancho) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Pedidos · Cocina',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: GriColors.text,
+                // Expanded + ellipsis: el subtítulo pedía su ancho intrínseco
+                // dentro de un Row sin acotar. Medido en 11-21 con el shell
+                // real: 150px de desborde a 450 de ventana, 100 a 500, 50 a
+                // 550 y 0.25 a 600 — una recta, no un caso raro.
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pedidos · Cocina',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: GriColors.text,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      'Cola de pedidos activos (en vivo)',
-                      style: TextStyle(color: GriColors.gray),
-                    ),
-                  ],
+                      SizedBox(height: 5),
+                      Text(
+                        'Cola de pedidos activos (en vivo)',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: GriColors.gray),
+                      ),
+                    ],
+                  ),
                 ),
                 // Aviso de cuenta EN VIVO (PAGO-01): sesiones activas con
                 // cuentaSolicitada — sustituye el badge del WS. Flexible:

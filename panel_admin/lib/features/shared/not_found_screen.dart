@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import 'responsive_page.dart';
 
 /// Pantalla 404 propia del panel (11-09).
 ///
@@ -32,9 +33,15 @@ class NotFoundScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: GriColors.background,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      // La única de las tres pantallas de tarjeta que NO tenía techo: su
+      // texto se estiraba hasta los 1670px del contenido del panel. Con el
+      // techo de formulario el path largo de una URL desconocida se parte en
+      // varias líneas en vez de tirar del layout.
+      body: ResponsivePage(
+        maxWidth: ResponsivePage.anchoMaxFormularioConPadding,
+        alineacion: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        builder: (context, ancho) => SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
