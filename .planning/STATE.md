@@ -8,8 +8,8 @@ progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 52
-  completed_plans: 41
-  percent: 79
+  completed_plans: 42
+  percent: 81
 ---
 
 # STATE
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 11/21 planes [###########----------] 52%
+Phase 11: 12/21 planes [############---------] 57%
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -42,6 +42,7 @@ Phase 11: 11/21 planes [###########----------] 52%
 - [x] 11-08 Alta de staff con custom claims: matriz de autorizacion PURA (sin imports de firebase, 27 casos en 61ms) + callable crearUsuarioStaff idempotente con anti-secuestro de 3 ramas (la tercera consulta el doc espejo, porque un cliente auto-registrado no lleva claim role) + 14 e2e con tokens reales. 18 roturas deliberadas — 94f35f1, 5761769, b7b59a8
 - [x] 11-09 Estados vacios guiados + 404 propio en las dos apps: EmptyState (resistente al desbordamiento) cierra la pantalla EN BLANCO del menu post-escaneo del QR; errorBuilder cableado en los dos GoRouter mostrando SOLO uri.path y por detras del guard de sesion. 11 roturas deliberadas — b1719ca, e5c921b, 2840752
 - [x] 11-10 Gestion de equipo del panel: la regla de usuarios se abre por PRIMERA VEZ a docs ajenos, acotada a role()=='admin_restaurante' && resource.data.restauranteId==rid() (clientes fuera por construccion, restauranteId null); pantalla /equipo unica adaptativa + formulario que NO manda restauranteId siendo admin (la callable lo deriva del claim) + gating en sidebar y router. 2 verdes por el motivo equivocado cazados (uno HEREDADO de 11-04) y 1 gate del plan inejecutable. 21 roturas deliberadas — 7f3f9a2, 5ef72b6, 69799e8
+- [x] 11-11 Base del sistema de diseno: GriSpacing/GriRadius/GriBreakpoints/GriText en las DOS apps, griTextTheme con los 15 slots DECLARADOS (valores de M3 medidos con sonda: la escala de GRI NO cabe ahi porque esos slots los consume el chrome), GriSemanticColors registrada, models/pedido.dart pierde su segunda paleta, panel con elevatedButtonTheme + griCardDecoration + 4 estilos con nombre. 17 roturas deliberadas; 1 test propio RETIRADO por estar verde por construccion — 3e5f931, 6ad9a63, 808487b, 7d0528a
 - [ ] 11-11 .. 11-17, 11-19 .. 11-21
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
@@ -51,6 +52,8 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 3. Smoke e2e flujo completo ([A]-[M] emuladores o [P] real)
 
 ## Test Baselines (final Firebase)
+
+- 11-11: app_cliente 158 -> 178 (+20) y panel_admin 163 -> 189 (+26); analyze 0 en las dos. OJO: `flutter test` en panel_admin da 226 porque 11-10 aporta +37 en test/equipo (medido aparte con `flutter test test/equipo`)
 
 - app_cliente: 122 passed + analyze 0 (11-09: +10 — 4 de menu_vacio, 1 en base_vacia, 5 de router_404). MEDIDO EN DOS MITADES: 11-17 tenia test/auth y lib/features/auth abiertos en vuelo, asi que `flutter test` a secas salia rojo por archivos ajenos; test/auth por separado +50 y todo lo demas +99
 - panel_admin: 200 passed atribuibles hasta 11-10 + analyze 0 (11-09: +6 de router_404; 11-10: +37 — 15 de provider/controlador, 13 de pantalla/formulario, 9 de gating sobre el GoRouter REAL). Medido con el ejecutor de 11-11 en el mismo arbol: su +26 no se cuenta aqui
@@ -133,6 +136,14 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-09: el 404 muestra SOLO `uri.path`. `uri.toString()` filtraria el query string, que es justo donde viajan tokens e ids; el test junta el `data` de TODOS los Text del arbol para afirmarlo, no solo el del widget que yo mire
 - 11-09: el `redirect` de GoRouter se evalua ANTES que el `errorBuilder`, asi que el 404 no sirve para sondear rutas internas. El caso con dientes no es 'sin sesion va a login' sino que una ruta que EXISTE y una que NO dan la MISMA respuesta
 
+- 11-11: la escala tipografica de GRI NO cabe en ThemeData.textTheme. MEDIDO con sonda: titleLarge es el titulo de los 8 AppBar del cliente, headlineSmall el de los 8 AlertDialog del panel, labelLarge la etiqueta de TODOS los botones, bodyLarge el titulo de los ListTile. Meter ahi los 24-bold/18-bold cambiaria ese chrome. griTextTheme declara los 15 slots con los valores de M3 (deja de ser un default implicito) y la escala propia vive en GriText, con valores IDENTICOS al TextStyle inline que sustituye
+- 11-11: el panel conserva 750/1100 como breakpoints; app_cliente, que no tenia ninguno, adopta los 600/840 de M3. Un gate de paridad con dart:io afirma que el token y el literal de la pantalla dicen lo mismo (verificado por rotura: cambiar cualquiera de los dos pone rojo)
+- 11-11: se registra elevatedButtonTheme (10 de 12 sitios ya lo declaraban: es convencion) pero NO textButtonTheme (0 de 26), outlinedButtonTheme (1 de 4, y es la variante destructiva) ni inputDecorationTheme (12 de 16 campos no declaran border y hoy pintan el subrayado de M3; registrarlo les cambia la GEOMETRIA). Hay un test que AFIRMA esa ausencia con el motivo escrito
+- 11-11: HALLAZGO — el aviso de 11-06 sobre el area tactil es correcto en el riesgo pero su test NO lo cubriria: ningun test de 48x48 monta griTheme. Demostrado en vivo (inputDecorationTheme hostil metido en griTheme -> suite de login entera en verde). Y resulta que el tema real NO PUEDE encogerla: el constraints 48x48 explicito del IconButton es un minimo de ConstrainedBox, inmune a suffixIconConstraints, iconButtonTheme y visualDensity (3 roturas verdes). Por eso el test que escribi para cerrar el hueco se BORRO: no podia fallar nunca
+- 11-11: HALLAZGO — el panel y la app cliente pintan el MISMO estado de pedido con colores DISTINTOS (enviado #2563EB vs #3478F6, aceptado #D97706 vs #FF4C05, en_preparacion #7C3AED vs #8E44AD). Unificarlo cambia pixeles en una de las dos apps: queda declarado y con test a cada lado, no corregido
+- 11-11: un MaterialColor (Colors.red) dentro de un ThemeExtension rompe el contrato de lerp — Color.lerp devuelve siempre un Color plano y Color.== compara el runtimeType, asi que lerp(otro, 0) dejaba de ser igual a this. Los tokens de color se declaran como Color plano
+- 11-11: textoSecundarioAccesible (#6E6E6E) se DECLARA pero NO se aplica en ningun sitio; aplicarlo es de 11-14. GriColors.gray sigue siendo #777777 y hay dos tests por app que lo impiden cambiar
+
 ## Performance Metrics
 
 | Phase | Plan | Duracion | Tareas | Archivos |
@@ -146,12 +157,13 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | 11 | 07 | ~65 min | 3 | 15 |
 | 11 | 18 | ~31 min | 3 | 55 |
 | 11 | 09 | ~50 min | 2 | 12 |
+| 11 | 11 | ~95 min | 2 | 8 |
 
 ## Session
 
 - Last session: 2026-08-19
-- Stopped at: Completado 11-09-PLAN.md (estados vacios guiados + 404 propio en las dos apps; 11 roturas deliberadas). Ejecutado en paralelo con 11-08 y 11-17.
-- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-10-PLAN.md
+- Stopped at: Completado 11-11-PLAN.md (base del sistema de diseno en las dos apps; 17 roturas deliberadas). Ejecutado en paralelo con 11-10.
+- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-12-PLAN.md
 
 ## Blockers / Notas
 
@@ -181,3 +193,7 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-09: `panel_admin/test/router_404_test.dart` lleva el MISMO filtro de `A RenderFlex overflowed` que `bootstrap_router_test.dart` (desborde de 85px del sidebar del AppShell, deuda preexistente de 11-07). Al corregir el sidebar hay que retirar el filtro en LOS DOS archivos.
 - 11-09: `test:rules` y `test:functions` NO se ejecutaron en este plan — dependen de los emuladores y 11-08 los estaba usando en paralelo (colision de puertos). El plan no toca rules, indexes ni functions. Si se ejecutaron `audit:indexes` y `audit:branding`, ambos exit 0.
 - 11-09 PENDIENTE DE VERIFICACION HUMANA: que los copies nuevos SE LEAN bien y que las pantallas se VEAN bien en un dispositivo real. Un widget test prueba que una cadena se renderiza, no que este bien escrita. Tampoco se ha comprobado que el emoji del 404 se renderice en Android/Chrome reales (en flutter test se pinta como un cuadro y el test pasaria igual si faltara el glifo), ni que el 404 se alcance escribiendo la URL en la barra del navegador del panel (los tests navegan con router.go()).
+- 11-11: DS-01 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11): `requirements.mark-complete DS-01` devuelve not_found. Queda en el frontmatter del SUMMARY.
+- 11-11 CAMBIO VISUAL DELIBERADO Y ACOTADO (unico del plan): registrar elevatedButtonTheme alinea los 2 ElevatedButton del panel que NO declaraban estilo (reportes_screen.dart:140 "Consultar" y reservas_screen.dart:221 "Marcar ocupada"), que renderizaban #FFF1ED sobre #8F4C37 — el derivado de ColorScheme.fromSeed, que NO es la marca — con el naranja #FF4C05 de los otros 10 CTA. PENDIENTE DE VERIFICACION HUMANA: no se ha visto renderizado. Revertirlo es borrar elevatedButtonTheme de griTheme (la rotura M confirma que el test lo detecta).
+- 11-11: `test:rules` y `test:functions` NO se ejecutaron — dependen de los emuladores y 11-10 estaba en vuelo tocando firestore.rules. El plan no toca rules, indices ni functions. Si se ejecutaron `audit:indexes` (22 queries, 0 fallos, exit 0) y `audit:branding` (exit 0).
+- 11-11 PENDIENTE DE VERIFICACION HUMANA: que la escala GriText sea la correcta para el mockup. Se derivo CONTANDO los TextStyle inline mas repetidos, no de un diseno.
