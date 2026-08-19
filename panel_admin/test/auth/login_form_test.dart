@@ -15,6 +15,7 @@ import 'package:gri_panel_admin/features/auth/login_controller.dart';
 import 'package:gri_panel_admin/features/auth/login_screen.dart';
 import 'package:gri_panel_admin/features/dashboard/restaurante_provider.dart';
 import 'package:gri_panel_admin/features/dashboard/restaurantes_list_provider.dart';
+import 'package:gri_panel_admin/features/shared/password_field.dart';
 import 'package:mock_exceptions/mock_exceptions.dart';
 
 import '../helpers/firebase_fakes.dart';
@@ -51,6 +52,21 @@ Future<void> _fillForm(WidgetTester tester, String email, String password) async
   await tester.enterText(find.byType(TextFormField).last, password);
   await tester.pump();
 }
+
+
+/// El `TextField` interno del campo con esa key (el `PasswordField` envuelve
+/// un `TextFormField`, que a su vez construye un `TextField`).
+Finder _campo(Key k) =>
+    find.descendant(of: find.byKey(k), matching: find.byType(TextField));
+
+Finder _ojo(Key k) =>
+    find.descendant(of: find.byKey(k), matching: find.byType(IconButton));
+
+bool _obscuro(WidgetTester tester, Key k) =>
+    tester.widget<TextField>(_campo(k)).obscureText;
+
+IconData _iconoDe(WidgetTester tester, Key k) =>
+    (tester.widget<IconButton>(_ojo(k)).icon as Icon).icon!;
 
 void main() {
   // ── UI parity: validación pre-red (screen intacta) ─────────────────────
@@ -222,4 +238,131 @@ void main() {
     );
     expect(auth.currentUser, isNull);
   });
+
+  // -- 11-06: ver/ocultar la contraseña (unico campo de este tipo del panel) --
+
+  testWidgets('login: la contraseña arranca OCULTA y ofrece el ojo para verla',
+      (tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(child: MaterialApp(home: LoginScreen())),
+    );
+
+    expect(_obscuro(tester, const ValueKey('login-password')), isTrue,
+        reason: 'por defecto SIEMPRE oculta (T-11-06-01)');
+    expect(_iconoDe(tester, const ValueKey('login-password')), Icons.visibility);
+  });
+
+  testWidgets('login: tocar el ojo revela la contraseña y lo devuelve a oculta',
+      (tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(child: MaterialApp(home: LoginScreen())),
+    );
+    const k = ValueKey('login-password');
+
+    await tester.enterText(find.byKey(k), 'Demo!1234');
+    await tester.tap(_ojo(k));
+    await tester.pump();
+
+    expect(_obscuro(tester, k), isFalse);
+    expect(_iconoDe(tester, k), Icons.visibility_off);
+    expect(tester.widget<TextField>(_campo(k)).controller!.text, 'Demo!1234');
+
+    await tester.tap(_ojo(k));
+    await tester.pump();
+
+    expect(_obscuro(tester, k), isTrue);
+    expect(_iconoDe(tester, k), Icons.visibility);
+  });
+
+  testWidgets('login: el ojo está etiquetado y es alcanzable (48x48)',
+      (tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(child: MaterialApp(home: LoginScreen())),
+    );
+    const k = ValueKey('login-password');
+
+    expect(tester.widget<IconButton>(_ojo(k)).tooltip, 'Mostrar contraseña');
+    final size = tester.getSize(_ojo(k));
+    expect(size.width, greaterThanOrEqualTo(48.0));
+    expect(size.height, greaterThanOrEqualTo(48.0));
+
+    await tester.tap(_ojo(k));
+    await tester.pump();
+    expect(tester.widget<IconButton>(_ojo(k)).tooltip, 'Ocultar contraseña');
+  });
+
+  testWidgets(
+      'PasswordField: los 48x48 los pone el widget, no el default del framework',
+      (tester) async {
+    // Sin este caso el assert de 48x48 pasaría POR CONSTRUCCIÓN: el default
+    // de `InputDecoration.suffixIconConstraints` ya son 48x48. Aquí ese
+    // default se anula, así que lo único que puede sostener el área táctil es
+    // el `constraints` explícito del propio widget.
+    final ctrl = TextEditingController();
+    addTearDown(ctrl.dispose);
+
+    await tester.pumpWidget(MaterialApp(
+      theme: ThemeData(
+        inputDecorationTheme: const InputDecorationTheme(
+          suffixIconConstraints: BoxConstraints(minWidth: 0, minHeight: 0),
+        ),
+        iconButtonTheme: IconButtonThemeData(
+          style: IconButton.styleFrom(
+            minimumSize: Size.zero,
+            padding: EdgeInsets.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      ),
+      home: Scaffold(
+        body: PasswordField(
+          fieldKey: const ValueKey('apretado'),
+          controller: ctrl,
+          labelText: 'Clave',
+        ),
+      ),
+    ));
+
+    final size = tester.getSize(_ojo(const ValueKey('apretado')));
+    expect(size.width, greaterThanOrEqualTo(48.0),
+        reason: 'el área táctil no puede depender del tema ambiente');
+    expect(size.height, greaterThanOrEqualTo(48.0));
+  });
+
+  testWidgets('login: el email NO lleva ojo (solo la contraseña)',
+      (tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(child: MaterialApp(home: LoginScreen())),
+    );
+
+    expect(
+        find.descendant(
+            of: find.byKey(const ValueKey('login-email')),
+            matching: find.byType(IconButton)),
+        findsNothing);
+    // Control positivo: si el finder no discriminara, este también daría 0.
+    expect(_ojo(const ValueKey('login-password')), findsOneWidget);
+  });
+
+  testWidgets(
+      'login: la ValueKey login-password sigue viva y el campo sigue escribiéndose',
+      (tester) async {
+    // Contrato con los tests previos del formulario: la extracción del widget
+    // no puede llevarse por delante la key ni el cableado del controlador.
+    await tester.pumpWidget(
+      const ProviderScope(child: MaterialApp(home: LoginScreen())),
+    );
+
+    await tester.enterText(find.byKey(const ValueKey('login-email')),
+        'admin@demo.gri.dev');
+    await tester.enterText(
+        find.byKey(const ValueKey('login-password')), 'Demo!1234');
+    await tester.pump();
+
+    expect(
+        tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+        isNotNull,
+        reason: 'lo escrito por key llega al validador y habilita el botón');
+  });
 }
+
