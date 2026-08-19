@@ -44,15 +44,20 @@ enum IconMode {
   /// reducido al 80% para respetar la zona segura de los iconos maskable.
   maskable,
 
-  /// Solo el glifo sobre transparente, reducido al 62% para caber en la zona
-  /// segura de un adaptive icon de Android (recorte interior de 72/108).
+  /// Solo el glifo sobre transparente, reducido al 58% para caber en la zona
+  /// segura de un adaptive icon de Android SIN inset adicional: el punto más
+  /// alejado del glifo queda a 0.284 del lienzo ≈ 30.7dp sobre los 108dp del
+  /// adaptive icon, dentro de los 33dp de radio seguro. Por eso el pubspec
+  /// declara `adaptive_icon_foreground_inset: 0` — con el 16% por defecto de
+  /// flutter_launcher_icons el glifo quedaba diminuto sobre el naranja.
+  /// El mismo asset alimenta el splash de Android 12, que enmascara a círculo.
   foreground,
 }
 
 double _glyphScaleFor(IconMode mode) => switch (mode) {
   IconMode.rounded => 1.0,
   IconMode.maskable => 0.8,
-  IconMode.foreground => 0.62,
+  IconMode.foreground => 0.58,
 };
 
 // ---------------------------------------------------------------------------

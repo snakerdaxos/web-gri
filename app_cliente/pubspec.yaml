@@ -63,5 +63,54 @@ dev_dependencies:
   # en el binario de producción.
   image: 4.9.1
 
+  # Icono de launcher y splash del movil. Publishers verificados en pub.dev:
+  # fluttercommunity.dev y jonhanson.net. Pin EXACTO por T-11-18-SC.
+  # Ambos estan recomendados en la documentacion de stack del proyecto desde el
+  # principio y nunca se habian anadido: hasta 11-18 la app arrancaba con el
+  # logo por defecto de Flutter y un splash en blanco.
+  flutter_launcher_icons: 0.14.4
+  flutter_native_splash: 2.4.8
+
 flutter:
   uses-material-design: true
+
+# ---------------------------------------------------------------------------
+# Marca en el movil (11-18)
+# ---------------------------------------------------------------------------
+# Las fuentes de los dos generadores las produce `dart run tool/gen_branding.dart`
+# — no hay ningun PNG aportado a mano. Regenerar los assets y volver a correr:
+#   dart run tool/gen_branding.dart
+#   dart run flutter_launcher_icons
+#   dart run flutter_native_splash:create
+flutter_launcher_icons:
+  # web: NO. Los iconos de la PWA (Icon-192/512 y sus maskable) los genera
+  # tool/gen_branding.dart con los nombres EXACTOS que declara el manifest.json;
+  # dejar que este paquete los reescriba rompería esas rutas.
+  web:
+    generate: false
+  ios: false
+  android: true
+  image_path: "assets/branding/icon_1024.png"
+  min_sdk_android: 21
+  # Adaptive icon: Android compone fondo + primer plano y les aplica su propia
+  # máscara. El primer plano es el glifo SOLO, sobre transparente y al 62% del
+  # lienzo, que es la zona segura de un adaptive icon (recorte 72/108).
+  adaptive_icon_background: "#FF4C05"
+  adaptive_icon_foreground: "assets/branding/icon_foreground_1024.png"
+  # 0 y no el 16% por defecto: el asset YA viene con su zona segura aplicada
+  # (glifo al 58% del lienzo). Con el inset por defecto se aplicaba dos veces y
+  # el glifo quedaba diminuto dentro del naranja.
+  adaptive_icon_foreground_inset: 0
+
+flutter_native_splash:
+  color: "#FF4C05"
+  image: assets/branding/icon_512.png
+  android: true
+  ios: false
+  web: false
+  # Android 12+ dibuja el splash el SISTEMA y NO lee launch_background.xml:
+  # necesita su propia clave o el arranque vuelve al blanco por defecto.
+  android_12:
+    color: "#FF4C05"
+    image: assets/branding/icon_foreground_1024.png
+    icon_background_color: "#FF4C05"
