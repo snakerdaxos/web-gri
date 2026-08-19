@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
+import '../shared/empty_state.dart';
 import 'restaurantes_provider.dart';
 
 /// Detalle del restaurante (REST-02) — datos + menú por categorías
@@ -140,13 +141,17 @@ class RestauranteDetalleScreen extends ConsumerWidget {
 
             // ── Menú por categorías ────────────────────────────────────────
             if (detalle.categorias.isEmpty)
+              // 11-09: mismo caso que el guard de `menu_mesa_screen`, aquí ya
+              // contemplado desde antes. Se homogeneiza al widget compartido
+              // CONSERVANDO el copy del titular (no es un cambio de mensaje,
+              // es dejar de resolverlo de dos maneras distintas). Sin acción:
+              // esta pantalla ya ofrece 'Reservar una mesa' más arriba.
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(
-                  child: Text(
-                    'Este restaurante aún no tiene menú',
-                    style: TextStyle(color: GriColors.gray),
-                  ),
+                child: EmptyState(
+                  icono: '📋',
+                  titulo: 'Este restaurante aún no tiene menú',
+                  guia: 'Cuando publique sus platos los verás aquí.',
                 ),
               )
             else

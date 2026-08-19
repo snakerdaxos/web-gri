@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../models/restaurante.dart';
+import '../shared/empty_state.dart';
 import 'restaurantes_provider.dart';
 
 /// Tab Restaurantes (REST-01) — lista de restaurantes activos con
@@ -30,11 +31,25 @@ class RestaurantesListScreen extends ConsumerWidget {
             floating: true,
           ),
           if (restaurantes.isEmpty)
-            const SliverFillRemaining(
-              child: Center(
-                child: Text(
-                  'No hay restaurantes disponibles',
-                  style: TextStyle(color: GriColors.gray),
+            // 11-09: era un `Text` gris suelto que constataba el vacío sin
+            // explicarlo. La etiqueta del botón es 'Actualizar' y NO
+            // 'Reintentar' a propósito: 'Reintentar' pertenece a la rama de
+            // ERROR (_ErrorView) y confundir las dos le diría al usuario que
+            // algo falló cuando lo único que pasa es que aún no hay datos.
+            SliverFillRemaining(
+              child: EmptyState(
+                icono: '🍽️',
+                titulo: 'No hay restaurantes disponibles',
+                guia: 'Aún no hay restaurantes publicados en GRI. '
+                    'Vuelve a intentarlo en un momento.',
+                accion: ElevatedButton.icon(
+                  onPressed: () => ref.invalidate(restaurantesListProvider),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: GriColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Actualizar'),
                 ),
               ),
             )

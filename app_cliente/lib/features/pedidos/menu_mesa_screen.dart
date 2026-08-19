@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/producto.dart';
 import '../restaurantes/restaurantes_provider.dart';
 import '../sesion_qr/sesion_provider.dart';
+import '../shared/empty_state.dart';
 import 'carrito_controller.dart';
 import 'pedidos_provider.dart';
 
@@ -113,31 +114,50 @@ class MenuMesaScreen extends ConsumerWidget {
             ],
           ),
         ),
-        data: (detalle) => ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            for (final categoria in detalle.categorias)
-              ExpansionTile(
-                initiallyExpanded: detalle.categorias.first == categoria,
-                title: Text(
-                  categoria.nombre,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: GriColors.text,
+        data: (detalle) {
+          // EL AGUJERO QUE ESTO CIERRA (11-09). Sin este guard el `children`
+          // del ListView salía entero de `for (cat in detalle.categorias)`:
+          // con 0 categorías el cuerpo quedaba COMPLETAMENTE EN BLANCO. Y
+          // esta es la pantalla a la que se llega JUSTO DESPUÉS de escanear
+          // el QR de la mesa — el peor momento posible para parecer rota.
+          // Su hermana `restaurante_detalle_screen.dart` ya trataba bien el
+          // mismo caso, señal de que era un olvido y no una decisión.
+          //
+          // Ocupa solo el `body`: el AppBar con el número de mesa y la barra
+          // del carrito siguen ahí (cubierto por menu_vacio_test.dart).
+          if (detalle.categorias.isEmpty) {
+            return const EmptyState(
+              icono: '📋',
+              titulo: 'Este restaurante aún no publicó su menú',
+              guia: 'Avísale al mesero para que tome tu pedido en la mesa.',
+            );
+          }
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              for (final categoria in detalle.categorias)
+                ExpansionTile(
+                  initiallyExpanded: detalle.categorias.first == categoria,
+                  title: Text(
+                    categoria.nombre,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: GriColors.text,
+                    ),
                   ),
+                  subtitle: Text(
+                    '${categoria.productos.length} ítems',
+                    style:
+                        const TextStyle(color: GriColors.gray, fontSize: 12),
+                  ),
+                  children: [
+                    for (final producto in categoria.productos)
+                      _ProductoRow(producto: producto),
+                  ],
                 ),
-                subtitle: Text(
-                  '${categoria.productos.length} ítems',
-                  style:
-                      const TextStyle(color: GriColors.gray, fontSize: 12),
-                ),
-                children: [
-                  for (final producto in categoria.productos)
-                    _ProductoRow(producto: producto),
-                ],
-              ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(

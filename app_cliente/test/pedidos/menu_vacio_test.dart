@@ -118,6 +118,34 @@ void main() {
     });
   });
 
+  group('el estado vacío no puede desbordar', () {
+    testWidgets(
+        'en un viewport corto se hace scrollable en vez de pintar la banda de '
+        'overflow', (tester) async {
+      // Teléfono pequeño en vertical. Con el AppBar de la mesa y la barra del
+      // carrito, al `body` le quedan ~300px: menos de lo que ocupan icono +
+      // titular + guía. Una Column rígida desbordaría aquí.
+      tester.view.physicalSize = const Size(360, 480);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await _pumpMenu(tester, categorias: const []);
+
+      // Cambiar una pantalla en blanco por una banda amarilla y negra no es
+      // arreglar nada: el estado vacío tiene que seguir siendo legible.
+      expect(tester.takeException(), isNull);
+      expect(find.byType(EmptyState), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(EmptyState),
+          matching: find.byType(Scrollable),
+        ),
+        findsOneWidget,
+        reason: 'con la altura acotada el contenido debe poder desplazarse',
+      );
+    });
+  });
+
   group('EL CONTRARIO: menú CON categorías (no-regresión)', () {
     testWidgets('renderiza los ExpansionTile y NO muestra la guía de vacío',
         (tester) async {
