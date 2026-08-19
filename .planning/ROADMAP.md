@@ -234,7 +234,7 @@ Plans:
 - [ ] 11-18-PLAN.md — Ola 3: branding GRI en LAS DOS apps (generador de assets, manifest, favicon, ícono, splash) + `audit:branding`
 - [ ] 11-08-PLAN.md — Ola 4: callable `crearUsuarioStaff` con la matriz de roles, anti-secuestro y su combinatoria de escalada
 - [ ] 11-09-PLAN.md — Ola 4: estados vacíos guiados y pantalla 404 propia en ambas apps
-- [ ] 11-17-PLAN.md — Ola 4: login con Google en la app cliente (rama Web ya funcional; Android tras el checkpoint de la huella SHA-1)
+- [ ] 11-17-PLAN.md — Ola 4: login con Google en la app cliente (rama Web ya funcional; corrección del appId de Android al registro correcto + checkpoint de la huella SHA-1)
 - [ ] 11-10-PLAN.md — Ola 5: panel — pantalla de equipo adaptativa por rol + regla de lectura acotada al `rid`
 - [ ] 11-11-PLAN.md — Ola 5: tokens de diseño (espaciado, radios, breakpoints), escala tipográfica y colores semánticos
 - [ ] 11-12-PLAN.md — Ola 6: migración 1:1 de hex crudos y estilos duplicados del PANEL + gate anti-regresión
