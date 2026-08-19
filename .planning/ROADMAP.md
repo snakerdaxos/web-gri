@@ -222,7 +222,7 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
   12. El runbook `docs/SMOKE-E2E-v2.md` recorre el flujo completo desde base vacía, incluidas la verificación de que el QR de mesa es escaneable y el ingreso con Google
 **Orden**: a peticion del usuario lo VISIBLE va antes que la limpieza interna. Los planes visuales estan cortados POR APP (11-13 cliente / 11-21 panel) para poder ejecutarse en paralelo sin compartir un solo archivo; accesibilidad va detras porque un `Icon` acepta `semanticLabel` de forma nativa; y las migraciones a tokens (11-12 / 11-19), que por requisito no cambian ni un color renderizado, van al final y tambien en paralelo, migrando codigo ya asentado en vez de codigo que iba a reescribirse.
 **Notas**: La identidad visual se CONSERVA (naranja `#FF4C05`, layout del mockup) — es trabajo de consistencia, no de rediseño. El plan Blaze solo hace falta para desplegar Cloud Functions, no para emularlas: toda la fase es desarrollable y testeable sin tocar la facturación, y el despliegue está partido en dos checkpoints (rules/índices sin Blaze en 11-16; funciones con Blaze en 11-20) para que la prueba real del bug del índice no quede rehén de una decisión de facturación.
-**Plans:** 10/21 plans executed
+**Plans:** 11/21 plans executed
 
 Plans:
 - [x] 11-01-PLAN.md — Ola 1: desbloqueo de entorno (Java, `.firebaserc`), scaffold de `functions/` con `.env.demo-gri`, arnés de tests de rules y CLAUDE.md corregido
@@ -236,7 +236,7 @@ Plans:
 - [x] 11-08-PLAN.md — Ola 4: callable `crearUsuarioStaff` con la matriz de roles, anti-secuestro y su combinatoria de escalada
 - [x] 11-09-PLAN.md — Ola 4: estados vacíos guiados y pantalla 404 propia en ambas apps
 - [ ] 11-17-PLAN.md — Ola 4: login con Google en la app cliente (rama Web ya funcional; corrección del appId de Android al registro correcto + checkpoint de la huella SHA-1)
-- [ ] 11-10-PLAN.md — Ola 5: panel — pantalla de equipo adaptativa por rol + regla de lectura acotada al `rid`
+- [x] 11-10-PLAN.md — Ola 5: panel — pantalla de equipo adaptativa por rol + regla de lectura acotada al `rid` (11-10-SUMMARY.md)
 - [ ] 11-11-PLAN.md — Ola 5: tokens de diseño (espaciado, radios, breakpoints), escala tipográfica y colores semánticos
 - [ ] 11-13-PLAN.md — Ola 6 (VISIBLE, en paralelo): TODO lo visual de app_cliente — zona segura (SafeArea), fin del maxWidth 480, overflow del wizard y sus ~46 emojis → iconos
 - [ ] 11-21-PLAN.md — Ola 6 (VISIBLE, en paralelo): TODO lo visual de panel_admin — sidebar 85px, StatCard 31px, ResponsivePage, overflow de reservas y sus ~47 emojis → iconos
