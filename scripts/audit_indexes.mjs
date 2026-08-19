@@ -73,7 +73,7 @@ const PARIDAD_RULES_QUERY = {
   usuarios: {
     campos: ['restauranteId'],
     origen:
-      'firestore.rules match /usuarios — rama del admin del tenant (llega en el plan 11-10)',
+      'firestore.rules match /usuarios — rama del admin del tenant (AMPLIADA en el plan 11-10)',
   },
 };
 
