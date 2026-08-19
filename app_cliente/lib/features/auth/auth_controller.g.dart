@@ -243,6 +243,93 @@ abstract class _$RegisterController extends $AsyncNotifier<void> {
   }
 }
 
+/// Orquesta el ingreso/registro con Google del CLIENTE (11-17).
+///
+/// Tras el handshake crea el ESPEJO `usuarios/{uid}` **solo si no existe**,
+/// con la MISMA forma que [RegisterController.submit] — `role: 'cliente'` y
+/// `restauranteId: null`, que es justo lo que exige el create de
+/// `firestore.rules`. Un usuario de Google NO obtiene claims: es cliente por
+/// ausencia de claim, igual que un auto-registro.
+///
+/// El handshake en sí vive detrás de `googleAuthAccionProvider` para poder
+/// inyectarlo en tests (ver la cabecera de test/auth/google_signin_test.dart).
+
+@ProviderFor(GoogleSignInController)
+final googleSignInControllerProvider = GoogleSignInControllerProvider._();
+
+/// Orquesta el ingreso/registro con Google del CLIENTE (11-17).
+///
+/// Tras el handshake crea el ESPEJO `usuarios/{uid}` **solo si no existe**,
+/// con la MISMA forma que [RegisterController.submit] — `role: 'cliente'` y
+/// `restauranteId: null`, que es justo lo que exige el create de
+/// `firestore.rules`. Un usuario de Google NO obtiene claims: es cliente por
+/// ausencia de claim, igual que un auto-registro.
+///
+/// El handshake en sí vive detrás de `googleAuthAccionProvider` para poder
+/// inyectarlo en tests (ver la cabecera de test/auth/google_signin_test.dart).
+final class GoogleSignInControllerProvider
+    extends $AsyncNotifierProvider<GoogleSignInController, void> {
+  /// Orquesta el ingreso/registro con Google del CLIENTE (11-17).
+  ///
+  /// Tras el handshake crea el ESPEJO `usuarios/{uid}` **solo si no existe**,
+  /// con la MISMA forma que [RegisterController.submit] — `role: 'cliente'` y
+  /// `restauranteId: null`, que es justo lo que exige el create de
+  /// `firestore.rules`. Un usuario de Google NO obtiene claims: es cliente por
+  /// ausencia de claim, igual que un auto-registro.
+  ///
+  /// El handshake en sí vive detrás de `googleAuthAccionProvider` para poder
+  /// inyectarlo en tests (ver la cabecera de test/auth/google_signin_test.dart).
+  GoogleSignInControllerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'googleSignInControllerProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$googleSignInControllerHash();
+
+  @$internal
+  @override
+  GoogleSignInController create() => GoogleSignInController();
+}
+
+String _$googleSignInControllerHash() =>
+    r'dc889ca8822e6df4b3eb46b0399cd98c96494bfb';
+
+/// Orquesta el ingreso/registro con Google del CLIENTE (11-17).
+///
+/// Tras el handshake crea el ESPEJO `usuarios/{uid}` **solo si no existe**,
+/// con la MISMA forma que [RegisterController.submit] — `role: 'cliente'` y
+/// `restauranteId: null`, que es justo lo que exige el create de
+/// `firestore.rules`. Un usuario de Google NO obtiene claims: es cliente por
+/// ausencia de claim, igual que un auto-registro.
+///
+/// El handshake en sí vive detrás de `googleAuthAccionProvider` para poder
+/// inyectarlo en tests (ver la cabecera de test/auth/google_signin_test.dart).
+
+abstract class _$GoogleSignInController extends $AsyncNotifier<void> {
+  FutureOr<void> build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<void>, void>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<void>, void>,
+              AsyncValue<void>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 /// Cierra la sesión (perfil). authStateChanges emite null → el
 /// refreshListenable del GoRouter redirige a /login.
 

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/firebase_providers.dart';
+import '../../core/google_auth.dart';
 
 part 'auth_controller.g.dart';
 
@@ -172,6 +173,86 @@ class RegisterController extends _$RegisterController {
     } finally {
       state = const AsyncData<void>(null);
     }
+  }
+}
+
+/// Mensaje de usuario para un fallo del ingreso con Google. Delega en
+/// [authErrorMessage] salvo la colisión de cuentas, que es específica de un
+/// proveedor federado y necesita decirle al usuario QUÉ hacer.
+String googleAuthErrorMessage(FirebaseAuthException e) {
+  if (e.code == 'account-exists-with-different-credential') {
+    return 'Ya tienes una cuenta con ese correo y contraseña. '
+        'Inicia sesión con tu contraseña.';
+  }
+  return authErrorMessage(e, fallback: 'No se pudo iniciar sesión con Google');
+}
+
+/// Nombre del perfil a partir de la cuenta de Google. NUNCA vacío ni nulo:
+/// displayName → parte local del correo → 'Cliente'.
+String nombreDesdeCuentaGoogle(User user) {
+  final displayName = user.displayName?.trim() ?? '';
+  if (displayName.isNotEmpty) return displayName;
+  final local = (user.email ?? '').trim().split('@').first.trim();
+  if (local.isNotEmpty) return local;
+  return 'Cliente';
+}
+
+/// Orquesta el ingreso/registro con Google del CLIENTE (11-17).
+///
+/// Tras el handshake crea el ESPEJO `usuarios/{uid}` **solo si no existe**,
+/// con la MISMA forma que [RegisterController.submit] — `role: 'cliente'` y
+/// `restauranteId: null`, que es justo lo que exige el create de
+/// `firestore.rules`. Un usuario de Google NO obtiene claims: es cliente por
+/// ausencia de claim, igual que un auto-registro.
+///
+/// El handshake en sí vive detrás de `googleAuthAccionProvider` para poder
+/// inyectarlo en tests (ver la cabecera de test/auth/google_signin_test.dart).
+@riverpod
+class GoogleSignInController extends _$GoogleSignInController {
+  @override
+  FutureOr<void> build() {}
+
+  /// `true` si se ingresó, `false` si el usuario canceló (que NO es un error).
+  /// Lanza [StateError] con un mensaje ya traducido para todo lo demás.
+  Future<bool> ingresar() async {
+    state = const AsyncLoading<void>();
+    try {
+      final auth = ref.read(firebaseAuthProvider);
+      final cred = await ref.read(googleAuthAccionProvider)(auth);
+      final user = cred.user;
+      if (user == null) {
+        throw StateError('No se pudo iniciar sesión con Google');
+      }
+      await _crearEspejoSiNoExiste(user);
+      ref.invalidate(claimsProvider);
+      return true;
+    } on GoogleIngresoCancelado {
+      return false;
+    } on FirebaseAuthException catch (e) {
+      // Defensa en profundidad: si la cancelación llega como código crudo
+      // (no traducida por el adaptador) tampoco debe verse como un error.
+      if (googleCodigosDeCancelacion.contains(e.code)) return false;
+      throw StateError(googleAuthErrorMessage(e));
+    } finally {
+      state = const AsyncData<void>(null);
+    }
+  }
+
+  /// Espejo de perfil — mismo shape que [RegisterController.submit] y que
+  /// scripts/seed_firebase.mjs. Si el doc YA existe no se toca: el usuario
+  /// pudo editar su nombre y un segundo ingreso no debe pisarlo.
+  Future<void> _crearEspejoSiNoExiste(User user) async {
+    final doc =
+        ref.read(firestoreProvider).collection('usuarios').doc(user.uid);
+    final snap = await doc.get();
+    if (snap.exists) return;
+    await doc.set({
+      'nombre': nombreDesdeCuentaGoogle(user),
+      'email': user.email ?? '',
+      'role': 'cliente',
+      'restauranteId': null,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 }
 

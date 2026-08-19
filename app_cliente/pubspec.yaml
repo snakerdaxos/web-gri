@@ -33,6 +33,14 @@ dependencies:
   firebase_auth: 6.5.7
   cloud_firestore: 6.8.0
 
+  # Ingreso con Google del CLIENTE (11-17). Publisher verificado en la API de
+  # pub.dev: flutter.dev (equipo oficial de Flutter). Pin EXACTO por la
+  # mitigación T-11-17-SC: entra en el binario de producción.
+  # ⚠️ La API cambió por completo en 7.x — no vale la de 6.x.
+  # Solo lo usa la rama Android/iOS: en Web se usa
+  # FirebaseAuth.signInWithPopup (ver lib/core/google_auth.dart).
+  google_sign_in: 7.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
