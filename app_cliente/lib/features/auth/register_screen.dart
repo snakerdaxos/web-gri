@@ -3,11 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
+import '../shared/password_field.dart';
 import 'auth_controller.dart';
 
-/// Registro de cliente — nombre + email + password. Tras un registro
-/// exitoso el controller hace AUTO-LOGIN y el redirect del GoRouter lleva
-/// a /inicio.
+/// Registro de cliente — nombre + email + password + confirmación. Tras un
+/// registro exitoso el controller hace AUTO-LOGIN y el redirect del GoRouter
+/// lleva a /inicio.
+///
+/// La confirmación es puramente de UI (11-06, T-11-06-02): evita que el
+/// usuario se equivoque a ciegas, pero NO viaja a `RegisterController.submit`
+/// ni se almacena en ningún sitio.
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
@@ -21,6 +26,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _nombreCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  final _pass2Ctrl = TextEditingController();
 
   @override
   void initState() {
@@ -28,6 +34,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _nombreCtrl.addListener(_onChange);
     _emailCtrl.addListener(_onChange);
     _passCtrl.addListener(_onChange);
+    _pass2Ctrl.addListener(_onChange);
   }
 
   @override
@@ -35,8 +42,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _nombreCtrl.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _pass2Ctrl.dispose();
     super.dispose();
   }
+
+  /// Mensaje único de la confirmación: lo comparte el validador del campo
+  /// (que pinta el error) y `_canSubmit` (que apaga el botón), para que no
+  /// puedan desincronizarse.
+  String? _errorConfirmacion(String? v) =>
+      (v ?? '') == _passCtrl.text ? null : 'Las contraseñas no coinciden';
 
   void _onChange() => setState(() {});
 
@@ -45,7 +59,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return !submitting &&
         _nombreCtrl.text.trim().isNotEmpty &&
         _emailRe.hasMatch(_emailCtrl.text.trim()) &&
-        _passCtrl.text.length >= 8;
+        _passCtrl.text.length >= 8 &&
+        _errorConfirmacion(_pass2Ctrl.text) == null;
   }
 
   Future<void> _submit() async {
@@ -136,17 +151,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           : 'Email inválido',
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      key: const ValueKey('register-password'),
+                    PasswordField(
+                      fieldKey: const ValueKey('register-password'),
                       controller: _passCtrl,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Contraseña',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.lock_outline),
-                      ),
+                      labelText: 'Contraseña',
+                      // Paridad con el login: el gestor de contraseñas del
+                      // sistema debe tratar ambos campos igual (T-11-06-03).
+                      autofillHints: const [AutofillHints.password],
                       validator: (v) =>
                           (v ?? '').length >= 8 ? null : 'Mínimo 8 caracteres',
+                    ),
+                    const SizedBox(height: 16),
+                    PasswordField(
+                      fieldKey: const ValueKey('register-password-2'),
+                      controller: _pass2Ctrl,
+                      labelText: 'Confirmar contraseña',
+                      autofillHints: const [AutofillHints.password],
+                      validator: _errorConfirmacion,
                       onFieldSubmitted: (_) => _canSubmit ? _submit() : null,
                     ),
                     const SizedBox(height: 24),

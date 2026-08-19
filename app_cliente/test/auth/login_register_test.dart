@@ -493,6 +493,47 @@ void main() {
     await tester.pump();
     expect(_obscuro(tester, const ValueKey('solo')), isFalse);
   });
+
+  testWidgets(
+      'PasswordField: los 48x48 los pone el widget, no el default del framework',
+      (tester) async {
+    // Sin este caso, el assert de 48x48 pasaría POR CONSTRUCCIÓN: el
+    // IconButton de Material ya mide 48x48 por defecto (verificado quitando
+    // `constraints` — la suite seguía verde). Aquí el tema ambiente intenta
+    // encogerlo a cero; solo el `constraints` explícito lo impide.
+    final ctrl = TextEditingController();
+    addTearDown(ctrl.dispose);
+
+    await tester.pumpWidget(MaterialApp(
+      theme: ThemeData(
+        // Los 48x48 del sufijo los da por defecto InputDecoration
+        // (`suffixIconConstraints`). Aquí ese default se anula, para que lo
+        // único que pueda sostener el area tactil sea el propio widget.
+        inputDecorationTheme: const InputDecorationTheme(
+          suffixIconConstraints: BoxConstraints(minWidth: 0, minHeight: 0),
+        ),
+        iconButtonTheme: IconButtonThemeData(
+          style: IconButton.styleFrom(
+            minimumSize: Size.zero,
+            padding: EdgeInsets.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      ),
+      home: Scaffold(
+        body: PasswordField(
+          fieldKey: const ValueKey('apretado'),
+          controller: ctrl,
+          labelText: 'Clave',
+        ),
+      ),
+    ));
+
+    final size = tester.getSize(_ojo(const ValueKey('apretado')));
+    expect(size.width, greaterThanOrEqualTo(48.0),
+        reason: 'el area tactil no puede depender del tema ambiente');
+    expect(size.height, greaterThanOrEqualTo(48.0));
+  });
 }
 
 /// Doble del controller de registro que solo REGISTRA lo que recibe.

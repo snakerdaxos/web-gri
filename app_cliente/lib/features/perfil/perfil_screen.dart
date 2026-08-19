@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../auth/auth_controller.dart';
+import '../shared/password_field.dart';
 import 'perfil_controller.dart';
 
 /// Tab Perfil (AUTH-05) — muestra y edita el perfil del cliente:
@@ -125,28 +126,18 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  key: const ValueKey('perfil-pass-actual'),
+                PasswordField(
+                  fieldKey: const ValueKey('perfil-pass-actual'),
                   controller: _passActualCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Contraseña actual',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outline),
-                    helperText: 'Solo si vas a cambiar la contraseña',
-                  ),
+                  labelText: 'Contraseña actual',
+                  helperText: 'Solo si vas a cambiar la contraseña',
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  key: const ValueKey('perfil-password'),
+                PasswordField(
+                  fieldKey: const ValueKey('perfil-password'),
                   controller: _passCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Nueva contraseña (opcional)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outline),
-                    helperText: 'Déjala vacía para no cambiarla',
-                  ),
+                  labelText: 'Nueva contraseña (opcional)',
+                  helperText: 'Déjala vacía para no cambiarla',
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
