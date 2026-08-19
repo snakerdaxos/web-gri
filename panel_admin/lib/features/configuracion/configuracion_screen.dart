@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../models/restaurante.dart';
 import '../dashboard/restaurante_provider.dart';
 import '../menu/menu_screen.dart';
+import 'restaurante_form_dialog.dart';
 import 'restaurantes_admin_provider.dart';
 
 /// Pantalla /configuracion — hub de administración (decisión discreta 08:
@@ -195,14 +196,62 @@ class _EstadoBadge extends StatelessWidget {
 ///
 /// El update toca SOLO la key `activo` (rules: `diff hasOnly(['activo'])`
 /// — ni nombre ni calificaciones tocables desde el panel). Desactivar
-/// oculta el restaurante del discover de clientes en vivo.
+/// oculta el restaurante del discover de clientes en vivo, y por eso pide
+/// confirmación explícita (11-05); reactivar no.
+///
+/// Desde 11-05 este tab también DA DE ALTA restaurantes
+/// ([RestauranteFormDialog]) y, con la plataforma vacía, muestra un estado
+/// vacío guiado en vez de una lista en blanco: es la pantalla en la que
+/// aterriza un super_admin recién llegado.
 class _RestaurantesTab extends ConsumerWidget {
   const _RestaurantesTab();
+
+  /// Abre el alta (11-05). El propio diálogo ya fija la selección del
+  /// restaurante nuevo e invalida la lista; se invalida también aquí porque
+  /// esta pantalla es la dueña de la lista y no debe depender de que el
+  /// diálogo lo haga por ella.
+  Future<void> _abrirAlta(BuildContext context, WidgetRef ref) async {
+    final creado = await showDialog<bool>(
+      context: context,
+      builder: (_) => const RestauranteFormDialog(),
+    );
+    if (creado == true) ref.invalidate(restaurantesAdminProvider);
+  }
 
   Future<void> _toggle(BuildContext context, WidgetRef ref, Restaurante r,
       bool valor) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final db = ref.read(firestoreProvider);
+
+    // Confirmación SOLO en el sentido destructivo (11-05): desactivar saca el
+    // restaurante de la app de clientes en vivo. Reactivar no necesita
+    // confirmación — es reversible y no rompe nada. Mismo patrón que el
+    // borrado de mesa (mesa_form_dialog.dart:155-171).
+    if (!valor) {
+      final confirmo = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('¿Desactivar ${r.nombre}?'),
+          content: const Text(
+            'El restaurante desaparece de la app de clientes: dejará de '
+            'aparecer en el listado y nadie podrá abrir sesión en sus mesas. '
+            'Puedes reactivarlo cuando quieras.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Desactivar'),
+            ),
+          ],
+        ),
+      );
+      if (confirmo != true) return;
+    }
 
     try {
       await toggleRestauranteActivo(db, slug: r.id, valor: valor);
@@ -253,62 +302,116 @@ class _RestaurantesTab extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-              child: Text(
-                '${restaurantes.length} restaurantes en la plataforma',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: GriColors.gray,
-                ),
-              ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                itemCount: restaurantes.length,
-                itemBuilder: (context, i) {
-                  final r = restaurantes[i];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  r.nombre,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                    color: GriColors.text,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  r.activo ? 'Activo' : 'Inactivo',
-                                  style: TextStyle(
-                                    color: r.activo
-                                        ? GriColors.mesaDisponibleFg
-                                        : GriColors.mesaOcupadaFg,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch(
-                            value: r.activo,
-                            onChanged: (v) => _toggle(context, ref, r, v),
-                          ),
-                        ],
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${restaurantes.length} restaurantes en la plataforma',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: GriColors.gray,
                       ),
                     ),
-                  );
-                },
+                  ),
+                  ElevatedButton(
+                    onPressed: () => _abrirAlta(context, ref),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: GriColors.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('+ Nuevo restaurante'),
+                  ),
+                ],
               ),
             ),
+            // Plataforma vacía: es la pantalla en la que aterriza un
+            // super_admin recién llegado. Antes mostraba una lista en blanco
+            // bajo un contador en cero — el callejón sin salida que reportó el
+            // usuario. Mismo patrón de estado vacío que mesas/menú/clientes,
+            // pero con CTA porque aquí SÍ hay algo que hacer.
+            if (restaurantes.isEmpty)
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.storefront_outlined,
+                        size: 44,
+                        color: GriColors.gray,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Aún no hay restaurantes en la plataforma',
+                        style: TextStyle(fontSize: 18, color: GriColors.gray),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Crea el primero para empezar a operar',
+                        style: TextStyle(fontSize: 13, color: GriColors.gray),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => _abrirAlta(context, ref),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: GriColors.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Crear el primer restaurante'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  itemCount: restaurantes.length,
+                  itemBuilder: (context, i) {
+                    final r = restaurantes[i];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    r.nombre,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: GriColors.text,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    r.activo ? 'Activo' : 'Inactivo',
+                                    style: TextStyle(
+                                      color: r.activo
+                                          ? GriColors.mesaDisponibleFg
+                                          : GriColors.mesaOcupadaFg,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: r.activo,
+                              onChanged: (v) => _toggle(context, ref, r, v),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
           ],
         ),
       ),

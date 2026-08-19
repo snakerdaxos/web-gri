@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_panel_admin/core/firebase_providers.dart';
 import 'package:gri_panel_admin/features/configuracion/configuracion_screen.dart';
+import 'package:gri_panel_admin/features/configuracion/restaurante_form_dialog.dart';
 
 import '../helpers/firebase_fakes.dart';
 
@@ -110,6 +111,139 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('Restaurante Demo GRI'), findsOneWidget);
       expect(find.text('Activo'), findsOneWidget);
+    },
+  );
+
+  // ── 11-05: alta, estado vacío guiado y confirmación de desactivación ─────
+
+  testWidgets(
+    '(d) plataforma VACÍA: estado vacío guiado con CTA (no una lista en blanco)',
+    (tester) async {
+      final db = await buildFakeFirestoreVacio();
+      await _pump(tester, db);
+
+      await tester.tap(find.text('Restaurantes'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Aún no hay restaurantes en la plataforma'),
+        findsOneWidget,
+      );
+      expect(find.text('Crea el primero para empezar a operar'), findsOneWidget);
+      expect(find.text('Crear el primer restaurante'), findsOneWidget);
+      // Ni un solo Switch: no hay nada que togglear.
+      expect(find.byType(Switch), findsNothing);
+    },
+  );
+
+  testWidgets(
+    '(e) el CTA del estado vacío abre el diálogo de alta',
+    (tester) async {
+      final db = await buildFakeFirestoreVacio();
+      await _pump(tester, db);
+
+      await tester.tap(find.text('Restaurantes'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Crear el primer restaurante'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RestauranteFormDialog), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    '(f) el botón "+ Nuevo restaurante" abre el diálogo también con lista llena',
+    (tester) async {
+      final db = await buildFakeFirestoreConSeed();
+      await _pump(tester, db);
+
+      await tester.tap(find.text('Restaurantes'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('+ Nuevo restaurante'), findsOneWidget);
+      await tester.tap(find.text('+ Nuevo restaurante'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RestauranteFormDialog), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    '(g) desactivar PIDE confirmación; cancelar no toca Firestore',
+    (tester) async {
+      final db = await buildFakeFirestoreConSeed();
+      await _pump(tester, db);
+
+      await tester.tap(find.text('Restaurantes'));
+      await tester.pumpAndSettle();
+
+      // Switch 0 = GRI Norte (activo, orden alfabético Norte/Sur/Demo).
+      await tester.tap(find.byType(Switch).at(0));
+      await tester.pumpAndSettle();
+
+      expect(find.text('¿Desactivar GRI Norte?'), findsOneWidget);
+      expect(
+        find.textContaining('desaparece de la app de clientes'),
+        findsOneWidget,
+        reason: 'el radio de impacto debe estar explícito en la confirmación',
+      );
+
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+
+      final doc = await db.doc('restaurantes/norte').get();
+      expect(doc.data()!['activo'], true, reason: 'cancelar no escribe nada');
+      expect(find.textContaining('Restaurante desactivado'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    '(h) confirmar la desactivación escribe activo:false',
+    (tester) async {
+      final db = await buildFakeFirestoreConSeed();
+      await _pump(tester, db);
+
+      await tester.tap(find.text('Restaurantes'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(Switch).at(0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Desactivar'));
+      await tester.pumpAndSettle();
+
+      final doc = await db.doc('restaurantes/norte').get();
+      final data = doc.data()!;
+      expect(data['activo'], false);
+      // Update quirúrgico: el resto del doc intacto (rules hasOnly(['activo'])).
+      expect(data['nombre'], 'GRI Norte');
+      expect(
+        find.textContaining(
+          'Restaurante desactivado — desaparece de la app de clientes',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    '(i) ACTIVAR no pide confirmación (solo el sentido destructivo la pide)',
+    (tester) async {
+      final db = await buildFakeFirestoreConSeed();
+      await _pump(tester, db);
+
+      await tester.tap(find.text('Restaurantes'));
+      await tester.pumpAndSettle();
+
+      // Switch 1 = GRI Sur (inactivo en el seed).
+      await tester.tap(find.byType(Switch).at(1));
+      await tester.pumpAndSettle();
+
+      // Ningún AlertDialog de confirmación por el camino: el write ya ocurrió.
+      expect(find.text('Desactivar'), findsNothing);
+      expect(find.byType(AlertDialog), findsNothing);
+      final doc = await db.doc('restaurantes/sur').get();
+      expect(doc.data()!['activo'], true);
+      expect(find.text('Restaurante reactivado'), findsOneWidget);
     },
   );
 }

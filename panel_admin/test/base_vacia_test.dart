@@ -85,10 +85,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      // Contrato ACTUAL con plataforma vacía: el contador dice 0 y no hay lista.
+      // Contrato con plataforma vacía: el contador dice 0 y —desde 11-05— el
+      // tab GUÍA en vez de dejar una lista en blanco. El TODO(11-09) que había
+      // aquí queda resuelto por 11-05 para esta pantalla concreta.
       expect(find.text('0 restaurantes en la plataforma'), findsOneWidget);
-      // TODO(11-09): endurecer a "muestra guía de crear el primer restaurante"
-      // — hoy el tab queda sin ninguna llamada a la acción.
+      expect(
+        find.text('Aún no hay restaurantes en la plataforma'),
+        findsOneWidget,
+      );
+      expect(find.text('Crear el primer restaurante'), findsOneWidget);
     });
   });
 }
