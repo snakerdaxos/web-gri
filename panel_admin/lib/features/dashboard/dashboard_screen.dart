@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/firebase_providers.dart';
 import '../../core/theme.dart';
 import '../mesas/mesa_actions_sheet.dart';
 import 'mesas_provider.dart';
+import 'restaurante_provider.dart';
+import 'restaurantes_list_provider.dart';
 import 'stats_provider.dart';
 import 'widgets/mesa_legend.dart';
 import 'widgets/mesa_tile.dart';
@@ -25,6 +28,24 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(statsProvider);
     final mesasAsync = ref.watch(mesasProvider);
+
+    // ── Plataforma sin restaurante activo (11-02) ────────────────────────
+    //
+    // `ridActivoProvider` devuelve null para un super_admin sin selección y
+    // `_maybeInitDefaultRid` del AppShell hace `return` sin seleccionar nada
+    // cuando la lista viene vacía: el super aterrizaba en un tablero de ceros
+    // con un selector vacío y sin ninguna pista de qué hacer (el "selector
+    // muerto" de CONCERNS.md). Aquí se sustituyen esas tarjetas en cero por
+    // una guía del siguiente paso.
+    //
+    // Solo aplica al super_admin: el staff siempre trae `rid` por claims.
+    // Ambos `.value` son deliberados — mientras claims/rid cargan no se
+    // afirma nada y el dashboard sigue su camino normal.
+    final esSuperAdmin =
+        ref.watch(claimsProvider).value?.role == 'super_admin';
+    final ridAsync = ref.watch(ridActivoProvider);
+    final sinRestauranteActivo =
+        esSuperAdmin && ridAsync.hasValue && ridAsync.value == null;
 
     // Material ancestor: en producción lo provee el Scaffold del AppShell,
     // pero la pantalla debe ser fiel también standalone (tests/pumps
@@ -47,8 +68,11 @@ class DashboardScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Stat cards ────────────────────────────────────────────────
-              statsAsync.when(
+              // ── Stat cards (o guía de arranque) ──────────────────────────
+              if (sinRestauranteActivo)
+                const _GuiaSinRestaurante()
+              else
+                statsAsync.when(
                 loading: () => const SizedBox(
                   height: 130,
                   child: Center(child: CircularProgressIndicator()),
@@ -236,6 +260,100 @@ class _ErrorBox extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+/// Guía de arranque para el `super_admin` sin restaurante activo (11-02).
+///
+/// Sustituye a las 4 tarjetas de estadísticas en cero, que no comunicaban
+/// nada: distingue los DOS motivos por los que no hay restaurante activo y
+/// dice el siguiente paso concreto de cada uno.
+///
+/// Se apoya en [restaurantesListProvider], que el topbar del AppShell YA
+/// observa para el super_admin (`app_shell.dart:324`) — no abre ninguna
+/// consulta adicional. Ese provider lista solo los ACTIVOS: si la plataforma
+/// tuviera restaurantes pero todos desactivados, se muestra la guía de
+/// creación, y `Configuración → Restaurantes` es igualmente el lugar correcto
+/// (es donde se reactivan).
+///
+/// Estilo: mismo patrón de estado vacío ya vigente en esta pantalla
+/// ("Sin mesas configuradas") sobre la tarjeta blanca del mapa de mesas —
+/// la identidad visual actual se conserva (decisión bloqueada de la fase).
+class _GuiaSinRestaurante extends ConsumerWidget {
+  const _GuiaSinRestaurante();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final listaAsync = ref.watch(restaurantesListProvider);
+
+    // Mientras la lista carga no se afirma cuál de los dos casos es. Si falla,
+    // se cae al mensaje del selector: decir "no hay restaurantes" sin haber
+    // podido leerlos sería mentir al operador.
+    if (listaAsync.isLoading) {
+      return const SizedBox(
+        height: 130,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final plataformaVacia = listaAsync.value?.isEmpty ?? false;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 40),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 12,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            plataformaVacia ? '🏪' : '👇',
+            style: const TextStyle(fontSize: 34),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            plataformaVacia
+                ? 'Aún no hay restaurantes en la plataforma'
+                : 'Selecciona un restaurante',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: GriColors.text,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            plataformaVacia
+                ? 'Ve a Configuración → Restaurantes para crear el primero.'
+                : 'Usa el selector de la barra superior para elegir con qué '
+                    'restaurante quieres trabajar.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: GriColors.gray),
+          ),
+          if (plataformaVacia) ...[
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => context.go('/configuracion'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: GriColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Ir a Configuración'),
+            ),
+          ],
+        ],
       ),
     );
   }

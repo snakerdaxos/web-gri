@@ -307,11 +307,13 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Aún no hay restaurantes en la plataforma'), findsOneWidget);
+    // La guía debe decir a DÓNDE ir, no solo que no hay nada.
     expect(
-      find.textContaining('Configuración'),
+      find.text('Ve a Configuración → Restaurantes para crear el primero.'),
       findsOneWidget,
-      reason: 'la guía debe decir a dónde ir, no solo que no hay nada',
     );
+    expect(find.text('Ir a Configuración'), findsOneWidget,
+        reason: 'atajo directo al lugar donde se crea el restaurante');
     // Las tarjetas de estadísticas en cero NO se muestran.
     expect(find.text('Mesas disponibles'), findsNothing);
     expect(find.text('Pedidos activos'), findsNothing);
