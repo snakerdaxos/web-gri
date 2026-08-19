@@ -51,8 +51,15 @@ class StatCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Una línea SIEMPRE. Sin esto la etiqueta se parte en 2 o 3
+                // líneas cuando la card se estrecha (grid a 4 columnas), y el
+                // alto que pide la card deja de ser predecible: de 115px a
+                // 155px según el ancho. Ese era el otro lado del desborde de
+                // 31px que 11-02 dejó anotado.
                 Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: GriColors.gray,
                     fontSize: 14,

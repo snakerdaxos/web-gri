@@ -192,7 +192,16 @@ class _Sidebar extends StatelessWidget {
     return Container(
       width: width,
       color: GriColors.sidebar,
-      padding: const EdgeInsets.symmetric(vertical: 25, horizontal: 15),
+      // El padding horizontal se estrecha al colapsar. NO es cosmética: con
+      // los 15 de siempre, el sidebar colapsado (70px) dejaba 40px útiles y
+      // el badge del logo mide 45 → desbordaba 5px, y cada ítem del menú
+      // otros 13. Medido en 11-21; era un defecto de GEOMETRÍA PURA (no
+      // depende de la fuente ni del texto), presente a cualquier ancho
+      // < 750px. Expandido no cambia nada: sigue siendo 15.
+      padding: EdgeInsets.symmetric(
+        vertical: 25,
+        horizontal: collapsed ? 10 : 15,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -213,22 +222,37 @@ class _Sidebar extends StatelessWidget {
               ),
               if (!collapsed) ...[
                 const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'GRI',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                // Expanded + ellipsis: el Column de textos pedía su ancho
+                // intrínseco dentro de un Row acotado a 220px útiles. Con la
+                // métrica de fuente del entorno de test eso son ~300px →
+                // desbordaba 85px. Acotarlo aquí hace que el sidebar sea
+                // correcto por CONSTRUCCIÓN, sea cual sea la fuente, el
+                // idioma o la escala de texto del sistema.
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        'GRI',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Gestión de Restaurante',
-                      style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 11),
-                    ),
-                  ],
+                      Text(
+                        'Gestión de Restaurante',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Color(0xFFAAAAAA),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],
@@ -289,7 +313,13 @@ class _MenuItem extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(10),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            // Horizontal 10 al colapsar: con 14 el ítem dejaba 12px útiles
+            // para un icono de 25 → 13px de desborde por ítem, ocho veces.
+            // Expandido sigue siendo 14 en los cuatro lados.
+            padding: EdgeInsets.symmetric(
+              vertical: 14,
+              horizontal: collapsed ? 10 : 14,
+            ),
             child: Row(
               mainAxisAlignment: collapsed
                   ? MainAxisAlignment.center
@@ -305,7 +335,16 @@ class _MenuItem extends StatelessWidget {
                 ),
                 if (!collapsed) ...[
                   const SizedBox(width: 15),
-                  Text(label, style: TextStyle(color: fg, fontSize: 14)),
+                  // Expanded + ellipsis: 'Configuración' pedía más de los
+                  // 152px que quedaban → 33px de desborde.
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: fg, fontSize: 14),
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -367,6 +406,8 @@ class _TopBar extends ConsumerWidget {
               children: [
                 Text(
                   title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -376,6 +417,8 @@ class _TopBar extends ConsumerWidget {
                 const SizedBox(height: 5),
                 Text(
                   subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: GriColors.gray),
                 ),
               ],
@@ -387,46 +430,62 @@ class _TopBar extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                // Flexible en las DOS ramas: ni el nombre del usuario ni el
+                // del restaurante tienen tope de longitud (los escribe el
+                // operador), así que sin acotar aquí un nombre largo empuja
+                // el avatar fuera del topbar. Medido a 800px de ventana con
+                // el seed: 77px de desborde.
                 if (isSuperAdmin) ...[
-                  restaurantesListAsync?.when(
-                        loading: () => const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        error: (_, _) => const SizedBox.shrink(),
-                        data: (list) => _RestauranteDropdown(restaurantes: list),
-                      ) ??
-                      const SizedBox.shrink(),
+                  Flexible(
+                    child: restaurantesListAsync?.when(
+                          loading: () => const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          error: (_, _) => const SizedBox.shrink(),
+                          data: (list) =>
+                              _RestauranteDropdown(restaurantes: list),
+                        ) ??
+                        const SizedBox.shrink(),
+                  ),
                 ] else
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        userName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: GriColors.text,
-                        ),
-                      ),
-                      restauranteAsync.when(
-                        loading: () => const Text(
-                          'Cargando…',
-                          style: TextStyle(
-                            color: GriColors.gray,
-                            fontSize: 13,
-                          ),
-                        ),
-                        error: (_, _) => const SizedBox.shrink(),
-                        data: (r) => Text(
-                          r?.nombre ?? 'Sin restaurante',
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          userName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: GriColors.gray,
-                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: GriColors.text,
                           ),
                         ),
-                      ),
-                    ],
+                        restauranteAsync.when(
+                          loading: () => const Text(
+                            'Cargando…',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: GriColors.gray,
+                              fontSize: 13,
+                            ),
+                          ),
+                          error: (_, _) => const SizedBox.shrink(),
+                          data: (r) => Text(
+                            r?.nombre ?? 'Sin restaurante',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: GriColors.gray,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 const SizedBox(width: 12),
                 Container(
@@ -466,13 +525,26 @@ class _RestauranteDropdown extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(seleccionRestauranteProvider);
 
-    return DropdownButton<String>(
+    // ConstrainedBox + isExpanded: un `DropdownButton` se dimensiona por el
+    // item MÁS ANCHO y no encoge. El nombre del restaurante lo escribe el
+    // operador y no tiene tope de longitud, así que sin acotarlo aquí el
+    // selector empuja el avatar fuera del topbar (medido: la fila interna del
+    // dropdown desbordaba su celda de 288px con el seed de tres restaurantes).
+    // 260 es el ancho máximo; con nombres cortos el texto simplemente no lo
+    // llena.
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 260),
+      child: DropdownButton<String>(
+      isExpanded: true,
       value: restaurantes.any((r) => r.id == selected)
           ? selected
           : (restaurantes.isNotEmpty ? restaurantes.first.id : null),
       items: [
         for (final r in restaurantes)
-          DropdownMenuItem(value: r.id, child: Text(r.nombre)),
+          DropdownMenuItem(
+            value: r.id,
+            child: Text(r.nombre, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
       ],
       underline: const SizedBox.shrink(),
       style: const TextStyle(
@@ -484,6 +556,7 @@ class _RestauranteDropdown extends ConsumerWidget {
           ref.read(seleccionRestauranteProvider.notifier).set(newId);
         }
       },
+      ),
     );
   }
 }

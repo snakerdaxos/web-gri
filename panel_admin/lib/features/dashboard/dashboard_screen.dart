@@ -21,6 +21,14 @@ import 'widgets/stat_card.dart';
 /// Phase 7 (WS) retira el Timer: el contrato de INPUT cambia (Stream de mesas
 /// alimentado por WS en vez de polling), pero el body del screen (este
 /// archivo) no se toca — solo los providers.
+/// Alto fijo de cada [StatCard] en el grid de estadísticas.
+///
+/// Público a propósito: `test/shared/responsive_test.dart` mide el alto
+/// NATURAL de una [StatCard] y comprueba que este número sigue siendo
+/// suficiente. Si alguien cambia la tipografía de la card y deja de caber, el
+/// test se pone rojo en vez de recortarse en silencio.
+const double alturaStatCard = 130;
+
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
@@ -81,15 +89,31 @@ class DashboardScreen extends ConsumerWidget {
                   message: 'Error cargando estadísticas',
                   onRetry: () => ref.invalidate(statsProvider),
                 ),
-                data: (s) => GridView.count(
-                  crossAxisCount: statCrossAxis,
+                data: (s) => GridView(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 20,
-                  crossAxisSpacing: 20,
-                  // StatCard altura ~99px (padding 22*2 + contenido ~55); el
-                  // childAspectRatio 2.6 da una card de aspect ancho en lg.
-                  childAspectRatio: 2.6,
+                  // ALTO FIJO, no childAspectRatio (11-21).
+                  //
+                  // Con `childAspectRatio: 2.6` el alto de la card salía del
+                  // ANCHO, y el ancho depende del viewport: a 1280px de
+                  // ventana la card quedaba de 87px de alto para un contenido
+                  // que pide 115 → los 31px de desborde que 11-02 anotó. El
+                  // mismo ratio daba 188px de alto a 1 columna y 149 a 1920:
+                  // el alto nunca fue una decisión de diseño, era un efecto
+                  // colateral del ancho.
+                  //
+                  // 130 = por encima del alto natural medido de [StatCard]
+                  // (115px con una etiqueta de una línea) con margen para
+                  // métricas de fuente distintas, y es además el alto que la
+                  // card ya tenía en el tramo de 2 columnas (129px), que es
+                  // el más parecido al mockup. `responsive_test.dart` afirma
+                  // que este número sigue siendo >= el alto natural medido.
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: statCrossAxis,
+                    mainAxisSpacing: 20,
+                    crossAxisSpacing: 20,
+                    mainAxisExtent: alturaStatCard,
+                  ),
                   children: [
                     StatCard(
                       label: 'Mesas disponibles',
@@ -144,14 +168,24 @@ class DashboardScreen extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Estado de las mesas',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: GriColors.text,
+                        // Expanded + ellipsis: el título a 20 bold y el botón
+                        // compartían un Row sin acotar → 148px de desborde a
+                        // 800px de ventana. Con Expanded el reparto es el
+                        // mismo cuando hay sitio (título a la izquierda,
+                        // botón a la derecha) y deja de romperse cuando no.
+                        const Expanded(
+                          child: Text(
+                            'Estado de las mesas',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: GriColors.text,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 12),
                         // El alta vive en la pantalla de gestión (08-03):
                         // desde el mapa solo se navega a /mesas.
                         ElevatedButton.icon(
