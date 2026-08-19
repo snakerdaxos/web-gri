@@ -62,11 +62,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                   Container(
                     height: 130,
                     decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFFFF6B35), Color(0xFFFF9B5A)],
-                      ),
+                      gradient: griGradienteRestaurante,
                     ),
                     child: const Center(
                       child: Icon(GriIcons.menu, size: 52, color: Colors.white),
@@ -100,13 +96,13 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                         Row(
                           children: [
                             const Icon(GriIcons.calificacion,
-                                color: Color(0xFFF5A623), size: 14),
+                                color: GriColors.calificacionEstrella, size: 14),
                             const SizedBox(width: 4),
                             Text(
                               detalle.ratingLabel,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFFF5A623),
+                                color: GriColors.calificacionEstrella,
                               ),
                             ),
                           ],

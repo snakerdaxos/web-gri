@@ -127,8 +127,6 @@ class _CalificacionSheetState extends ConsumerState<CalificacionSheet> {
   bool _enviando = false;
   final _comentario = TextEditingController();
 
-  static const _ambar = Color(0xFFF5A623);
-
   @override
   void dispose() {
     _comentario.dispose();
@@ -216,7 +214,7 @@ class _CalificacionSheetState extends ConsumerState<CalificacionSheet> {
                   onPressed: () => setState(() => _estrellas = i),
                   icon: Icon(
                     i <= _estrellas ? Icons.star : Icons.star_border,
-                    color: _ambar,
+                    color: GriColors.calificacionEstrella,
                   ),
                   iconSize: 36,
                 ),

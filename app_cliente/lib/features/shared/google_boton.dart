@@ -9,6 +9,7 @@
 // icono neutro de Material, como acordó el plan.
 import 'package:flutter/material.dart';
 
+import '../../core/design_tokens.dart';
 import '../../core/theme.dart';
 
 /// Separador "o" entre el formulario de email/contraseña y el botón de Google.
@@ -19,12 +20,12 @@ class SeparadorAuth extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Row(
       children: [
-        Expanded(child: Divider(color: Color(0xFFE0E0E0))),
+        Expanded(child: Divider(color: GriColors.divisor)),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
           child: Text('o', style: TextStyle(color: GriColors.gray)),
         ),
-        Expanded(child: Divider(color: Color(0xFFE0E0E0))),
+        Expanded(child: Divider(color: GriColors.divisor)),
       ],
     );
   }
@@ -58,17 +59,24 @@ class GoogleBoton extends StatelessWidget {
     return OutlinedButton.icon(
       key: botonKey,
       onPressed: cargando ? null : onPressed,
-      // TODO(11-19): migrar estos literales a los tokens de diseño que
-      // introduce el bloque de tokens (plan 11-11 / 11-19).
+      // 11-19: los literales de este estilo salen ya de los tokens. Los que
+      // SIGUEN siendo números sueltos no están en ninguna escala y migrarlos
+      // "al peldaño más cercano" cambiaría el aspecto, que está prohibido:
+      //   · vertical: 12 y el horizontal: 12 del separador → la escala 4-pt
+      //     salta de 8 a 16;
+      //   · fontSize: 16 / w500 → no hay slot de GriText con ese peso;
+      //   · icono de 22 y spinner de 20 → tamaños de componente, no espaciado.
       style: OutlinedButton.styleFrom(
         backgroundColor: Colors.white,
         foregroundColor: GriColors.text,
         disabledForegroundColor: GriColors.gray,
-        side: const BorderSide(color: Color(0xFFDADCE0)),
+        side: const BorderSide(color: GriColors.bordeBotonGoogle),
         // 48 de alto: el default de OutlinedButton es 40, así que este
-        // mínimo lo pone el widget, no el framework.
-        minimumSize: const Size.fromHeight(48),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        // mínimo lo pone el widget, no el framework. GriSpacing.xxl vale
+        // exactamente 48 (mismo valor, no un redondeo).
+        minimumSize: const Size.fromHeight(GriSpacing.xxl),
+        padding:
+            const EdgeInsets.symmetric(vertical: 12, horizontal: GriSpacing.md),
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
       ),
       icon: cargando

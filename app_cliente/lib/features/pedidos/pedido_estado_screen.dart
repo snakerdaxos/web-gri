@@ -313,12 +313,12 @@ class _PedidoCard extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
                   onPressed: onCalificar,
-                  icon: const Icon(Icons.star_border,
-                      color: Color(0xFFF5A623)),
+                  icon: const Icon(Icons.star_border, color: GriColors.calificacionEstrella),
                   label: const Text(
                     'Calificar',
                     style: TextStyle(
-                        color: Color(0xFFF5A623), fontWeight: FontWeight.bold),
+                        color: GriColors.calificacionEstrella,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

@@ -17,11 +17,17 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_cliente/core/design_tokens.dart';
+import 'package:gri_cliente/core/firebase_providers.dart';
 import 'package:gri_cliente/core/theme.dart';
+import 'package:gri_cliente/features/restaurantes/home_screen.dart';
+import 'package:gri_cliente/features/shared/google_boton.dart';
 import 'package:gri_cliente/models/pedido.dart';
 import 'package:gri_cliente/models/pedido_item.dart';
+
+import '../helpers/firebase_fakes.dart';
 
 String _leer(String ruta) {
   final f = File(ruta);
@@ -366,7 +372,103 @@ void main() {
     });
   });
 
+  // ── 11-19: los hex sueltos de las pantallas, promovidos a GriColors ──────
+  group('GriColors — literales promovidos en 11-19', () {
+    test('los 5 tokens nuevos valen EXACTAMENTE el hex que sustituyen', () {
+      // Migración 1:1: está PROHIBIDO "aprovechar y ajustar". Los hex de la
+      // derecha son los que estaban escritos inline en las pantallas antes de
+      // 11-19 (inventario en 11-19-SUMMARY.md).
+      expect(GriColors.calificacionEstrella, const Color(0xFFF5A623));
+      expect(GriColors.gradienteInicio, const Color(0xFFFF6B35));
+      expect(GriColors.gradienteFin, const Color(0xFFFF9B5A));
+      expect(GriColors.divisor, const Color(0xFFE0E0E0));
+      expect(GriColors.bordeBotonGoogle, const Color(0xFFDADCE0));
+    });
 
+    test('gradienteInicio NO es primary: son dos naranjas distintos', () {
+      // Con dientes: el modo de fallo real de esta migración es colapsar el
+      // #ff6b35 de la cabecera en el #ff4c05 de marca "porque son parecidos".
+      expect(GriColors.gradienteInicio, isNot(GriColors.primary));
+      expect(GriColors.divisor, isNot(GriColors.bordeBotonGoogle));
+    });
+
+    test('griGradienteRestaurante conserva extremos y orden', () {
+      expect(griGradienteRestaurante.begin, Alignment.topLeft);
+      expect(griGradienteRestaurante.end, Alignment.bottomRight);
+      expect(griGradienteRestaurante.colors,
+          <Color>[GriColors.gradienteInicio, GriColors.gradienteFin]);
+      expect(griGradienteRestaurante.stops, isNull,
+          reason: 'los 4 gradientes inline no declaraban stops');
+    });
+
+    testWidgets('la home PINTA el degradado con los valores de siempre',
+        (tester) async {
+      // La aserción compara el render contra los HEX LITERALES, no contra el
+      // token: si comparase contra el token, tocar el token dejaría el test
+      // verde y no probaría nada (verde por el motivo equivocado). Así,
+      // cambiar `GriColors.gradienteInicio` pone esto rojo — que es la prueba
+      // de que la pantalla lee el token y de que el valor no se ha movido.
+      final db = await buildFakeFirestoreConSeed();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          firestoreProvider.overrideWithValue(db),
+          firebaseAuthProvider.overrideWithValue(mockAuth(displayName: 'Ana')),
+        ],
+        child: MaterialApp(theme: griTheme, home: const HomeScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      final gradientes = tester
+          .widgetList<Container>(find.byType(Container))
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .map((d) => d.gradient)
+          .whereType<LinearGradient>()
+          .toList();
+
+      expect(gradientes, isNotEmpty,
+          reason: 'si la home dejó de pintar el degradado, este caso estaría '
+              'verde sin comprobar nada');
+      for (final g in gradientes) {
+        expect(g.colors,
+            const <Color>[Color(0xFFFF6B35), Color(0xFFFF9B5A)]);
+        expect(g.begin, Alignment.topLeft);
+        expect(g.end, Alignment.bottomRight);
+      }
+    });
+
+    testWidgets('el bloque de Google conserva sus dos grises', (tester) async {
+      // Mismo criterio: hex literal a la derecha. Cubre el `// TODO(11-19)`
+      // que dejó el plan 11-17 en google_boton.dart.
+      await tester.pumpWidget(MaterialApp(
+        theme: griTheme,
+        home: Scaffold(
+          body: Column(
+            children: [
+              const SeparadorAuth(),
+              GoogleBoton(onPressed: () {}),
+            ],
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      final divisores = tester.widgetList<Divider>(find.byType(Divider));
+      expect(divisores, hasLength(2));
+      for (final d in divisores) {
+        expect(d.color, const Color(0xFFE0E0E0));
+      }
+
+      final boton =
+          tester.widget<OutlinedButton>(find.byType(OutlinedButton));
+      final lado = boton.style!.side!.resolve(<WidgetState>{});
+      expect(lado!.color, const Color(0xFFDADCE0));
+
+      // El alto mínimo sigue siendo 48: GriSpacing.xxl vale lo mismo que el
+      // literal que había, no es un redondeo al peldaño más cercano.
+      expect(boton.style!.minimumSize!.resolve(<WidgetState>{})!.height, 48.0);
+    });
+  });
 }
 
 // ═════════════════════════════════════════════════════════════════════════

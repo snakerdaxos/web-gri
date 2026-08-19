@@ -183,11 +183,7 @@ class _SesionBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFF6B35), Color(0xFFFF9B5A)],
-        ),
+        gradient: griGradienteRestaurante,
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
@@ -362,11 +358,7 @@ class _RestauranteCard extends StatelessWidget {
           Container(
             height: 150,
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFFF6B35), Color(0xFFFF9B5A)],
-              ),
+              gradient: griGradienteRestaurante,
             ),
             child: const Center(
               child: Icon(GriIcons.menu, size: 60, color: Colors.white),
@@ -393,13 +385,13 @@ class _RestauranteCard extends StatelessWidget {
                 Row(
                   children: [
                     const Icon(GriIcons.calificacion,
-                        color: Color(0xFFF5A623), size: 14),
+                        color: GriColors.calificacionEstrella, size: 14),
                     const SizedBox(width: 4),
                     Text(
                       calificacionLabel,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFFF5A623),
+                        color: GriColors.calificacionEstrella,
                       ),
                     ),
                   ],

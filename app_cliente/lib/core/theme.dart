@@ -38,6 +38,38 @@ class GriColors {
   /// #ffd6c7 — borde de la card "Próxima reserva".
   static const Color primaryTintBorder = Color(0xFFFFD6C7);
 
+  // ── Calificación ────────────────────────────────────────────────────────
+  /// #f5a623 — ámbar de la estrella de calificación: icono y cifra de
+  /// `home_screen`, `restaurantes_list_screen`, `restaurante_detalle_screen`,
+  /// el CTA "Calificar" de `pedido_estado_screen` y las 5 estrellas de
+  /// `calificacion_sheet`.
+  ///
+  /// 9 usos como `Color(0xFFF5A623)` inline antes de 11-19 (uno de ellos
+  /// escondido tras un `static const _ambar` privado de la hoja de
+  /// calificación). El valor NO cambia: es el mismo ARGB.
+  /// `test/restaurantes/iconos_test.dart` ya lo afirma sobre el widget real.
+  static const Color calificacionEstrella = Color(0xFFF5A623);
+
+  // ── Gradiente de cabecera de restaurante ────────────────────────────────
+  /// #ff6b35 — arranque del degradado de la cabecera/portada de restaurante.
+  ///
+  /// OJO: NO es [primary] (#ff4c05). Son dos naranjas distintos y siempre lo
+  /// fueron; unificarlos cambiaría píxeles y está prohibido en esta fase.
+  static const Color gradienteInicio = Color(0xFFFF6B35);
+
+  /// #ff9b5a — final del degradado de cabecera/portada de restaurante.
+  static const Color gradienteFin = Color(0xFFFF9B5A);
+
+  // ── Auth / superficies neutras ──────────────────────────────────────────
+  /// #e0e0e0 — línea del separador "o" entre el formulario de email y el
+  /// botón de Google (`features/shared/google_boton.dart`, plan 11-17).
+  static const Color divisor = Color(0xFFE0E0E0);
+
+  /// #dadce0 — borde del botón "Continuar con Google". Es el gris del propio
+  /// branding de Google, NO un gris de GRI: por eso tiene constante propia y
+  /// no se colapsa con [divisor], aunque se parezcan.
+  static const Color bordeBotonGoogle = Color(0xFFDADCE0);
+
   // ── Chips de estado de reserva ──────────────────────────────────────────
   /// #dff7eb / #168a52 — chip "Confirmada" (mockup .status).
   static const Color chipConfirmadaBg = Color(0xFFDFF7EB);
@@ -62,6 +94,18 @@ class GriColors {
         _ => GriColors.gray,
       };
 }
+
+/// Degradado naranja de la cabecera/portada de restaurante.
+///
+/// Estaba copiado LITERALMENTE en 4 sitios (`home_screen.dart:186` y `:365`,
+/// `restaurantes_list_screen.dart:120`, `restaurante_detalle_screen.dart:65`)
+/// con los mismos `begin`/`end`/`colors` en los cuatro. Aquí no se ajusta
+/// nada: mismos extremos, mismos colores, mismo `tileMode` por defecto.
+const LinearGradient griGradienteRestaurante = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: <Color>[GriColors.gradienteInicio, GriColors.gradienteFin],
+);
 
 /// Colores SEMÁNTICOS de dominio de la app cliente — estado de pedido y
 /// estado de reserva.
