@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-last_updated: "2026-08-19T16:29:00.000Z"
+last_updated: "2026-08-19T16:50:00.000Z"
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 52
-  completed_plans: 36
-  percent: 67
+  completed_plans: 37
+  percent: 69
 ---
 
 # STATE
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Un cliente puede sentarse en una mesa, escanear su QR, pedir del menu y recibir su comida en tiempo real sin intermediarios.
-**Current focus:** Phase 11 — Correccion critica y profesionalizacion (plan 04/20 completado)
+**Current focus:** Phase 11 — Correccion critica y profesionalizacion (plan 05/20 completado)
 
 ## Roadmap Evolution
 
@@ -29,13 +29,14 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 4/20 planes [####----------------] 20%
+Phase 11: 5/20 planes [#####---------------] 25%
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
 - [x] 11-03 Correccion del menu: query vs rules + indice compuesto + audit estatico (P0 de la fase) — 23151d8, 5aa08d0, 7caeb71, 52d2db6, 74ceacb
 - [x] 11-04 Suite completa de firestore.rules: 7 colecciones nuevas, 190 casos, 3 vectores de escalada verificados por rotura deliberada — 0d2cafc, a0828f0, 4825e26
-- [ ] 11-05 .. 11-20
+- [x] 11-05 Alta de restaurante desde el producto: slug canonico + crearRestaurante + dialogo con vista previa + estado vacio guiado + confirmacion al desactivar — 5d02e98, c2e62d2, 66afa5b, 72b9234, f137263
+- [ ] 11-06 .. 11-20
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -46,8 +47,8 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 ## Test Baselines (final Firebase)
 
 - app_cliente: 96 passed + analyze 0 (11-03: +2 de filtrado del menu)
-- panel_admin: 96 passed + analyze 0 (11-02: +3 base vacia, +5 contrato Functions, +4 guia dashboard)
-- TOTAL apps: 192 (baseline previa 175, sin regresion)
+- panel_admin: 132 passed + analyze 0 (11-05: +21 slug, +9 alta de restaurante, +6 tab Restaurantes)
+- TOTAL apps: 228 (baseline previa 192, sin regresion)
 - firestore.rules: 208 passed via `cd scripts && npm run test:rules` (11-04: +190 — mesas 26, sesiones 29, pedidos 36, reservas 27, calificaciones 21, usuarios 22, restaurantes 29)
 - indices/paridad: `cd scripts && npm run audit:indexes` — 21 queries clasificadas, 0 fallos, exit 0
 - Cloud Functions: sin tests aun (llegan en 11-07/11-08); `npm run test:functions` ya cableado
@@ -85,6 +86,11 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-04: la suite verde y el proyecto seguro son afirmaciones INDEPENDIENTES — hasta firebase deploy --only firestore:rules, p-gri-b5b40 puede correr una version mas laxa
 - 11-04: HALLAZGO — el super_admin no puede cerrar sesiones, cancelar reservas ni cambiar estado de mesa (staffOf compara contra rid() y el super no tiene rid); en pedidos SI esta contemplado con isSuper(). Asimetria real, a decidir en 11-10/11-16
 - 11-04: 11-07 debe mantener en verde el bloque default-deny de plataforma/bootstrap; 11-10 debe cambiar conscientemente el caso // AMPLIADO EN 11-10 de usuarios.test.mjs
+- 11-05: el doc ID del restaurante es un slug [a-z0-9-] validado ANTES de escribir; de el derivan los doc ID de mesa (GRI-MESA-{rid}-{NNN}) y por tanto los QR impresos. slug_test.dart lleva una COPIA de la regexp del escaner (scan_screen.dart:41): cambiarla alla exige actualizarla aca a mano
+- 11-05: el check de existencia va ANTES del .set() porque Firestore evalua un set sobre doc existente como UPDATE, y la regla del super solo permite 'activo' -> el usuario veria permission-denied en vez de 'identificador ya en uso'
+- 11-05: toda pantalla de alta debe fijar el contexto de trabajo al cerrar (seleccionRestauranteProvider); _maybeInitDefaultRid solo corre una vez en initState y con la lista vacia no selecciona nada
+- 11-05: con AutovalidateMode.onUserInteraction el validador de un campo que el usuario nunca toca NO se dispara — el aviso hay que forzarlo con InputDecoration.errorText
+- 11-05: un test puede estar verde por construccion (el doble-guardado seguiria en 1 doc por el check de existencia); la asercion con dientes es que el boton se apaga
 
 ## Performance Metrics
 
@@ -93,12 +99,13 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | 11 | 01 | ~25 min | 3 | 14 |
 | 11 | 02 | ~30 min | 3 | 13 |
 | 11 | 03 | ~13 min | 3 | 10 |
+| 11 | 05 | ~15 min | 3 | 8 |
 
 ## Session
 
 - Last session: 2026-08-19
-- Stopped at: Completado 11-03-PLAN.md (menu del cliente corregido + indice de categorias + audit estatico). Siguiente: 11-04-PLAN.md
-- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-04-PLAN.md
+- Stopped at: Completado 11-05-PLAN.md (alta de restaurante desde el panel: slug + crearRestaurante + dialogo + estado vacio guiado + confirmacion). Siguiente: 11-06-PLAN.md
+- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-06-PLAN.md
 
 ## Blockers / Notas
 
@@ -108,3 +115,5 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - Los handlers state.advance-plan / state.update-progress / state.record-metric / state.record-session siguen sin parsear este STATE.md (reconfirmado en 11-02); se actualiza a mano. `roadmap.update-plan-progress 11` si funciona.
 - 11-02 (DIFERIDO, ver phases/11-*/deferred-items.md): StatCard del panel desborda 31px cuando el grid pasa a 4 columnas (viewport >=1100px). Preexistente; debe entrar en el bloque de responsive/tokens.
 - Sigue pendiente el sellado humano de la Fase 10 (deploy real + smoke, docs/SMOKE-E2E.md).
+- 11-05: BOOT-02 y UX-04 tampoco existen en .planning/REQUIREMENTS.md (mismo motivo que ENV-01/DOC-01/TEST-01/TEST-02): requirements.mark-complete no puede marcarlos.
+- 11-05: la MITAD del bootstrap sigue abierta — un restaurante creado desde el panel aun no tiene staff propio hasta la callable de 11-07/11-08.
