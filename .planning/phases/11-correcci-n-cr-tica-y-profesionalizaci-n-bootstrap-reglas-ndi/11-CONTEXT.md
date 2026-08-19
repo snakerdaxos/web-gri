@@ -1,0 +1,145 @@
+# Phase 11: Corrección Crítica y Profesionalización - Context
+
+**Gathered:** 2026-08-19
+**Status:** Ready for planning
+**Source:** Auditoría del sistema (gsd-deep-map + auditores UI) — ver `SCOPE.md` en este directorio
+
+<domain>
+## Phase Boundary
+
+Esta fase repara lo que la auditoría del 2026-08-19 encontró tras la migración a Firebase de la
+Fase 10, y lleva ambas apps de "funciona en tests" a "un restaurante puede usarla".
+
+**Estado de partida verificado:** `flutter analyze` da 0 issues en `app_cliente` y `panel_admin`,
+y los 175 tests pasan. Ninguno de los defectos de abajo es detectable por linter o por la suite
+actual — todos viven en el contrato con Firestore real o en la capa visual.
+
+**Entra en la fase:**
+- Que la plataforma arranque desde una base de datos vacía (crear restaurante y staff desde producto).
+- Los tres bugs que rompen funciones con datos reales (query vs rules, índice faltante, bootstrap).
+- Cerrar el punto ciego de tests que dejó pasar esos bugs.
+- Quick wins de usabilidad y branding en ambas apps.
+- Sistema de diseño: tokens, espaciado, responsive real, accesibilidad.
+- Verificación E2E del flujo completo partiendo de cero.
+
+**No entra:**
+- Rediseño visual (se conserva la identidad actual — ver decisión bloqueada abajo).
+- Pagos en línea (diferidos desde la Fase 10).
+- Tiempo real más allá de lo que ya existe con `onSnapshot`.
+- Reescribir el backend FastAPI archivado.
+</domain>
+
+<decisions>
+## Implementation Decisions
+
+### Alta de staff — LOCKED (decisión del usuario, 2026-08-19)
+- Los usuarios staff se crean mediante una **Cloud Function callable** que ejecuta el Admin SDK
+  del lado servidor y asigna los custom claims `{role, rid}`.
+- Motivo: es la única opción que hace el producto autosuficiente — el `super_admin` da de alta un
+  restaurante y su equipo desde el panel, sin consola ni scripts ni clave de servicio en manos de nadie.
+- Implica añadir Cloud Functions (Node) al stack y el plan Blaze en Firebase.
+- La función debe validar que quien llama tiene claim `role == 'super_admin'` antes de crear nada.
+
+### Alcance visual — LOCKED (decisión del usuario, 2026-08-19)
+- Se **conserva la identidad visual actual** (naranja `#FF4C05`, layout del mockup).
+- El trabajo es de consistencia, no de rediseño: centralizar en tokens, aplicar escala de espaciado,
+  hacer responsive de verdad y cumplir accesibilidad básica.
+- No se rediseñan pantallas ni se cambia la paleta.
+
+### Bootstrap del restaurante
+- El doc ID del restaurante **debe ser un slug `[a-z0-9-]+`**. Restricción dura, no negociable:
+  el escáner valida `^GRI-MESA-[a-z0-9-]+-\d{3}$` (`app_cliente/lib/features/sesion_qr/scan_screen.dart:41`)
+  y el doc ID de mesa deriva del rid. Un rid con mayúsculas o acentos deja las mesas inescaneables.
+- El formulario de crear restaurante debe generar el slug y mostrarlo al usuario antes de confirmar.
+- Las rules ya permiten `create` de `restaurantes` a `isSuper()` — falta la función y la pantalla,
+  no hay que tocar la regla.
+
+### Query vs rules
+- Toda query del cliente debe replicar en sus filtros lo que la regla exige por documento.
+  Firestore evalúa las rules contra la consulta, no contra los documentos devueltos.
+- `categorias` → `where('activo', isEqualTo: true)`. `productos` → `activo` **y** `disponible`.
+- El filtrado client-side actual se elimina (queda redundante).
+- Cada query nueva exige revisar si necesita índice compuesto.
+
+### Tests
+- La suite de rules usa `@firebase/rules-unit-testing` contra el emulador de Firestore.
+- Los tests de app siguen con `fake_cloud_firestore`, pero se añade cobertura del caso
+  **base vacía / primer arranque**, que hoy no existe porque `buildFakeFirestoreConSeed()`
+  siempre pre-siembra.
+
+### Claude's Discretion
+- Estructura de carpetas de las Cloud Functions y su configuración de despliegue.
+- Forma concreta de los tokens de diseño (extensión de `ThemeData`, clase de constantes, etc.)
+  y cómo se comparten o duplican entre las dos apps.
+- Elección de breakpoints concretos para móvil y web.
+- Organización de los tests de rules por colección o por rol.
+- Cómo se estructura el runbook E2E del bloque 4.
+</decisions>
+
+<canonical_refs>
+## Canonical References
+
+**Downstream agents MUST read these before planning or implementing.**
+
+### Alcance de la fase
+- `.planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/SCOPE.md` — los 4 bloques con evidencia file:line
+
+### Evidencia de la auditoría
+- `.planning/codebase/CONCERNS.md` — riesgos rankeados por severidad
+- `.planning/codebase/ARCHITECTURE.md` — traza del bootstrap y modelo de datos
+- `.planning/codebase/TESTING.md` — por qué la suite actual no detectó los bugs
+- `.planning/codebase/audit/UI-REVIEW-app_cliente.md` — móvil, 19/60
+- `.planning/codebase/audit/UI-REVIEW-panel_admin.md` — panel, 2 críticos y 8 altos
+
+### Contratos del sistema
+- `firestore.rules` — capa de autorización completa; sus comentarios documentan los presupuestos de access-calls y las transiciones de estado
+- `firestore.indexes.json` — índices declarados
+- `scripts/seed_firebase.mjs` — cómo se asignan hoy los claims con Admin SDK
+- `docs/SMOKE-E2E.md` — runbook E2E de la Fase 10, base del bloque 4
+- `docs/FIREBASE_SETUP.md` — configuración del proyecto y emuladores
+</canonical_refs>
+
+<specifics>
+## Specific Ideas
+
+Puntos exactos a tocar, con archivo y línea:
+
+**Bugs funcionales**
+- `app_cliente/lib/features/restaurantes/restaurantes_provider.dart:46-53` — queries sin filtro
+- `panel_admin/lib/features/menu/menu_provider.dart:35-39` — `where` + `orderBy` sin índice
+- `panel_admin/lib/features/configuracion/restaurantes_admin_provider.dart` — solo lista y toggle, falta crear
+- `firestore.indexes.json` — cero índices de `categorias`
+
+**Quick wins**
+- Toggles de contraseña: `app_cliente` login:144, register:142, perfil:131 y 143; `panel_admin` login:142
+- `app_cliente/lib/features/pedidos/menu_mesa_screen.dart:116-141` — pantalla en blanco con menú vacío
+- `panel_admin/web/manifest.json`, `index.html` (título "A new Flutter project", theme-color `#0175C2`), `favicon.png`
+- Ícono y splash por defecto de Flutter en móvil
+
+**Diseño**
+- `app_cliente/lib/features/shared/app_shell.dart:31-35` — `maxWidth: 480` fijo, sin un solo `LayoutBuilder` en 68 fuentes
+- `app_cliente/lib/models/pedido.dart:78-95` — colores duplicados
+- `panel_admin` — 36 hex crudos fuera de paleta, 6 de 9 pantallas sin responsive
+- `app_cliente/lib/features/reservas/reserva_wizard_screen.dart:340-361` y `panel_admin/.../reservas_screen.dart` — overflow
+- `app_cliente/lib/features/home/home_screen.dart:308-310` — target de 45dp (mínimo 48)
+
+**Flujo E2E (pedido explícito del usuario)**
+Desde base vacía: crear restaurante → staff → mesas con QR → menú → registro cliente →
+descubrir → ver menú → escanear QR → abrir sesión → pedir → cocina avanza estados →
+solicitar cuenta → cerrar sesión → calificar → reservas con anti-sobre-reserva.
+</specifics>
+
+<deferred>
+## Deferred Ideas
+
+- Pagos en línea (diferidos desde la Fase 10 — solo se solicita la cuenta).
+- Validación fuerte de totales de pedido y del agregado de calificaciones vía Cloud Functions
+  (gap estructural aceptado en v1, documentado en `firestore.rules`).
+- Rediseño visual completo — descartado explícitamente por el usuario en esta fase.
+- Multi-idioma / i18n.
+</deferred>
+
+---
+
+*Phase: 11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi*
+*Context gathered: 2026-08-19 — derivado de la auditoría del sistema, con dos decisiones bloqueadas por el usuario*
