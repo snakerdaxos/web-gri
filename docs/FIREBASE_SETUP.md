@@ -50,6 +50,47 @@ npx --prefix scripts firebase emulators:start --only auth,firestore --import=./e
   manualmente.
 - Requiere Java 11+ (`java -version`).
 
+## 2.1 Java y emuladores (wrapper `run_emulators.mjs`)
+
+El emulador de **Firestore exige una JVM**. Los de **Auth y Functions no**. En esta máquina
+`java` **no está en el PATH**, así que ejecutar `firebase emulators:exec` a pelo falla.
+
+`scripts/run_emulators.mjs` resuelve el problema sin que nadie toque variables de entorno:
+
+1. Busca Java en `JAVA_HOME/bin/java` → `java` del PATH → rutas conocidas del **JBR de
+   Android Studio** (`C:Program FilesAndroidAndroid Studiojbr`, OpenJDK 21.0.10 verificado).
+2. Si el Java resuelto no vino del PATH, inyecta `JAVA_HOME` y prependea su `bin/` al `PATH`
+   **del proceso hijo únicamente** — nunca muta el entorno de la máquina.
+3. Corre siempre con `cwd` en la raíz del repo (para que resuelvan `firebase.json`, `.firebaserc`,
+   `firestore.rules` y `firestore.indexes.json`) y propaga el exit code del comando.
+4. Si no encuentra ninguna JVM, sale con código 1 e imprime cómo arreglarlo. No falla en silencio.
+
+```powershell
+cd scripts
+npm run test:rules       # emulador firestore + node --test test/rules/
+npm run test:functions   # emuladores auth+functions+firestore + node --test test/functions/
+npm test                 # los dos
+
+# Uso directo:  [--set-env K=V ...] <opciones firebase> -- <comando>
+node run_emulators.mjs --only firestore --project demo-gri -- node -e "console.log(1)"
+```
+
+- Todos los scripts de test usan **`--project demo-gri`**. El prefijo `demo-` hace que el CLI y los
+  SDK rechacen credenciales reales por diseño: es imposible que un test toque `p-gri-b5b40`.
+  **Prohibido usar el alias `default` en cualquier script de test.**
+- `--set-env CLAVE=VALOR` (cero o más, antes del resto) inyecta variables en el proceso de test.
+  ⚠️ **No llega al emulador de Functions**: ese carga su config de `functions/.env` y
+  `functions/.env.{projectId}` AL ARRANCAR. La config determinista de las funciones en emulador
+  vive versionada en `functions/.env.demo-gri`.
+
+**Fallback manual** (si el wrapper no encontrara Java o se quiere usar el CLI a pelo):
+
+```powershell
+$env:JAVA_HOME = "C:Program FilesAndroidAndroid Studiojbr"
+$env:PATH = "$env:JAVA_HOMEin;$env:PATH"
+java -version   # debe imprimir openjdk 21.x
+```
+
 ## 3. Seed (restaurante demo + 6 usuarios + claims + 8 mesas + menú)
 
 `scripts/seed_firebase.mjs` siembra (port 1:1 del seed del backend):
@@ -235,6 +276,6 @@ GRI-MESA-{restauranteId}-{numero:3 dígitos}   →   GRI-MESA-demo-001 .. GRI-ME
 | `The query requires an index` (link en el error) | Falta un índice compuesto | `npx --prefix scripts firebase deploy --only firestore:indexes` |
 | Datos que "vuelven"/desaparecen tras reiniciar emulador | Datos volátiles del emulador + caché local del SDK | Arrancar con `--import/--export-on-exit` (§2); en web hacer hard-refresh |
 | Cambios de claims no se reflejan | Token viejo (hasta 1h) | Re-login o `await user.getIdToken(true)` (§4) |
-| Emuladores no arrancan | Falta Java | Instalar JRE 11+ y verificar `java -version` |
+| Emuladores no arrancan | Falta Java | Usar `node scripts/run_emulators.mjs` (resuelve Java solo, §2.1) o definir `JAVA_HOME` |
 | `npm install --prefix scripts` falla en Windows | npm resuelve mal el package.json | `cd scripts; npm install` |
 | Seed contra proyecto real falla con permisos | Service account sin roles / Firestore no creado | Regenerar key (§3) y crear Firestore en Console |

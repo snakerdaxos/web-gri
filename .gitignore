@@ -37,3 +37,13 @@ ui-debug.log
 *-adminsdk-*.json
 serviceAccount*.json
 **/serviceAccountKey.json
+
+# Cloud Functions (Node) — dependencias, build y secretos locales.
+# OJO: `functions/.env` NO se commitea (valores de producción), pero
+# `functions/.env.example` y `functions/.env.demo-gri` SÍ (config de emulador).
+functions/node_modules/
+functions/lib/
+functions/.env
+
+# Logs de los emuladores de Firebase (pueden contener payloads de documentos).
+*-debug.log
