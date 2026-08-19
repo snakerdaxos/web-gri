@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-last_updated: "2026-08-19T15:53:55.698Z"
+last_updated: "2026-08-19T16:11:59.676Z"
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 52
-  completed_plans: 34
-  percent: 65
+  completed_plans: 35
+  percent: 67
 ---
 
 # STATE
@@ -29,11 +29,12 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 2/20 planes [##------------------] 10%
+Phase 11: 3/20 planes [###-----------------] 15%
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
-- [ ] 11-03 .. 11-20
+- [x] 11-03 Correccion del menu: query vs rules + indice compuesto + audit estatico (P0 de la fase) — 23151d8, 5aa08d0, 7caeb71, 52d2db6, 74ceacb
+- [ ] 11-04 .. 11-20
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -43,10 +44,11 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 
 ## Test Baselines (final Firebase)
 
-- app_cliente: 94 passed + analyze 0 (11-02: +3 de base vacia)
+- app_cliente: 96 passed + analyze 0 (11-03: +2 de filtrado del menu)
 - panel_admin: 96 passed + analyze 0 (11-02: +3 base vacia, +5 contrato Functions, +4 guia dashboard)
-- TOTAL apps: 190 (baseline previa 175, sin regresion)
-- firestore.rules: 2 passed via `cd scripts && npm run test:rules` (arnes nuevo en 11-01)
+- TOTAL apps: 192 (baseline previa 175, sin regresion)
+- firestore.rules: 18 passed via `cd scripts && npm run test:rules` (11-03: +16 de categorias y productos)
+- indices/paridad: `cd scripts && npm run audit:indexes` — 21 queries clasificadas, 0 fallos, exit 0
 - Cloud Functions: sin tests aun (llegan en 11-07/11-08); `npm run test:functions` ya cableado
 - backend FastAPI: archivado (215 tests referencia MySQL, no se mantiene)
 
@@ -70,6 +72,11 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-02: la region de las callables se declara EXPLICITA en cliente y servidor (us-central1) con test de contrato que falla si se quita — un desajuste da 404 opaco que en Flutter Web parece error de CORS
 - 11-02: la guia del dashboard reutiliza restaurantesListProvider (ya observado por el topbar del AppShell, app_shell.dart:324): cero consultas nuevas
 - 11-02: en riverpod 3 el getter de AsyncValue es .value, NO .valueOrNull
+- 11-03: si firestore.rules menciona resource.data.X, la query DEBE llevar where('X') — Firestore evalua las rules contra la CONSULTA, no contra los documentos devueltos
+- 11-03: el orderBy('orden') de categorias del cliente se queda CLIENT-SIDE a proposito, para no introducir el indice categorias(restauranteId, activo, orden)
+- 11-03: el emulador de Firestore NO valida indices compuestos; audit_indexes.mjs es mitigacion ESTATICA, no prueba. La verificacion real del indice es el checkpoint humano de 11-16
+- 11-03: la exencion de la paridad rules-query debe DECLARARSE con // AUDIT-STAFF; una exencion silenciosa cuenta como fallo
+- 11-03: todo archivo de test de rules DEBE llamar initEnv('<namespace>') — node --test paraleliza por archivo contra un emulador compartido y sin namespace propio los clearFirestore() se pisan
 
 ## Performance Metrics
 
@@ -77,16 +84,19 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | --- | --- | --- | --- | --- |
 | 11 | 01 | ~25 min | 3 | 14 |
 | 11 | 02 | ~30 min | 3 | 13 |
+| 11 | 03 | ~13 min | 3 | 10 |
 
 ## Session
 
 - Last session: 2026-08-19
-- Stopped at: Completado 11-02-PLAN.md (base vacia + cliente de Cloud Functions). Siguiente: 11-03-PLAN.md
-- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-03-PLAN.md
+- Stopped at: Completado 11-03-PLAN.md (menu del cliente corregido + indice de categorias + audit estatico). Siguiente: 11-04-PLAN.md
+- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-04-PLAN.md
 
 ## Blockers / Notas
 
 - ENV-01, DOC-01 y TEST-02 (requisitos de la Fase 11 segun ROADMAP.md) NO existen en .planning/REQUIREMENTS.md, que solo contiene los requisitos v1: `requirements.mark-complete` los reporta como not_found (reconfirmado en 11-02).
+- 11-03: FIX-01, FIX-02 y TEST-01 tampoco existen en .planning/REQUIREMENTS.md (mismo motivo que ENV-01/DOC-01/TEST-02): `requirements.mark-complete` no puede marcarlos.
+- PENDIENTE DE SELLADO HUMANO (11-15/11-16): el indice categorias(restauranteId, orden) queda DECLARADO en firestore.indexes.json pero NO verificado — el emulador no valida indices compuestos. Requiere `firebase deploy --only firestore:indexes` contra p-gri-b5b40 y abrir el menu del panel.
 - Los handlers state.advance-plan / state.update-progress / state.record-metric / state.record-session siguen sin parsear este STATE.md (reconfirmado en 11-02); se actualiza a mano. `roadmap.update-plan-progress 11` si funciona.
 - 11-02 (DIFERIDO, ver phases/11-*/deferred-items.md): StatCard del panel desborda 31px cuando el grid pasa a 4 columnas (viewport >=1100px). Preexistente; debe entrar en el bloque de responsive/tokens.
 - Sigue pendiente el sellado humano de la Fase 10 (deploy real + smoke, docs/SMOKE-E2E.md).
