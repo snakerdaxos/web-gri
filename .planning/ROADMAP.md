@@ -216,12 +216,12 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
   6. Un cliente puede registrarse e iniciar sesión con Google en la app móvil, quedando como cliente sin claims, y la colisión con una cuenta de contraseña se explica en vez de reventar
   7. Los 5 campos de contraseña permiten ver lo escrito, el registro pide confirmación, ninguna lista queda en blanco sin guía (incluido el dashboard con la plataforma vacía) y una URL inexistente muestra un 404 propio
   8. Ni el panel ni la app cliente conservan rastro de "A new Flutter project" ni del azul `#0175C2`; el ícono y el splash del móvil son GRI, y `npm run audit:branding` caza la regresión
-  9. Todas las pantallas del panel (contadas del árbol real, no de una constante) adaptan al viewport, la app cliente ya no está encajada en 480px fijos, y los dos overflows conocidos están cerrados con test de regresión
-  10. Las pantallas del camino crítico pasan `androidTapTargetGuideline` y `labeledTapTargetGuideline`, y el texto secundario cumple contraste AA **sin que ningún token de la paleta de marca cambie de valor**
+  9. Todas las pantallas del panel (contadas del árbol real, no de una constante) adaptan al viewport, la app cliente ya no está encajada en 480px fijos ni pisa la barra de estado (SafeArea con test), y los cuatro desbordamientos conocidos están cerrados con test de regresión, sin que ningún test siga filtrando excepciones de overflow
+  10. Ningún emoji se usa como iconografía en las dos apps (sustituidos por `Icons` de Material, con `docs/ICONOS.md` como tabla revisable) y las pantallas del camino crítico pasan `androidTapTargetGuideline` y `labeledTapTargetGuideline`, y el texto secundario cumple contraste AA **sin que ningún token de la paleta de marca cambie de valor**
   11. `npm run gates` deja en verde los 8 gates (2 suites Flutter, 2 analyze, rules, functions, audit de índices, audit de branding) sin bajar de los baselines 91 + 84
   12. El runbook `docs/SMOKE-E2E-v2.md` recorre el flujo completo desde base vacía, incluidas la verificación de que el QR de mesa es escaneable y el ingreso con Google
 **Notas**: La identidad visual se CONSERVA (naranja `#FF4C05`, layout del mockup) — es trabajo de consistencia, no de rediseño. El plan Blaze solo hace falta para desplegar Cloud Functions, no para emularlas: toda la fase es desarrollable y testeable sin tocar la facturación, y el despliegue está partido en dos checkpoints (rules/índices sin Blaze en 11-16; funciones con Blaze en 11-20) para que la prueba real del bug del índice no quede rehén de una decisión de facturación.
-**Plans:** 7/20 plans executed
+**Plans:** 7/21 plans executed
 
 Plans:
 - [x] 11-01-PLAN.md — Ola 1: desbloqueo de entorno (Java, `.firebaserc`), scaffold de `functions/` con `.env.demo-gri`, arnés de tests de rules y CLAUDE.md corregido
@@ -239,11 +239,12 @@ Plans:
 - [ ] 11-11-PLAN.md — Ola 5: tokens de diseño (espaciado, radios, breakpoints), escala tipográfica y colores semánticos
 - [ ] 11-12-PLAN.md — Ola 6: migración 1:1 de hex crudos y estilos duplicados del PANEL + gate anti-regresión
 - [ ] 11-19-PLAN.md — Ola 6: migración 1:1 de hex crudos y `TextStyle` de la APP CLIENTE + gate anti-regresión
-- [ ] 11-13-PLAN.md — Ola 7: responsive real (shell del cliente, todas las pantallas del panel, grids fluidos, overflows)
-- [ ] 11-14-PLAN.md — Ola 8: accesibilidad (etiquetas, tap targets de 48dp, contraste AA sin tocar la paleta) con gates `meetsGuideline`
-- [ ] 11-15-PLAN.md — Ola 9: runbook `SMOKE-E2E-v2` desde base vacía + `npm run gates` como ejecutor único
-- [ ] 11-16-PLAN.md — Ola 10: runbook de despliegue + CHECKPOINT HUMANO A (rules e índices, sin Blaze) con la prueba real del bug del índice
-- [ ] 11-20-PLAN.md — Ola 11: CHECKPOINT HUMANO B (Blaze, deploy de Cloud Functions y smoke E2E completo)
+- [ ] 11-13-PLAN.md — Ola 7: responsive real + zona segura superior del cliente (SafeArea) + los cuatro desbordamientos conocidos y retirada de los filtros de test
+- [ ] 11-21-PLAN.md — Ola 8: emojis → iconos de Material en las dos apps, con tabla de equivalencias revisable
+- [ ] 11-14-PLAN.md — Ola 9: accesibilidad (etiquetas, tap targets de 48dp, contraste AA sin tocar la paleta) con gates `meetsGuideline`
+- [ ] 11-15-PLAN.md — Ola 10: runbook `SMOKE-E2E-v2` desde base vacía + `npm run gates` como ejecutor único
+- [ ] 11-16-PLAN.md — Ola 11: runbook de despliegue + CHECKPOINT HUMANO A (rules e índices, sin Blaze) con la prueba real del bug del índice
+- [ ] 11-20-PLAN.md — Ola 12: CHECKPOINT HUMANO B (Blaze, deploy de Cloud Functions y smoke E2E completo)
 
 ---
 *Coverage: 50/50 requisitos v1 mapeados (PLAT 5, AUTH 5, REST 2, MENU 2, MESA 6, RESV 5, PEDI 6, RT 3, PAGO 4, CALI 2, ADMN 5, REPO 2, INFR 3). Nota: REQUIREMENTS.md decÃƒÂ­a "47 total" por error aritmÃƒÂ©tico; el conteo real de IDs es 50.*
