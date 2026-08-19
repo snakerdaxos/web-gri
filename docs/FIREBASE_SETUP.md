@@ -299,10 +299,13 @@ class DefaultFirebaseOptions {
     measurementId: 'G-8H4SQ9ZHV5',
   );
 
-  // Fuente: documentos/google-services.json (app Android gri.app)
+  // App Android `com.gri.gri_cliente` — el appId DEBE ser el del registro
+  // cuyo packageName coincide con el `applicationId` de build.gradle.kts.
+  // ⚠️ NO tomar este bloque de documentos/google-services.json: ese archivo es
+  // del registro viejo `gri.app` (ver §9.5). Corregido en 11-17.
   static const FirebaseOptions androidOptions = FirebaseOptions(
     apiKey: 'AIzaSyBZe8QtDCsv3RTZc9ykoQ9wBJskboyOzwk',
-    appId: '1:703827387403:android:b55b9ee758dc5108e6d30e',
+    appId: '1:703827387403:android:1f0746d200e4e12ce6d30e',
     messagingSenderId: '703827387403',
     projectId: 'p-gri-b5b40',
     storageBucket: 'p-gri-b5b40.firebasestorage.app',
@@ -312,6 +315,21 @@ class DefaultFirebaseOptions {
 
 > La `apiKey` es pública by design (identifica el proyecto, no autentica): la
 > seguridad real la imponen Auth + `firestore.rules`.
+
+**Fuente de verdad para estos valores** (no hace falta la consola):
+
+```bash
+npx --prefix scripts firebase apps:list --project p-gri-b5b40
+npx --prefix scripts firebase apps:sdkconfig ANDROID <appId> --project p-gri-b5b40
+```
+
+El gate `app_cliente/test/core/firebase_options_coherencia_test.dart` ata el
+`applicationId` de Gradle al `appId` de Dart y falla si vuelven a divergir.
+
+**Las dos apps comparten UN solo registro web** (`gri.web`,
+`1:703827387403:web:08ae995e35ce9516e6d30e`) a propósito: el registro web no
+aporta aislamiento —la autorización vive en claims + `firestore.rules`, que son
+del proyecto— y un segundo registro solo separaría métricas de Analytics.
 
 ## 8. Formato del QR de mesas
 

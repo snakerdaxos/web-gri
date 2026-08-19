@@ -3,8 +3,10 @@
 // FALLBACK MANUAL (10-02 Task 1): el archivo estándar lo genera
 // `flutterfire configure`, pero ese comando requiere `firebase login`
 // interactivo. Valores transcritos de:
-//   * documentos/google-services.json  (app Android `gri.app`)
-//   * documentos/firebase-config-web.js (app Web `grip.web`)
+//   * documentos/google-services.json  (app Android del registro VIEJO — ver
+//     el bloque `android` más abajo: ese archivo NO debe usarse ni copiarse a
+//     android/app/, y el `appId` fue corregido en 11-17)
+//   * documentos/firebase-config-web.js (app Web `gri.web`)
 // Shape idéntica al archivo generado (docs/FIREBASE_SETUP.md §7): con options
 // vía Dart NO se requiere el plugin Gradle de google-services.
 //
@@ -54,7 +56,8 @@ class DefaultFirebaseOptions {
     }
   }
 
-  /// App Web `grip.web` (firebase-config-web.js).
+  /// App Web `gri.web` (firebase-config-web.js) — es la UNICA app web del
+  /// proyecto y la comparten app_cliente y panel_admin a proposito.
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyAXPPuBMkMUgt_piyLg6uvWiEY0ff4kiC4',
     appId: '1:703827387403:web:08ae995e35ce9516e6d30e',
@@ -65,10 +68,33 @@ class DefaultFirebaseOptions {
     measurementId: 'G-8H4SQ9ZHV5',
   );
 
-  /// App Android `gri.app` (google-services.json, client 0).
+  /// App Android `gri_cliente (android)` — packageName `com.gri.gri_cliente`,
+  /// el MISMO `applicationId` que declara `android/app/build.gradle.kts`.
+  ///
+  /// CORREGIDO EN 11-17. Hasta aquí este bloque declaraba el appId de un
+  /// registro VIEJO con OTRO packageName, heredado de
+  /// `documentos/google-services.json` (cuál es, y por qué ese archivo no debe
+  /// copiarse a android/app/: docs/FIREBASE_SETUP.md §9.5).
+  /// El appId viejo NO se transcribe aquí a propósito: el gate de coherencia
+  /// prohíbe su presencia en este archivo, precisamente para que no pueda
+  /// volver por un copiar-pegar desde un comentario.
+  /// Para Firestore y para Auth con email/contraseña la discrepancia es
+  /// invisible —`projectId` y `messagingSenderId` sí eran correctos, y es lo
+  /// que usan esos servicios—, por eso sobrevivió diez fases. Google Sign-In
+  /// en Android NO la tolera: la huella SHA-1 se registra contra la app cuyo
+  /// packageName coincide con el APK, así que con el registro viejo el
+  /// ingreso falla con DEVELOPER_ERROR (código 10) aunque la huella esté bien.
+  ///
+  /// Valores verificados contra el proyecto real con
+  /// `firebase apps:sdkconfig ANDROID 1:703827387403:android:1f0746d200e4e12ce6d30e`.
+  /// El `apiKey` es el MISMO en los dos registros (ambos usan la clave Android
+  /// del proyecto), así que la corrección se reduce al `appId`.
+  ///
+  /// El gate `test/core/firebase_options_coherencia_test.dart` impide que la
+  /// deriva vuelva a pasar inadvertida.
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBZe8QtDCsv3RTZc9ykoQ9wBJskboyOzwk',
-    appId: '1:703827387403:android:b55b9ee758dc5108e6d30e',
+    appId: '1:703827387403:android:1f0746d200e4e12ce6d30e',
     messagingSenderId: '703827387403',
     projectId: 'p-gri-b5b40',
     storageBucket: 'p-gri-b5b40.firebasestorage.app',

@@ -31,7 +31,20 @@ class DefaultFirebaseOptions {
     );
   }
 
-  /// App Web `grip.web` (firebase-config-web.js).
+  /// App Web `gri.web` (firebase-config-web.js).
+  ///
+  /// VERIFICADO EN 11-17 con `firebase apps:list --project p-gri-b5b40`: el
+  /// proyecto tiene UNA sola app Web, y `app_cliente` declara este MISMO
+  /// `appId` para su build web. Es COMPARTIDA A PROPÓSITO, no un descuido:
+  /// el registro web de Firebase no aporta aislamiento (la autorización vive
+  /// en claims + firestore.rules, que son del proyecto, no de la app), y un
+  /// segundo registro solo separaría métricas de Analytics. Si algún día se
+  /// quieren métricas separadas, hay que registrar una app web propia para el
+  /// panel y actualizar el caso correspondiente de
+  /// `app_cliente/test/core/firebase_options_coherencia_test.dart`.
+  ///
+  /// El panel es web-only: no tiene carpeta `android/`, así que la corrección
+  /// de appId de Android de 11-17 NO le aplica.
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyAXPPuBMkMUgt_piyLg6uvWiEY0ff4kiC4',
     appId: '1:703827387403:web:08ae995e35ce9516e6d30e',
