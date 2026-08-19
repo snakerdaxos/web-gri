@@ -21,6 +21,8 @@ Nota: la Fase de cliente del research original (una sola fase "Cliente MÃƒÂ³
 - [ ] **Phase 7: Tiempo Real Ã¢â‚¬â€ WebSockets** - Pedidos y mesas en vivo en cocina, mesero, cliente y panel sin refrescar
 - [x] **Phase 8: Panel Admin Ã¢â‚¬â€ GestiÃƒÂ³n Completa y Reportes** - CRUD de mesas/menÃƒÂº/clientes, reportes de ventas y gestiÃƒÂ³n de plataforma
 - [x] **Phase 9: Pagos, Calificaciones y Deploy** - Pago en lÃƒÂ­nea idempotente, calificaciÃƒÂ³n post-pago y despliegue a Ubuntu Server
+- [ ] **Phase 10: Migracion a Firebase (Opcion B)** - Ambas apps 100% Firebase; checkpoint humano de deploy pendiente
+- [ ] **Phase 11: Correccion Critica y Profesionalizacion** - Arranque desde BD vacia, reglas/indices corregidos y sistema de diseno responsive
 
 ## Phase Details
 
@@ -199,6 +201,16 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
 - [x] 10-05-PLAN.md — panel_admin: bootstrap + login por claims + dashboard/mapa/stats en vivo + cocina cola realtime + aviso cuenta (MIGRA-02, MIGRA-05) — depende de 10-04 (app primero)
 - [x] 10-06-PLAN.md — panel_admin: mesas CRUD+QR determinista + menú CRUD + clientes + reservas staff + super-admin + reportes + purge legacy (MIGRA-02, MIGRA-05)
 - [x] 10-07-PLAN.md — Smoke e2e en emuladores + deploy rules/indexes al proyecto real + checkpoint final (MIGRA-03, MIGRA-04, MIGRA-05, MIGRA-06)
+
+### Phase 11: Corrección Crítica y Profesionalización — Bootstrap, Reglas/Índices y Sistema de Diseño
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 10
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 11 to break down)
 
 ---
 *Coverage: 50/50 requisitos v1 mapeados (PLAT 5, AUTH 5, REST 2, MENU 2, MESA 6, RESV 5, PEDI 6, RT 3, PAGO 4, CALI 2, ADMN 5, REPO 2, INFR 3). Nota: REQUIREMENTS.md decÃƒÂ­a "47 total" por error aritmÃƒÂ©tico; el conteo real de IDs es 50.*

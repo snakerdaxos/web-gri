@@ -15,6 +15,7 @@ See: .planning/PROJECT.md
 **Current focus:** Phase 10 sellado humano (deploy Firebase) — docs/SMOKE-E2E.md
 
 ## Roadmap Evolution
+- Phase 11 added (2026-08-19): Correccion critica y profesionalizacion. Auditoria del sistema encontro 3 bugs criticos independientes (sin ruta de bootstrap desde BD vacia; query de menu del cliente denegada por rules; indice compuesto de categorias faltante) + deuda de UI severa en ambas apps (sin responsive, sin toggles de password, branding Flutter por defecto). Alcance detallado en .planning/phases/11-*/SCOPE.md
 - Phase 10 added (2026-08-16): Migracion Firebase Opcion B (decision usuario)
 - Phase 10 executed+verified (2026-08-16): 7 planes, ambas apps 100% Firebase (app 91/91, panel 84/84), rules+seed+guia en raiz. Backend FastAPI ARCHIVADO como referencia (no borrado). Pagos en linea diferidos (solo solicitar cuenta).
 
