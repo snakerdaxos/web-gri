@@ -56,5 +56,12 @@ dev_dependencies:
   # firebase_auth_mocks; directo para importarlo en tests sin lint.
   mock_exceptions: ^0.8.2
 
+  # Generación de los assets de marca (tool/gen_branding.dart). Publisher
+  # verificado en pub.dev: loki3d.com. Pin EXACTO por la mitigación T-11-18-SC.
+  # Se fija 4.9.1 (2026-05-30) y NO la 4.9.2, publicada hace horas: una versión
+  # recién salida no ha tenido tiempo de exposición. dev_dependency: no entra
+  # en el binario de producción.
+  image: 4.9.1
+
 flutter:
   uses-material-design: true
