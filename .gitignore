@@ -31,3 +31,9 @@ ui-debug.log
 
 # Docker runtime artifacts
 *.log
+
+# Claves de servicio Admin SDK — CUALQUIER nombre. NUNCA commitear.
+*firebase-adminsdk*.json
+*-adminsdk-*.json
+serviceAccount*.json
+**/serviceAccountKey.json
