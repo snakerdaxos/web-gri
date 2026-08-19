@@ -328,13 +328,13 @@ class _EstadoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: pedido.estadoBg,
+        color: pedido.estadoBg(context),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         pedido.estadoLabel,
         style: TextStyle(
-          color: pedido.estadoColor,
+          color: pedido.estadoColor(context),
           fontWeight: FontWeight.bold,
           fontSize: 12,
         ),

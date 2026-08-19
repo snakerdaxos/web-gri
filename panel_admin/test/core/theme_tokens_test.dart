@@ -285,7 +285,7 @@ void main() {
         pedidoEnviado: const Color(0xFF000000),
         reservaConfirmadaBg: const Color(0xFFFFFFFF),
       );
-      final medio = a.lerp(b, 0.5)!;
+      final medio = a.lerp(b, 0.5);
       expect(medio.pedidoEnviado,
           Color.lerp(a.pedidoEnviado, b.pedidoEnviado, 0.5));
       expect(medio.pedidoEnviado, isNot(a.pedidoEnviado));
@@ -361,7 +361,11 @@ void main() {
     });
 
     test('griBotonPeligro* reproducen las variantes destructivas inline', () {
-      expect(griBotonPeligroTexto.foregroundColor?.resolve({}), Colors.red);
+      // `.toARGB32()` y no `== Colors.red`: el token es un `Color` plano
+      // (ver el doc de `peligro`), y `Color.==` compara el runtimeType. Lo
+      // que importa es que pinte el MISMO rojo que hoy.
+      expect(griBotonPeligroTexto.foregroundColor?.resolve({})?.toARGB32(),
+          Colors.red.toARGB32());
       expect(griBotonPeligroContorno.foregroundColor?.resolve({}),
           GriColors.mesaOcupadaFg);
       expect(griBotonPeligroContorno.side?.resolve({})?.color,
@@ -400,6 +404,7 @@ void main() {
       expect(griInputOutline.border, isA<OutlineInputBorder>());
     });
   });
+
 
 }
 

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../core/theme.dart';
 import 'pedido_item.dart';
 
 part 'pedido.freezed.dart';
@@ -63,8 +64,19 @@ abstract class Pedido with _$Pedido {
 
 /// Labels y colores de los chips de estado (5 estados del wire).
 ///
-/// Paleta coherente con los chips del theme: enviado azul, aceptado
-/// naranja, en_preparacion morado, servido verde, rechazado rojo.
+/// ── 11-11: aquí YA NO hay paleta ──────────────────────────────────────────
+/// Hasta 11-11 este archivo tenía sus propios literales de color, una SEGUNDA
+/// paleta en paralelo a la de `core/theme.dart`. Un modelo de datos no es
+/// sitio para decidir colores, y con dos fuentes nadie sabía cuál mandaba.
+///
+/// Ahora los colores salen de `GriSemanticColors`, el `ThemeExtension` que
+/// registra `griTheme`. Los hex NO cambiaron: se copiaron literalmente a la
+/// extensión (la identidad visual es una decisión BLOQUEADA de la fase 11).
+///
+/// Consecuencia de API: [estadoColor] y [estadoBg] pasaron de getters a
+/// MÉTODOS que reciben el `BuildContext`, porque leer del tema lo exige. El
+/// único punto de uso (`features/pedidos/pedido_estado_screen.dart`, el
+/// `_EstadoChip`) ya tiene contexto.
 extension PedidoEstadoX on Pedido {
   String get estadoLabel => switch (estado) {
         'enviado' => 'Enviado',
@@ -75,22 +87,11 @@ extension PedidoEstadoX on Pedido {
         _ => estado,
       };
 
-  Color get estadoColor => switch (estado) {
-        'enviado' => const Color(0xFF2563EB),
-        'aceptado' => const Color(0xFFD97706),
-        'en_preparacion' => const Color(0xFF7C3AED),
-        'servido' => const Color(0xFF168A52),
-        'rechazado' => const Color(0xFFC83C2E),
-        _ => const Color(0xFF777777),
-      };
+  /// Color del TEXTO del chip, leído del tema.
+  Color estadoColor(BuildContext context) =>
+      GriSemanticColors.of(context).pedidoFg(estado);
 
-  /// Fondo suave del chip (versión ~12% del color de texto).
-  Color get estadoBg => switch (estado) {
-        'enviado' => const Color(0xFFE3ECFD),
-        'aceptado' => const Color(0xFFFCF0DE),
-        'en_preparacion' => const Color(0xFFEFE6FC),
-        'servido' => const Color(0xFFDFF7EB),
-        'rechazado' => const Color(0xFFFFE9E6),
-        _ => const Color(0xFFEEEEEE),
-      };
+  /// Fondo suave del chip (versión ~12% del color de texto), leído del tema.
+  Color estadoBg(BuildContext context) =>
+      GriSemanticColors.of(context).pedidoBg(estado);
 }

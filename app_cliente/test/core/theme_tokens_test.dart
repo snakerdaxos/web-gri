@@ -285,7 +285,7 @@ void main() {
         pedidoEnviadoFg: const Color(0xFF000000),
         pedidoServidoBg: const Color(0xFFFFFFFF),
       );
-      final medio = a.lerp(b, 0.5)!;
+      final medio = a.lerp(b, 0.5);
       expect(medio.pedidoEnviadoFg,
           Color.lerp(a.pedidoEnviadoFg, b.pedidoEnviadoFg, 0.5));
       expect(medio.pedidoEnviadoFg, isNot(a.pedidoEnviadoFg));
@@ -331,6 +331,7 @@ void main() {
       expect(cont.color, marcadorBg);
     });
   });
+
 
 }
 
