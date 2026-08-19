@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-last_updated: "2026-08-19T18:05:00.000Z"
+last_updated: "2026-08-19T18:20:00.000Z"
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 52
-  completed_plans: 39
+  completed_plans: 40
   percent: 73
 ---
 
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Un cliente puede sentarse en una mesa, escanear su QR, pedir del menu y recibir su comida en tiempo real sin intermediarios.
-**Current focus:** Phase 11 — Correccion critica y profesionalizacion (plan 07/20 completado)
+**Current focus:** Phase 11 — Correccion critica y profesionalizacion (planes 01-07 + 18 completados)
 
 ## Roadmap Evolution
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 7/20 planes [#######-------------] 35%
+Phase 11: 8/21 planes [########-------------] 38%
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -38,7 +38,8 @@ Phase 11: 7/20 planes [#######-------------] 35%
 - [x] 11-05 Alta de restaurante desde el producto: slug canonico + crearRestaurante + dialogo con vista previa + estado vacio guiado + confirmacion al desactivar — 5d02e98, c2e62d2, 66afa5b, 72b9234, f137263
 - [x] 11-06 Ver/ocultar contrasena en los 5 campos + confirmar contrasena en el registro: PasswordField por app (48x48 verificado anulando los defaults del framework), 12 roturas deliberadas — 958d59f, 3723572, fd5a3e7, f3c2f99
 - [x] 11-07 Bootstrap del primer super_admin: callable con guarda atomica ANTES de toda consulta + doble factor (email_verified + secreto en tiempo constante, sin cortocircuito, mensaje unico), centinela blindado en rules, pantalla /bootstrap exenta del guard e invalidacion de claims. 13 roturas deliberadas — 06ba232, 8dc3e35, 28c1714
-- [ ] 11-08 .. 11-20
+- [x] 11-18 Branding GRI en las DOS apps: generador determinista de 13 assets (SDF, sin fuentes ni descargas), identidad web en los 4 archivos, shell de carga verificado en Chrome real, icono adaptive + splash Android 12, audit:branding y verify:shell. 18 roturas deliberadas — 69d1481, fa4fe06, 12b97e5
+- [ ] 11-08 .. 11-17, 11-19 .. 11-21
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -54,6 +55,8 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - Cloud Functions e2e: 11 passed via `cd scripts && npm run test:functions` (11-07, emuladores auth+functions+firestore reales)
 - firestore.rules: 208 passed via `cd scripts && npm run test:rules` (11-04: +190 — mesas 26, sesiones 29, pedidos 36, reservas 27, calificaciones 21, usuarios 22, restaurantes 29)
 - indices/paridad: `cd scripts && npm run audit:indexes` — 21 queries clasificadas, 0 fallos, exit 0
+- branding: `cd scripts && npm run audit:branding` — 2 apps, 4 archivos, 0 rastros de plantilla, exit 0 (11-18; 15 roturas deliberadas)
+- shell de carga: `cd scripts && npm run verify:shell` — 2 apps en Chrome headless por CDP, shell retirado en <1s (11-18; 3 roturas deliberadas). EXIGE `flutter build web --release` previo en las dos apps
 - Cloud Functions: `bootstrapPlataforma` con 11 casos e2e contra emuladores reales (11-07); `crearUsuarioStaff` sigue sin tests (llega en 11-08)
 - backend FastAPI: archivado (215 tests referencia MySQL, no se mantiene)
 
@@ -102,6 +105,14 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-07: HALLAZGO — el sidebar del AppShell desborda 85px (app_shell.dart:171) a CUALQUIER ancho; primer test que renderiza el shell entero. Diferido al bloque 3 (deferred-items.md); bootstrap_router_test.dart filtra solo `A RenderFlex overflowed` y ese filtro debe retirarse al corregirlo
 - 11-07: FirebaseFunctions no es instanciable en flutter test, asi que se anadio una segunda costura (bootstrapCallableProvider) — sin ella el invalidate de claims y la reversion de cuenta quedarian afirmados por grep en vez de verificados
 
+- 11-18: el logo de GRI es CODIGO (app_cliente/tool/gen_branding.dart): se dibuja con campos de distancia con signo y antialias analitico, NO con la fuente del emoji del mockup — el rasterizado de una fuente depende de version/hinting/sistema y el mismo comando daria PNG distintos en dos maquinas. Prohibido editar los PNG a mano: `cd app_cliente && dart run tool/gen_branding.dart` los regenera los 13 (las DOS apps) y es idempotente
+- 11-18: HALLAZGO — el gate que el plan asignaba a T-11-18-02 (`flutter build web --release`) es CIEGO a la amenaza: un shell de carga que no se retira compila perfectamente y deja un overlay a pantalla completa que ningun clic atraviesa. Demostrado con 2 roturas. Por eso existe `npm run verify:shell` (Chrome headless por CDP), que si sale con 1
+- 11-18: la verificacion headless con `--virtual-time-budget` + `--dump-dom` da FALSOS NEGATIVOS: el tiempo virtual corre mas rapido que la red real y la app nunca llega a pintar. Cualquier comprobacion de una app Flutter Web en navegador debe usar tiempo REAL y sondeo por CDP
+- 11-18: `flutter_launcher_icons` REESCRIBE AndroidManifest.xml aunque no cambie nada semantico (le quita el BOM). Con cambios sin commitear en ese archivo hay que hacer copia antes de correr el generador
+- 11-18: `adaptive_icon_foreground_inset: 0` es obligatorio porque el asset de primer plano YA trae su zona segura (glifo al 58% del lienzo); con el 16% por defecto se aplica dos veces y el glifo queda diminuto
+- 11-18: los fondos `#F7F7F7` (cliente) y `#F5F6F8` (panel) DIFIEREN a proposito y `audit_branding.mjs` los afirma POR APP. Si el bloque de tokens cambia `AppColors.background` de una app, hay que actualizar `backgroundEsperado` en ese script EN EL MISMO COMMIT
+- 11-18: la asercion `<title> menciona GRI` NO es la que caza el titulo de plantilla (`gri_cliente` contiene "GRI" en mayusculas); lo caza la lista de nombres de paquete Dart. Las dos comprobaciones son necesarias
+
 ## Performance Metrics
 
 | Phase | Plan | Duracion | Tareas | Archivos |
@@ -112,11 +123,12 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | 11 | 05 | ~15 min | 3 | 8 |
 | 11 | 06 | ~40 min | 2 | 9 |
 | 11 | 07 | ~65 min | 3 | 15 |
+| 11 | 18 | ~31 min | 3 | 55 |
 
 ## Session
 
 - Last session: 2026-08-19
-- Stopped at: Completado 11-07-PLAN.md (bootstrap del primer super_admin: callable + rules + pantalla). Siguiente: 11-08-PLAN.md
+- Stopped at: Completado 11-18-PLAN.md (branding GRI en las dos apps: assets generados, web, shell de carga, icono y splash del movil, 2 gates nuevos). Siguiente: 11-08-PLAN.md
 - Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-08-PLAN.md
 
 ## Blockers / Notas
@@ -137,3 +149,9 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-07 PENDIENTE DE SELLADO HUMANO: la funcion `bootstrapPlataforma` y el `match /plataforma` NO estan desplegados. Hasta `firebase deploy --only functions,firestore:rules --project p-gri-b5b40`, produccion sigue sin la callable y con el centinela sin regla explicita. Runbook en docs/FIREBASE_SETUP.md §4.1 (exige BOOTSTRAP_EMAIL y BOOTSTRAP_SECRET en functions/.env ANTES del deploy).
 - 11-07 PARA 11-08: reutilizar `scripts/test/functions/_emu.mjs` tal cual. AVISO: su `limpiar()` borra TODOS los usuarios de Auth y las colecciones `usuarios` y `plataforma`; si 11-08 siembra otras, debe ampliar la lista. El glob de `test:functions` ya recoge *.e2e.mjs y *.test.mjs.
 - 11-07: la resistencia real a un ataque de temporizacion NO esta medida (solo se verifica que timingSafeEqual esta y que una longitud distinta deniega sin lanzar). `maxInstances: 3` esta declarado pero el emulador no lo aplica. App Check sigue DIFERIDO.
+- 11-18: UX-03 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11): `requirements.mark-complete UX-03` devuelve not_found. Queda en el frontmatter del SUMMARY.
+- 11-18 (DIFERIDO, ver deferred-items.md): `orientation: portrait-primary` en panel_admin/web/manifest.json — bloquearia una PWA instalada del panel en vertical, y el panel se disena a partir de 1100px. Va al bloque de responsive.
+- 11-18 (ENTORNO, ver deferred-items.md): `.dart_tool/flutter_build/` obsoleto rompe `flutter build web` en las DOS apps con `Couldn't resolve the package 'flutter_secure_storage_web'` (dependencia retirada en la Fase 10). `flutter pub get` NO lo arregla: hay que borrar `<app>/.dart_tool/flutter_build/`. Debe entrar en el runbook del bloque 4.
+- 11-18 PENDIENTE DE VERIFICACION HUMANA: que el logo se VEA bien no es automatizable. Tampoco se ha visto el icono ni el splash arrancando en un Android real (no se ejecuto `flutter build apk`), ni se ha instalado ninguna de las dos PWA. Lo verificado son los recursos generados y sus dimensiones, no su render por el sistema.
+- 11-18: si `Firebase.initializeApp` fallara, no habria primer frame y el shell de carga se quedaria en "Cargando" indefinidamente — NO hay pantalla de error. Deuda conocida.
+- 11-18: `npm run verify:shell` exige `flutter build web --release` previo en las dos apps y Chrome instalado; falla ruidosamente si falta cualquiera de los dos (no se auto-desactiva).

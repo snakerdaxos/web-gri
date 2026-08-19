@@ -31,3 +31,32 @@
   bloque 3 corrija el sidebar, ese filtro debe RETIRARSE (y el test seguirá pasando).
 - **Arreglo previsto:** envolver el `Column` de textos en `Expanded` (y el `Text(label)` del item
   del menú también), o dejar el sidebar en `collapsed` por debajo de un breakpoint.
+
+## 11-18 — `orientation: portrait-primary` en el manifest del PANEL (panel_admin)
+
+- **Encontrado durante:** 11-18 Tarea 2, al reescribir `panel_admin/web/manifest.json`.
+- **Qué pasa:** el manifest hereda de `flutter create` la clave
+  `"orientation": "portrait-primary"`. En la app cliente es correcto (es móvil), pero en el panel
+  significa que una PWA instalada en tablet quedaría **bloqueada en vertical** — y el panel está
+  diseñado a partir de 1100px de ancho (el grid de 4 columnas del dashboard, el sidebar de 220px).
+- **Por qué NO se arregla aquí:** la tabla del bloque `<interfaces>` del plan 11-18 enumera
+  exactamente qué claves se tocan (`name`, `short_name`, `description`, colores) y `orientation` no
+  está. No es un valor de plantilla *de marca*, es una decisión de layout, y el responsive es el
+  bloque 3 de la fase.
+- **Arreglo previsto:** en el plan de responsive, poner `"orientation": "any"` (o retirar la clave)
+  en `panel_admin/web/manifest.json` únicamente. `scripts/audit_branding.mjs` no comprueba esa clave,
+  así que no hay que tocar el gate.
+
+## 11-18 — `.dart_tool/flutter_build/` obsoleto rompe `flutter build web` en las DOS apps (entorno)
+
+- **Encontrado durante:** 11-18 Tarea 2, primer `flutter build web --release` de la fase.
+- **Qué pasa:** el `web_plugin_registrant.dart` cacheado en `.dart_tool/flutter_build/<hash>/`
+  seguía importando `package:flutter_secure_storage_web`, dependencia que **ya no existe** (se fue
+  con la migración a Firebase de la Fase 10). `flutter pub get` NO regenera ese archivo, así que
+  ambas apps fallaban con `Couldn't resolve the package 'flutter_secure_storage_web'` aunque el
+  `pubspec.yaml` esté perfecto.
+- **Solución aplicada:** borrar `<app>/.dart_tool/flutter_build/` (directorio generado y
+  gitignorado; NO se usó `git clean`). Tras eso las dos apps compilan.
+- **Por qué queda anotado:** cualquiera que clone el repo con un `.dart_tool` heredado se va a topar
+  con el mismo error y va a creer que el `pubspec.yaml` está mal. Debería mencionarse en el runbook
+  de arranque del bloque 4.
