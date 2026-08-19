@@ -23,13 +23,20 @@
 // El handshake real se verifica A MANO: en Web contra el proyecto real y en
 // Android tras registrar la huella SHA-1 (checkpoint del plan). El emulador
 // de Auth NO implementa el flujo de Google.
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:gri_cliente/core/firebase_providers.dart';
 import 'package:gri_cliente/core/google_auth.dart';
 import 'package:gri_cliente/features/auth/auth_controller.dart';
+import 'package:gri_cliente/features/auth/login_screen.dart';
+import 'package:gri_cliente/features/auth/register_screen.dart';
+import 'package:gri_cliente/features/shared/google_boton.dart';
 
 import '../helpers/firebase_fakes.dart';
 
@@ -55,6 +62,30 @@ ProviderContainer _container(
   ]);
   addTearDown(container.dispose);
   return container;
+}
+
+/// Monta login/registro con las instancias fake cableadas.
+Widget _wrapPantallas(
+  FirebaseAuth auth,
+  FirebaseFirestore db,
+  GoogleAuthAccion accion,
+  String ruta,
+) {
+  final router = GoRouter(
+    initialLocation: ruta,
+    routes: [
+      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      GoRoute(path: '/register', builder: (_, _) => const RegisterScreen()),
+    ],
+  );
+  return ProviderScope(
+    overrides: [
+      firebaseAuthProvider.overrideWithValue(auth),
+      firestoreProvider.overrideWithValue(db),
+      googleAuthAccionProvider.overrideWithValue(accion),
+    ],
+    child: MaterialApp.router(routerConfig: router),
+  );
 }
 
 Future<Map<String, dynamic>?> _espejo(FirebaseFirestore db, String uid) async {
@@ -297,6 +328,175 @@ void main() {
       );
 
       expect(c.read(googleSignInControllerProvider).isLoading, isFalse);
+    });
+  });
+
+  // ── Tarea 2: el botón en las pantallas de login y registro ──────────────
+  group('botón "Continuar con Google" en las pantallas', () {
+    for (final pantalla in const [
+      (ruta: '/login', key: 'login-google', nombre: 'login'),
+      (ruta: '/register', key: 'register-google', nombre: 'registro'),
+    ]) {
+      testWidgets('${pantalla.nombre}: muestra el separador y el botón',
+          (tester) async {
+        final db = await buildFakeFirestoreVacio();
+        final auth = mockAuth(uid: 'u', email: 'x@gmail.com', signedIn: false);
+        await tester
+            .pumpWidget(_wrapPantallas(auth, db, _accionOk(), pantalla.ruta));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(GoogleBoton), findsOneWidget);
+        expect(find.byKey(ValueKey(pantalla.key)), findsOneWidget);
+        expect(find.text('Continuar con Google'), findsOneWidget);
+        expect(find.text('o'), findsOneWidget);
+      });
+
+      testWidgets('${pantalla.nombre}: el botón mide al menos 48 de alto',
+          (tester) async {
+        // Coherente con el mínimo táctil que fijó 11-14/11-06. El default de
+        // OutlinedButton es 40 de alto, así que este assert NO pasa por
+        // construcción: lo tiene que poner el widget.
+        final db = await buildFakeFirestoreVacio();
+        final auth = mockAuth(uid: 'u', email: 'x@gmail.com', signedIn: false);
+        await tester
+            .pumpWidget(_wrapPantallas(auth, db, _accionOk(), pantalla.ruta));
+        await tester.pumpAndSettle();
+
+        final size = tester.getSize(find.byKey(ValueKey(pantalla.key)));
+        expect(size.height, greaterThanOrEqualTo(48.0));
+      });
+
+      testWidgets('${pantalla.nombre}: el botón está etiquetado para lectores',
+          (tester) async {
+        final db = await buildFakeFirestoreVacio();
+        final auth = mockAuth(uid: 'u', email: 'x@gmail.com', signedIn: false);
+        final handle = tester.ensureSemantics();
+        await tester
+            .pumpWidget(_wrapPantallas(auth, db, _accionOk(), pantalla.ruta));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester.getSemantics(find.byKey(ValueKey(pantalla.key))),
+          matchesSemantics(
+            label: 'Continuar con Google',
+            isButton: true,
+            isEnabled: true,
+            isFocusable: true,
+            hasEnabledState: true,
+            hasTapAction: true,
+            hasFocusAction: true,
+          ),
+        );
+        handle.dispose();
+      });
+
+      testWidgets(
+          '${pantalla.nombre}: un doble toque NO dispara dos ingresos',
+          (tester) async {
+        final db = await buildFakeFirestoreVacio();
+        final auth = mockAuth(uid: 'u', email: 'x@gmail.com', signedIn: false);
+        final enVuelo = Completer<UserCredential>();
+        var llamadas = 0;
+        await tester.pumpWidget(_wrapPantallas(auth, db, (_) {
+          llamadas++;
+          return enVuelo.future;
+        }, pantalla.ruta));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(ValueKey(pantalla.key)));
+        await tester.pump();
+        // Segundo toque con la primera operación todavía en vuelo.
+        await tester.tap(find.byKey(ValueKey(pantalla.key)),
+            warnIfMissed: false);
+        await tester.pump();
+
+        expect(llamadas, 1);
+        // Y mientras tanto hay indicador de progreso dentro del botón.
+        expect(
+          find.descendant(
+            of: find.byKey(ValueKey(pantalla.key)),
+            matching: find.byType(CircularProgressIndicator),
+          ),
+          findsOneWidget,
+        );
+
+        enVuelo.completeError(const GoogleIngresoCancelado());
+        await tester.pumpAndSettle();
+      });
+
+      testWidgets('${pantalla.nombre}: un error se muestra SIN salir de la pantalla',
+          (tester) async {
+        final db = await buildFakeFirestoreVacio();
+        final auth = mockAuth(uid: 'u', email: 'admin@gmail.com', signedIn: false);
+        await tester.pumpWidget(_wrapPantallas(
+          auth,
+          db,
+          _accionQueLanza(FirebaseAuthException(
+              code: 'account-exists-with-different-credential')),
+          pantalla.ruta,
+        ));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(ValueKey(pantalla.key)));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(SnackBar), findsOneWidget);
+        expect(
+          find.textContaining('Inicia sesión con tu contraseña'),
+          findsOneWidget,
+        );
+        // Sigue en la MISMA pantalla.
+        expect(find.byKey(ValueKey(pantalla.key)), findsOneWidget);
+      });
+
+      testWidgets('${pantalla.nombre}: una cancelación NO muestra ningún error',
+          (tester) async {
+        final db = await buildFakeFirestoreVacio();
+        final auth = mockAuth(uid: 'u', email: 'x@gmail.com', signedIn: false);
+        await tester.pumpWidget(_wrapPantallas(
+            auth, db, _accionQueLanza(const GoogleIngresoCancelado()),
+            pantalla.ruta));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(ValueKey(pantalla.key)));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(SnackBar), findsNothing);
+        // Control positivo del finder: el caso de error de arriba SÍ
+        // encuentra un SnackBar con el mismo matcher.
+        expect(find.byKey(ValueKey(pantalla.key)), findsOneWidget);
+      });
+    }
+
+    testWidgets('el formulario de email/contraseña sigue intacto en el login',
+        (tester) async {
+      final db = await buildFakeFirestoreVacio();
+      final auth = mockAuth(uid: 'u', email: 'x@gmail.com', signedIn: false);
+      await tester.pumpWidget(_wrapPantallas(auth, db, _accionOk(), '/login'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('login-email')), findsOneWidget);
+      expect(find.byKey(const ValueKey('login-password')), findsOneWidget);
+      expect(find.text('Ingresar'), findsOneWidget);
+    });
+
+    testWidgets('el formulario de registro sigue intacto (4 campos)',
+        (tester) async {
+      final db = await buildFakeFirestoreVacio();
+      final auth = mockAuth(uid: 'u', email: 'x@gmail.com', signedIn: false);
+      await tester.pumpWidget(
+          _wrapPantallas(auth, db, _accionOk(), '/register'));
+      await tester.pumpAndSettle();
+
+      for (final k in const [
+        'register-nombre',
+        'register-email',
+        'register-password',
+        'register-password-2',
+      ]) {
+        expect(find.byKey(ValueKey(k)), findsOneWidget);
+      }
+      expect(find.text('Crear cuenta'), findsWidgets);
     });
   });
 }
