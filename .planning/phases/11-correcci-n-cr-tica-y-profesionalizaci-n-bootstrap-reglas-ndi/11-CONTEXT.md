@@ -85,6 +85,35 @@ llamador con alcances distintos, y debe validar el claim del llamador antes de c
   `restaurantes`. Esta regla sí cambia.
 - La lectura debe quedar acotada al `rid` del llamador, sin abrir `usuarios` a más de lo necesario.
 
+### Login con Google (Gmail) en la app cliente — LOCKED (decisión del usuario, 2026-08-19)
+- La app cliente debe permitir **registrarse e iniciar sesión con Google**, además del email/contraseña
+  actual. El proveedor ya está habilitado en el proyecto Firebase (`p-gri-b5b40`, número `703827387403`).
+- Solo aplica a la app **cliente**. El panel sigue con email/contraseña — el staff se crea por la
+  callable y no se auto-registra.
+
+**Estado verificado del proyecto (2026-08-19) — hay prerrequisitos SIN cumplir:**
+- Las apps usan `firebase_options.dart` (flutterfire configure), **no** `google-services.json`.
+  El `documentos/google-services.json` del repo es de otro registro (`package_name: gri.app`),
+  no del real (`com.gri.gri_cliente`), y **no tiene ni una entrada `oauth_client`**. No usarlo.
+- La ausencia de `oauth_client` confirma que **la huella SHA-1 no está registrada** en Firebase para
+  la app Android. Sin ella, Google Sign-In falla en Android con `DEVELOPER_ERROR` (código 10).
+  SHA-1 de depuración de esta máquina: `31:E5:A7:1F:21:66:7D:C4:42:90:DB:2C:25:43:2D:C5:48:BD:8F:E2`
+  SHA-256: `82:6F:00:51:09:9D:F4:EF:9A:91:C3:37:E6:0E:53:26:81:36:03:54:E1:58:BA:67:4D:D6:86:82:2C:6D:8A:9A`
+- Falta el **Web client ID** de OAuth (`703827387403-….apps.googleusercontent.com`). Se necesita como
+  `serverClientId` en Android (para obtener el idToken) y como client ID en Flutter Web.
+- `google_sign_in` no está en `app_cliente/pubspec.yaml`. `firebase_auth` es 6.5.7.
+
+**Requisitos funcionales:**
+- Al entrar con Google por primera vez hay que crear el doc espejo `usuarios/{uid}` respetando la
+  regla vigente: `role == 'cliente'` y `restauranteId == null`. Un usuario de Google **no obtiene
+  claims** — es cliente, igual que un auto-registro.
+- **Colisión de cuentas:** si un correo ya existe con email/contraseña y luego entra con Google,
+  Firebase lanza `account-exists-with-different-credential`. Debe manejarse con un mensaje claro,
+  no con un error crudo.
+- El nombre del perfil se toma del displayName de Google cuando exista.
+- Efecto colateral útil: las cuentas de Google llegan con `email_verified: true`, lo que encaja con
+  el endurecimiento del bootstrap.
+
 ### Bootstrap del restaurante
 - El doc ID del restaurante **debe ser un slug `[a-z0-9-]+`**. Restricción dura, no negociable:
   el escáner valida `^GRI-MESA-[a-z0-9-]+-\d{3}$` (`app_cliente/lib/features/sesion_qr/scan_screen.dart:41`)
