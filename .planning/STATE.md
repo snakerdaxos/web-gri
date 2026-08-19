@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-last_updated: "2026-08-19T17:11:17.114Z"
+last_updated: "2026-08-19T18:05:00.000Z"
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 52
-  completed_plans: 38
+  completed_plans: 39
   percent: 73
 ---
 
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Un cliente puede sentarse en una mesa, escanear su QR, pedir del menu y recibir su comida en tiempo real sin intermediarios.
-**Current focus:** Phase 11 — Correccion critica y profesionalizacion (plan 06/20 completado)
+**Current focus:** Phase 11 — Correccion critica y profesionalizacion (plan 07/20 completado)
 
 ## Roadmap Evolution
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 6/20 planes [######--------------] 30%
+Phase 11: 7/20 planes [#######-------------] 35%
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -37,7 +37,8 @@ Phase 11: 6/20 planes [######--------------] 30%
 - [x] 11-04 Suite completa de firestore.rules: 7 colecciones nuevas, 190 casos, 3 vectores de escalada verificados por rotura deliberada — 0d2cafc, a0828f0, 4825e26
 - [x] 11-05 Alta de restaurante desde el producto: slug canonico + crearRestaurante + dialogo con vista previa + estado vacio guiado + confirmacion al desactivar — 5d02e98, c2e62d2, 66afa5b, 72b9234, f137263
 - [x] 11-06 Ver/ocultar contrasena en los 5 campos + confirmar contrasena en el registro: PasswordField por app (48x48 verificado anulando los defaults del framework), 12 roturas deliberadas — 958d59f, 3723572, fd5a3e7, f3c2f99
-- [ ] 11-07 .. 11-20
+- [x] 11-07 Bootstrap del primer super_admin: callable con guarda atomica ANTES de toda consulta + doble factor (email_verified + secreto en tiempo constante, sin cortocircuito, mensaje unico), centinela blindado en rules, pantalla /bootstrap exenta del guard e invalidacion de claims. 13 roturas deliberadas — 06ba232, 8dc3e35, 28c1714
+- [ ] 11-08 .. 11-20
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -48,11 +49,12 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 ## Test Baselines (final Firebase)
 
 - app_cliente: 112 passed + analyze 0 (11-06: +16 de toggle de contrasena y confirmacion en el registro)
-- panel_admin: 139 passed + analyze 0 (11-06: +7 de toggle de contrasena en el login)
-- TOTAL apps: 251 (baseline previa 228, sin regresion)
+- panel_admin: 157 passed + analyze 0 (11-07: +18 — 5 sobre el GoRouter real y 13 de pantalla/controlador de /bootstrap)
+- TOTAL apps: 269 (baseline previa 251, sin regresion)
+- Cloud Functions e2e: 11 passed via `cd scripts && npm run test:functions` (11-07, emuladores auth+functions+firestore reales)
 - firestore.rules: 208 passed via `cd scripts && npm run test:rules` (11-04: +190 — mesas 26, sesiones 29, pedidos 36, reservas 27, calificaciones 21, usuarios 22, restaurantes 29)
 - indices/paridad: `cd scripts && npm run audit:indexes` — 21 queries clasificadas, 0 fallos, exit 0
-- Cloud Functions: sin tests aun (llegan en 11-07/11-08); `npm run test:functions` ya cableado
+- Cloud Functions: `bootstrapPlataforma` con 11 casos e2e contra emuladores reales (11-07); `crearUsuarioStaff` sigue sin tests (llega en 11-08)
 - backend FastAPI: archivado (215 tests referencia MySQL, no se mantiene)
 
 ## Stack actual
@@ -93,6 +95,13 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-05: con AutovalidateMode.onUserInteraction el validador de un campo que el usuario nunca toca NO se dispara — el aviso hay que forzarlo con InputDecoration.errorText
 - 11-05: un test puede estar verde por construccion (el doble-guardado seguiria en 1 doc por el check de existencia); la asercion con dientes es que el boton se apaga
 
+- 11-07: el ORDEN importa — la guarda atomica create() va ANTES de la consulta de comprobacion; con la query delante, la rama ALREADY_EXISTS queda inalcanzable y los tests pasarian identicos con la guarda borrada (verificado: create->set tumba 3 casos, incluida la sobrescritura del centinela ajeno)
+- 11-07: la comprobacion secundaria de super_admin SOLO corre si el centinela se creo en esta invocacion; sin esa condicion el camino de reparacion encuentra al propio llamador y se auto-deniega (rompe la carrera y la segunda llamada)
+- 11-07: el correo del fundador NO es un secreto (el registro email/password esta abierto) — por eso email_verified === true y BOOTSTRAP_SECRET en tiempo constante son obligatorios, con caso negativo propio cada uno
+- 11-07: HALLAZGO — el `return null` incondicional de /bootstrap en app.dart es HOY REDUNDANTE con el conjunto rutasPublicas; quitarlo deja la suite del router en verde. Se conserva como defensa en profundidad pero queda AFIRMADO, no verificado
+- 11-07: HALLAZGO — el sidebar del AppShell desborda 85px (app_shell.dart:171) a CUALQUIER ancho; primer test que renderiza el shell entero. Diferido al bloque 3 (deferred-items.md); bootstrap_router_test.dart filtra solo `A RenderFlex overflowed` y ese filtro debe retirarse al corregirlo
+- 11-07: FirebaseFunctions no es instanciable en flutter test, asi que se anadio una segunda costura (bootstrapCallableProvider) — sin ella el invalidate de claims y la reversion de cuenta quedarian afirmados por grep en vez de verificados
+
 ## Performance Metrics
 
 | Phase | Plan | Duracion | Tareas | Archivos |
@@ -102,12 +111,13 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | 11 | 03 | ~13 min | 3 | 10 |
 | 11 | 05 | ~15 min | 3 | 8 |
 | 11 | 06 | ~40 min | 2 | 9 |
+| 11 | 07 | ~65 min | 3 | 15 |
 
 ## Session
 
 - Last session: 2026-08-19
-- Stopped at: Completado 11-06-PLAN.md (ver/ocultar contrasena en los 5 campos + confirmar contrasena en el registro). Siguiente: 11-07-PLAN.md
-- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-07-PLAN.md
+- Stopped at: Completado 11-07-PLAN.md (bootstrap del primer super_admin: callable + rules + pantalla). Siguiente: 11-08-PLAN.md
+- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-08-PLAN.md
 
 ## Blockers / Notas
 
@@ -123,3 +133,7 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - Sigue pendiente el sellado humano de la Fase 10 (deploy real + smoke, docs/SMOKE-E2E.md).
 - 11-05: BOOT-02 y UX-04 tampoco existen en .planning/REQUIREMENTS.md (mismo motivo que ENV-01/DOC-01/TEST-01/TEST-02): requirements.mark-complete no puede marcarlos.
 - 11-05: la MITAD del bootstrap sigue abierta — un restaurante creado desde el panel aun no tiene staff propio hasta la callable de 11-07/11-08.
+- 11-07: BOOT-01 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11): `requirements.mark-complete BOOT-01` devuelve not_found. Queda en el frontmatter del SUMMARY.
+- 11-07 PENDIENTE DE SELLADO HUMANO: la funcion `bootstrapPlataforma` y el `match /plataforma` NO estan desplegados. Hasta `firebase deploy --only functions,firestore:rules --project p-gri-b5b40`, produccion sigue sin la callable y con el centinela sin regla explicita. Runbook en docs/FIREBASE_SETUP.md §4.1 (exige BOOTSTRAP_EMAIL y BOOTSTRAP_SECRET en functions/.env ANTES del deploy).
+- 11-07 PARA 11-08: reutilizar `scripts/test/functions/_emu.mjs` tal cual. AVISO: su `limpiar()` borra TODOS los usuarios de Auth y las colecciones `usuarios` y `plataforma`; si 11-08 siembra otras, debe ampliar la lista. El glob de `test:functions` ya recoge *.e2e.mjs y *.test.mjs.
+- 11-07: la resistencia real a un ataque de temporizacion NO esta medida (solo se verifica que timingSafeEqual esta y que una longitud distinta deniega sin lanzar). `maxInstances: 3` esta declarado pero el emulador no lo aplica. App Check sigue DIFERIDO.
