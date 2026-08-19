@@ -43,6 +43,20 @@ Widget _wrap({required FirebaseAuth auth, required FirebaseFirestore db}) {
   );
 }
 
+
+/// El `TextField` interno del campo con esa key.
+Finder _campo(Key k) =>
+    find.descendant(of: find.byKey(k), matching: find.byType(TextField));
+
+Finder _ojo(Key k) =>
+    find.descendant(of: find.byKey(k), matching: find.byType(IconButton));
+
+bool _obscuro(WidgetTester tester, Key k) =>
+    tester.widget<TextField>(_campo(k)).obscureText;
+
+IconData _iconoDe(WidgetTester tester, Key k) =>
+    (tester.widget<IconButton>(_ojo(k)).icon as Icon).icon!;
+
 void main() {
   // ── UI: render + edición ──────────────────────────────────────────────
 
@@ -176,4 +190,97 @@ void main() {
       throwsA(isA<ArgumentError>()),
     );
   });
+
+  // -- 11-06: los DOS campos de contraseña del perfil, independientes -----
+
+  testWidgets('perfil: ambas contraseñas arrancan ocultas y con ojo',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db);
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: _uid);
+
+    await tester.pumpWidget(_wrap(auth: auth, db: db));
+    await tester.pumpAndSettle();
+
+    expect(_obscuro(tester, const ValueKey('perfil-pass-actual')), isTrue);
+    expect(_obscuro(tester, const ValueKey('perfil-password')), isTrue);
+    expect(_iconoDe(tester, const ValueKey('perfil-pass-actual')),
+        Icons.visibility);
+    expect(
+        _iconoDe(tester, const ValueKey('perfil-password')), Icons.visibility);
+  });
+
+  testWidgets(
+      'perfil: mostrar "Contraseña actual" NO revela "Nueva contraseña"',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db);
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: _uid);
+
+    await tester.pumpWidget(_wrap(auth: auth, db: db));
+    await tester.pumpAndSettle();
+
+    const actual = ValueKey('perfil-pass-actual');
+    const nueva = ValueKey('perfil-password');
+
+    await tester.tap(_ojo(actual));
+    await tester.pump();
+
+    expect(_obscuro(tester, actual), isFalse);
+    expect(_obscuro(tester, nueva), isTrue,
+        reason: 'cada PasswordField tiene su propio estado');
+    expect(_iconoDe(tester, actual), Icons.visibility_off);
+    expect(_iconoDe(tester, nueva), Icons.visibility);
+
+    // Y al revés: revelar la nueva no vuelve a ocultar la actual.
+    await tester.tap(_ojo(nueva));
+    await tester.pump();
+    expect(_obscuro(tester, actual), isFalse);
+    expect(_obscuro(tester, nueva), isFalse);
+  });
+
+  testWidgets('perfil: el ojo conserva el helperText y el prefijo del campo',
+      (tester) async {
+    // La extracción del widget NO puede perder la decoración existente
+    // (el plan lo exige: extraer, no rediseñar).
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db);
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: _uid);
+
+    await tester.pumpWidget(_wrap(auth: auth, db: db));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Solo si vas a cambiar la contraseña'), findsOneWidget);
+    expect(find.text('Déjala vacía para no cambiarla'), findsOneWidget);
+    expect(find.text('Contraseña actual'), findsOneWidget);
+    expect(find.text('Nueva contraseña (opcional)'), findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byKey(const ValueKey('perfil-pass-actual')),
+            matching: find.byIcon(Icons.lock_outline)),
+        findsOneWidget);
+  });
+
+  testWidgets('perfil: revelar la contraseña no altera lo que se guarda',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db);
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: _uid);
+
+    await tester.pumpWidget(_wrap(auth: auth, db: db));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+        find.byKey(const ValueKey('perfil-pass-actual')), 'Demo!1234');
+    await tester.tap(_ojo(const ValueKey('perfil-pass-actual')));
+    await tester.pump();
+
+    expect(
+        tester
+            .widget<TextField>(_campo(const ValueKey('perfil-pass-actual')))
+            .controller!
+            .text,
+        'Demo!1234');
+  });
 }
+
