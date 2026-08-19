@@ -3,6 +3,7 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gri_panel_admin/core/gri_icons.dart';
 import 'package:gri_panel_admin/core/firebase_providers.dart';
 import 'package:gri_panel_admin/core/format.dart';
 import 'package:gri_panel_admin/core/state_machines.dart';
@@ -360,7 +361,10 @@ void main() {
     await tester.pumpWidget(_cocina(db));
     await tester.pumpAndSettle();
 
-    expect(find.text('No hay pedidos activos 🎉'), findsOneWidget);
+    // 11-21: el emoji de fiesta salió del literal y es ahora un Icon; el
+    // finder cambia, la aserción NO (sigue afirmando el estado vacío).
+    expect(find.text('No hay pedidos activos'), findsOneWidget);
+    expect(find.byIcon(GriIcons.todoAlDia), findsOneWidget);
     expect(find.byType(ListView), findsNothing);
   });
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gri_panel_admin/core/gri_icons.dart';
 import 'package:gri_panel_admin/features/mesas/qr_dialog.dart';
 import 'package:gri_panel_admin/models/mesa.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -12,7 +13,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 /// `_data` privado) — la igualdad EXACTA del código se asierta vía el
 /// SelectableText, y el pintado real del QR vía su QrPainter montado.
 ///
-/// El botón 🖨️ Imprimir NO se tapea: `web.window.print()` solo existe en
+/// El botón Imprimir NO se tapea: `web.window.print()` solo existe en
 /// el browser (package:web) — en la VM del runner lanzaría.
 
 const _mesa = Mesa(
@@ -66,7 +67,10 @@ void main() {
       );
 
       // El botón Imprimir existe (NO se tapea — web-only).
-      expect(find.text('🖨️ Imprimir'), findsOneWidget);
+      // 11-21: el emoji de impresora es ahora un Icon dentro de un
+      // TextButton.icon; el finder cambia, la aserción NO.
+      expect(find.text('Imprimir'), findsOneWidget);
+      expect(find.byIcon(GriIcons.imprimir), findsOneWidget);
     },
   );
 

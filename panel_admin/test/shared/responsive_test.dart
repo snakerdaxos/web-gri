@@ -333,7 +333,7 @@ void main() {
                   value: 12,
                   iconBg: Color(0xFFEEEEEE),
                   iconFg: Color(0xFF000000),
-                  emoji: 'X',
+                  icono: Icons.abc,
                 ),
               ),
             ),

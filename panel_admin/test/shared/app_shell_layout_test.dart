@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_panel_admin/app.dart';
 import 'package:gri_panel_admin/core/design_tokens.dart';
+import 'package:gri_panel_admin/core/gri_icons.dart';
 import 'package:gri_panel_admin/core/theme.dart';
 import 'package:gri_panel_admin/core/firebase_providers.dart';
 import 'package:gri_panel_admin/features/shared/app_shell.dart';
@@ -187,5 +188,96 @@ void main() {
       (w) => w is Container && w.color == GriColors.sidebar,
     );
     expect(tester.getSize(sidebar).width, 250.0);
+  });
+
+  // ── Iconografía del sidebar (11-21, Tarea 3) ────────────────────────────
+
+  testWidgets('los 8 ítems del sidebar renderizan Icon, no emoji, y conservan '
+      'su etiqueta', (tester) async {
+    await montar(tester, const Size(1280, 900));
+
+    const iconos = <IconData>[
+      GriIcons.dashboard,
+      GriIcons.mesas,
+      GriIcons.pedidos,
+      GriIcons.reservas,
+      GriIcons.clientes,
+      GriIcons.reportes,
+      GriIcons.equipo,
+      GriIcons.configuracion,
+    ];
+    // Los finders se acotan al SIDEBAR: cuatro de estos iconos (mesas,
+    // clientes, reservas, pedidos) salen también en las stat cards del
+    // dashboard, así que un `find.byIcon` global encontraría dos y el caso
+    // fallaría por un motivo que no es el suyo.
+    final sidebar = find.byWidgetPredicate(
+      (w) => w is Container && w.color == GriColors.sidebar,
+    );
+    for (final i in iconos) {
+      expect(
+        find.descendant(of: sidebar, matching: find.byIcon(i)),
+        findsOneWidget,
+        reason: 'falta el icono $i en el sidebar',
+      );
+    }
+    // Y la marca del logo.
+    expect(
+      find.descendant(of: sidebar, matching: find.byIcon(GriIcons.marca)),
+      findsOneWidget,
+    );
+
+    // El size del Icon IGUALA el fontSize del Text que sustituyó (18 en el
+    // ítem, 24 en el badge de marca): T-11-21-05.
+    expect(
+      tester
+          .widget<Icon>(find.descendant(
+            of: sidebar,
+            matching: find.byIcon(GriIcons.dashboard),
+          ))
+          .size,
+      18,
+    );
+    expect(
+      tester
+          .widget<Icon>(find.descendant(
+            of: sidebar,
+            matching: find.byIcon(GriIcons.marca),
+          ))
+          .size,
+      24,
+    );
+  });
+
+  testWidgets('colapsado, los ítems siguen siendo SOLO el icono — ahora un '
+      'Icon de verdad, y con etiqueta semántica', (tester) async {
+    await montar(tester, const Size(700, 900));
+
+    final sidebar = find.byWidgetPredicate(
+      (w) => w is Container && w.color == GriColors.sidebar,
+    );
+    final enSidebar = find.descendant(
+      of: sidebar,
+      matching: find.byIcon(GriIcons.mesas),
+    );
+    expect(enSidebar, findsOneWidget);
+    expect(find.text('Mesas'), findsNothing);
+    // Sin texto visible al lado, el icono tiene que decir qué es.
+    expect(tester.widget<Icon>(enSidebar).semanticLabel, 'Mesas');
+  });
+
+  testWidgets('el ítem activo tiñe su icono del mismo color que su etiqueta',
+      (tester) async {
+    await montar(tester, const Size(1280, 900));
+
+    // '/' es la ruta activa ⇒ Dashboard va en blanco sobre el naranja; los
+    // demás en el gris de los inactivos. El color NO puede quedar en manos de
+    // la fuente de emoji del sistema, que es lo que pasaba antes.
+    final sidebar = find.byWidgetPredicate(
+      (w) => w is Container && w.color == GriColors.sidebar,
+    );
+    Icon iconoDe(IconData d) => tester.widget<Icon>(
+          find.descendant(of: sidebar, matching: find.byIcon(d)));
+    expect(iconoDe(GriIcons.dashboard).color, Colors.white);
+    expect(iconoDe(GriIcons.mesas).color, const Color(0xFFCCCCCC));
   });
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_panel_admin/core/firebase_providers.dart';
+import 'package:gri_panel_admin/core/gri_icons.dart';
 import 'package:gri_panel_admin/features/dashboard/dashboard_screen.dart';
 import 'package:gri_panel_admin/features/dashboard/widgets/stat_card.dart';
 import 'package:gri_panel_admin/features/dashboard/mesas_provider.dart';
@@ -416,6 +417,24 @@ void main() {
 
     // Y el alto de la celda es el declarado, no un derivado del ancho.
     expect(tester.getSize(cards.first).height, alturaStatCard);
+
+    // 11-21: los 4 emojis de las cards son ahora Icon, y su `size` IGUALA el
+    // fontSize del Text que sustituyeron (25) — mitigación de T-11-21-05.
+    for (final icono in const [
+      GriIcons.mesas,
+      GriIcons.clientes,
+      GriIcons.reservas,
+      GriIcons.pedidos,
+    ]) {
+      // Acotado a las cards: `clientes` sale también en cada MesaTile (la
+      // capacidad), así que un find global encontraría cuatro.
+      final f = find.descendant(
+        of: find.byType(StatCard),
+        matching: find.byIcon(icono),
+      );
+      expect(f, findsOneWidget, reason: 'falta el icono $icono');
+      expect(tester.widget<Icon>(f).size, 25);
+    }
   });
 
   testWidgets(
