@@ -5,12 +5,17 @@
   "type": "module",
   "description": "Tooling Firebase de GRI: seed idempotente del restaurante demo + firebase-tools (emuladores/deploy). Ver docs/FIREBASE_SETUP.md.",
   "scripts": {
-    "seed": "node seed_firebase.mjs"
+    "seed": "node seed_firebase.mjs",
+    "test:rules": "node run_emulators.mjs --only firestore --project demo-gri -- node --test scripts/test/rules/*.test.mjs",
+    "test:functions": "node run_emulators.mjs --only auth,functions,firestore --project demo-gri -- node --test scripts/test/functions/*.test.mjs",
+    "test": "npm run test:rules && npm run test:functions"
   },
   "dependencies": {
     "firebase-admin": "14.2.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.1",
+    "firebase": "12.17.1",
     "firebase-tools": "15.27.0"
   }
 }
