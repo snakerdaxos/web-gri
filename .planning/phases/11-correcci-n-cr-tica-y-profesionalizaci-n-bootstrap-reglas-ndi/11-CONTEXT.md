@@ -66,6 +66,25 @@ llamador con alcances distintos, y debe validar el claim del llamador antes de c
   hacer responsive de verdad y cumplir accesibilidad básica.
 - No se rediseñan pantallas ni se cambia la paleta.
 
+### Primer super_admin — LOCKED (decisión del usuario, 2026-08-19)
+- Nace de una **Cloud Function de bootstrap única**: crea el primer `super_admin` **solo si no existe
+  ninguno**, y a partir de ahí queda inerte para siempre.
+- Motivo: cumple la decisión de producto autosuficiente — la plataforma se arranca desde una pantalla,
+  sin scripts ni clave de servicio en manos de nadie.
+- **Riesgo a mitigar explícitamente en el plan:** es una puerta de escalada de privilegios si se
+  diseña mal. Requisitos mínimos: comprobar la inexistencia de cualquier `super_admin` de forma
+  atómica (no una lectura seguida de una escritura), dejar rastro auditable de la invocación, y
+  tests dedicados que verifiquen que una segunda llamada siempre falla, incluidas llamadas
+  concurrentes.
+
+### Lectura del equipo — cambio necesario en las rules
+- Hoy `usuarios/{uid}` solo lo lee el propio usuario o el `super_admin`
+  (`firestore.rules`, match `/usuarios/{uid}`). Un `admin_restaurante` **no puede listar su propio
+  equipo**, así que la pantalla de gestión de personal no puede existir sin tocar la regla.
+- Corrección al CONTEXT previo: cuando se dijo "no hay que tocar las rules", eso aplicaba solo a
+  `restaurantes`. Esta regla sí cambia.
+- La lectura debe quedar acotada al `rid` del llamador, sin abrir `usuarios` a más de lo necesario.
+
 ### Bootstrap del restaurante
 - El doc ID del restaurante **debe ser un slug `[a-z0-9-]+`**. Restricción dura, no negociable:
   el escáner valida `^GRI-MESA-[a-z0-9-]+-\d{3}$` (`app_cliente/lib/features/sesion_qr/scan_screen.dart:41`)
@@ -86,6 +105,17 @@ llamador con alcances distintos, y debe validar el claim del llamador antes de c
 - Los tests de app siguen con `fake_cloud_firestore`, pero se añade cobertura del caso
   **base vacía / primer arranque**, que hoy no existe porque `buildFakeFirestoreConSeed()`
   siempre pre-siembra.
+
+### Entorno — bloqueos previos detectados en la investigación
+- **Java no está en el PATH.** El emulador de Firestore lo exige (el de Functions no). Existe un
+  OpenJDK 21.0.10 verificado funcional en el JBR de Android Studio.
+- **Falta `.firebaserc`.** `firebase emulators:exec` lo necesita.
+- Ambos son bloqueantes para cualquier test contra emulador, así que van primero.
+
+### CLAUDE.md desactualizado
+- Toda la sección "Technology Stack" de `CLAUDE.md` describe el backend FastAPI + MySQL que se
+  **archivó en la Fase 10**. Cualquier agente futuro planeará contra un stack inexistente.
+- Se corrige en esta fase (tarea barata, alto retorno).
 
 ### Claude's Discretion
 - Estructura de carpetas de las Cloud Functions y su configuración de despliegue.
