@@ -30,8 +30,14 @@
 //                          admin_restaurante → solo su propio rid. Nadie puede
 //                          asignar super_admin.
 //
-// Estado: `bootstrapPlataforma` exportada desde el plan 11-07.
-// `crearUsuarioStaff` sigue pendiente (plan 11-08).
+//
+// Módulos de apoyo en src/ que NO son funciones desplegadas:
+//   auth-matrix.js       → plan 11-08. Lógica PURA de la matriz de
+//                          autorización. Cero imports de Firebase a propósito:
+//                          así su combinatoria completa se prueba sin
+//                          emulador (functions/test/auth-matrix.test.js).
+//
+// Estado: `bootstrapPlataforma` (11-07) y `crearUsuarioStaff` (11-08) exportadas.
 // ============================================================================
 
 import { initializeApp } from 'firebase-admin/app';
@@ -39,4 +45,4 @@ import { initializeApp } from 'firebase-admin/app';
 initializeApp();
 
 export { bootstrapPlataforma } from './src/bootstrap-plataforma.js';  // plan 11-07
-// export { crearUsuarioStaff } from './src/staff.js';                 // plan 11-08
+export { crearUsuarioStaff } from './src/crear-usuario-staff.js';    // plan 11-08
