@@ -117,6 +117,27 @@ llamador con alcances distintos, y debe validar el claim del llamador antes de c
 - Efecto colateral útil: las cuentas de Google llegan con `email_verified: true`, lo que encaja con
   el endurecimiento del bootstrap.
 
+### Emojis como iconos — DESBLOQUEADO (decisión del usuario, 2026-08-19)
+- El usuario pide **explícitamente** sustituir los emojis por iconos de verdad (`Icon`/`Icons`).
+- Esto **revierte** la interpretación previa: al planificar se descartó el cambio por respetar la
+  decisión de conservar la identidad visual. El usuario ha aclarado que sí lo quiere.
+- Alcance confirmado: la barra inferior del cliente usa `🏠 🔍 📅 👤` como iconos de tab
+  (`app_cliente/lib/features/shared/app_shell.dart`), y las auditorías contaron 38+ emojis usados
+  como iconografía en el resto de pantallas.
+- Sigue vigente lo demás de la identidad: paleta `#FF4C05` y layouts no cambian.
+
+### Espacio superior en la app cliente — BUG confirmado (reportado por el usuario, 2026-08-19)
+- Síntoma del usuario: *"la app de cliente no deja espacio en la parte superior haciendo que quede
+  todo muy pegado, se oculta el logo y demás"*.
+- Causa verificada: `app_cliente/lib/features/shared/app_shell.dart` monta el contenido en
+  `Scaffold(body: Center(ConstrainedBox(...)))` **sin `SafeArea`**, así que el contenido empieza en
+  y=0, debajo de la barra de estado y del notch.
+- Solo 3 de 9 pantallas usan `SafeArea` (`menu_mesa_screen`, `pedido_estado_screen`,
+  `reserva_wizard_screen`). De las 9 pantallas con `Scaffold`, 6 tienen `AppBar` — las 3 sin
+  `AppBar` son las que colisionan con la barra del sistema.
+- Entra en el bloque de responsive junto a los otros desbordamientos ya detectados durante la
+  ejecución: `StatCard` (31px a ≥1100px) y el sidebar del panel (85px a cualquier ancho).
+
 ### Bootstrap del restaurante
 - El doc ID del restaurante **debe ser un slug `[a-z0-9-]+`**. Restricción dura, no negociable:
   el escáner valida `^GRI-MESA-[a-z0-9-]+-\d{3}$` (`app_cliente/lib/features/sesion_qr/scan_screen.dart:41`)
