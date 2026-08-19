@@ -30,10 +30,35 @@ Future<List<Restaurante>> restaurantesList(Ref ref) async {
 /// doc `restaurantes/{id}` + categorías + productos del restaurante,
 /// agrupados por `categoriaId` (colección plana, research 10).
 ///
-/// Nota de índices: el `orderBy('orden')` de las categorías se hace
-/// client-side — el índice compuesto `categorias(restauranteId, orden)` NO
-/// existe en 10-01 y el where simple usa índice de campo único (el N por
-/// restaurante es chico; comportamiento idéntico).
+/// ⚠️ POR QUÉ LOS FILTROS SON SERVER-SIDE (11-03 — NO "optimizar" quitándolos):
+/// la razón NO es rendimiento, es AUTORIZACIÓN. Firestore evalúa las security
+/// rules contra la CONSULTA, nunca contra los documentos devueltos: si la query
+/// pudiera alcanzar un solo doc que la regla no permite, se rechaza la petición
+/// ENTERA con `permission-denied`. Filtrar client-side después de traer los
+/// documentos no sirve de nada, porque nunca llegan.
+///
+/// Las reglas vigentes son (`firestore.rules`, matches /categorias y
+/// /productos):
+///
+///     categorias → activo == true            || menuStaffOf(restauranteId)
+///     productos  → activo == true
+///                  && disponible == true     || menuStaffOf(restauranteId)
+///
+/// Regla mental permanente: **si la rule menciona `resource.data.X`, la query
+/// DEBE llevar `where('X', …)`**. De ahí que `productos` lleve DOS filtros:
+/// replicar la regla a medias (solo `activo`) también deniega la query.
+/// Cobertura: `scripts/test/rules/categorias.test.mjs` y `productos.test.mjs`
+/// lo afirman contra el emulador con las rules reales.
+///
+/// Nota de índices: el `orderBy('orden')` de las categorías se sigue haciendo
+/// client-side, y es una decisión deliberada de 11-03 — hacerlo server-side
+/// obligaría al índice compuesto `categorias(restauranteId, activo, orden)`.
+/// El N de categorías por restaurante es pequeño y evitar un índice extra
+/// elimina un punto de fallo más: los índices tardan minutos en construirse y
+/// el emulador de Firestore ni siquiera los valida, así que un índice que falte
+/// solo se descubre en producción. Los `where` de igualdad de arriba se
+/// resuelven con los índices automáticos de campo único: no requieren
+/// compuesto.
 @riverpod
 Future<RestauranteDetalle> restauranteDetalle(Ref ref, String id) async {
   final db = ref.watch(firestoreProvider);
@@ -46,18 +71,21 @@ Future<RestauranteDetalle> restauranteDetalle(Ref ref, String id) async {
   final catsSnap = await db
       .collection('categorias')
       .where('restauranteId', isEqualTo: id)
+      .where('activo', isEqualTo: true)
       .get();
   final prodsSnap = await db
       .collection('productos')
       .where('restauranteId', isEqualTo: id)
+      .where('activo', isEqualTo: true)
+      .where('disponible', isEqualTo: true)
       .get();
 
-  // Productos agrupados por categoría (solo activos — disponible es
-  // estado de stock que la UI deshabilita, activo es visibilidad de menú).
+  // Productos agrupados por categoría. Sin filtrado client-side: los `where`
+  // de arriba ya garantizan activo == true && disponible == true, y repetirlo
+  // aquí sugeriría —falsamente— que el filtro server-side es opcional.
   final porCategoria = <String, List<Producto>>{};
   for (final p in prodsSnap.docs) {
     final producto = Producto.fromDoc(p);
-    if (!producto.activo) continue;
     porCategoria
         .putIfAbsent(producto.categoriaId, () => <Producto>[])
         .add(producto);
@@ -65,7 +93,7 @@ Future<RestauranteDetalle> restauranteDetalle(Ref ref, String id) async {
 
   final categorias = <Categoria>[
     for (final c in catsSnap.docs) Categoria.fromDoc(c),
-  ]..retainWhere((c) => c.activo);
+  ];
   categorias.sort((a, b) => a.orden.compareTo(b.orden));
 
   return RestauranteDetalle.fromDoc(
