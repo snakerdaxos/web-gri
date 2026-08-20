@@ -138,6 +138,23 @@ llamador con alcances distintos, y debe validar el claim del llamador antes de c
 - Entra en el bloque de responsive junto a los otros desbordamientos ya detectados durante la
   ejecución: `StatCard` (31px a ≥1100px) y el sidebar del panel (85px a cualquier ancho).
 
+### Política de contraseñas — LOCKED (decisión del usuario, 2026-08-19)
+- Regla: **mínimo 8 caracteres, al menos una mayúscula, una minúscula y un número.**
+- Estado actual verificado: la única validación existente es `length >= 8`
+  (`app_cliente/lib/features/auth/register_screen.dart:64` y `:180-181`). `12345678` pasa hoy.
+- Aplica en los **cuatro** puntos donde se fija una contraseña, no solo en el registro:
+  1. Registro del cliente (`app_cliente/lib/features/auth/register_screen.dart`)
+  2. Cambio de contraseña en el perfil (`app_cliente/lib/features/perfil/perfil_screen.dart:131,143`)
+  3. Alta de staff desde el panel (el admin escribe la contraseña de su empleado) — `panel_admin/lib/features/equipo/`
+  4. Pantalla de bootstrap del primer `super_admin` (`panel_admin`, plan 11-07)
+- Una única fuente de verdad para la regla, compartida por app y panel; nada de duplicar la
+  expresión regular en cuatro sitios, que es como se desincronizan.
+- El mensaje de error debe decir **qué falta concretamente** ("te falta una mayúscula"), no un
+  genérico "contraseña inválida" — el mismo criterio que se aplicó al mensaje de la mesa.
+- Firebase Auth impone su propio mínimo de 6 caracteres; esta regla es más estricta y va del lado
+  del cliente. No sustituye a la validación del servidor en la callable de alta de staff, que debe
+  aplicar la misma política para que no se pueda saltar llamando a la función directamente.
+
 ### Bootstrap del restaurante
 - El doc ID del restaurante **debe ser un slug `[a-z0-9-]+`**. Restricción dura, no negociable:
   el escáner valida `^GRI-MESA-[a-z0-9-]+-\d{3}$` (`app_cliente/lib/features/sesion_qr/scan_screen.dart:41`)
