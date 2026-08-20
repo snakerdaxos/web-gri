@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-last_updated: "2026-08-19T23:03:50.895Z"
+last_updated: "2026-08-20T03:43:22.733Z"
 progress:
   total_phases: 11
   completed_phases: 10
-  total_plans: 53
-  completed_plans: 48
-  percent: 89
+  total_plans: 57
+  completed_plans: 53
+  percent: 91
 ---
 
 # STATE
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 20/25 planes [####################-----] 80%  (denominador corregido: `roadmap.update-plan-progress 11` cuenta 25 planes y 20 SUMMARY en disco; el 21 anterior venia arrastrado)
+Phase 11: 21/25 planes [#####################----] 84%  (`roadmap.update-plan-progress 11` cuenta 25 planes y 21 SUMMARY en disco tras 11-25)
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -51,7 +51,8 @@ Phase 11: 20/25 planes [####################-----] 80%  (denominador corregido: 
 - [x] 11-14 Accesibilidad de la app cliente: boton QR a 48x48 CON nodo de semantica propio (sin el, el tap se fusionaba con toda la cabecera en un nodo de 800x77 y la guia del plan pasaba VERDE con el bug puesto), 7 controles de icono etiquetados incluido un FAB que la auditoria no conto, 29 puntos de TEXTO de #777777 a #6E6E6E sin tocar el token de MARCA, suite a11y de 16 casos sobre 7 pantallas (las tres guias, ninguna excluida) + gate ESTATICO sobre las fuentes porque el barrido solo ve lo que monta. 24 roturas deliberadas, 3 VERDES cazadas. app_cliente 214 -> 230 -- c732cda, 29c2078, defb8f5, 5dc0398, 950f3ae, 6d69637
 - [x] 11-24 Baja REVERSIBLE de personal: baja-matrix.js (matriz PURA hermana de auth-matrix, 49 casos en 234ms) + callable cambiarEstadoStaff (disabled + claims a null + revokeRefreshTokens, CONSERVANDO role/restauranteId en el espejo, que es lo unico que permite reactivar) + 22 e2e con tokens reales + /equipo con insignia de estado y confirmacion solo destructiva. 26 roturas deliberadas, 4 VERDES cazadas (la propiedad de la prohibicion 1 NO la probaba —la tapaba otra comprobacion—; quitar revokeRefreshTokens no tumbaba NADA; el test de compatibilidad de `activo` era una TAUTOLOGIA; la forma del payload no estaba afirmada). MEDIDO: con la asercion de mensaje debilitada a solo-codigo, quitar la prohibicion 1 NO tumba ni una fila de la tabla. HALLAZGO: el razonamiento del plan para dejar a los clientes fuera de alcance solo cierra la puerta al admin_restaurante, no al super_admin. panel_admin 292 -> 313, functions unit 34 -> 96, functions e2e 25 -> 47 -- a392812, ea95ed8, 260da01, 2ada353 (este ultimo AJENO: ver colision en Blockers)
 - [x] 11-23 Mensajes honestos en el flujo de mesa: clasificador unico de fallos de Firebase (CausaFallo x6 / Contexto x4, modulo PURO sin dart:io porque la app compila tambien a web). Las CINCO causas del escaneo separadas con mensaje propio -- el permission-denied deja de decir 'verifica el codigo', que es el bug que le costo tiempo real al usuario. codigoMesaRegExp se muda al DOMINIO (la camara NO pasa por el validator del campo). Mismo criterio en pedido, cuenta y calificacion. 34 roturas deliberadas, 3 VERDES cazadas (borrar el debugPrint no lo notaba nadie -T-11-23-04 afirmada, no verificada-; la regexp 'compartida' no estaba verificada; la pista de emuladores comparada consigo misma). DECIMO gate de grep defectuoso de la fase, fallado en LAS DOS direcciones. app_cliente 230 -> 273 -- ccada96, 2ada353, 6064faf, 562be15, 4401b4d, 82eae56
-- [ ] 11-15, 11-16, 11-20, 11-22, 11-25
+- [x] 11-25 Accesibilidad del panel admin: HALLAZGO CENTRAL — el sidebar y el topbar NO EXISTIAN en el arbol de semantica (0 nodos: los 8 items, el logo, el titulo y el nombre del restaurante), porque el ModalBarrier del Navigator interno del ShellRoute los envuelve en BlockSemantics y el descarte subia hasta la raiz sin encontrar ningun limite de semantica. Las TRES guias de Flutter pasaban VERDES sobre ese estado. Arreglado con Semantics(container:true) alrededor del child del shell. Ademas: Tooltip en el sidebar colapsado (y solo colapsado), el tile del mapa de mesas se anuncia como BOTON con numero y estado, /equipo y el menu nombran a la persona y a la categoria, y 57 puntos de TEXTO pasan de #777777 a #6E6E6E sin tocar el token de MARCA. 23 roturas deliberadas, 2 VERDES cazadas (explicitChildNodes era un no-op; mi propio comentario afirmaba de mas sobre donde colocar el Semantics). HALLAZGOS: textContrastGuideline es CIEGA a todo nodo con etiqueta fusionada (stat cards, tiles, filas); androidTapTargetGuideline SALTA lo que toca el borde de un scroll; bodySmall/labelSmall son slots MUERTOS tambien aqui (0 de 277 parrafos); la paleta de MESAS no llega a AA para su etiqueta de estado (3 de 4 pares). DECIMO gate de grep defectuoso de la fase. panel_admin 313 -> 354 -- 66af0f7, 90fa418, 1997ed0, f9cecf7, 4394136
+- [ ] 11-15, 11-16, 11-20, 11-22
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -60,6 +61,8 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 3. Smoke e2e flujo completo ([A]-[M] emuladores o [P] real)
 
 ## Test Baselines (final Firebase)
+
+- 11-25: panel_admin 313 -> 354 (+41); analyze 0. Desglose: +41 test/a11y/a11y_test.dart (nuevo). Los 2 tests preexistentes tocados (theme_tokens_test renombrado y ampliado, sin_emojis_test por los archivo:linea del doc de iconos) NO cambian de numero. Base 313 MEDIDA antes de tocar nada
 
 - 11-23: app_cliente 230 -> 273 (+43); analyze 0. Desglose: +22 test/core/firebase_error_mapper_test.dart (nuevo), +10 test/pedidos/errores_honestos_test.dart (nuevo), +11 en test/sesion_qr/scan_test.dart (11 -> 22; un caso PREEXISTENTE se reescribio, no se anadio: afirmaba 'Codigo de mesa invalido' para una mesa BIEN FORMADA pero inexistente, que es justo la confusion que el plan separa). Base 230 MEDIDA antes de tocar nada. La rama de emuladores se verifica APARTE: `flutter test --dart-define=USE_EMULATORS=true --dart-define=ESPERA_PISTA_EMULADORES=true test/core/firebase_error_mapper_test.dart` -> +22
 
@@ -240,17 +243,27 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | 11 | 14 | ~135 min | 3 | 19 |
 | 11 | 24 | ~38 min | 3 | 13 |
 | 11 | 23 | ~2h 05min | 3 | 10 |
+| 11 | 25 | ~3h | 3 | 24 |
+
+- 11-25: HALLAZGO — el sidebar y el topbar del panel NO existian en el arbol de semantica. El ShellRoute monta el contenido sobre un Navigator PROPIO, cuya ruta modal emite un ModalBarrier envuelto en BlockSemantics; ese descarte sube por el arbol hasta el primer isSemanticBoundary y no habia ninguno, asi que se llevaba por delante todo lo pintado antes (sidebar y topbar). Toda pantalla dentro de un ShellRoute necesita Semantics(container:true) alrededor del child
+- 11-25: una guia de accesibilidad solo puede juzgar los nodos que EXISTEN. Las tres pasaban verdes sobre un panel al que le faltaba la navegacion entera: los primeros casos de una suite a11y deben afirmar PRESENCIA en el arbol, no conformidad
+- 11-25: textContrastGuideline solo evalua un nodo si find.text(etiqueta_del_nodo) encuentra un Text con ESE contenido exacto. Todo nodo con etiqueta FUSIONADA (stat cards, tiles de mesa, filas de tabla) queda fuera de la guia, antes y despues del plan. Un verde suyo no significa que la pantalla entera cumpla
+- 11-25: androidTapTargetGuideline SALTA todo nodo que toque el borde de un scrollable (_isAtBoundary). No puede probar el tamano tactil de un elemento de lista: basta con que el scroll lo corte
+- 11-25: bodySmall/labelSmall del textTheme tambien son slots MUERTOS en el panel (0 de 277 parrafos de las 8 pantallas, medido con dos colores testigo). El token accesible se aplica en los 57 puntos de uso reales, como hizo 11-14 en la app cliente
+- 11-25: la paleta de MESAS no llega a AA para su etiqueta de estado (13px normal): disponible 3.98, ocupada 4.36, reservada 3.51; solo limpieza (4.69) cumple. Es la parte que la auditoria senalaba como bien ejecutada y el plan prohibe tocarla: se fija en un test y se reporta como deuda que REQUIERE DECISION DEL USUARIO
+- 11-25: en vez de excluir pantallas ruidosas de textContrastGuideline, se CENSA: se afirma que el conjunto de ratios de fallo de las 8 rutas es exactamente {3.34} (blanco sobre el naranja de marca). Detecta el gris nuevo sin bloquear la deuda que nadie puede arreglar
 
 ## Session
 
 - Last session: 2026-08-20
-- Stopped at: Completado 11-23-PLAN.md (mensajes honestos del flujo de mesa: 5 causas / 5 mensajes; 34 roturas deliberadas, 3 verdes cazadas, decimo gate de grep defectuoso de la fase). Ejecutado en paralelo con 11-24 y 11-25 en el mismo arbol.
+- Stopped at: Completado 11-25-PLAN.md (accesibilidad del panel: el sidebar y el topbar NO existian en el arbol de semantica y las tres guias pasaban verdes sobre eso; 23 roturas deliberadas, 2 verdes cazadas). Ejecutado en paralelo con 11-23 en el mismo arbol.
+- Stopped at (anterior): Completado 11-23-PLAN.md (mensajes honestos del flujo de mesa: 5 causas / 5 mensajes; 34 roturas deliberadas, 3 verdes cazadas, decimo gate de grep defectuoso de la fase). Ejecutado en paralelo con 11-24 y 11-25 en el mismo arbol.
 - Stopped at (anterior): Completado 11-24-PLAN.md (baja reversible de personal: matriz pura + callable cambiarEstadoStaff + acciones en /equipo; 26 roturas deliberadas, 4 verdes cazadas). Ejecutado en paralelo con 11-14 y 11-23 en el mismo arbol.
 - Stopped at (anterior): Completado 11-14-PLAN.md (accesibilidad de app_cliente: 48dp + etiquetas + contraste AA; 24 roturas deliberadas, 3 verdes cazadas). Ejecutado en paralelo con 11-12 y 11-24.
 - Stopped at (anterior): Completado 11-12-PLAN.md (tokens del panel: 18 hex + 7 sombras + 9 botones + 3 ErrorBox; 36 roturas, cobertura de render anadida por desviacion Regla 2). Ejecutado ANTES que 11-14, que figura en su depends_on, sin necesitar nada de el.
 - Stopped at (anterior): Completado 11-19-PLAN.md (tokens de la app cliente: 20 hex + 34 TextStyle + 103 espaciados; migracion 1:1 demostrada mecanicamente, 0 diferencias de valor). Ejecutado en paralelo con 11-21.
 - Stopped at (anterior): Completado 11-13-PLAN.md (todo lo visible de la app cliente: zona segura, responsive, overflow e iconos; 21 roturas deliberadas, 2 verdes cazadas). Ejecutado en paralelo con 11-21.
-- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-23-PLAN.md
+- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-25-PLAN.md
 
 ## Blockers / Notas
 
@@ -312,6 +325,7 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-19 (AJENO, sigue sin commitear): `app_cliente/lib/features/restaurantes/restaurantes_provider.g.dart` sigue regenerado por build_runner sin que ningun plan lo reclame (ya declarado por 11-13). 11-19 NO lo estageo: no ejecuto build_runner ni toco ningun @riverpod.
 - 11-19 (DISCREPANCIA DE CONTABILIDAD, preexistente): en disco hay 16 *-SUMMARY.md de la Fase 11 y `roadmap.update-plan-progress 11` cuenta 16, pero la lista de arriba solo marca 15 — **11-17 tiene SUMMARY pero nunca se anadio a este checklist**. No lo corrige 11-19 porque no es su trabajo; queda senalado para quien cierre la fase.
 - 11-14: DS-03 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11; ya lo reporto 11-13). Queda en el frontmatter del SUMMARY.
+- 11-25: DS-03 sigue sin existir en .planning/REQUIREMENTS.md (`requirements.mark-complete DS-03` -> not_found, tercera vez que se reporta: 11-13, 11-14 y este). Queda en el frontmatter del SUMMARY. `state.advance-plan` tampoco funciona en esta fase: STATE.md no tiene los campos "Current Plan"/"Total Plans in Phase" que ese verbo espera, asi que el checklist y el porcentaje se actualizan a mano.
 - 11-14 DEUDA que EXIGE DECISION DEL USUARIO: blanco sobre el naranja de marca #FF4C05 da 3.34:1 en etiquetas de boton de 14px normal — el wizard de reserva ("Continuar"/"Atras") y el 404 ("Volver al inicio") FALLAN textContrastGuideline. Las pantallas del camino critico se libran porque sus CTA son 16 bold y la guia les aplica el umbral de 3:1. Arreglarlo exige oscurecer el naranja (paleta BLOQUEADA) o poner esas etiquetas en 16 bold. Las dos pantallas NO se anadieron a la suite: quedaria roja sin que nadie pueda arreglarlo.
 - 11-14 (DEUDA): GriSemanticColors.neutroFg sigue en #777777 (texto del chip de estado DESCONOCIDO). Cambiarlo tumbaria la asercion `pedidoFg('lo-que-sea') == #777777` de 11-11 y toca la paleta semantica; con los 5 estados del wire no deberia renderizarse nunca.
 - 11-14 PENDIENTE DE VERIFICACION HUMANA: (1) que TalkBack/VoiceOver lean los 7 controles etiquetados y en un orden con sentido — meetsGuideline mide geometria y ratios, no ejecuta lector de pantalla, y 6 de los 7 nombres viajan por el campo `tooltip`; (2) que el gris nuevo #6E6E6E se vea bien en las 14 pantallas (no hay golden tests); (3) que el boton QR a 48x48 no descoloque la cabecera en un movil real.
