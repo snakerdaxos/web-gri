@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "703827387403",
+    "project_id": "p-gri-b5b40",
+    "storage_bucket": "p-gri-b5b40.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:703827387403:android:b55b9ee758dc5108e6d30e",
+        "android_client_info": {
+          "package_name": "gri.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBZe8QtDCsv3RTZc9ykoQ9wBJskboyOzwk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
