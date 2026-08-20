@@ -624,17 +624,54 @@ franja agotada, a propósito.
 
 Dos cosas, y las dos importan. No las des por verificadas al terminar.
 
-### 4.1 Los índices compuestos — checkpoint del plan 11-16
+### 4.1 Los índices compuestos y la paridad rules↔query
 
 **El emulador de Firestore no evalúa índices compuestos.** Una query que en
 producción devolvería `FAILED_PRECONDITION` aquí pasa verde. Ese fue
 literalmente el tercer bug P0 de la Fase 10: `categorias` con
-`where('restauranteId') + orderBy('orden')` sin índice declarado.
+`where('restauranteId') + orderBy('orden')` sin índice declarado. Y volvió a
+pasar en **11-28**: los índices de `pedidos` estaban declarados con
+`createdAt DESCENDING` mientras la cola de cocina ordena ASC — declarados,
+construidos, y aun así inservibles. El emulador no dijo nada.
 
-La mitigación que sí corre aquí es **estática**: `npm run audit:indexes`
-clasifica las queries del código y comprueba la paridad rules↔query. Un OK ahí
-**no** sustituye a `firebase deploy --only firestore:indexes` contra el proyecto
-real y abrir el menú del panel. Eso es el plan **11-16**.
+Hay **dos** mitigaciones, y hacen cosas distintas:
+
+**1. Estática, en los gates — `npm run audit:indexes`.** Clasifica las queries
+del Dart y comprueba (a) que cada una tenga índice compuesto declarado **con el
+sentido correcto**, (b) la paridad rules↔query, (c) que ninguna colección se
+quede sin clasificar. No toca la red. Un OK ahí significa "no se detecta nada
+mal", no "está probado".
+
+**2. Contra el proyecto real — `node scripts/probar_consultas_reales.mjs`.**
+Es **el paso de verificación de este runbook contra `p-gri-b5b40`**, y lo único
+que distingue «falta un índice» de «las reglas deniegan»:
+
+```bash
+# como CLIENTE (el rol que sufrió el P0 de 11-28)
+node scripts/probar_consultas_reales.mjs \
+  --proyecto p-gri-b5b40 --clave <ruta-a-la-clave-adminsdk.json> \
+  --api-key <Web API key> --uid <uid-de-un-cliente-real> \
+  --rid demo --mesa GRI-MESA-demo-001
+
+# y OTRA VEZ como super_admin — el mismo fallo se ve distinto según el rol
+node scripts/probar_consultas_reales.mjs \
+  --proyecto p-gri-b5b40 --clave <ruta> --api-key <key> \
+  --uid <uid-del-super> --rol super_admin --rid demo --mesa GRI-MESA-demo-001
+```
+
+* **Correrlo después de CADA `firebase deploy --only firestore:indexes` y de
+  cada `firebase deploy --only firestore:rules`.** Un índice recién creado tarda
+  minutos en construirse: hasta que no esté LISTO, seguirá dando
+  `FAILED_PRECONDITION`.
+* **Consume lecturas reales** del proyecto (pide `limit 1` por consulta, así que
+  el gasto es mínimo, pero no es cero). Por eso **no** está en `npm run gates`.
+* **Correrlo con los DOS roles.** Con `super_admin` la rama `isSuper()` de las
+  reglas se demuestra sola y las consultas pasan aunque estén rotas para un
+  cliente: fue exactamente lo que hizo confuso el diagnóstico de 11-28.
+* La clave de servicio se pasa **por ruta**; el script se la entrega a
+  `firebase-admin` y nunca la lee ni la imprime.
+* Documentación completa (todas las opciones, cómo leer cada veredicto) en la
+  cabecera de `scripts/probar_consultas_reales.mjs`.
 
 ### 4.2 El ingreso con Google — checkpoint del plan 11-17
 
@@ -671,8 +708,15 @@ No son fallos del runbook. Están reconocidas y algunas esperan una decisión.
 
 Estado del proyecto real comprobado el **2026-08-20**, fuera de este runbook:
 
-- **Los índices están TODOS desplegados**, incluido `categorias(restauranteId,
-  orden)`. Diez en total. No hay nada que desplegar ahí.
+- **Los índices: DIEZ desplegados, DOS pendientes desde 11-28.** Lo que había
+  desplegado el 2026-08-20 estaba completo *en número* pero mal *en sentido*:
+  los de `pedidos` declaraban `createdAt DESCENDING` y la cola de cocina y el
+  reporte de ventas necesitan ASCENDING (`FAILED_PRECONDITION` comprobado
+  contra el proyecto real). `firestore.indexes.json` ya trae los dos que
+  faltan — `pedidos(restauranteId, estado, createdAt ASC)` y
+  `pedidos(sesionId, usuarioId, createdAt ASC)` —, así que **hay un
+  `firebase deploy --only firestore:indexes` pendiente**, y detrás de él la
+  comprobación de §4.1 con los dos roles.
 - **Las rules de esta fase YA están desplegadas** (2026-08-20, ruleset
   `25efd44a-8a0e-496a-9e96-2a92d8e3a28b`, releído del proyecto y comprobado
   idéntico al repo). Incluyen el match del centinela `plataforma` (11-07) y la
@@ -692,7 +736,9 @@ Estado del proyecto real comprobado el **2026-08-20**, fuera de este runbook:
   `super_admin` concedido a mano, así que **`/bootstrap` allí ya está cerrado**:
   el paso [A] no es reproducible contra el proyecto real, y no debe serlo.
 
-El despliegue de rules e índices lo cubrió el plan **11-16** y **ya está hecho**.
+El despliegue de rules e índices lo cubrió el plan **11-16**; **11-28 lo
+reabrió**: hay dos índices nuevos de `pedidos` sin desplegar (ver arriba) y las
+rules no cambiaron, así que solo hacen falta los índices.
 El de funciones **no se hará** mientras no se active Blaze (`ESTADO-DESPLIEGUE.md`
 §5 tiene la lista si algún día se decide). La verificación del ingreso con Google
 sigue pendiente: es el checkpoint del plan **11-17**. Este runbook no lo

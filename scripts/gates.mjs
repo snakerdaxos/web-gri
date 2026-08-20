@@ -23,8 +23,12 @@
 //   · `npm run verify:shell` exige `flutter build web --release` previo en las
 //     DOS apps (minutos) y Chrome instalado. Queda fuera de la pasada rápida;
 //     se corre a mano antes de un despliegue web.
-//   · Nada de aquí prueba los ÍNDICES COMPUESTOS: el emulador no los valida
-//     (decisión 11-03). Eso es el checkpoint humano del plan 11-16.
+//   · Nada de aquí prueba los ÍNDICES COMPUESTOS contra un proyecto real: el
+//     emulador no los valida (decisión 11-03) y `audit:indexes` es estático.
+//     Para eso está `node scripts/probar_consultas_reales.mjs` (11-28), que
+//     lanza las consultas reales por REST contra `p-gri-b5b40` y distingue
+//     «falta el índice» de «las reglas deniegan». No entra aquí a propósito:
+//     toca la red y consume lecturas de pago.
 //   · Nada de aquí prueba el ingreso con Google: el emulador de Auth no
 //     implementa el flujo real (plan 11-17 / checkpoint 11-20).
 // ============================================================================
@@ -45,10 +49,10 @@ const ES_WIN = process.platform === 'win32';
 // mismo commit, para que quede el rastro de que fue una decisión.
 // ---------------------------------------------------------------------------
 const BASELINES = {
-  app_cliente: 345, // flutter test
-  panel_admin: 423, // flutter test
+  app_cliente: 348, // flutter test (11-28: 345 -> 348, la QUERY de pedidos del cliente)
+  panel_admin: 445, // flutter test (medido en 11-28; el 423 de 11-22 se había quedado atrás)
   functions_unit: 149, // functions/: node --test test/*.test.js
-  rules: 260, // scripts/: @firebase/rules-unit-testing contra el emulador (11-27: 221 -> 260, +39 casos de LECTURA DE DOCS AUSENTES)
+  rules: 282, // scripts/: @firebase/rules-unit-testing contra el emulador (11-27: 221 -> 260, +39 casos de LECTURA DE DOCS AUSENTES; 11-28: 260 -> 282, +22 de QUERY vs RULES en pedidos/sesiones/reservas)
   functions_e2e: 50, // scripts/: callables contra emuladores auth+functions+firestore
 };
 
@@ -330,8 +334,10 @@ console.log(
     `${fallidos.length} fallo(s) · ${(totalMs / 1000 / 60).toFixed(1)} min`,
 );
 console.log('');
-console.log(' Recordatorio: estos gates NO validan los índices compuestos (el emulador');
-console.log(' no los evalúa) ni el ingreso con Google. Ver docs/SMOKE-E2E-v2.md §Límites.');
+console.log(' Recordatorio: estos gates NO validan los índices compuestos contra el proyecto');
+console.log(' real (el emulador no los evalúa) ni el ingreso con Google. Tras desplegar');
+console.log(' índices o reglas: node scripts/probar_consultas_reales.mjs — ver');
+console.log(' docs/SMOKE-E2E-v2.md §4.1.');
 console.log('');
 
 process.exit(fallidos.length > 0 ? 1 : 0);

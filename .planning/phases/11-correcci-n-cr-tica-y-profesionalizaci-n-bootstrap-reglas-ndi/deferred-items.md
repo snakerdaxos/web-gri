@@ -99,3 +99,38 @@
 - **Qué haría falta:** una pasada de revisión de `FIREBASE_SETUP.md` entera contra el árbol
   real, y decidir qué se hace con `documentos/google-services.json` (borrarlo o marcarlo como
   obsoleto). Media hora.
+
+## 11-28 — Índices declarados que ya no sirven a ninguna consulta (Firestore)
+
+- **Encontrado durante:** 11-28, al añadir el AUDIT 4/4 de `scripts/audit_indexes.mjs`.
+- **Qué pasa:** seis índices compuestos declarados en `firestore.indexes.json` no los usa
+  hoy ninguna consulta del código: `pedidos(restauranteId, estado, createdAt DESC)`,
+  `pedidos(sesionId, createdAt ASC)`, `pedidos(usuarioId, createdAt DESC)`,
+  `sesiones(usuarioId, estado)`, `sesiones(restauranteId, estado)` y
+  `productos(restauranteId, categoriaId)`. Los dos primeros quedaron superados por los
+  índices ASC que introdujo este plan; los otros cuatro venían de antes.
+- **Por qué NO se podan aquí:** borrar una entrada de `firestore.indexes.json` **borra el
+  índice en producción** en el siguiente `firebase deploy --only firestore:indexes`. Si
+  alguna consulta manual, algún informe o algún trabajo futuro dependiera de ellos, el
+  fallo aparecería lejos de este commit. La poda merece ser una decisión explícita, no un
+  efecto colateral del arreglo de un P0.
+- **Coste de no hacerlo:** almacenamiento y escrituras de índice, nada más. No hay riesgo
+  de corrección.
+- **Qué haría falta:** confirmar que nadie los usa fuera del repo y quitarlos en un commit
+  propio. El AUDIT 4/4 los vuelve a listar en cada pasada de `npm run audit:indexes`.
+
+## 11-28 — La pantalla de pedidos se queda en el spinner cuando no hay sesión (app_cliente)
+
+- **Encontrado durante:** 11-28, escribiendo `app_cliente/test/pedidos/query_sesion_test.dart`
+  (el tercer caso no podía usar `pumpAndSettle`: nunca converge).
+- **Qué pasa:** `pedidosSessionProvider` devuelve un `Stream` VACÍO cuando no hay sesión
+  (o no hay usuario), así que nunca emite y `pedidosAsync` se queda en `AsyncLoading` para
+  siempre. `PedidoEstadoScreen` pinta su `CircularProgressIndicator` indefinidamente en
+  lugar del vacío honesto «Aún no hay pedidos en esta sesión» / «Escanea el QR de la mesa».
+- **Por qué NO se arregla aquí:** es comportamiento ANTERIOR a este plan —pasaba igual con
+  `sesion == null`— y no lo causó el arreglo del P0. Cambiarlo es tocar el contrato del
+  provider (emitir `[]` en vez de no emitir) y revisar quién más lo observa.
+- **Por qué importa:** un spinner eterno es indistinguible de «está cargando» y de «se
+  rompió». Es la misma clase de deshonestidad de UI que la Fase 11 viene corrigiendo.
+- **Qué haría falta:** `yield <List<Pedido>>[]` en vez del stream vacío, y un caso en
+  `query_sesion_test.dart` que exija el texto de estado vacío. Media hora.
