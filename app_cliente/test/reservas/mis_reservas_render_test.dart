@@ -14,6 +14,15 @@ import '../helpers/firebase_fakes.dart';
 /// Cancelación (state machine + reversión condicional de mesa, paridad
 /// Phase 5) y misReservasProvider (stream REALTIME) sobre fakes.
 
+/// Instante FIJO del día de hoy. Desde 11-31 hay un margen mínimo de 4 h
+/// para reservar, así que un caso con el slot de HOY a las 23:00 dejaría de
+/// pasar a partir de las 19:01 si el «ahora» lo pusiera el reloj de la
+/// máquina. La FECHA sigue siendo la real; lo que se fija es la HORA.
+DateTime _hoyALas(int h) {
+  final t = DateTime.now();
+  return DateTime(t.year, t.month, t.day, h);
+}
+
 DateTime _slotDeManana([int hora = 19]) {
   final t = DateTime.now().add(const Duration(days: 1));
   return DateTime(t.year, t.month, t.day, hora);
@@ -67,7 +76,11 @@ void main() {
       // único en que cancelar debe revertirla (11-29).
       final slot = _slotDeHoy();
       final reserva = await crearReserva(db,
-          uid: 'test-uid', restauranteId: 'demo', slot: slot, personas: 2);
+          uid: 'test-uid',
+          restauranteId: 'demo',
+          slot: slot,
+          ahora: _hoyALas(12),
+          personas: 2);
       expect(
         (await db.doc('mesas/GRI-MESA-demo-001').get()).data()!['estado'],
         'reservada', // precondición: la tx de create la reservó
@@ -93,7 +106,11 @@ void main() {
       // siquiera a mirar la mesa: verde por la razón equivocada).
       final slot = _slotDeHoy();
       final reserva = await crearReserva(db,
-          uid: 'test-uid', restauranteId: 'demo', slot: slot, personas: 2);
+          uid: 'test-uid',
+          restauranteId: 'demo',
+          slot: slot,
+          ahora: _hoyALas(12),
+          personas: 2);
 
       // El cliente llegó y la mesa fue promovida a ocupada (RESV-05).
       await db.doc('mesas/GRI-MESA-demo-001').update({'estado': 'ocupada'});

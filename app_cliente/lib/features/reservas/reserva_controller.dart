@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/firebase_error_mapper.dart';
 import '../../core/firebase_providers.dart';
+import '../../core/reloj.dart';
 import '../../core/state_machines.dart';
 import '../../core/tx_mutex.dart';
 import '../../models/reserva.dart';
@@ -40,6 +41,84 @@ String _fechaStr(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-'
     '${d.month.toString().padLeft(2, '0')}-'
     '${d.day.toString().padLeft(2, '0')}';
+
+// ── EL MARGEN MÍNIMO PARA RESERVAR (11-31) ───────────────────────────────
+//
+// Decisión del usuario (2026-08-20): «sí [permitir reservar el mismo día]
+// pero con un margen de 4 horas, ya que no se puede reservar para la misma
+// hora». Un restaurante toma reservas para hoy todo el rato, pero no para
+// dentro de diez minutos: la cocina necesita aviso.
+//
+// LA REGLA, UNA SOLA:
+//
+//     un slot es reservable  ⟺  slot >= ahora + 4 h        (igualdad incluida)
+//
+// Como los slots son horas EN PUNTO (12:00..21:00), el efecto práctico es
+// subir `ahora + 4 h` a la hora en punto siguiente salvo que ya caiga en
+// punto: a las 14:30 el primero de hoy es las 19:00; a las 14:00 clavadas,
+// las 18:00.
+//
+// Las TRES caras del margen —qué días abre el calendario, qué horas ofrece
+// el desplegable y qué acepta la validación— se derivan de este mismo
+// predicado (`horasReservablesEn` y `primeraFechaReservable` lo llaman; el
+// wizard no reimplementa nada). Un picker que ofrezca una hora que después
+// se rechaza es la contradicción que hay que evitar por construcción, no
+// por disciplina.
+//
+// HUSO HORARIO: el margen es una DIFERENCIA entre dos instantes, así que no
+// depende del huso. Lo que sí es hora de pared local es el slot que elige el
+// usuario (y la fecha del doc ID). `firestore.rules` compara los mismos dos
+// instantes en absoluto — ver la nota de `match /reservas`.
+
+/// Antelación mínima con la que se puede reservar un slot.
+const margenMinimoReserva = Duration(hours: 4);
+
+/// Rejilla de slots del turno (hourly, :00). Vive aquí —en el dominio— y no
+/// en la pantalla porque el mensaje de error tiene que poder nombrar el
+/// primer horario válido, y ese texto no puede salir de otra lista que la que
+/// se pinta.
+const horasSlotReserva = <String>[
+  '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
+  '18:00', '19:00', '20:00', '21:00',
+];
+
+/// El predicado ÚNICO del margen. `slot` es hora local de pared.
+bool slotRespetaMargen(DateTime slot, DateTime ahora) =>
+    !slot.isBefore(ahora.add(margenMinimoReserva));
+
+/// Las horas de [horasSlotReserva] que el día [dia] todavía admiten reserva
+/// a las [ahora]. Para un día futuro las devuelve todas; para hoy, recorta
+/// por delante.
+List<String> horasReservablesEn(DateTime dia, DateTime ahora) => [
+      for (final h in horasSlotReserva)
+        if (slotRespetaMargen(
+            DateTime(dia.year, dia.month, dia.day, int.parse(h.substring(0, 2))),
+            ahora))
+          h,
+    ];
+
+/// Primer día que el calendario puede ofrecer: HOY si todavía le queda algún
+/// slot con margen, y si no, mañana. (A las 17:01 la última hora del turno
+/// —21:00— ya está a menos de 4 h, así que hoy deja de tener sentido.)
+DateTime primeraFechaReservable(DateTime ahora) {
+  final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+  return horasReservablesEn(hoy, ahora).isEmpty
+      ? DateTime(hoy.year, hoy.month, hoy.day + 1)
+      : hoy;
+}
+
+/// El texto de rechazo por margen. Nombra el primer horario que SÍ vale
+/// —sacado de `horasReservablesEn`, la misma función que llena el
+/// desplegable— o manda a otro día cuando ya no queda ninguno.
+String mensajeMargenInsuficiente(DateTime slot, DateTime ahora) {
+  final quedan = horasReservablesEn(slot, ahora);
+  if (quedan.isEmpty) {
+    return 'Necesitamos al menos 4 horas de antelación y ese día ya no queda '
+        'ningún horario. Elige otro día.';
+  }
+  return 'Necesitamos al menos 4 horas de antelación. El primer horario que '
+      'puedes reservar ese día es las ${quedan.first}.';
+}
 
 // ── Mutex en-proceso ─────────────────────────────────────────────────────
 //
@@ -96,10 +175,11 @@ Future<Reserva> crearReserva(
   required String restauranteId,
   required DateTime slot,
   required int personas,
+  DateTime? ahora,
 }) {
   return seccionCritica(() =>
       _crearReserva(db, uid: uid, restauranteId: restauranteId, slot: slot,
-          personas: personas));
+          personas: personas, ahora: ahora));
 }
 
 Future<Reserva> _crearReserva(
@@ -108,7 +188,17 @@ Future<Reserva> _crearReserva(
   required String restauranteId,
   required DateTime slot,
   required int personas,
+  DateTime? ahora,
 }) async {
+  // 0. MARGEN (11-31). Lo primero: si el slot no cumple las 4 h no se gasta
+  //    ni una lectura. Es el mismo predicado que filtra el desplegable, así
+  //    que llegar aquí significa que el reloj corrió con la pantalla abierta
+  //    (o que alguien llamó al dominio a mano).
+  final momento = ahora ?? DateTime.now();
+  if (!slotRespetaMargen(slot, momento)) {
+    throw ReservaException(mensajeMargenInsuficiente(slot, momento));
+  }
+
   // 1. Candidatas (capacidad >= personas) fuera de la tx.
   final mesasSnap = await db
       .collection('mesas')
@@ -123,7 +213,7 @@ Future<Reserva> _crearReserva(
   }
 
   final fechaStr = _fechaStr(slot);
-  final esHoy = fechaStr == _fechaStr(DateTime.now());
+  final esHoy = fechaStr == _fechaStr(momento);
 
   // Motivos por los que se descartó cada candidata. Se cuentan para poder
   // decir la VERDAD si no queda ninguna: el bug original aplastaba tres
@@ -242,20 +332,27 @@ Future<void> cancelarReserva(
   FirebaseFirestore db, {
   required String uid,
   required Reserva reserva,
+  DateTime? ahora,
 }) {
-  return seccionCritica(() => _cancelarReserva(db, uid: uid, reserva: reserva));
+  return seccionCritica(
+      () => _cancelarReserva(db, uid: uid, reserva: reserva, ahora: ahora));
 }
 
 Future<void> _cancelarReserva(
   FirebaseFirestore db, {
   required String uid,
   required Reserva reserva,
+  DateTime? ahora,
 }) async {
+  // Mismo reloj inyectable que `crearReserva` (11-31): «de hoy» tiene que
+  // significar lo mismo en las dos, o cancelar dejaria de revertir la mesa
+  // que crear reservo.
+  final momento = ahora ?? DateTime.now();
   if (reserva.usuarioId != uid) {
     // Existence hiding: nunca revelar que la reserva existe.
     throw const ReservaException('Reserva no encontrada');
   }
-  if (reserva.fechaStr.compareTo(_fechaStr(DateTime.now())) < 0) {
+  if (reserva.fechaStr.compareTo(_fechaStr(momento)) < 0) {
     throw const ReservaException('No se puede cancelar una reserva pasada');
   }
 
@@ -273,7 +370,7 @@ Future<void> _cancelarReserva(
 
     // Reversión condicional de la mesa: solo si la reserva era de HOY (la
     // única que llegó a marcarla) y la mesa sigue 'reservada'.
-    if (reserva.fechaStr == _fechaStr(DateTime.now())) {
+    if (reserva.fechaStr == _fechaStr(momento)) {
       final mesaRef = db.doc('mesas/${reserva.mesaId}');
       final mesaSnap = await tx.get(mesaRef);
       if (mesaSnap.exists && mesaSnap.data()?['estado'] == 'reservada') {
@@ -331,7 +428,8 @@ class ReservaController extends _$ReservaController {
           uid: uid,
           restauranteId: body.restauranteId,
           slot: slot,
-          personas: body.numPersonas);
+          personas: body.numPersonas,
+          ahora: ref.read(relojProvider)());
     } on ReservaException {
       rethrow; // ya trae la causa REAL redactada por el dominio
     } on TransicionInvalidaException {
@@ -361,7 +459,8 @@ class ReservaController extends _$ReservaController {
 
     state = const AsyncLoading<void>();
     try {
-      await cancelarReserva(db, uid: uid, reserva: reserva);
+      await cancelarReserva(db,
+          uid: uid, reserva: reserva, ahora: ref.read(relojProvider)());
     } on ReservaException {
       rethrow; // ya trae mensaje user-friendly del dominio
     } on TransicionInvalidaException {

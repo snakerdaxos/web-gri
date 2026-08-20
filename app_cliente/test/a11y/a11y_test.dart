@@ -22,6 +22,7 @@ import 'package:gri_cliente/features/auth/login_screen.dart';
 import 'package:gri_cliente/features/auth/register_screen.dart';
 import 'package:gri_cliente/core/firebase_providers.dart';
 import 'package:gri_cliente/core/gri_icons.dart';
+import 'package:gri_cliente/core/reloj.dart';
 import 'package:gri_cliente/core/theme.dart';
 import 'package:gri_cliente/features/pagos/calificacion_sheet.dart';
 import 'package:gri_cliente/features/pedidos/menu_mesa_screen.dart';
@@ -38,6 +39,12 @@ import 'package:gri_cliente/models/producto.dart';
 import 'package:gri_cliente/models/restaurante_detalle.dart';
 
 import '../helpers/firebase_fakes.dart';
+
+/// Las 18:00 de HOY — ver el override de `relojProvider` de más abajo.
+DateTime _hoyALas18() {
+  final t = DateTime.now();
+  return DateTime(t.year, t.month, t.day, 18);
+}
 
 const _mesa = 'GRI-MESA-demo-001';
 
@@ -670,9 +677,14 @@ void main() {
       overrides: [
         firebaseAuthProvider.overrideWithValue(mockAuth()),
         firestoreProvider.overrideWithValue(db),
+        // 11-31: reloj fijo a las 18:00, hora a la que hoy ya no admite
+        // reservas (margen de 4 h, turno hasta las 21:00) y el wizard abre
+        // en mañana con la rejilla entera — que es lo que este caso
+        // necesita para poder tocar las 19:00.
+        relojProvider.overrideWithValue(() => _hoyALas18()),
       ],
-      child: const MaterialApp(
-        home: ReservaWizardScreen(
+      child: MaterialApp(
+        home: const ReservaWizardScreen(
           restauranteId: 'demo',
           restauranteNombre: 'Restaurante Demo GRI',
         ),

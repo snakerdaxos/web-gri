@@ -74,7 +74,9 @@ void main() {
     await _aceptarFechaPropuesta(tester);
     // El día de HOY según el reloj inyectado. Antes de este plan aquí salía
     // 2026-08-21: hoy no era seleccionable en absoluto.
-    expect(find.text('2026-08-20'), findsOneWidget);
+    // Aparece dos veces (el botón del paso Fecha y el resumen): lo que
+    // importa es que YA se pueda elegir hoy.
+    expect(find.text('2026-08-20'), findsWidgets);
 
     await _abrirDesplegableDeHoras(tester);
     // 14:30 + 4 h = 18:30 → el primer slot en punto que cabe es el de las 19.
@@ -111,7 +113,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await _aceptarFechaPropuesta(tester);
-    expect(find.text('2026-08-21'), findsOneWidget);
+    expect(find.text('2026-08-21'), findsWidgets);
 
     await _abrirDesplegableDeHoras(tester);
     expect(find.text('12:00'), findsWidgets);
@@ -182,9 +184,9 @@ void main() {
 
     // Pasan dos horas y media con la pantalla abierta.
     t = DateTime(2026, 8, 20, 17, 30);
-    await tester.tap(find.text('Hora')); // onStepTapped → rebuild
+    await tester.tap(find.text('Hora').first); // onStepTapped → rebuild
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Confirmar'));
+    await tester.tap(find.text('Confirmar').first);
     await tester.pumpAndSettle();
 
     expect(find.textContaining('ya no cumple las 4 horas'), findsOneWidget);

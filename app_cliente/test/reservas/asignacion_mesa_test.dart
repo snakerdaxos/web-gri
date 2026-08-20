@@ -39,6 +39,17 @@ DateTime _slotDeHoy([int hora = 23]) {
   return DateTime(t.year, t.month, t.day, hora);
 }
 
+/// Instante FIJO del día de hoy. Se pasa explícitamente a `crearReserva` /
+/// `cancelarReserva` para que los casos con slot de HOY no dependan de la
+/// hora a la que se corra la suite: desde 11-31 hay un margen mínimo de 4 h,
+/// así que con `DateTime.now()` un caso con el slot de las 23:00 se pondría
+/// rojo a partir de las 19:01. La FECHA sigue siendo la real (los slots de
+/// mañana y la pantalla la comparten); lo que se fija es la HORA.
+DateTime _hoyALas(int h) {
+  final t = DateTime.now();
+  return DateTime(t.year, t.month, t.day, h);
+}
+
 DateTime _slotDeManana([int hora = 19]) {
   final t = DateTime.now().add(const Duration(days: 1));
   return DateTime(t.year, t.month, t.day, hora);
@@ -81,7 +92,11 @@ void main() {
       final slot = _slotDeHoy();
 
       final reserva = await crearReserva(db,
-          uid: 'test-uid', restauranteId: 'demo', slot: slot, personas: 2);
+          uid: 'test-uid',
+          restauranteId: 'demo',
+          slot: slot,
+          ahora: _hoyALas(12),
+          personas: 2);
 
       // La 001 (capacidad 2) es la primera candidata y está ocupada; antes del
       // arreglo esto lanzaba y las otras dos no se miraban.
@@ -100,6 +115,7 @@ void main() {
           uid: 'test-uid',
           restauranteId: 'demo',
           slot: _slotDeHoy(),
+          ahora: _hoyALas(12),
           personas: 2);
 
       expect(reserva.mesaId, 'GRI-MESA-demo-002');
@@ -118,6 +134,7 @@ void main() {
           uid: 'test-uid',
           restauranteId: 'demo',
           slot: _slotDeHoy(),
+          ahora: _hoyALas(12),
           personas: 2));
 
       expect(
@@ -142,7 +159,11 @@ void main() {
       await _tomarSlot(db, 'GRI-MESA-demo-003', slot);
 
       final e = await _capturarError(() => crearReserva(db,
-          uid: 'test-uid', restauranteId: 'demo', slot: slot, personas: 2));
+          uid: 'test-uid',
+          restauranteId: 'demo',
+          slot: slot,
+          ahora: _hoyALas(12),
+          personas: 2));
 
       expect(
         e.message,
@@ -163,7 +184,11 @@ void main() {
         await _tomarSlot(db1, 'GRI-MESA-demo-$m', slot1);
       }
       mensajes.add((await _capturarError(() => crearReserva(db1,
-              uid: 'u', restauranteId: 'demo', slot: slot1, personas: 2)))
+              uid: 'u',
+              restauranteId: 'demo',
+              slot: slot1,
+              ahora: _hoyALas(12),
+              personas: 2)))
           .message);
 
       // (2) todas las mesas ocupadas
@@ -175,6 +200,7 @@ void main() {
               uid: 'u',
               restauranteId: 'demo',
               slot: _slotDeHoy(),
+              ahora: _hoyALas(12),
               personas: 2)))
           .message);
 
@@ -184,6 +210,7 @@ void main() {
               uid: 'u',
               restauranteId: 'demo',
               slot: _slotDeHoy(),
+              ahora: _hoyALas(12),
               personas: 10)))
           .message);
 
@@ -224,6 +251,7 @@ void main() {
           uid: 'test-uid',
           restauranteId: 'demo',
           slot: _slotDeHoy(),
+          ahora: _hoyALas(12),
           personas: 2);
 
       expect(await _estado(db, _mesa1), 'reservada');
@@ -276,6 +304,7 @@ void main() {
           uid: 'test-uid',
           restauranteId: 'demo',
           slot: _slotDeHoy(),
+          ahora: _hoyALas(12),
           personas: 2);
       expect(await _estado(db, _mesa1), 'reservada');
 

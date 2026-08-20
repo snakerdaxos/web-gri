@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_cliente/core/firebase_providers.dart';
+import 'package:gri_cliente/core/reloj.dart';
 import 'package:gri_cliente/features/reservas/reserva_controller.dart';
 import 'package:gri_cliente/features/reservas/reserva_wizard_screen.dart';
 
@@ -15,6 +16,16 @@ import '../helpers/firebase_fakes.dart';
 /// optimista (writes inmediatos) — la serialización entre llamadas del
 /// mismo proceso la aporta el mutex `_seccionCritica` del controller
 /// (en Firestore real es el OCC de la transacción el que serializa).
+
+/// Instante FIJO del día de hoy: las 18:00. A esa hora, con el margen de 4 h
+/// de 11-31, al día de HOY ya no le queda ningún slot (el turno acaba a las
+/// 21:00), así que el calendario abre en MAÑANA — que es justo la situación
+/// que estos casos venían ejercitando cuando `firstDate` era siempre mañana.
+/// Fijarlo los hace deterministas: sin esto pasarían o no según la hora.
+DateTime _hoyALas(int h) {
+  final t = DateTime.now();
+  return DateTime(t.year, t.month, t.day, h);
+}
 
 DateTime _slotDeManana([int hora = 19]) {
   final t = DateTime.now().add(const Duration(days: 1));
@@ -38,6 +49,7 @@ Widget _wrap(FakeFirebaseFirestore db,
       overrides: [
         firebaseAuthProvider.overrideWithValue(mockAuth()),
         firestoreProvider.overrideWithValue(db),
+        relojProvider.overrideWithValue(() => _hoyALas(18)),
       ],
       child: MaterialApp(
         home: ReservaWizardScreen(

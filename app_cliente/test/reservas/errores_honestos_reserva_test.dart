@@ -31,6 +31,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_cliente/core/firebase_error_mapper.dart';
 import 'package:gri_cliente/core/firebase_providers.dart';
+import 'package:gri_cliente/core/reloj.dart';
 import 'package:gri_cliente/features/reservas/reserva_controller.dart';
 import 'package:gri_cliente/models/reserva_create.dart';
 import 'package:mock_exceptions/mock_exceptions.dart';
@@ -42,6 +43,15 @@ const _mensajeCiego = 'Ese horario acaba de ser reservado, elige otro';
 
 FirebaseException _fb(String code) =>
     FirebaseException(plugin: 'cloud_firestore', code: code);
+
+/// Instante FIJO del día de hoy. Desde 11-31 hay un margen mínimo de 4 h
+/// para reservar, así que un caso con el slot de HOY a las 23:00 dejaría de
+/// pasar a partir de las 19:01 si el «ahora» lo pusiera el reloj de la
+/// máquina. La FECHA sigue siendo la real; lo que se fija es la HORA.
+DateTime _hoyALas(int h) {
+  final t = DateTime.now();
+  return DateTime(t.year, t.month, t.day, h);
+}
 
 DateTime _slotDeManana([int hora = 19]) {
   final t = DateTime.now().add(const Duration(days: 1));
@@ -96,6 +106,10 @@ Future<String> _mensajeDeCreate(dynamic db, ReservaCreate cuerpo) async {
   final container = ProviderContainer(overrides: [
     firebaseAuthProvider.overrideWithValue(mockAuth()),
     firestoreProvider.overrideWithValue(db),
+    // 11-31: reloj fijo. El controller pasa este instante a `crearReserva`,
+    // y sin fijarlo los casos con slot de HOY dependerían de la hora a la
+    // que se corriera la suite.
+    relojProvider.overrideWithValue(() => _hoyALas(12)),
   ]);
   addTearDown(container.dispose);
   try {

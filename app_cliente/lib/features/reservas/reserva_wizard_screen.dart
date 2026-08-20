@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/reloj.dart';
 import '../../core/theme.dart';
 import '../../models/restaurante.dart';
 import '../../models/reserva_create.dart';
@@ -11,8 +12,12 @@ import 'reserva_controller.dart';
 /// Wizard de reserva (RESV-01) — Stepper fecha → hora → personas → confirmar
 /// → `POST /cliente/reservas` vía [ReservaController].
 ///
-/// * Fecha: [showDatePicker] con firstDate = mañana (no fechas pasadas).
-/// * Hora: dropdown de slots :00 exclusivamente (12:00..21:00) — el turno
+/// * Fecha: [showDatePicker] con firstDate = [primeraFechaReservable], que
+///   desde 11-31 es HOY siempre que al día le quede algún slot con las 4 h
+///   de margen (decisión del usuario 2026-08-20). Antes era siempre mañana.
+/// * Hora: dropdown de slots :00 exclusivamente (12:00..21:00) FILTRADO por
+///   [horasReservablesEn] — el mismo predicado que valida `crearReserva`,
+///   para que el desplegable no pueda ofrecer lo que luego se rechaza — el turno
 ///   es de 60 min y el backend rechaza non-:00 con 400; el wizard NUNCA
 ///   ofrece TimeOfDay libre (threat 5).
 /// * Personas: 1..20 (match del Field(ge=1, le=20) del backend).
@@ -30,12 +35,11 @@ class ReservaWizardScreen extends ConsumerStatefulWidget {
   final String restauranteId;
   final String restauranteNombre;
 
-  /// Slots horarios del turno (hourly, :00) — la fuente única que renderiza
-  /// el dropdown. 12:00 a 21:00.
-  static const horasSlot = <String>[
-    '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
-    '18:00', '19:00', '20:00', '21:00',
-  ];
+  /// Slots horarios del turno (hourly, :00). Desde 11-31 la lista vive en el
+  /// dominio (`horasSlotReserva`) porque el mensaje de error del margen tiene
+  /// que nombrar el primer horario válido: la rejilla que se pinta y la que
+  /// se cita en el texto TIENEN que ser la misma. Aquí queda el alias.
+  static const horasSlot = horasSlotReserva;
 
   @override
   ConsumerState<ReservaWizardScreen> createState() =>
@@ -51,6 +55,25 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
   int _personas = 2;
 
   bool get _needsRestauranteStep => widget.restauranteId.isEmpty;
+
+  // ── EL MARGEN, LEÍDO DE UN SOLO SITIO (11-31) ──────────────────────────
+  // Ni el calendario ni el desplegable ni el botón deciden nada por su
+  // cuenta: los tres consultan las funciones del dominio, que a su vez
+  // llaman a `slotRespetaMargen` — el mismo predicado que aplica
+  // `crearReserva`. Por eso el picker no puede ofrecer lo que la validación
+  // rechaza.
+  DateTime get _ahora => ref.read(relojProvider)();
+
+  /// Las horas que el día elegido todavía admite. Se recalcula en CADA build,
+  /// así que si el usuario deja la pantalla abierta y el reloj corre, la
+  /// lista se encoge sola.
+  List<String> get _horasDisponibles => _fecha == null
+      ? const <String>[]
+      : horasReservablesEn(_fecha!, _ahora);
+
+  /// La hora elegida sigue siendo válida AHORA (no solo cuando se eligió).
+  bool get _horaEsValida =>
+      _hora != null && _horasDisponibles.contains(_hora);
 
   String get _fechaString {
     final f = _fecha!;
@@ -172,13 +195,20 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
           state: _fecha != null && _currentStep > _stepFecha
               ? StepState.complete
               : StepState.indexed,
-          content: Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: _pickFecha,
-              icon: const Icon(Icons.calendar_month),
-              label: Text(_fecha == null ? 'Elegir fecha' : _fechaString),
-            ),
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextButton.icon(
+                onPressed: _pickFecha,
+                icon: const Icon(Icons.calendar_month),
+                label: Text(_fecha == null ? 'Elegir fecha' : _fechaString),
+              ),
+              Text(
+                'Puedes reservar para hoy con al menos 4 horas de antelación.',
+                style: GriText.auxiliar
+                    .copyWith(color: GriColors.textoSecundarioAccesible),
+              ),
+            ],
           ),
         ),
         Step(
@@ -189,8 +219,21 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
               : StepState.indexed,
           content: Align(
             alignment: Alignment.centerLeft,
-            child: DropdownButtonFormField<String>(
-              initialValue: _hora,
+            child: _horasDisponibles.isEmpty
+                ? Text(
+                    _fecha == null
+                        ? 'Elige primero una fecha.'
+                        : 'Ese día ya no queda ningún horario con 4 horas de '
+                            'antelación. Vuelve al paso anterior y elige otro '
+                            'día.',
+                    style: GriText.auxiliar
+                        .copyWith(color: GriColors.textoSecundarioAccesible),
+                  )
+                : DropdownButtonFormField<String>(
+              // El `initialValue` cae a null si la hora que había elegida se
+              // quedó sin margen mientras la pantalla estaba abierta: un
+              // Dropdown con un `value` que no está en `items` revienta.
+              initialValue: _horaEsValida ? _hora : null,
               // 11-13: sin `isExpanded` el Row interno del dropdown se maqueta
               // al ancho NATURAL de su contenido y desborda en pantallas
               // estrechas o con el texto ampliado por accesibilidad. El campo
@@ -203,7 +246,7 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
                 prefixIcon: Icon(Icons.schedule),
               ),
               items: [
-                for (final h in ReservaWizardScreen.horasSlot)
+                for (final h in _horasDisponibles)
                   DropdownMenuItem(value: h, child: Text(h)),
               ],
               onChanged: (v) => setState(() => _hora = v),
@@ -249,6 +292,19 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
         _ResumenRow(label: 'Hora', value: _hora ?? '—'),
         _ResumenRow(label: 'Personas', value: '$_personas'),
         const SizedBox(height: GriSpacing.sm),
+        // El reloj corrió con la pantalla abierta: la hora elegida ya no
+        // cumple el margen. Se DICE, en vez de dejar un botón apagado sin
+        // explicación.
+        if (_hora != null && !_horaEsValida)
+          Padding(
+            padding: const EdgeInsets.only(bottom: GriSpacing.sm),
+            child: Text(
+              'Ese horario ya no cumple las 4 horas de antelación. Vuelve al '
+              'paso Hora y elige otro.',
+              style: GriText.auxiliar
+                  .copyWith(color: GriColors.chipCanceladaFg),
+            ),
+          ),
         Text(
           'Al confirmar, el sistema te asignará una mesa automáticamente.',
           style: GriText.auxiliar.copyWith(color: GriColors.textoSecundarioAccesible),
@@ -263,14 +319,18 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
       '${f.day.toString().padLeft(2, '0')}';
 
   Future<void> _pickFecha() async {
-    final ahora = DateTime.now();
-    final manana = DateTime(ahora.year, ahora.month, ahora.day)
-        .add(const Duration(days: 1));
+    // 11-31: el calendario abre en HOY salvo que a hoy ya no le quede ningún
+    // slot con las 4 h de margen (a partir de las 17:01, porque el turno
+    // acaba a las 21:00). Antes empezaba SIEMPRE en mañana y el día de hoy
+    // era literalmente inseleccionable.
+    final primera = primeraFechaReservable(_ahora);
+    final inicial =
+        (_fecha != null && !_fecha!.isBefore(primera)) ? _fecha! : primera;
     final picked = await showDatePicker(
       context: context,
-      firstDate: manana,
-      lastDate: manana.add(const Duration(days: 365)),
-      initialDate: _fecha ?? manana,
+      firstDate: primera,
+      lastDate: DateTime(primera.year, primera.month, primera.day + 365),
+      initialDate: inicial,
     );
     if (picked != null) setState(() => _fecha = picked);
   }
@@ -281,8 +341,10 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
       _hint('Elige una fecha para continuar');
       return;
     }
-    if (_currentStep == _stepHora && _hora == null) {
-      _hint('Elige una hora para continuar');
+    if (_currentStep == _stepHora && !_horaEsValida) {
+      _hint(_horasDisponibles.isEmpty
+          ? 'Ese día ya no queda ningún horario con 4 horas de antelación'
+          : 'Elige una hora para continuar');
       return;
     }
     if (_needsRestauranteStep && _currentStep == 0 && _restaurante == null) {
@@ -298,7 +360,7 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
     final tieneRestaurante = _needsRestauranteStep
         ? _restaurante != null
         : widget.restauranteId.isNotEmpty;
-    return tieneRestaurante && _fecha != null && _hora != null;
+    return tieneRestaurante && _fecha != null && _horaEsValida;
   }
 
   Future<void> _confirmar() async {
