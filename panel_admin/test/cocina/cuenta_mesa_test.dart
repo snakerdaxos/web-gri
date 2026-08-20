@@ -144,6 +144,18 @@ Widget _cocina(FakeFirebaseFirestore db) => ProviderScope(
     );
 
 void main() {
+  // ══ 0. EL ANCLA DEL FORMATO ══════════════════════════════════════════════
+
+  test('cop() escribe exactamente lo que produce formatCOP', () {
+    // Sin esta ancla, `cop()` seria una suposicion sobre el formato y los
+    // finders de abajo fallarian con un mensaje incomprensible el dia que el
+    // locale cambie. Con ella, ese dia cae ESTE test y dice por que.
+    // (Aqui se descubrio en 11-32 que es_CO pone el simbolo DETRAS y separa
+    // con espacio duro, al contrario de lo que prometia core/format.dart.)
+    expect(formatCOP(50000), cop('50.000'));
+    expect(formatCOP(0), cop('0'));
+  });
+
   // ══ 1. EL CÁLCULO ════════════════════════════════════════════════════════
 
   group('cuentaDeMesa — cifras literales', () {
@@ -335,7 +347,7 @@ void main() {
       // aviso no dijera nada: bastaría con que la cola pintara el pedido dos
       // veces.
       expect(
-        find.textContaining('1 pedido sin servir por ' + cop('15.000')),
+        find.textContaining('1 pedido sin servir por ${cop('15.000')}'),
         findsOneWidget,
       );
     });

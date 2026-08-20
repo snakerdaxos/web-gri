@@ -126,7 +126,7 @@ void main() {
     );
     // 25.000 + 13.000 pendientes, anunciados APARTE del total.
     expect(
-      find.textContaining('2 pedidos por ' + cop('38.000')),
+      find.textContaining('2 pedidos por ${cop('38.000')}'),
       findsOneWidget,
       reason: 'el importe pendiente se dice, no se esconde',
     );
@@ -144,7 +144,7 @@ void main() {
     ]));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('1 pedido por ' + cop('5.000')), findsOneWidget);
+    expect(find.textContaining('1 pedido por ${cop('5.000')}'), findsOneWidget);
     expect(find.textContaining('cuando te lo sirvan'), findsOneWidget);
   });
 
@@ -169,7 +169,7 @@ void main() {
 
     expect(find.text(cop('0')), findsOneWidget);
     expect(find.textContaining('Todavía no te han servido'), findsOneWidget);
-    expect(find.textContaining('1 pedido por ' + cop('25.000')), findsOneWidget);
+    expect(find.textContaining('1 pedido por ${cop('25.000')}'), findsOneWidget);
   });
 
   // ── Cada tarjeta dice si ESE pedido se cobra ────────────────────────────
