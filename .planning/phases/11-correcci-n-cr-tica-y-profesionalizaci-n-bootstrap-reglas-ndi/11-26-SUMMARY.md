@@ -146,8 +146,8 @@ Firestore, habilitada al desplegar las reglas el 2026-08-20.
  panel_admin: flutter test              OK     445       445 (baseline 423, +22)
  panel_admin: flutter analyze           OK     0 issues  0 issues
  functions: npm test (unitarios)        OK     149       149 = baseline
- scripts: npm run test:rules            FALLO  ?         (ver abajo — NO es una regresión)
- scripts: npm run test:functions (e2e)  FALLO  ?         (ver abajo — puerto ocupado)
+ scripts: npm run test:rules            FALLO  221       2 test(s) en rojo (ver abajo — NO es una regresión)
+ scripts: npm run test:functions (e2e)  OK     50        50 = baseline
  scripts: npm run audit:indexes         OK     —         exit 0
  scripts: npm run audit:branding        OK     —         exit 0
 ```
@@ -161,7 +161,11 @@ reescribieron, ver Desviaciones).
 Ambos fallos son del **árbol compartido**, no del trabajo de este plan. El ejecutor de 11-20
 corría en paralelo con sus emuladores levantados.
 
-**`test:functions` — es SOLO conflicto de puertos.** Ejecutado a solas con los puertos libres:
+> **Pasada final, con 11-20 ya terminado y los puertos libres: 9 gates · 8 OK · 1 fallo.**
+> El único rojo es `test:rules`, con **221 pasadas = baseline** y 2 rojos de un archivo ajeno
+> sin commitear. Los conflictos de puerto de las dos pasadas anteriores desaparecieron.
+
+**`test:functions` — era SOLO conflicto de puertos.** Ejecutado a solas con los puertos libres:
 
 ```
 ℹ tests 50
@@ -190,9 +194,18 @@ test at scripts\test\rules\_diag_sesion.test.mjs:15:3
 
 `scripts/test/rules/_diag_sesion.test.mjs` aparece como `??` en `git status`: **no existía al
 empezar esta sesión** (el `git status` inicial no lo listaba) y apareció mientras 11-20
-trabajaba. Es un archivo de diagnóstico suyo, en vuelo. **No se toca**: borrarlo o commitearlo
-sería llevarse trabajo ajeno, que es exactamente el incidente que documentó 11-23. El baseline
-de la suite de rules es 221 y el conteo de pasadas es 221: **no hay regresión**.
+trabajaba. Es un archivo de diagnóstico suyo. **No se toca**: borrarlo o commitearlo sería
+llevarse trabajo ajeno, que es exactamente el incidente que documentó 11-23. El baseline de la
+suite de rules es 221 y el conteo de pasadas es 221: **no hay regresión**.
+
+> ⚠️ **11-20 ya cerró (`dcb08ed`) y el archivo SIGUE sin commitear.** Ya no es «trabajo en
+> vuelo»: es un residuo que deja la fase con un gate en rojo. **Hay que decidirlo antes de
+> cerrar la fase**: arreglarlo y commitearlo, o borrarlo. Los dos casos afirman
+> `assertSucceeds` sobre la lectura de un `sesiones/{id}` y un `reservas/{slot}` que **no
+> existen**, y las rules responden `permission-denied` con `Null value error` al hacer `get`
+> de un documento ausente — o sea, o la expectativa del diagnóstico está invertida, o hay algo
+> real que mirar en `firestore.rules` L208 y L275. No es de este plan, pero no puede quedar
+> como «ruido conocido».
 
 ### Gates de la Tarea 1 (los del `<verify>` del plan)
 
