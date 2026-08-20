@@ -27,7 +27,19 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, runTransaction, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  runTransaction,
+  setDoc,
+  updateDoc,
+  orderBy,
+  where,
+} from 'firebase/firestore';
 
 import {
   adminDemo,
@@ -121,6 +133,71 @@ describe('firestore.rules — reservas', () => {
         numPersonas: 4,
         createdAt: AHORA,
       });
+    });
+  });
+
+  // --- QUERY vs RULES (11-28) ------------------------------------------------
+  //
+  // Mismo contrato que en `pedidos` y `sesiones`: la regla mira `usuarioId` o
+  // `restauranteId` y la consulta tiene que acotar uno de los dos, o se
+  // deniega entera. Consultas LITERALES:
+  //
+  //   app_cliente/lib/features/reservas/reservas_provider.dart:19
+  //     reservas.where('usuarioId').orderBy('fecha', descending: true)
+  //   panel_admin/lib/features/reservas/reservas_provider.dart:35
+  //     reservas.where('restauranteId').where('fecha' >= ).where('fecha' < )
+  //
+  // Contrapartida estática: entrada `reservas` de PARIDAD_RULES_QUERY.
+  describe('QUERY vs RULES — las consultas LITERALES de las apps (11-28)', () => {
+    it('CLIENTE: reservas where("usuarioId") + orderBy("fecha" desc) — PERMITIDA', async () => {
+      const db = cliente(env, DUENO);
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(db, 'reservas'),
+            where('usuarioId', '==', DUENO),
+            orderBy('fecha', 'desc'),
+          ),
+        ),
+      );
+    });
+
+    it('CLIENTE: reservas SIN filtro queda DENEGADA', async () => {
+      await assertFails(getDocs(collection(cliente(env, DUENO), 'reservas')));
+    });
+
+    it('CLIENTE: reservas where("usuarioId") de OTRO uid queda DENEGADA', async () => {
+      await assertFails(
+        getDocs(query(collection(cliente(env, DUENO), 'reservas'), where('usuarioId', '==', INTRUSO))),
+      );
+    });
+
+    it('ADMIN del tenant: reservas where("restauranteId") + rango de fecha — PERMITIDA', async () => {
+      const db = adminDemo(env);
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(db, 'reservas'),
+            where('restauranteId', '==', RID),
+            where('fecha', '>=', AHORA),
+            where('fecha', '<', FUTURO),
+          ),
+        ),
+      );
+    });
+
+    it('ADMIN de OTRO tenant: la misma agenda sobre "demo" queda DENEGADA — aislamiento', async () => {
+      const db = adminOtro(env);
+      await assertFails(
+        getDocs(
+          query(
+            collection(db, 'reservas'),
+            where('restauranteId', '==', RID),
+            where('fecha', '>=', AHORA),
+            where('fecha', '<', FUTURO),
+          ),
+        ),
+      );
     });
   });
 

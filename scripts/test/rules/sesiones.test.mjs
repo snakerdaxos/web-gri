@@ -25,13 +25,25 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, runTransaction, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  runTransaction,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 
 import {
   adminDemo,
   adminOtro,
   anon,
   cliente,
+  cocina,
   initEnv,
   mesero,
   sembrar,
@@ -104,6 +116,69 @@ describe('firestore.rules — sesiones', () => {
         cuentaSolicitada: true,
         createdAt: AHORA,
       });
+    });
+  });
+
+  // --- QUERY vs RULES (11-28) ------------------------------------------------
+  //
+  // Las rules se evalúan contra la CONSULTA, no contra los documentos
+  // devueltos: una query que no acota ninguno de los campos que la regla mira
+  // (`usuarioId`, `restauranteId`) se deniega ENTERA. Aquí se prueban las dos
+  // consultas LITERALES que hacen las apps sobre `sesiones`, que son las dos
+  // ramas de la regla:
+  //
+  //   app_cliente/lib/features/sesion_qr/sesion_provider.dart:188
+  //     sesiones.where('usuarioId', isEqualTo: uid)
+  //   panel_admin/lib/features/cocina/pedidos_staff_provider.dart:62
+  //     sesiones.where('restauranteId').where('cuentaSolicitada').where('estado')
+  //
+  // Contrapartida estática: entrada `sesiones` de PARIDAD_RULES_QUERY en
+  // `scripts/audit_indexes.mjs` (AUDIT 2/4).
+  describe('QUERY vs RULES — las consultas LITERALES de las apps (11-28)', () => {
+    it('CLIENTE: sesiones where("usuarioId") — la query del banner — PERMITIDA', async () => {
+      const db = cliente(env, DUENO);
+      const snap = await getDocs(
+        query(collection(db, 'sesiones'), where('usuarioId', '==', DUENO)),
+      );
+      assert.equal(snap.size, 2, 'la activa y la cerrada del dueño');
+    });
+
+    it('CLIENTE: sesiones SIN filtro queda DENEGADA', async () => {
+      await assertFails(getDocs(collection(cliente(env, DUENO), 'sesiones')));
+    });
+
+    it('CLIENTE: sesiones where("usuarioId") de OTRO uid queda DENEGADA', async () => {
+      await assertFails(
+        getDocs(query(collection(cliente(env, DUENO), 'sesiones'), where('usuarioId', '==', INTRUSO))),
+      );
+    });
+
+    it('COCINA: el aviso de cuenta LITERAL (restauranteId + cuentaSolicitada + estado) PERMITIDO', async () => {
+      const db = cocina(env);
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(db, 'sesiones'),
+            where('restauranteId', '==', RID),
+            where('cuentaSolicitada', '==', true),
+            where('estado', '==', 'activa'),
+          ),
+        ),
+      );
+    });
+
+    it('ADMIN de OTRO tenant: el mismo aviso sobre "demo" queda DENEGADO — aislamiento', async () => {
+      const db = adminOtro(env);
+      await assertFails(
+        getDocs(
+          query(
+            collection(db, 'sesiones'),
+            where('restauranteId', '==', RID),
+            where('cuentaSolicitada', '==', true),
+            where('estado', '==', 'activa'),
+          ),
+        ),
+      );
     });
   });
 

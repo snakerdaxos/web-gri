@@ -23,9 +23,21 @@
 // ⚠️ `initEnv('pedidos')`: namespace propio obligatorio (ver _contexts.mjs).
 // ============================================================================
 
+import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 
 import {
   adminDemo,
@@ -452,6 +464,184 @@ describe('firestore.rules — pedidos', () => {
           total: 1,
           updatedAt: LUEGO,
         }),
+      );
+    });
+  });
+
+  // --- QUERY vs RULES (11-28) ------------------------------------------------
+  //
+  // EL P0 QUE ARREGLA ESTE BLOQUE. Un cliente envió su primer pedido contra el
+  // proyecto real: apareció un instante y la pantalla se quedó en blanco. En la
+  // consola, un 400 en el canal `Listen` de Firestore. La causa NO era el
+  // pedido: era el LISTENER que lo mostraba.
+  //
+  //   pedidos.where('sesionId', isEqualTo: mesaId).orderBy('createdAt')
+  //
+  // Firestore evalúa las rules contra la CONSULTA, no contra los documentos
+  // devueltos. La rama que ampara al cliente es
+  // `resource.data.usuarioId == request.auth.uid`, y una query que no restringe
+  // `usuarioId` no la puede demostrar: el emulador lo dice con todas las letras
+  // — «Property usuarioId is undefined on object. for 'list'». Se deniega el
+  // listener ENTERO; la caché local pintaba el pedido recién escrito y el
+  // rechazo del servidor la vaciaba acto seguido. De ahí el "aparece y
+  // desaparece".
+  //
+  // TERCERA VEZ que este modo de fallo llega a producción en el proyecto
+  // (11-03 categorias/productos, 11-27 docs ausentes, 11-28 pedidos). Ninguna
+  // de las tres la vio un test: `fake_cloud_firestore` no tiene motor de rules
+  // y los tests de rules probaban `getDoc`, no `getDocs`. Por eso este bloque
+  // usa LAS QUERIES LITERALES de las apps, no versiones simplificadas.
+  //
+  // Contrapartida estática: `scripts/audit_indexes.mjs` (AUDIT 2/4, entrada
+  // `pedidos` de PARIDAD_RULES_QUERY) falla si alguien quita el `where`.
+  describe('QUERY vs RULES — las consultas LITERALES de las apps (11-28)', () => {
+    // El pedido del INTRUSO en la MISMA mesa: `sesiones/{mesaId}` se reutiliza
+    // (`abrirSesion()` hace `tx.set()` sobre el mismo doc id cuando la anterior
+    // está cerrada), así que dos comensales distintos comparten `sesionId` a lo
+    // largo del día. Sin `where('usuarioId')` el segundo vería los pedidos del
+    // primero: además de denegada, la query era INCORRECTA.
+    async function pedidoDeOtroEnLaMismaMesa() {
+      await sembrar(env, async (db) => {
+        await setDoc(doc(db, 'pedidos', 'ped-de-otro-comensal'), {
+          sesionId: M_MIA,
+          mesaId: M_MIA,
+          restauranteId: RID,
+          usuarioId: INTRUSO,
+          estado: 'servido',
+          items: [ITEM],
+          total: 25000,
+          createdAt: LUEGO,
+        });
+      });
+    }
+
+    it('CLIENTE: la query del cliente SIN where("usuarioId") queda DENEGADA — el P0 de 11-28', async () => {
+      // Literalmente app_cliente/lib/features/pedidos/pedidos_provider.dart
+      // ANTES del arreglo.
+      const db = cliente(env, DUENO);
+      await assertFails(
+        getDocs(
+          query(collection(db, 'pedidos'), where('sesionId', '==', M_MIA), orderBy('createdAt')),
+        ),
+      );
+    });
+
+    it('CLIENTE: la misma query CON where("usuarioId") queda PERMITIDA', async () => {
+      const db = cliente(env, DUENO);
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(db, 'pedidos'),
+            where('sesionId', '==', M_MIA),
+            where('usuarioId', '==', DUENO),
+            orderBy('createdAt'),
+          ),
+        ),
+      );
+    });
+
+    it('CLIENTE: el where("usuarioId") no es cosmético — excluye los pedidos del comensal anterior en la MISMA mesa', async () => {
+      await pedidoDeOtroEnLaMismaMesa();
+      const db = cliente(env, DUENO);
+      const snap = await getDocs(
+        query(
+          collection(db, 'pedidos'),
+          where('sesionId', '==', M_MIA),
+          where('usuarioId', '==', DUENO),
+          orderBy('createdAt'),
+        ),
+      );
+      assert.equal(snap.size, 3, 'los 3 pedidos del dueño y ninguno del intruso');
+      assert.ok(
+        snap.docs.every((d) => d.data().usuarioId === DUENO),
+        'ningún pedido ajeno se cuela en la pantalla del cliente',
+      );
+    });
+
+    it('CLIENTE: query de pedidos SIN ningún filtro queda DENEGADA', async () => {
+      await assertFails(getDocs(collection(cliente(env, DUENO), 'pedidos')));
+    });
+
+    it('CLIENTE: pedir where("usuarioId") de OTRO uid queda DENEGADO — la rama demostrada tiene que ser la SUYA', async () => {
+      const db = cliente(env, DUENO);
+      await assertFails(
+        getDocs(query(collection(db, 'pedidos'), where('usuarioId', '==', INTRUSO))),
+      );
+    });
+
+    it('CLIENTE: where("restauranteId") NO le sirve — esa rama es la del staff, y él no lo es', async () => {
+      // Demostrar una rama que el llamador no cumple no habilita nada: la query
+      // acota `restauranteId`, pero `staffOf(...)` es falso para un cliente.
+      const db = cliente(env, DUENO);
+      await assertFails(
+        getDocs(query(collection(db, 'pedidos'), where('restauranteId', '==', RID))),
+      );
+    });
+
+    it('ANÓNIMO: cualquier query de pedidos queda DENEGADA', async () => {
+      await assertFails(
+        getDocs(query(collection(anon(env), 'pedidos'), where('usuarioId', '==', DUENO))),
+      );
+    });
+
+    it('COCINA: la cola de cocina LITERAL (restauranteId + estado IN + orderBy createdAt) queda PERMITIDA', async () => {
+      // panel_admin/lib/features/cocina/pedidos_staff_provider.dart
+      const db = cocina(env);
+      const snap = await getDocs(
+        query(
+          collection(db, 'pedidos'),
+          where('restauranteId', '==', RID),
+          where('estado', 'in', ['enviado', 'aceptado', 'en_preparacion']),
+          orderBy('createdAt'),
+        ),
+      );
+      assert.equal(snap.size, 3, 'los 3 pedidos vivos de la mesa');
+    });
+
+    it('COCINA de OTRO tenant: la misma cola sobre "demo" queda DENEGADA', async () => {
+      const db = adminOtro(env);
+      await assertFails(
+        getDocs(
+          query(
+            collection(db, 'pedidos'),
+            where('restauranteId', '==', RID),
+            where('estado', 'in', ['enviado', 'aceptado', 'en_preparacion']),
+            orderBy('createdAt'),
+          ),
+        ),
+      );
+    });
+
+    it('SUPER: la cola de cocina queda PERMITIDA (isSuper() es demostrable sin mirar documentos)', async () => {
+      // OJO al escribir tests de este tipo: con `super_admin` la rama isSuper()
+      // se demuestra sola y CUALQUIER query pasa. Un test de query-vs-rules
+      // hecho con super da verde SIEMPRE y no prueba nada del cliente. Ese
+      // detalle fue justo lo que hizo confuso el diagnóstico del P0.
+      const db = superAdmin(env);
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(db, 'pedidos'),
+            where('restauranteId', '==', RID),
+            where('estado', 'in', ['enviado', 'aceptado', 'en_preparacion']),
+            orderBy('createdAt'),
+          ),
+        ),
+      );
+    });
+
+    it('ADMIN del tenant: pedidos where("restauranteId") queda PERMITIDA (tabla de clientes del panel)', async () => {
+      // panel_admin/lib/features/clientes/clientes_provider.dart
+      const db = adminDemo(env);
+      await assertSucceeds(
+        getDocs(query(collection(db, 'pedidos'), where('restauranteId', '==', RID))),
+      );
+    });
+
+    it('ADMIN de OTRO tenant: pedidos where("restauranteId" == "demo") queda DENEGADA — aislamiento', async () => {
+      const db = adminOtro(env);
+      await assertFails(
+        getDocs(query(collection(db, 'pedidos'), where('restauranteId', '==', RID))),
       );
     });
   });
