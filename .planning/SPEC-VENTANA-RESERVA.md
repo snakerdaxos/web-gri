@@ -137,3 +137,29 @@ Puntos a resolver al implementar:
 - Cubrir la carrera: el mesero pulsa "entregar cuenta" en el mismo instante en que el cliente envía
   otro pedido. Hoy `entregarCuenta` cierra la sesión y manda la mesa a limpieza; conviene que falle
   si la sesión ya no está como la vio.
+
+## D. El panel no tiene botón de cerrar sesión
+
+Encontrado al redactar la documentación, verificado: `logout()` existe y está bien escrito en
+`panel_admin/lib/features/auth/login_controller.dart:113` (hace `signOut()` e invalida
+`claimsProvider`, y el `refreshListenable` del router redirige a `/login`), pero **ningún widget lo
+invoca**. Un `grep` de `logout`/`cerrarSesion` en todo `panel_admin/lib` no devuelve una sola
+llamada fuera del propio controlador.
+
+Consecuencia: una vez dentro del panel no se puede salir salvo borrando los datos del navegador.
+En un equipo compartido del restaurante —que es el caso de uso real de un panel de gestión— eso
+significa que la sesión del administrador queda abierta para quien se siente después.
+
+**Decisión del usuario (2026-08-20): añadirlo.**
+
+Puntos a resolver:
+- Ubicación coherente con el diseño ya existente: el `AppShell` tiene sidebar y topbar, y el topbar
+  ya muestra la identidad del usuario. Ahí es donde se espera encontrarlo.
+- Debe respetar el trabajo de accesibilidad ya hecho (etiqueta, tooltip, área táctil de 48dp) y los
+  tokens de diseño; `sin_hex_crudos_test.dart` falla ante un color a fuego.
+- Confirmación antes de salir: perder el trabajo a medias de un formulario por un clic accidental
+  es evitable.
+- Test que verifique el recorrido completo: pulsar → `signOut` → el router redirige a `/login`.
+  Ojo, `login_controller.dart` ya tiene tests; reutilizar sus dobles en vez de inventar otros.
+- Revisar si la app cliente tiene el mismo problema — tiene pantalla de perfil, así que
+  probablemente sí lo tenga resuelto, pero conviene comprobarlo y decirlo.
