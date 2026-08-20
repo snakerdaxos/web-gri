@@ -1,0 +1,337 @@
+#!/usr/bin/env node
+// ============================================================================
+// GRI — Ejecutor único de los gates automatizados (Fase 11, plan 11-15)
+//
+// QUÉ RESUELVE: la red de seguridad de la fase está repartida en seis suites y
+// tres auditorías estáticas, cada una con su comando, su directorio y su
+// formato de salida. Nadie las corre todas, y las que no se corren son
+// exactamente las que se rompen. Este script las corre TODAS en una pasada.
+//
+// USO (desde scripts/):   npm run gates
+//      o desde cualquier sitio:   node scripts/gates.mjs
+//
+// CONTRATO:
+//   · Ejecuta los 9 gates SIEMPRE, aunque uno falle. El objetivo es dar el
+//     panorama completo en una sola corrida, no un fallo cada vez.
+//   · Sale con código 1 si CUALQUIER gate falla, y con 0 solo si todos pasan.
+//   · Un gate de tests falla también cuando el número de tests BAJA respecto a
+//     su baseline, aunque el comando devuelva 0: una prueba borrada es una
+//     regresión silenciosa y ningún runner la reporta como error.
+//   · `flutter analyze` exige literalmente 0 issues.
+//
+// LO QUE ESTE SCRIPT NO CUBRE (deliberado, documentado en docs/SMOKE-E2E-v2.md):
+//   · `npm run verify:shell` exige `flutter build web --release` previo en las
+//     DOS apps (minutos) y Chrome instalado. Queda fuera de la pasada rápida;
+//     se corre a mano antes de un despliegue web.
+//   · Nada de aquí prueba los ÍNDICES COMPUESTOS: el emulador no los valida
+//     (decisión 11-03). Eso es el checkpoint humano del plan 11-16.
+//   · Nada de aquí prueba el ingreso con Google: el emulador de Auth no
+//     implementa el flujo real (plan 11-17 / checkpoint 11-20).
+// ============================================================================
+
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const AQUI = path.dirname(fileURLToPath(import.meta.url));
+const RAIZ = path.resolve(AQUI, '..');
+const ES_WIN = process.platform === 'win32';
+
+// ---------------------------------------------------------------------------
+// BASELINES — número de tests medido al cerrar el plan 11-22 (ver STATE.md,
+// sección "Test Baselines"). Estos números pueden SUBIR; si BAJAN, el gate
+// falla. Quien retire un test a conciencia debe bajar el número AQUÍ, en el
+// mismo commit, para que quede el rastro de que fue una decisión.
+// ---------------------------------------------------------------------------
+const BASELINES = {
+  app_cliente: 345, // flutter test
+  panel_admin: 423, // flutter test
+  functions_unit: 149, // functions/: node --test test/*.test.js
+  rules: 221, // scripts/: @firebase/rules-unit-testing contra el emulador
+  functions_e2e: 50, // scripts/: callables contra emuladores auth+functions+firestore
+};
+
+// ---------------------------------------------------------------------------
+// Resolución de `flutter`. En Windows el ejecutable real es flutter.bat y
+// spawn de un .bat exige shell (Node ≥18.20 lo rechaza si no) — por eso todo
+// se lanza a través de cmd.exe /c (mismo criterio que run_emulators.mjs).
+// ---------------------------------------------------------------------------
+function resolverFlutter() {
+  const candidatos = ES_WIN ? ['flutter.bat', 'flutter.exe'] : ['flutter'];
+  for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+    if (!dir) continue;
+    for (const nombre of candidatos) {
+      const p = path.join(dir, nombre);
+      if (existsSync(p)) return p;
+    }
+  }
+  return null;
+}
+
+const FLUTTER = resolverFlutter();
+
+function ejecutar(cmd, args, cwd) {
+  const inicio = Date.now();
+  let bin = cmd;
+  let argv = args;
+  if (ES_WIN) {
+    bin = process.env.ComSpec || 'cmd.exe';
+    argv = ['/d', '/s', '/c', cmd, ...args];
+  }
+  const r = spawnSync(bin, argv, {
+    cwd,
+    encoding: 'utf8',
+    maxBuffer: 128 * 1024 * 1024,
+    env: process.env,
+    windowsVerbatimArguments: false,
+  });
+  const salida = `${r.stdout || ''}${r.stderr || ''}`;
+  return {
+    code: r.status === null ? 1 : r.status,
+    salida,
+    error: r.error ? String(r.error.message) : null,
+    ms: Date.now() - inicio,
+  };
+}
+
+// --- Analizadores de salida ------------------------------------------------
+
+// `flutter test` imprime "00:03 +345: All tests passed!". El contador es
+// acumulativo, así que el válido es el MAYOR de todos los que aparecen.
+function contarFlutterTest(salida) {
+  let max = null;
+  for (const m of salida.matchAll(/\+(\d+)/g)) {
+    const n = Number(m[1]);
+    if (max === null || n > max) max = n;
+  }
+  return max;
+}
+
+// `node --test` con el reporter spec cierra con "ℹ pass 149" / "ℹ fail 0";
+// con el reporter tap, con "# pass 149" / "# fail 0". Se aceptan los dos.
+function contarNodeTest(salida) {
+  let pass = null;
+  let fail = null;
+  for (const m of salida.matchAll(/^[ℹ#]\s*pass\s+(\d+)\s*$/gm)) pass = Number(m[1]);
+  for (const m of salida.matchAll(/^[ℹ#]\s*fail\s+(\d+)\s*$/gm)) fail = Number(m[1]);
+  return { pass, fail };
+}
+
+// `flutter analyze` dice "No issues found!" o "N issues found."
+function contarIssues(salida) {
+  if (/No issues found/i.test(salida)) return 0;
+  const m = salida.match(/(\d+)\s+issues?\s+found/i);
+  if (m) return Number(m[1]);
+  return null;
+}
+
+// --- Definición de los gates ----------------------------------------------
+
+const GATES = [
+  {
+    nombre: 'app_cliente: flutter test',
+    tipo: 'flutter-test',
+    cwd: path.join(RAIZ, 'app_cliente'),
+    args: ['test'],
+    baseline: BASELINES.app_cliente,
+  },
+  {
+    nombre: 'app_cliente: flutter analyze',
+    tipo: 'flutter-analyze',
+    cwd: path.join(RAIZ, 'app_cliente'),
+    args: ['analyze'],
+  },
+  {
+    nombre: 'panel_admin: flutter test',
+    tipo: 'flutter-test',
+    cwd: path.join(RAIZ, 'panel_admin'),
+    args: ['test'],
+    baseline: BASELINES.panel_admin,
+  },
+  {
+    nombre: 'panel_admin: flutter analyze',
+    tipo: 'flutter-analyze',
+    cwd: path.join(RAIZ, 'panel_admin'),
+    args: ['analyze'],
+  },
+  {
+    // OJO: estos NO corren dentro de `scripts: npm run test:functions`. Ese
+    // script hace glob de scripts/test/functions/*.test.mjs (0 coincidencias)
+    // y *.e2e.mjs; los unitarios viven en functions/test/*.test.js y sin este
+    // gate se quedaban FUERA de la red de seguridad.
+    nombre: 'functions: npm test (unitarios)',
+    tipo: 'node-test',
+    cwd: path.join(RAIZ, 'functions'),
+    cmd: 'npm',
+    args: ['test'],
+    baseline: BASELINES.functions_unit,
+  },
+  {
+    nombre: 'scripts: npm run test:rules',
+    tipo: 'node-test',
+    cwd: path.join(RAIZ, 'scripts'),
+    cmd: 'npm',
+    args: ['run', 'test:rules'],
+    baseline: BASELINES.rules,
+  },
+  {
+    nombre: 'scripts: npm run test:functions (e2e)',
+    tipo: 'node-test',
+    cwd: path.join(RAIZ, 'scripts'),
+    cmd: 'npm',
+    args: ['run', 'test:functions'],
+    baseline: BASELINES.functions_e2e,
+  },
+  {
+    nombre: 'scripts: npm run audit:indexes',
+    tipo: 'exit',
+    cwd: path.join(RAIZ, 'scripts'),
+    cmd: 'npm',
+    args: ['run', 'audit:indexes'],
+  },
+  {
+    nombre: 'scripts: npm run audit:branding',
+    tipo: 'exit',
+    cwd: path.join(RAIZ, 'scripts'),
+    cmd: 'npm',
+    args: ['run', 'audit:branding'],
+  },
+];
+
+// --- Ejecución -------------------------------------------------------------
+
+const SOLO = process.argv.slice(2).filter((a) => !a.startsWith('-'));
+
+console.log('');
+console.log('═'.repeat(78));
+console.log(' GRI — GATES AUTOMATIZADOS (Fase 11)');
+console.log('═'.repeat(78));
+console.log(` raíz: ${RAIZ}`);
+console.log(` flutter: ${FLUTTER || '(NO ENCONTRADO EN EL PATH)'}`);
+console.log('');
+
+const resultados = [];
+
+for (const gate of GATES) {
+  if (SOLO.length && !SOLO.some((s) => gate.nombre.includes(s))) continue;
+
+  const esFlutter = gate.tipo.startsWith('flutter');
+  if (esFlutter && !FLUTTER) {
+    console.log(`▶ ${gate.nombre} … OMITIDO (flutter no está en el PATH)`);
+    resultados.push({
+      nombre: gate.nombre,
+      ok: false,
+      tests: '—',
+      detalle: 'flutter no está en el PATH',
+      ms: 0,
+      salida: '',
+    });
+    continue;
+  }
+
+  process.stdout.write(`▶ ${gate.nombre} … `);
+  const cmd = esFlutter ? FLUTTER : gate.cmd;
+  const r = ejecutar(cmd, gate.args, gate.cwd);
+
+  let ok = r.code === 0 && !r.error;
+  let tests = '—';
+  let detalle = r.error ? r.error : `exit ${r.code}`;
+
+  if (gate.tipo === 'flutter-test') {
+    const n = contarFlutterTest(r.salida);
+    tests = n === null ? '?' : String(n);
+    if (n === null) {
+      ok = false;
+      detalle = 'no se pudo leer el contador de tests de la salida';
+    } else if (ok && n < gate.baseline) {
+      ok = false;
+      detalle = `REGRESIÓN: ${n} tests < baseline ${gate.baseline}`;
+    } else if (ok) {
+      detalle = n > gate.baseline ? `${n} (baseline ${gate.baseline}, +${n - gate.baseline})` : `${n} = baseline`;
+    }
+  } else if (gate.tipo === 'node-test') {
+    const { pass, fail } = contarNodeTest(r.salida);
+    tests = pass === null ? '?' : String(pass);
+    if (pass === null) {
+      ok = false;
+      detalle = 'no se pudo leer "pass N" de la salida';
+    } else if (fail && fail > 0) {
+      ok = false;
+      detalle = `${fail} test(s) en rojo`;
+    } else if (ok && pass < gate.baseline) {
+      ok = false;
+      detalle = `REGRESIÓN: ${pass} tests < baseline ${gate.baseline}`;
+    } else if (ok) {
+      detalle = pass > gate.baseline ? `${pass} (baseline ${gate.baseline}, +${pass - gate.baseline})` : `${pass} = baseline`;
+    }
+  } else if (gate.tipo === 'flutter-analyze') {
+    const issues = contarIssues(r.salida);
+    tests = issues === null ? '?' : `${issues} issues`;
+    if (issues === null) {
+      ok = false;
+      detalle = 'no se pudo leer el número de issues de la salida';
+    } else if (issues !== 0) {
+      ok = false;
+      detalle = `${issues} issue(s) — se exigen 0`;
+    } else {
+      ok = true; // "No issues found!" es la única forma de pasar
+      detalle = '0 issues';
+    }
+  } else if (gate.tipo === 'exit' && ok) {
+    detalle = 'exit 0';
+  }
+
+  console.log(`${ok ? 'OK' : 'FALLO'}  (${(r.ms / 1000).toFixed(1)}s)`);
+  resultados.push({ nombre: gate.nombre, ok, tests, detalle, ms: r.ms, salida: r.salida });
+}
+
+// --- Salida de los que fallaron -------------------------------------------
+
+const fallidos = resultados.filter((r) => !r.ok);
+
+for (const f of fallidos) {
+  if (!f.salida) continue;
+  const lineas = f.salida.split(/\r?\n/);
+  const cola = lineas.slice(-40);
+  console.log('');
+  console.log('─'.repeat(78));
+  console.log(` SALIDA DE: ${f.nombre}  (últimas ${cola.length} líneas)`);
+  console.log('─'.repeat(78));
+  console.log(cola.join('\n'));
+}
+
+// --- Tabla resumen ---------------------------------------------------------
+
+const anchoNombre = Math.max(...resultados.map((r) => r.nombre.length), 6);
+const anchoTests = Math.max(...resultados.map((r) => String(r.tests).length), 5);
+
+console.log('');
+console.log('═'.repeat(78));
+console.log(' RESUMEN');
+console.log('═'.repeat(78));
+console.log(
+  ` ${'GATE'.padEnd(anchoNombre)}  ${'RES.'.padEnd(5)}  ${'TESTS'.padEnd(anchoTests)}  DETALLE`,
+);
+console.log(
+  ` ${'─'.repeat(anchoNombre)}  ${'─'.repeat(5)}  ${'─'.repeat(anchoTests)}  ${'─'.repeat(20)}`,
+);
+for (const r of resultados) {
+  console.log(
+    ` ${r.nombre.padEnd(anchoNombre)}  ${(r.ok ? 'OK' : 'FALLO').padEnd(5)}  ` +
+      `${String(r.tests).padEnd(anchoTests)}  ${r.detalle}`,
+  );
+}
+console.log('');
+
+const totalMs = resultados.reduce((a, r) => a + r.ms, 0);
+console.log(
+  ` ${resultados.length} gates · ${resultados.length - fallidos.length} OK · ` +
+    `${fallidos.length} fallo(s) · ${(totalMs / 1000 / 60).toFixed(1)} min`,
+);
+console.log('');
+console.log(' Recordatorio: estos gates NO validan los índices compuestos (el emulador');
+console.log(' no los evalúa) ni el ingreso con Google. Ver docs/SMOKE-E2E-v2.md §Límites.');
+console.log('');
+
+process.exit(fallidos.length > 0 ? 1 : 0);
