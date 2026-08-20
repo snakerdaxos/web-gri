@@ -69,6 +69,36 @@ sustituir un mensaje específico por uno genérico o equivocado, con el criterio
 - Cloud Storage **no está habilitado** y exige Blaze, así que subir archivos desde el panel no es
   opción hoy. El panel ya acepta `imagenUrl` como texto; esa es la vía.
 
+
+### 4. LA CUENTA — hueco funcional grave (decidido por el usuario 2026-08-20)
+
+**Nadie suma nunca los pedidos de una sesión.** Verificado: la única suma que existe en las dos
+apps es la del carrito (), antes de enviar un pedido. Después:
+- el cliente pulsa "solicitar la cuenta" → solo activa una bandera ;
+- el mesero pulsa "entregar cuenta" (, ) →
+  **cierra la sesión y manda la mesa a limpieza**, sin importe.
+
+En ningún punto aparece cuánto debe pagar el cliente. **Hoy no se puede cobrar** sin ir a la base de
+datos a sumar a mano. El ciclo del producto no cierra: se reciben pedidos y no se cobran.
+
+Que se creen pedidos separados al pedir más veces desde la misma mesa **es correcto** y no se toca:
+son comandas distintas para cocina, con un mismo . Lo que falta es la suma.
+
+**Alcance:**
+- Vista de cuenta para el CLIENTE al solicitarla: desglose de sus pedidos de la mesa y total.
+- Vista para el MESERO al recibir el aviso: importe antes de cobrar y cerrar la sesión.
+
+**DECISIÓN DEL USUARIO (2026-08-20): se cobran SOLO LOS PEDIDOS SERVIDOS.**
+Los rechazados por cocina y los que no llegaron a servirse no se cobran. Criterio: si no se sirvió,
+no se paga. Implica que el importe puede cambiar mientras haya pedidos en curso — la vista debe
+dejar claro qué está incluido y qué queda pendiente de servir, para que ni el cliente ni el mesero
+se lleven una sorpresa al cerrar.
+
+Los datos ya lo permiten: cada pedido tiene  y , y el índice
+ está desplegado. Ojo: la cuenta de la MESA puede abarcar
+más de un comensal si varios piden desde la misma sesión — decidir si la vista del mesero suma por
+sesión (mesa) y la del cliente solo lo suyo.
+
 ---
 
 ## Verificado y funcionando tras el despliegue del 2026-08-20
