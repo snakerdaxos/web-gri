@@ -103,7 +103,44 @@ class _AppShellState extends ConsumerState<AppShell> {
                       userRole: _roleLabel(claimsAsync.value?.role),
                     ),
                     const Divider(height: 1, color: GriColors.divider),
-                    Expanded(child: widget.child),
+                    // ⚠️ Este `Semantics` NO es decorativo: es lo que hace que
+                    // el sidebar y el topbar EXISTAN para un lector de
+                    // pantalla.
+                    //
+                    // MEDIDO (11-25): sin él, el árbol de semántica del panel
+                    // montado con el router real contiene ÚNICAMENTE el
+                    // contenido de la ruta. Los 8 ítems de navegación, el
+                    // logo, el título y el nombre del restaurante no aparecen
+                    // por ninguna parte — no es que estén sin etiqueta: no
+                    // están.
+                    //
+                    // Causa: el `ShellRoute` monta `widget.child` sobre un
+                    // Navigator PROPIO, y toda ruta modal de un Navigator
+                    // emite un `ModalBarrier`, que envuelve su contenido en
+                    // `BlockSemantics`. Ese widget descarta la semántica de
+                    // todo lo pintado ANTES que él, y el sidebar y el topbar
+                    // se pintan antes (son los hermanos previos de este Row /
+                    // Column). El descarte sube por el árbol hasta el primer
+                    // límite de semántica (`isSemanticBoundary`) —
+                    // `rendering/object.dart`, `isBlockingPreviousSibling` —,
+                    // y sin este `Semantics(container: true)` no había
+                    // ninguno entre la barrera y la raíz.
+                    //
+                    // NO lleva `explicitChildNodes`: se probó y es un NO-OP
+                    // aquí (rotura B — quitarlo deja los 14 casos de
+                    // `test/a11y/` en verde). El contenido de la ruta ya forma
+                    // sus propios nodos, así que no hay nada que este
+                    // contenedor pudiera absorber; añadirlo sería una línea
+                    // que no puede fallar.
+                    //
+                    // No cambia ni un píxel: `Semantics` no pinta ni ocupa
+                    // espacio.
+                    Expanded(
+                      child: Semantics(
+                        container: true,
+                        child: widget.child,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -312,7 +349,7 @@ class _MenuItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = active ? GriColors.primary : Colors.transparent;
     final fg = active ? Colors.white : GriColors.sidebarItemInactivo;
-    return Padding(
+    final item = Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: bg,
@@ -366,6 +403,16 @@ class _MenuItem extends StatelessWidget {
         ),
       ),
     );
+
+    // Colapsado el ítem es SOLO un icono de 18px: ni un usuario de ratón ni
+    // uno de teclado tienen forma de saber qué es. El `Tooltip` lo resuelve
+    // para los dos — al pasar el ratón se ve el nombre, y en el árbol de
+    // semántica llega por el campo `tooltip`, que es un nombre accesible
+    // válido (`labeledTapTargetGuideline` acepta `label` O `tooltip`).
+    //
+    // Expandido NO se pone: el nombre ya está escrito al lado, y un tooltip
+    // encima solo duplicaría el anuncio. Hay un test que lo afirma.
+    return collapsed ? Tooltip(message: label, child: item) : item;
   }
 }
 

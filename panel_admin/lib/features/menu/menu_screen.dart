@@ -161,7 +161,11 @@ class _CategoriaTileState extends State<_CategoriaTile> {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              tooltip: 'Editar categoría',
+              // El tooltip NOMBRA la categoría (11-25): con varias categorías
+              // en pantalla, un 'Editar categoría' repetido no dice cuál se
+              // edita — ni al pasar el ratón ni en el árbol de semántica, que
+              // es donde acaba el `tooltip` de un IconButton.
+              tooltip: 'Editar la categoría ${c.nombre}',
               icon: const Icon(Icons.edit_outlined,
                   size: 20, color: GriColors.gray),
               onPressed: () => showDialog(

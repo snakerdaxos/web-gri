@@ -33,15 +33,15 @@ Una fila por punto de uso. Las líneas son las del árbol tras 11-21.
 
 | Emoji | Archivo:línea | `Icons.*` | Nombre en `GriIcons` | `size` |
 |---|---|---|---|---|
-| 🏠 | `features/shared/app_shell.dart:152` | `home_outlined` | `dashboard` | 18 |
-| 🪑 | `features/shared/app_shell.dart:153` | `table_restaurant_outlined` | `mesas` | 18 |
-| 📋 | `features/shared/app_shell.dart:154` | `receipt_long_outlined` | `pedidos` | 18 |
-| 📅 | `features/shared/app_shell.dart:155` | `calendar_today_outlined` | `reservas` | 18 |
-| 👥 | `features/shared/app_shell.dart:156` | `people_outline` | `clientes` | 18 |
-| 📊 | `features/shared/app_shell.dart:157` | `bar_chart` | `reportes` | 18 |
-| 🪪 | `features/shared/app_shell.dart:158` | `badge_outlined` | `equipo` | 18 |
-| ⚙️ | `features/shared/app_shell.dart:159` | `settings_outlined` | `configuracion` | 18 |
-| 🍽️ | `features/shared/app_shell.dart:225` | `restaurant` | `marca` | 24 |
+| 🏠 | `features/shared/app_shell.dart:189` | `home_outlined` | `dashboard` | 18 |
+| 🪑 | `features/shared/app_shell.dart:190` | `table_restaurant_outlined` | `mesas` | 18 |
+| 📋 | `features/shared/app_shell.dart:191` | `receipt_long_outlined` | `pedidos` | 18 |
+| 📅 | `features/shared/app_shell.dart:192` | `calendar_today_outlined` | `reservas` | 18 |
+| 👥 | `features/shared/app_shell.dart:193` | `people_outline` | `clientes` | 18 |
+| 📊 | `features/shared/app_shell.dart:194` | `bar_chart` | `reportes` | 18 |
+| 🪪 | `features/shared/app_shell.dart:195` | `badge_outlined` | `equipo` | 18 |
+| ⚙️ | `features/shared/app_shell.dart:196` | `settings_outlined` | `configuracion` | 18 |
+| 🍽️ | `features/shared/app_shell.dart:262` | `restaurant` | `marca` | 24 |
 | 🍽️ | `features/auth/login_screen.dart:208` | `restaurant` | `marca` | 32 |
 | 🍽️ | `features/bootstrap/bootstrap_screen.dart:290` | `restaurant` | `marca` | 32 |
 | 🍽️ | `features/cocina/cocina_screen.dart:180` | `restaurant` | `marca` | 20 |
@@ -55,7 +55,7 @@ Una fila por punto de uso. Las líneas son las del árbol tras 11-21.
 | 📋 | `features/dashboard/dashboard_screen.dart:171` | `receipt_long_outlined` | `pedidos` | 25 |
 | 🏪 | `features/dashboard/dashboard_screen.dart:328` | `storefront_outlined` | `restaurante` | 34 |
 | 👇 | `features/dashboard/dashboard_screen.dart:328` | `arrow_upward` | `selectorArriba` | 34 |
-| 👥 | `features/dashboard/widgets/mesa_tile.dart:70` | `people_outline` | `clientes` | 12 |
+| 👥 | `features/dashboard/widgets/mesa_tile.dart:98` | `people_outline` | `clientes` | 12 |
 | 🪪 | `features/equipo/equipo_screen.dart:138` | `badge_outlined` | `equipo` | 40 |
 | 📷 | `features/mesas/mesa_actions_sheet.dart:124` | `qr_code_2` | `verQr` | 20 |
 | ✏️ | `features/mesas/mesa_actions_sheet.dart:130` | `edit_outlined` | `editar` | 20 |

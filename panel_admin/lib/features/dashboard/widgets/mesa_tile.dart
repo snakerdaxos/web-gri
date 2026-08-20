@@ -31,7 +31,35 @@ class MesaTile extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(15),
-        child: Container(
+        // El control principal del mapa de mesas (lo que el staff toca todo
+        // el día). Va DENTRO del InkWell y SIN `container: true`, así que se
+        // funde en el nodo del propio InkWell — el que lleva la acción de tap.
+        //
+        // MEDIDO, para no afirmar de más: envolver el InkWell POR FUERA con
+        // `Semantics(container: true, …)` da exactamente el mismo nodo único
+        // (la acción de tap del InkWell se absorbe en el contenedor) y deja la
+        // suite igual de verde. Lo que sí rompe —rotura F— es quedarse sin
+        // etiqueta: entonces el nodo pulsable no tiene nombre y
+        // `labeledTapTargetGuideline` se pone roja en `/` y en `/mesas`.
+        //
+        // `excludeSemantics` quita los tres textos del tile para que el
+        // anuncio sea UNO y no la concatenación 'Mesa 4 / Ocupada / 4
+        // personas'; la etiqueta de aquí dice lo mismo, ordenado.
+        //
+        // MEDIDO: esos tres textos ya eran invisibles para
+        // `textContrastGuideline` antes de este cambio — la guía busca un
+        // `Text` cuyo contenido sea EXACTAMENTE la etiqueta del nodo
+        // (`accessibility.dart`: `find.text(data.label)`) y la etiqueta
+        // fundida nunca coincidía con ninguno. El contraste de los 4 pares
+        // de color del tile se afirma con la fórmula WCAG en
+        // `test/a11y/a11y_test.dart`, que no depende de que el tile esté
+        // montado.
+        child: Semantics(
+          button: onTap != null,
+          label: 'Mesa ${mesa.numero}, ${_estadoLabel(mesa.estado)}, '
+              '${mesa.capacidad} personas',
+          excludeSemantics: true,
+          child: Container(
         key: ValueKey('mesa-tile-${mesa.numero}'),
         constraints: const BoxConstraints(minHeight: 130),
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
@@ -87,6 +115,7 @@ class MesaTile extends StatelessWidget {
             ),
           ],
         ),
+          ),
         ),
       ),
     );

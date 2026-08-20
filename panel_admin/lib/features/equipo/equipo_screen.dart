@@ -325,11 +325,23 @@ class _TablaEquipoState extends ConsumerState<_TablaEquipo> {
     if (m.rol == 'super_admin') return const SizedBox.shrink();
 
     final bloqueado = _enVuelo != null;
+    final verbo = m.activo ? 'Desactivar' : 'Reactivar';
     return TextButton(
       key: Key('equipo-accion-${m.uid}'),
       style: m.activo ? griBotonPeligroTexto : null,
       onPressed: bloqueado ? null : () => _cambiarEstado(m, activo: !m.activo),
-      child: Text(m.activo ? 'Desactivar' : 'Reactivar'),
+      // El botón NOMBRA a la persona para un lector de pantalla (11-25). En
+      // pantalla basta con el verbo —el nombre está en la primera celda de la
+      // misma fila—, pero una tabla no transmite esa relación: un lector
+      // anunciaría diez botones «Desactivar» idénticos. El `Semantics` va
+      // DENTRO del botón y sin `container`, así que se funde en el nodo del
+      // propio botón; `excludeSemantics` evita que el texto visible añada un
+      // segundo «Desactivar» al anuncio. El texto en pantalla NO cambia.
+      child: Semantics(
+        label: '$verbo a ${m.nombre}',
+        excludeSemantics: true,
+        child: Text(verbo),
+      ),
     );
   }
 }

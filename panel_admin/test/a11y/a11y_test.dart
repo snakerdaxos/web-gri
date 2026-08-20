@@ -6,7 +6,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_panel_admin/app.dart';
@@ -14,6 +14,9 @@ import 'package:gri_panel_admin/core/firebase_providers.dart';
 import 'package:gri_panel_admin/features/equipo/equipo_controller.dart';
 import 'package:gri_panel_admin/features/equipo/equipo_provider.dart';
 import 'package:gri_panel_admin/features/equipo/equipo_screen.dart';
+import 'package:gri_panel_admin/features/menu/menu_screen.dart';
+import 'package:gri_panel_admin/features/mesas/mesa_actions_sheet.dart';
+import 'package:gri_panel_admin/models/mesa.dart';
 
 import '../helpers/firebase_fakes.dart';
 
@@ -123,7 +126,13 @@ List<NodoA11y> nodos(WidgetTester tester) {
     });
   }
 
-  walk(tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!);
+  // El MISMO recorrido que hacen las guías de `flutter_test`
+  // (`accessibility.dart`: `for (final RenderView view in
+  // tester.binding.renderViews) ... view.owner!.semanticsOwner!`), para que
+  // estos casos y `meetsGuideline` hablen exactamente del mismo árbol.
+  for (final RenderView view in tester.binding.renderViews) {
+    walk(view.owner!.semanticsOwner!.rootSemanticsNode!);
+  }
   return salida;
 }
 
@@ -174,6 +183,83 @@ const _equipoSembrado = <MiembroEquipo>[
     activo: false,
   ),
 ];
+
+/// Abre el bottom sheet de acciones de una mesa (patrón
+/// `test/dashboard/mesa_actions_test.dart`).
+Future<void> montarSheetDeMesa(
+  WidgetTester tester, {
+  EstadoMesa estado = EstadoMesa.ocupada,
+  bool showEdit = true,
+}) async {
+  tester.view.physicalSize = const Size(1000, 800);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+
+  final db = await buildFakeFirestoreConSeed();
+  final mesa = Mesa(
+    id: 'GRI-MESA-demo-002',
+    restauranteId: 'demo',
+    numero: 2,
+    capacidad: 4,
+    estado: estado,
+  );
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        firestoreProvider.overrideWithValue(db),
+        claimsProvider.overrideWith(
+          (ref) async => (role: 'mesero', rid: 'demo'),
+        ),
+      ],
+      child: Consumer(
+        builder: (consumerContext, ref, _) => MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: Builder(
+                builder: (buttonContext) => TextButton(
+                  onPressed: () => showMesaActionsSheet(
+                    buttonContext,
+                    ref,
+                    mesa,
+                    showEdit: showEdit,
+                  ),
+                  child: const Text('abrir'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('abrir'));
+  await tester.pumpAndSettle();
+}
+
+/// Monta `/configuracion` con el menú desplegado (categorías + productos).
+Future<void> montarMenu(WidgetTester tester) async {
+  tester.view.physicalSize = const Size(1280, 900);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+
+  final db = await buildFakeFirestoreConSeed();
+  final c = ProviderContainer(overrides: [
+    firestoreProvider.overrideWithValue(db),
+    firebaseAuthProvider.overrideWithValue(MockFirebaseAuth(signedIn: true)),
+    claimsProvider
+        .overrideWith((ref) async => (role: 'admin_restaurante', rid: 'demo')),
+  ]);
+  addTearDown(c.dispose);
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: c,
+      child: const MaterialApp(home: Scaffold(body: MenuScreen())),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
 
 Future<void> montarEquipo(WidgetTester tester) async {
   tester.view.physicalSize = const Size(1400, 900);
@@ -333,6 +419,50 @@ void main() {
       expect(tiles.single.boton, isTrue,
           reason: 'sin la marca de boton, un lector de pantalla anuncia el '
               'tile como texto y no dice que se pueda activar');
+      handle.dispose();
+    });
+  });
+
+  // =======================================================================
+  // 3b. El sheet de acciones de una mesa y el menu
+  // =======================================================================
+
+  group('sheet de acciones de mesa', () {
+    testWidgets('cada accion se anuncia con su verbo y cumple las dos guias',
+        (tester) async {
+      final handle = tester.ensureSemantics();
+      await montarSheetDeMesa(tester);
+
+      final nombres = nodos(tester).map(nombreAccesible).toSet();
+      // Desde 'ocupada' la unica transicion valida es limpieza.
+      expect(nombres, contains('Marcar en limpieza'));
+      expect(nombres, contains('Ver código QR'));
+      expect(nombres, contains('Editar mesa'));
+
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      handle.dispose();
+    });
+  });
+
+  group('menu (categorias y productos)', () {
+    testWidgets('el boton de editar NOMBRA la categoria', (tester) async {
+      final handle = tester.ensureSemantics();
+      await montarMenu(tester);
+
+      // El seed trae DOS categorias: un tooltip generico 'Editar categoria'
+      // repetido no deja saber cual se edita.
+      final nombres = nodos(tester).map(nombreAccesible).toSet();
+      expect(nombres, contains('Editar la categoría Platos fuertes'));
+      expect(nombres, contains('Editar la categoría Bebidas'));
+      handle.dispose();
+    });
+
+    testWidgets('cumple las dos guias', (tester) async {
+      final handle = tester.ensureSemantics();
+      await montarMenu(tester);
+      await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
       handle.dispose();
     });
   });
