@@ -9,6 +9,7 @@
 // contraste sobre el árbol de semántica; no ejecuta TalkBack ni VoiceOver. Que
 // un lector de pantalla LEA la pantalla en un orden con sentido —y que las
 // etiquetas suenen bien en voz alta— sigue siendo verificación humana.
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
@@ -554,6 +555,107 @@ void main() {
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
     await expectLater(tester, meetsGuideline(textContrastGuideline));
     handle.dispose();
+  });
+
+  test('GATE ESTÁTICO: GriColors.gray no aparece en ningún contexto de TEXTO',
+      () {
+    // POR QUÉ HACE FALTA ADEMÁS DEL BARRIDO. El barrido solo ve las pantallas
+    // que monta. MEDIDO con dos roturas: devolver a `GriColors.gray` el texto
+    // del 404 o el del escáner deja la suite ENTERA en verde, porque esas dos
+    // pantallas no están montadas en ningún caso de este archivo. Este gate
+    // lee las 68 fuentes de `lib/`, así que no tiene puntos ciegos por
+    // cobertura de montaje.
+    //
+    // Criterio: de los marcadores conocidos, gana el que esté MÁS CERCA por
+    // delante de la aparición. `Icon(... color: GriColors.gray)` clasifica
+    // como icono aunque tres líneas antes hubiera un `TextStyle`.
+    const marcadoresTexto = <String>[
+      'TextStyle(',
+      'GriText.',
+      'unselectedItemColor:',
+      'disabledForegroundColor:',
+      'foregroundColor:',
+    ];
+    const marcadoresNoTexto = <String>[
+      'Icon(',
+      'backgroundColor:',
+      'CircularProgressIndicator(',
+      'BorderSide(',
+      'Divider(',
+    ];
+
+    var apariciones = 0;
+    var archivos = 0;
+    final infracciones = <String>[];
+
+    for (final f in Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))) {
+      // core/theme.dart es donde vive el token: ahí `GriColors.gray` aparece
+      // por definición (y en el fallback `neutroFg` de los chips de estado).
+      if (f.path.replaceAll(r'\', '/').endsWith('core/theme.dart')) continue;
+      archivos++;
+
+      // Fuera comentarios: el doc de un widget puede nombrar el token.
+      final codigo = f
+          .readAsStringSync()
+          .split('\n')
+          .map((l) {
+            final i = l.indexOf('//');
+            return i == -1 ? l : l.substring(0, i);
+          })
+          .join('\n');
+
+      var desde = 0;
+      while (true) {
+        final i = codigo.indexOf('GriColors.gray', desde);
+        if (i == -1) break;
+        desde = i + 1;
+        // `GriColors.grayAlgo` no es `GriColors.gray`.
+        final sig = i + 'GriColors.gray'.length;
+        if (sig < codigo.length &&
+            RegExp(r'[A-Za-z0-9_]').hasMatch(codigo[sig])) {
+          continue;
+        }
+        apariciones++;
+
+        final antes = codigo.substring(0, i);
+        var mejor = -1;
+        var esTexto = false;
+        for (final m in marcadoresTexto) {
+          final p = antes.lastIndexOf(m);
+          if (p > mejor) {
+            mejor = p;
+            esTexto = true;
+          }
+        }
+        for (final m in marcadoresNoTexto) {
+          final p = antes.lastIndexOf(m);
+          if (p > mejor) {
+            mejor = p;
+            esTexto = false;
+          }
+        }
+        final linea = '\n'.allMatches(antes).length + 1;
+        if (mejor == -1) {
+          infracciones.add('${f.path}:$linea — contexto DESCONOCIDO: '
+              'clasifícalo añadiendo su marcador al gate');
+        } else if (esTexto) {
+          infracciones.add('${f.path}:$linea — GriColors.gray como color de '
+              'TEXTO (4.48:1 < 4.5). Usa GriColors.textoSecundarioAccesible');
+        }
+      }
+    }
+
+    expect(infracciones, isEmpty, reason: infracciones.join('\n'));
+    // Autocomprobación de cobertura: si el gate dejara de leer archivos o de
+    // encontrar apariciones, `isEmpty` pasaría por vacío. MEDIDO: 12
+    // apariciones legítimas (9 Icon, 1 fondo de SnackBar, 1 indicador de
+    // progreso y 1 en el doc de un parámetro) en 60+ archivos.
+    expect(archivos, greaterThanOrEqualTo(40), reason: 'archivos leídos');
+    expect(apariciones, greaterThanOrEqualTo(10),
+        reason: 'apariciones de GriColors.gray clasificadas');
   });
 
   testWidgets('el wizard de reserva etiqueta sus controles de comensales',
