@@ -267,9 +267,13 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
   13. La contraseña `12345678` se rechaza en los cuatro puntos donde se fija una y también en la callable, con un mensaje que dice qué falta
   14. Un `permission-denied` al escanear una mesa NUNCA se presenta como si el código QR estuviera mal: el flujo distingue cinco causas con cinco mensajes
   15. Un admin puede dar de baja y readmitir personal sin perder historial, y nadie puede desactivar a un `super_admin` ni a sí mismo
+  16. Sin Cloud Functions desplegadas, el propietario gestiona su personal con `scripts/gestion_staff.mjs`, que **importa** las matrices puras (`auth-matrix`, `baja-matrix`, `password-policy`) en vez de reimplementar la autorización, con un gate que lo comprueba
+  17. Los botones de alta y baja de `/equipo` explican por qué no están disponibles y cómo hacerlo, en lugar de fallar con un error técnico; el listado del personal sigue funcionando
+  18. Ningún documento del repo instruye un flujo imposible, y `docs/ESTADO-DESPLIEGUE.md` deja escrito qué está desplegado, qué no y qué haría falta para activarlo
 
-**Notas**: La identidad visual se CONSERVA (naranja `#FF4C05`, layout del mockup) — es trabajo de consistencia, no de rediseño. El plan Blaze solo hace falta para desplegar Cloud Functions, no para emularlas: toda la fase es desarrollable y testeable sin tocar la facturación, y el despliegue está partido en dos checkpoints (rules/índices sin Blaze en 11-16; funciones con Blaze en 11-20) para que la prueba real del bug del índice no quede rehén de una decisión de facturación.
-**Plans:** 23/25 plans executed
+**Notas**: La identidad visual se CONSERVA (naranja `#FF4C05`, layout del mockup) — es trabajo de consistencia, no de rediseño.
+**Blaze REVERTIDO (2026-08-20)**: el usuario ha decidido no activar una cuenta de pago, así que las tres callables (`bootstrapPlataforma`, `crearUsuarioStaff`, `cambiarEstadoStaff`) **no se despliegan**. Su código y sus ~200 pruebas SE CONSERVAN en el repo, listos para el día que se decida desplegar. Partir el despliegue en dos checkpoints resultó acertado: el A (reglas e índices, sin Blaze) se completó y verificó el 2026-08-20, así que la prueba real del bug P0 del índice NO quedó rehén de la decisión de facturación. La gestión de personal pasa a hacerse con un script local que reutiliza las matrices puras ya probadas (plan 11-20), y el panel lo explica en vez de fallar (plan 11-26).
+**Plans:** 24/26 plans executed en 13 olas
 
 Plans:
 
@@ -296,8 +300,9 @@ Plans:
 - [x] 11-24-PLAN.md — Ola 9: baja de personal reversible (desactivar/reactivar) con dos prohibiciones nuevas validadas en la callable
 - [x] 11-25-PLAN.md — Ola 10: accesibilidad de PANEL_ADMIN — sidebar colapsado, `InkWell` del mapa de mesas, contraste AA, gates `meetsGuideline`
 - [x] 11-15-PLAN.md — Ola 11: runbook `SMOKE-E2E-v2` desde base vacía + `npm run gates` como ejecutor único
-- [ ] 11-16-PLAN.md — Ola 12: runbook de despliegue + CHECKPOINT HUMANO A (rules e índices, sin Blaze) con la prueba real del bug del índice
-- [ ] 11-20-PLAN.md — Ola 13: CHECKPOINT HUMANO B (Blaze, deploy de Cloud Functions y smoke E2E completo)
+- [x] 11-16-PLAN.md — Ola 12: CHECKPOINT A CUMPLIDO (2026-08-20) — `firestore.rules` desplegado a p-gri-b5b40 y verificado releyendo el ruleset activo `25efd44a-8a0e-496a-9e96-2a92d8e3a28b`, idéntico al repo; los 10 índices ya estaban desplegados
+- [ ] 11-20-PLAN.md — Ola 13 (en paralelo): gestión de personal por SCRIPT LOCAL, reutilizando las matrices puras ya probadas (Blaze REVERTIDO: no se despliegan las callables)
+- [ ] 11-26-PLAN.md — Ola 13 (en paralelo): degradación honesta de /equipo + `docs/ESTADO-DESPLIEGUE.md` + runbooks corregidos para que no describan un sistema inexistente
 
 ---
 *Coverage: 50/50 requisitos v1 mapeados (PLAT 5, AUTH 5, REST 2, MENU 2, MESA 6, RESV 5, PEDI 6, RT 3, PAGO 4, CALI 2, ADMN 5, REPO 2, INFR 3). Nota: REQUIREMENTS.md decÃƒÂ­a "47 total" por error aritmÃƒÂ©tico; el conteo real de IDs es 50.*
