@@ -814,6 +814,43 @@ void main() {
     });
   });
 
+  group('CENSO de contraste: que queda mal y por que', () {
+    // El plan preveia acotar `textContrastGuideline` al camino critico y dejar
+    // el resto como deuda. MEDIDO: no hace falta acotar NADA por ruido — tras
+    // la Tarea 2 el UNICO fallo que queda en las 8 rutas es blanco sobre el
+    // naranja de marca (3.34), que no se puede arreglar sin tocar una decision
+    // BLOQUEADA. Y aparece en TODAS las rutas, porque el item ACTIVO del
+    // sidebar es precisamente blanco sobre el naranja: por eso la guia no
+    // puede pasar en ninguna pantalla de dentro del shell.
+    //
+    // Este censo es mas fuerte que excluir pantallas: si mañana alguien pinta
+    // un texto con un gris que no llega a AA, el ratio que reporte la guia
+    // dejara de ser 3.34 y este caso se pondra rojo.
+    final ratioFallo = RegExp(r'but found ([0-9.]+)');
+
+    for (final ruta in rutasDelPanel) {
+      testWidgets('$ruta: los fallos que quedan son SOLO el 3.34 de la marca',
+          (tester) async {
+        final handle = tester.ensureSemantics();
+        await montarApp(tester, const Size(1280, 900), ruta: ruta);
+        final ev = await textContrastGuideline.evaluate(tester);
+
+        final ratios = ratioFallo
+            .allMatches(ev.reason ?? '')
+            .map((m) => m.group(1)!)
+            .toSet();
+
+        expect(ratios, isNot(isEmpty),
+            reason: 'canario: si no hay NINGUN fallo, o la guia dejo de mirar '
+                'o el item activo del sidebar ya no es blanco sobre naranja; '
+                'en los dos casos hay que revisar este censo, no borrarlo');
+        expect(ratios, equals({'3.34'}),
+            reason: 'ratios de fallo en $ruta: $ratios\n${ev.reason}');
+        handle.dispose();
+      });
+    }
+  });
+
   testWidgets('el login cumple textContrastGuideline', (tester) async {
     // El login vive FUERA del ShellRoute, asi que es la unica pantalla del
     // panel donde esta guia puede pasar: dentro del shell el item ACTIVO del
