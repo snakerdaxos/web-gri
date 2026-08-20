@@ -136,16 +136,40 @@ Future<void> solicitarCuenta(
 }
 
 /// Pedidos de la sesión activa EN VIVO (MIGRA-05): `where('sesionId') +
-/// orderBy('createdAt') + snapshots()` — sustituye WS + polling + refetch
-/// de la era REST (Phase 7). Sin sesión → stream vacío.
+/// where('usuarioId') + orderBy('createdAt') + snapshots()` — sustituye WS +
+/// polling + refetch de la era REST (Phase 7). Sin sesión → stream vacío.
 ///
 /// El orden DESC se materializa client-side (`reversed`) — el índice
-/// compuesto definido en 10-01 es pedidos/sesionId+createdAt ASC (mismo
-/// patrón documentado en 10-03: server-side solo lo que tiene índice).
+/// compuesto es pedidos/sesionId+usuarioId+createdAt ASC (11-28).
+///
+/// ── POR QUÉ ESTÁ EL `where('usuarioId')` (11-28 — P0 en producción) ────────
+///
+/// 1) SIN ÉL LA QUERY SE DENIEGA ENTERA. La regla de lectura de `pedidos`
+///    concede al cliente sus PROPIOS pedidos (`resource.data.usuarioId ==
+///    request.auth.uid`), y Firestore evalúa las rules contra la CONSULTA, no
+///    contra los documentos devueltos: una query que no restringe `usuarioId`
+///    no es demostrable y el backend responde `permission-denied` con
+///    «Property usuarioId is undefined on object. for 'list'». Ese es el
+///    origen literal de la pantalla en blanco tras enviar el primer pedido: la
+///    caché local pintaba el pedido recién escrito y el rechazo del listener
+///    la vaciaba un instante después. Mismo modo de fallo que el menú (11-03).
+///
+/// 2) ADEMÁS ES UN ARREGLO DE CORRECCIÓN, no solo de permisos. El `sesionId`
+///    es el `mesaId` y el doc `sesiones/{mesaId}` se REUTILIZA: `abrirSesion()`
+///    hace `tx.set()` sobre el mismo id cuando la sesión anterior está cerrada
+///    (sesion_provider.dart). Sin filtrar por usuario, el siguiente comensal de
+///    esa mesa vería en su pantalla los pedidos del comensal anterior.
+///
+/// NO CAMBIA LO QUE VE EL DUEÑO DE LA SESIÓN: las rules de `create` exigen que
+/// el pedido lo emita el dueño de la sesión (`get(sesiones/…).usuarioId ==
+/// request.auth.uid`), así que todo pedido de SU sesión ya lleva SU uid.
 @riverpod
 Stream<List<Pedido>> pedidosSession(Ref ref) async* {
   final sesion = ref.watch(sesionActualProvider).value;
-  if (sesion == null) {
+  // El uid sale de Auth, no del doc de sesión: la regla compara contra
+  // `request.auth.uid` y la query debe llevar EXACTAMENTE ese valor.
+  final uid = ref.watch(firebaseAuthProvider).currentUser?.uid;
+  if (sesion == null || uid == null) {
     yield* const Stream<List<Pedido>>.empty();
     return;
   }
@@ -155,6 +179,7 @@ Stream<List<Pedido>> pedidosSession(Ref ref) async* {
   yield* db
       .collection('pedidos')
       .where('sesionId', isEqualTo: sesion.mesaId)
+      .where('usuarioId', isEqualTo: uid)
       .orderBy('createdAt')
       .snapshots()
       .map((snap) => [

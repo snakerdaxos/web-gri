@@ -1,6 +1,17 @@
 {
   "indexes": [
     {
+      "_comentario": "COLA DE COCINA + REPORTES (11-28). ASCENDING no es opcional: pedidos_staff_provider ordena createdAt ASC (cola FIFO) y el reporte filtra createdAt por rango sin orderBy explicito, lo que impone orden ASCENDENTE implicito. Contra el proyecto REAL las dos daban FAILED_PRECONDITION con el indice DESCENDING de mas abajo: Firestore NO sirve un orderBy ASC desde un indice compuesto declarado DESC, aunque los campos anteriores sean de igualdad.",
+      "collectionGroup": "pedidos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "restauranteId", "order": "ASCENDING" },
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "_comentario": "SUPERSEDIDO por el de arriba tras 11-28: hoy ninguna query del repo lo usa (lo reporta el AUDIT 3/3 de audit_indexes.mjs). Se deja declarado a proposito: borrarlo aqui lo BORRA en produccion al desplegar indices, y esa poda merece ser una decision explicita y no un efecto colateral de este arreglo.",
       "collectionGroup": "pedidos",
       "queryScope": "COLLECTION",
       "fields": [
@@ -10,6 +21,17 @@
       ]
     },
     {
+      "_comentario": "SEGUIMIENTO DEL PEDIDO EN EL CLIENTE (11-28). El where('usuarioId') no es opcional: sin el, la regla de lectura de pedidos no es demostrable frente a la consulta y el listener entero se deniega (pedidos_provider.dart).",
+      "collectionGroup": "pedidos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sesionId", "order": "ASCENDING" },
+        { "fieldPath": "usuarioId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "_comentario": "SUPERSEDIDO por el de arriba tras 11-28 (la query del cliente ya no existe sin usuarioId). Mismo criterio: no se borra aqui para no borrarlo en produccion sin decision explicita.",
       "collectionGroup": "pedidos",
       "queryScope": "COLLECTION",
       "fields": [
