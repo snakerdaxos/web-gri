@@ -75,7 +75,8 @@ Future<void> _llenarHastaConfirmar(WidgetTester tester) async {
 void main() {
   // ── Servicio: transacción determinista (port de reserva_service.py) ──
   group('crearReserva (tx determinista)', () {
-    test('crea doc {mesaId}_{yyyyMMdd}_{HH} confirmada y pasa la mesa a reservada',
+    test(
+        'crea doc {mesaId}_{yyyyMMdd}_{HH} confirmada y NO toca la mesa (slot futuro)',
         () async {
       final db = await buildFakeFirestoreConSeed();
       final slot = _slotDeManana();
@@ -99,9 +100,13 @@ void main() {
       expect(doc.data()!['numPersonas'], 2);
       expect(doc.data()!['mesaNumero'], 1);
 
-      // La mesa estaba disponible → reservada.
+      // BUG B (11-29): el slot es de MAÑANA, así que el estado de la mesa —que
+      // describe ESTE momento— no se toca. Antes quedaba 'reservada' desde hoy
+      // y la mesa dejaba de estar disponible para quien entrara por la puerta.
+      // El caso simétrico (slot de HOY sí la marca) vive en
+      // test/reservas/asignacion_mesa_test.dart.
       final mesa = await db.doc('mesas/GRI-MESA-demo-001').get();
-      expect(mesa.data()!['estado'], 'reservada');
+      expect(mesa.data()!['estado'], 'disponible');
     });
 
     test(

@@ -19,6 +19,14 @@ DateTime _slotDeManana([int hora = 19]) {
   return DateTime(t.year, t.month, t.day, hora);
 }
 
+/// Slot de HOY — el ÚNICO que mueve el `estado` de la mesa desde 11-29 (bug B:
+/// el estado describe este momento, no el martes que viene). Los casos de
+/// reversión de mesa tienen que usarlo o estarían verdes por otra razón.
+DateTime _slotDeHoy([int hora = 23]) {
+  final t = DateTime.now();
+  return DateTime(t.year, t.month, t.day, hora);
+}
+
 Widget _wrap(FakeFirebaseFirestore db) => ProviderScope(
       overrides: [
         firebaseAuthProvider.overrideWithValue(mockAuth()),
@@ -53,10 +61,11 @@ Future<void> _sembrarReserva(
 void main() {
   // ── Servicio: cancelación con reversión condicional ───────────────────
   group('cancelarReserva', () {
-    test('cancela futura propia y revierte la mesa (estaba reservada)',
-        () async {
+    test('cancela una de HOY y revierte la mesa (estaba reservada)', () async {
       final db = await buildFakeFirestoreConSeed();
-      final slot = _slotDeManana();
+      // Slot de HOY: es el caso en que el create marcó la mesa, y por tanto el
+      // único en que cancelar debe revertirla (11-29).
+      final slot = _slotDeHoy();
       final reserva = await crearReserva(db,
           uid: 'test-uid', restauranteId: 'demo', slot: slot, personas: 2);
       expect(
@@ -79,7 +88,10 @@ void main() {
 
     test('mesa OCUPADA no se revierte (queda ocupada)', () async {
       final db = await buildFakeFirestoreConSeed();
-      final slot = _slotDeManana();
+      // HOY, para que el guard que se ejercita sea el del ESTADO de la mesa y
+      // no el de la fecha (con un slot futuro este caso pasaría sin llegar
+      // siquiera a mirar la mesa: verde por la razón equivocada).
+      final slot = _slotDeHoy();
       final reserva = await crearReserva(db,
           uid: 'test-uid', restauranteId: 'demo', slot: slot, personas: 2);
 
@@ -257,6 +269,15 @@ void main() {
     final reserva = await crearReserva(db,
         uid: 'test-uid', restauranteId: 'demo', slot: slot, personas: 2);
 
+    // PRECONDICIÓN explícita (11-29): el slot es de MAÑANA, así que el create
+    // NO marcó la mesa. Sin esta línea el `expect` final de 'disponible'
+    // estaría verde por la razón equivocada: pasaría igual si la reversión
+    // desapareciera, porque no hay nada que revertir.
+    expect(
+      (await db.doc('mesas/GRI-MESA-demo-001').get()).data()!['estado'],
+      'disponible',
+    );
+
     await tester.pumpWidget(_wrap(db));
     await tester.pumpAndSettle();
 
@@ -272,7 +293,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
 
-    // Persistió en Firestore: reserva cancelada y mesa revertida.
+    // Persistió en Firestore: reserva cancelada y mesa SIN TOCAR (sigue como
+    // estaba antes de cancelar — ver la precondición de arriba).
     expect(
       (await db.doc('reservas/${reserva.id}').get()).data()!['estado'],
       'cancelada',
