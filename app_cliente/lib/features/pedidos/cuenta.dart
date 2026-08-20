@@ -49,11 +49,17 @@ const String estadoCobrable = 'servido';
 /// sumará si esos platos llegan a servirse — informativo, NUNCA se cobra.
 class CuentaSesion {
   const CuentaSesion({
+    required this.enLaSesion,
     required this.cobrados,
     required this.pendientes,
     required this.rechazados,
     required this.fueraDeLaSesion,
   });
+
+  /// Los pedidos de ESTA sesión EN EL ORDEN DE ENTRADA — lo que la pantalla
+  /// debe listar. Los montones de abajo reagrupan por estado y por eso no
+  /// sirven para pintar la lista: mezclarían el orden cronológico.
+  final List<Pedido> enLaSesion;
 
   /// Pedidos en estado `servido` dentro de la ventana de la sesión.
   final List<Pedido> cobrados;
@@ -83,10 +89,6 @@ class CuentaSesion {
   /// aún en la cocina.
   bool get vacia =>
       cobrados.isEmpty && pendientes.isEmpty && rechazados.isEmpty;
-
-  /// Todos los pedidos de ESTA sesión, cobrados y no cobrados, en el orden en
-  /// que llegaron en la lista de entrada. Lo que la pantalla debe listar.
-  List<Pedido> get deLaSesion => [...cobrados, ...pendientes, ...rechazados];
 }
 
 /// Reparte [pedidos] en los montones de [CuentaSesion].
@@ -110,6 +112,7 @@ class CuentaSesion {
 /// Cuando [desde] es null no se filtra: no sabemos dónde empieza la ventana y
 /// esconder pedidos por sospecha sería peor que mostrarlos.
 CuentaSesion calcularCuenta(List<Pedido> pedidos, {DateTime? desde}) {
+  final dentro = <Pedido>[];
   final cobrados = <Pedido>[];
   final pendientes = <Pedido>[];
   final rechazados = <Pedido>[];
@@ -121,6 +124,7 @@ CuentaSesion calcularCuenta(List<Pedido> pedidos, {DateTime? desde}) {
       fuera.add(pedido);
       continue;
     }
+    dentro.add(pedido);
     if (pedido.estado == estadoCobrable) {
       cobrados.add(pedido);
     } else if (estadosPendientes.contains(pedido.estado)) {
@@ -133,6 +137,7 @@ CuentaSesion calcularCuenta(List<Pedido> pedidos, {DateTime? desde}) {
   }
 
   return CuentaSesion(
+    enLaSesion: dentro,
     cobrados: cobrados,
     pendientes: pendientes,
     rechazados: rechazados,
