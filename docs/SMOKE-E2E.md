@@ -1,5 +1,18 @@
 # SMOKE E2E — GRI sobre Firebase (Opción B) · Gate final Fase 10
 
+> 🛑 **SUPERADO — documento histórico.** Este runbook es el gate de la **Fase
+> 10** y parte del **seed** (`scripts/seed_firebase.mjs`), por lo que nunca
+> ejercita el arranque de una plataforma desde cero. Su checkpoint humano
+> tampoco llegó a ejecutarse.
+>
+> **Usa [`docs/SMOKE-E2E-v2.md`](SMOKE-E2E-v2.md)**, que arranca de una base de
+> datos **VACÍA** y añade el bootstrap del primer `super_admin`, el alta de
+> staff, el QR de mesa, la política de contraseñas, la baja de personal y el
+> ingreso con Google.
+>
+> Se conserva sin tocar como registro de lo que se verificó (y de lo que no) en
+> la Fase 10.
+
 > Runbook paso a paso del flujo e2e completo (MIGRA-03/04/05/06): preparar
 > emuladores + seed → levantar panel y app cliente → flujo reserva → ocupar
 > → QR → pedido → cocina avanza → servido → cuenta → cerrar mesa → calificar

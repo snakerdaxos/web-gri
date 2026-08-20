@@ -7,6 +7,20 @@
 > Fuentes de configuración: `documentos/google-services.json` (Android) y
 > `documentos/firebase-config-web.js` (Web).
 
+## 0. ¿Plataforma nueva? Empieza por `/bootstrap`, no por el seed
+
+**El camino de producto para arrancar una plataforma desde cero es la pantalla
+`/bootstrap` del panel** (§4.1): crea el primer `super_admin` sin scripts, sin
+consola y sin que nadie tenga que manejar una clave de servicio. A partir de
+ahí, todo —restaurante, equipo, mesas y menú— se da de alta desde el panel.
+
+Ruta completa, con verificación paso a paso: **[`docs/SMOKE-E2E-v2.md`](SMOKE-E2E-v2.md)**.
+
+> `scripts/seed_firebase.mjs` (§3) **no** es el mecanismo de arranque: es una
+> utilidad para plantar **datos de demostración** en un entorno de pruebas.
+> Usarlo para inicializar una plataforma real te deja seis cuentas ficticias con
+> una contraseña conocida y publicada en esta misma guía.
+
 ## 1. Requisitos
 
 | Requisito | Versión | Para qué | Notas |
@@ -91,7 +105,16 @@ $env:PATH = "$env:JAVA_HOMEin;$env:PATH"
 java -version   # debe imprimir openjdk 21.x
 ```
 
-## 3. Seed (restaurante demo + 6 usuarios + claims + 8 mesas + menú)
+## 3. Seed — utilidad de DATOS DE DEMOSTRACIÓN (no es el bootstrap)
+
+> ⚠️ **Qué es y qué no es.** `seed_firebase.mjs` planta un restaurante de
+> ejemplo con datos realistas para poder trastear sin teclear nada. **No es la
+> forma de inicializar la plataforma** — eso es `/bootstrap` (§0 y §4.1). Sus
+> seis cuentas comparten una contraseña publicada aquí abajo: son de PRUEBA.
+> No lo ejecutes contra un entorno con datos reales, y **no lo ejecutes** si
+> vas a recorrer `docs/SMOKE-E2E-v2.md`, que exige base vacía.
+
+### 3.1 Qué siembra
 
 `scripts/seed_firebase.mjs` siembra (port 1:1 del seed del backend):
 restaurante `demo` ("Restaurante Demo GRI"), 6 usuarios Auth con claims
@@ -208,10 +231,23 @@ npx firebase deploy --only functions,firestore:rules --project p-gri-b5b40
 crea la cuenta, invoca la callable, refresca los claims y entra al panel ya como
 `super_admin`.
 
-**5. Verificar el correo** si Firebase aún no lo marcó como verificado (las
-cuentas de Google llegan ya verificadas; las de email/contraseña necesitan el
-enlace de confirmación). Sin `email_verified == true` la función responde
+**5. Verificar el correo.** Sin `email_verified == true` la función responde
 `No puedes inicializar esta plataforma.`
+
+> 🔴 **La pantalla `/bootstrap` NO envía el correo de verificación** — no llama
+> a `sendEmailVerification()`. Y si la callable deniega, el controlador **borra
+> la cuenta** que acababa de crear, así que tampoco queda nada que verificar
+> después. Consecuencias prácticas:
+>
+> * **Cuenta de Google:** llega con `email_verified: true` de fábrica. Es el
+>   camino sin fricción, y es el que corresponde al `BOOTSTRAP_EMAIL` elegido.
+> * **Cuenta de email/contraseña:** hay que dejarla creada y verificada ANTES de
+>   abrir `/bootstrap`. Entonces la pantalla recibe `email-already-in-use`,
+>   inicia sesión con ella y la callable ve el token ya verificado.
+> * **Contra emuladores** (el emulador tampoco envía correos), lo resuelve
+>   `node scripts/verificar_email_emulador.mjs <correo> --crear <password>`.
+>   Ese script está fijado a `127.0.0.1:9099` y al proyecto `demo-gri`: no puede
+>   tocar producción.
 
 **Qué pasa si algo falla.** Los cinco motivos de denegación devuelven el MISMO
 mensaje y el mismo código a propósito (no revelar cuál falló). Revisar, en
