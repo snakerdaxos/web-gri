@@ -45,15 +45,18 @@ const _huella = <String, String>{
   'numero': 'número',
 };
 
+/// Se llama FUERA de un `test()` (los casos se generan a partir de los
+/// vectores), asi que aqui no se puede usar `expect`: se lanza a secas para que
+/// el fallo de carga se vea como tal y no como un test roto.
 List<Map<String, dynamic>> _cargarVectores() {
   final f = File(_rutaVectores);
-  expect(
-    f.existsSync(),
-    isTrue,
-    reason: 'no encuentro $_rutaVectores desde ${Directory.current.path}. '
-        'Los tres runtimes leen ESE archivo; si se movio, hay que actualizar '
-        'las tres rutas a la vez.',
-  );
+  if (!f.existsSync()) {
+    throw StateError(
+      'no encuentro $_rutaVectores desde ${Directory.current.path}. '
+      'Los tres runtimes leen ESE archivo; si se movio, hay que actualizar '
+      'las tres rutas a la vez.',
+    );
+  }
   final doc = jsonDecode(f.readAsStringSync()) as Map<String, dynamic>;
   return (doc['vectores'] as List).cast<Map<String, dynamic>>();
 }
