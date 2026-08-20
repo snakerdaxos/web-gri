@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/async_fallo.dart';
 import '../../core/firebase_providers.dart';
 import '../../core/format.dart';
 import '../../core/gri_icons.dart';
@@ -89,7 +90,11 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sesion = ref.watch(sesionActualProvider).value;
+    // La sesión se lee ENTERA, no con `.value` (11-33): `.value` sobre un
+    // AsyncError da null y el fallo se disfrazaba de «no hay mesa abierta»
+    // — la barra de la cuenta desaparecía sin decir por qué.
+    final sesionAsync = ref.watch(sesionActualProvider);
+    final sesion = sesionAsync.value;
     final pedidosAsync = ref.watch(pedidosSessionProvider);
 
     final sesionCerrada = sesion != null && sesion.estado != 'activa';
@@ -114,25 +119,37 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
               : 'Mis pedidos · Mesa ${sesion.mesaNumero}',
         ),
       ),
-      body: pedidosAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(GriIcons.enVivo, size: 40, color: GriColors.gray),
-              const SizedBox(height: GriSpacing.sm),
-              const Text('Error al cargar tus pedidos'),
-              const SizedBox(height: GriSpacing.md),
-              ElevatedButton.icon(
-                onPressed: () => ref.invalidate(pedidosSessionProvider),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reintentar'),
-              ),
-            ],
-          ),
+      // `cuandoConFallo` y NO `when` (11-33): durante los reintentos de
+      // Riverpod el estado es AsyncLoading CON el error dentro, y `when`
+      // pinta la rama `loading:` — el spinner eterno del incidente.
+      body: pedidosAsync.cuandoConFallo(
+        cargando: () => const Center(child: CircularProgressIndicator()),
+        // 11-33: decía «Error al cargar tus pedidos» — ni la causa ni qué
+        // hacer. Ahora el texto sale del clasificador único de 11-23, que
+        // distingue un permiso denegado (es TU CUENTA) de una caída de red
+        // (es la CONEXIÓN) de un fallo que no sabemos identificar.
+        fallo: (e) => _FalloDeStream(
+          icono: GriIcons.enVivo,
+          mensaje: mensajeDeFallo(e, contexto: Contexto.verPedidos),
+          onReintentar: () {
+            // Se invalidan LOS DOS: si quien falló fue el listener de la
+            // sesión, refrescar solo los pedidos volvería al mismo error.
+            ref.invalidate(sesionActualProvider);
+            ref.invalidate(pedidosSessionProvider);
+          },
         ),
-        data: (_) {
+        datos: (_) {
+          // Sin mesa abierta la pantalla no tiene nada que listar y ANTES
+          // se quedaba girando (el provider cerraba sin emitir). Se dice.
+          if (sesion == null) {
+            return _FalloDeStream(
+              icono: GriIcons.cocinando,
+              mensaje: 'No tienes ninguna mesa abierta. Escanea el QR de tu '
+                  'mesa para pedir y ver tus pedidos.',
+              etiquetaAccion: 'Escanear el QR',
+              onReintentar: () => context.push('/sesion/scan'),
+            );
+          }
           // NO se pinta la lista cruda del stream: se pinta la de la SESION
           // ACTUAL (cuenta.enLaSesion). Si se listaran los pedidos de una
           // visita anterior, el comensal veria platos que no estan en su
@@ -483,6 +500,54 @@ class _EstadoChip extends StatelessWidget {
       child: Text(
         pedido.estadoLabel,
         style: GriText.chip.copyWith(color: pedido.estadoColor(context)),
+      ),
+    );
+  }
+}
+
+/// Estado de FALLO de un stream, con su mensaje y su salida (11-33).
+///
+/// Existe para que la rama `error:` de un `AsyncValue` no vuelva a ser un
+/// bloque de texto suelto copiado en cada pantalla: el mensaje entra ya
+/// clasificado por `core/firebase_error_mapper.dart` y la acción es
+/// obligatoria — un error sin nada que hacer es un callejón sin salida.
+class _FalloDeStream extends StatelessWidget {
+  const _FalloDeStream({
+    required this.icono,
+    required this.mensaje,
+    required this.onReintentar,
+    this.etiquetaAccion = 'Reintentar',
+  });
+
+  final IconData icono;
+  final String mensaje;
+  final VoidCallback onReintentar;
+  final String etiquetaAccion;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(GriSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icono, size: 40, color: GriColors.gray),
+            const SizedBox(height: GriSpacing.sm),
+            Text(
+              mensaje,
+              textAlign: TextAlign.center,
+              style: GriText.cuerpo
+                  .copyWith(color: GriColors.textoSecundarioAccesible),
+            ),
+            const SizedBox(height: GriSpacing.md),
+            ElevatedButton.icon(
+              onPressed: onReintentar,
+              icon: const Icon(Icons.refresh),
+              label: Text(etiquetaAccion),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -165,12 +165,40 @@ Future<void> solicitarCuenta(
 /// request.auth.uid`), así que todo pedido de SU sesión ya lleva SU uid.
 @riverpod
 Stream<List<Pedido>> pedidosSession(Ref ref) async* {
-  final sesion = ref.watch(sesionActualProvider).value;
+  // ── EL SPINNER ETERNO (11-33) ────────────────────────────────────────────
+  // Esto era `ref.watch(sesionActualProvider).value` y tenía DOS fugas que
+  // producían el mismo síntoma: la pantalla girando para siempre.
+  //
+  // 1. `.value` sobre un `AsyncError` devuelve `null`. Un listener DENEGADO
+  //    de `sesiones` quedaba indistinguible de «este usuario no tiene mesa
+  //    abierta», así que el fallo desaparecía sin dejar rastro.
+  // 2. `yield*` de un `Stream.empty()` seguido de `return` CIERRA el
+  //    generador sin emitir ni un evento, y Riverpod deja en `AsyncLoading`
+  //    de por vida a un StreamProvider que cierra sin emitir. La rama
+  //    `error:` de la pantalla —que existe desde 11-09— era INALCANZABLE.
+  //
+  // Ahora el error se RE-LANZA con su traza original: Riverpod lo convierte
+  // en `AsyncError` y la pantalla lo clasifica con el mapeador de 11-23.
+  final sesionAsync = ref.watch(sesionActualProvider);
+  if (sesionAsync.hasError) {
+    Error.throwWithStackTrace(
+      sesionAsync.error!,
+      sesionAsync.stackTrace ?? StackTrace.current,
+    );
+  }
+  final sesion = sesionAsync.value;
   // El uid sale de Auth, no del doc de sesión: la regla compara contra
   // `request.auth.uid` y la query debe llevar EXACTAMENTE ese valor.
   final uid = ref.watch(firebaseAuthProvider).currentUser?.uid;
   if (sesion == null || uid == null) {
-    yield* const Stream<List<Pedido>>.empty();
+    // Mientras la sesión aún CARGA no se emite nada: el spinner es correcto
+    // porque de verdad estamos esperando. Con la sesión ya resuelta y sin
+    // mesa abierta se emite la lista VACÍA, que la pantalla sabe explicar.
+    if (sesionAsync.isLoading) {
+      yield* const Stream<List<Pedido>>.empty();
+    } else {
+      yield const <Pedido>[];
+    }
     return;
   }
 

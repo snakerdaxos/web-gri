@@ -43,6 +43,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gri_cliente/core/async_fallo.dart';
 import 'package:gri_cliente/core/firebase_error_mapper.dart';
 import 'package:gri_cliente/core/firebase_providers.dart';
 import 'package:gri_cliente/features/pedidos/pedido_estado_screen.dart';
@@ -186,6 +187,90 @@ void main() {
       expect(texto, contains('Tu cuenta no puede ver los pedidos de esta mesa'));
       expect(texto, isNot(contains('Error al cargar tus pedidos')),
           reason: 'el texto mudo que no decía ni la causa ni qué hacer');
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  // LA CAUSA RAÍZ, FIJADA POR UN TEST
+  // ══════════════════════════════════════════════════════════════════════
+  //
+  // Lo que sigue no prueba código nuestro: prueba el COMPORTAMIENTO DE
+  // RIVERPOD del que depende todo el arreglo. Si una versión futura deja de
+  // reintentar, o deja de representar el reintento como AsyncLoading, estos
+  // casos lo dirán en vez de que nos enteremos por otro incidente.
+  group('por qué un fallo se veía como carga (riverpod 3)', () {
+    test('un provider que falla queda en AsyncLoading CON error, no en AsyncError',
+        () async {
+      final c = ProviderContainer(); // política de reintento POR DEFECTO
+      addTearDown(c.dispose);
+      final p = StreamProvider<int>((ref) => Stream<int>.error(_denegado()));
+      c.listen(p, (_, _) {}, onError: (_, _) {});
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      final v = c.read(p);
+      // ESTE es el hecho que produjo el spinner eterno.
+      expect(v.isLoading, isTrue,
+          reason: 'riverpod reintenta y mantiene el estado en AsyncLoading');
+      expect(v.hasError, isTrue, reason: 'el error viaja DENTRO del loading');
+      // Y la consecuencia directa: `when` elige la rama de carga.
+      expect(
+        v.when(loading: () => 'CARGA', error: (_, _) => 'ERROR', data: (_) => 'DATOS'),
+        'CARGA',
+        reason: 'when() despacha por isLoading antes que por el error',
+      );
+      // Nuestro sustituto elige la rama honesta con el MISMO valor.
+      expect(
+        v.cuandoConFallo(
+            cargando: () => 'CARGA', fallo: (_) => 'ERROR', datos: (_) => 'DATOS'),
+        'ERROR',
+      );
+    });
+
+    test('con reintentoGri un permiso denegado NO se reintenta: error ya',
+        () async {
+      final c = ProviderContainer(retry: reintentoGri);
+      addTearDown(c.dispose);
+      final p = StreamProvider<int>((ref) => Stream<int>.error(_denegado()));
+      c.listen(p, (_, _) {}, onError: (_, _) {});
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(c.read(p).isLoading, isFalse,
+          reason: 'reintentar una regla que deniega es humo de 38 segundos');
+      expect(c.read(p).hasError, isTrue);
+    });
+  });
+
+  group('reintentoGri: solo se reintenta lo que puede mejorar solo', () {
+    test('un fallo de red se reintenta, y solo 3 veces', () {
+      expect(reintentoGri(0, _sinRed()), const Duration(milliseconds: 200));
+      expect(reintentoGri(1, _sinRed()), const Duration(milliseconds: 400));
+      expect(reintentoGri(2, _sinRed()), const Duration(milliseconds: 800));
+      expect(reintentoGri(3, _sinRed()), isNull, reason: 'tope: $maxReintentos');
+      // El default de riverpod habría seguido hasta 10 (≈38 s de spinner).
+      expect(reintentoGri(9, _sinRed()), isNull);
+    });
+
+    test('lo determinista NO se reintenta: nunca cambia el resultado', () {
+      expect(reintentoGri(0, _denegado()), isNull, reason: 'permission-denied');
+      expect(
+        reintentoGri(
+            0,
+            FirebaseException(
+                plugin: 'cloud_firestore', code: 'not-found')),
+        isNull,
+      );
+      // failed-precondition = índice compuesto ausente. Tres incidentes de
+      // este proyecto. No aparece por esperar: hay que desplegarlo.
+      expect(
+        reintentoGri(
+            0,
+            FirebaseException(
+                plugin: 'cloud_firestore', code: 'failed-precondition')),
+        isNull,
+        reason: 'un índice que falta no se crea reintentando',
+      );
+      // Un Error de Dart es un bug, jamás algo transitorio.
+      expect(reintentoGri(0, StateError('bug')), isNull);
     });
   });
 
