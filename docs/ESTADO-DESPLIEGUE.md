@@ -18,14 +18,51 @@
 
 | Pieza | Estado | Evidencia |
 |---|---|---|
-| `firestore.rules` | **DESPLEGADO** el 2026-08-20 | Ruleset activo `25efd44a-8a0e-496a-9e96-2a92d8e3a28b`. Se **releyó del proyecto** y se comparó con el archivo del repo: idénticos. No es «se subió y suponemos que llegó» |
+| `firestore.rules` | ⚠️ **DESPLEGADO PERO DESACTUALIZADO** desde el 2026-08-20 (plan 11-27) | Ruleset activo `25efd44a-8a0e-496a-9e96-2a92d8e3a28b`, desplegado el 2026-08-20 y verificado idéntico al repo **en ese momento**. **Ya NO lo es:** 11-27 corrigió un P0 en las ramas de `read` de `sesiones`, `reservas` y `pedidos` que NO está desplegado. Ver §1.1 |
 | `firestore.indexes.json` | **DESPLEGADO** — los **10** índices | Ya lo estaban antes de la fase, incluido `categorias(restauranteId, orden)`, que fue el tercer bug P0 de la Fase 10 |
-| `app_cliente` | **Funciona** contra `p-gri-b5b40` | Auth, lectura de restaurantes y menú, escaneo de QR, sesión de mesa, pedidos, cuenta y calificación |
+| `app_cliente` | ⚠️ **Parcialmente roto** contra `p-gri-b5b40` | Auth, lectura de restaurantes y menú: **funcionan**. **Abrir mesa por QR y crear reserva: NO funcionan** con el ruleset desplegado hoy (P0 de 11-27, ver §1.1). El resto del flujo (pedidos, cuenta, calificación) cuelga de la sesión de mesa, así que es inalcanzable hasta que se despliegue el fix |
 | `panel_admin` | **Funciona** contra `p-gri-b5b40` | Dashboard, mesas, menú, cocina, reservas, clientes, reportes, configuración |
 | `/equipo` — **el listado** | **Funciona** | Es una lectura de Firestore. La habilitó el despliegue de reglas del 2026-08-20 (`match /usuarios/{uid}`, lectura acotada al `rid` del llamador, plan 11-10). Antes respondía `permission-denied` aunque el código fuera correcto |
 
-**Consecuencia práctica:** todo el producto está operativo contra el proyecto real salvo lo
-del punto 2.
+**Consecuencia práctica:** ~~todo el producto está operativo contra el proyecto real salvo lo
+del punto 2~~ — **ya no**. El core value (sentarse, escanear el QR y pedir) está CAÍDO en el
+proyecto real hasta que se despliegue el fix de 11-27. Ver §1.1.
+
+---
+
+## 1.1 ⚠️ PENDIENTE DE DESPLIEGUE — P0 corregido en el repo, vivo en producción
+
+**Qué pasa hoy en `p-gri-b5b40`:** un cliente autenticado escanea el QR de una mesa y recibe
+`permission-denied`. Crear una reserva falla igual. **No es su cuenta ni sus claims ni los
+datos:** es que las rules desplegadas deniegan la lectura de un documento que **no existe
+todavía**, y las dos apps tienen que leerlo antes de crearlo (check-then-create con doc ID
+determinista).
+
+Sobre un documento ausente `resource` es `null`; una rama de `read` que desreferencia
+`resource.data` revienta y la regla evalúa a denegado. La **primera** apertura de **cualquier**
+mesa y la **primera** reserva de **cualquier** franja leen un documento ausente — así que
+nadie podía abrir ninguna mesa ni reservar ninguna franja, nunca.
+
+| | |
+|---|---|
+| **Corregido en el repo** | `firestore.rules`, commit `2fd1f40` (plan 11-27) |
+| **Colecciones tocadas** | `sesiones`, `reservas`, `pedidos` — `signedIn() && (resource == null \|\| <cond>)` |
+| **Cobertura de regresión** | 39 casos nuevos (rules 221 → 260), 7 roturas deliberadas, `npm run gates` 9/9 |
+| **Estado en producción** | **NO DESPLEGADO** |
+
+**Comando exacto para cerrarlo** (checkpoint humano — requiere `firebase login`):
+
+```bash
+firebase deploy --only firestore:rules --project p-gri-b5b40
+```
+
+**Cómo verificar que llegó de verdad** (no «se subió y suponemos»):
+
+1. `firebase firestore:rules:get --project p-gri-b5b40` y comparar con `firestore.rules` del repo.
+2. En la app, con una cuenta de cliente real, escanear el QR de una mesa **en `disponible` y
+   sin sesión previa**. Debe abrirse la mesa. Que funcione sobre una mesa ya usada NO prueba
+   nada: el documento ya existe y ese es justo el caso que sí funcionaba antes.
+3. Crear una reserva en una franja que nadie haya reservado nunca.
 
 ---
 
