@@ -135,6 +135,56 @@ Los datos ya lo permiten: cada pedido tiene `total` y `sesionId`, y el índice
 más de un comensal si varios piden desde la misma sesión — decidir si la vista del mesero suma por
 sesión (mesa) y la del cliente solo lo suyo.
 
+
+### 5. Un stream que FALLA se pintaba como un stream que CARGA  ✔ RESUELTO en el plan 11-33
+
+Reportado por el usuario: «el cliente en ver pedido se queda cargando». Su build era anterior
+al arreglo de `usuarioId` (11-28), así que el listener venía denegado — pero un listener
+denegado tiene que salir como un error accionable, nunca como un spinner eterno.
+
+**Causa raíz, y no estaba en nuestro código:** Riverpod 3 reintenta cualquier excepción que no
+sea un `Error` de Dart **diez veces** con backoff hasta 6,4 s, y mientras reintenta el estado
+es `AsyncLoading` **con el error dentro** (`element.dart:790`). `when` despacha por
+`isLoading` antes que por el error → **~38 s de spinner mudo por cada fallo**, en TODAS las
+pantallas de LAS DOS apps. El barrido de los 36 `catch` de 11-29 no podía verlo: **un Stream
+que falla no pasa por ningún `catch`**.
+
+Arreglado con `core/async_fallo.dart` en las dos apps (`reintentoGri` + `cuandoConFallo`) y
+los **24 consumidores de `AsyncValue`** revisados uno a uno. Dos de ellos eran MENTIRAS
+(«este cliente no tiene pedidos» y «No hay restaurante seleccionado» ante un fallo de lectura)
+y dos eran SILENCIOS (`SizedBox.shrink()` en el topbar). Detalle en el SUMMARY de 11-33.
+
+El panel no tenía clasificador; ahora tiene el suyo, con LAS MISMAS seis causas y los mismos
+criterios de 11-23 pero con textos para staff. Un test de paridad prueba el mismo vector de
+códigos en las dos suites para que las copias no deriven en silencio.
+
+**Dos bugs de DINERO encontrados por el camino, los dos arreglados.** El importe de la fila
+del mesero y **el recibo del cobro** se renderizaban como CERO ante un fallo de lectura.
+11-32 tuvo el cuidado de mostrar un guion durante la CARGA por esta misma razón; la rama de
+ERROR se lo saltaba. El del recibo se escribe con la sesión ya cerrada detrás y el aviso ya
+desaparecido, así que no había forma de deshacerlo.
+
+**Y el desborde que 11-32 anunció sin poder medir:** el resumen de la cuenta del comensal
+desbordaba **101 px a 320 px**. Medido y arreglado (la etiqueta cede, la cifra nunca).
+
+### 6. Verificación contra el proyecto real — HECHA (2026-08-20, plan 11-33)
+
+`node scripts/probar_consultas_reales.mjs` contra `p-gri-b5b40`, las dos identidades:
+
+| Identidad | Resultado |
+|---|---|
+| cliente `d7c4xzmrbYcgiaGW0mCnqrdMril2` | 23 consultas · 12 OK · **0 sin índice** · 11 denegadas |
+| super_admin `np9HetsgY6UcVCdC1sGhsUloI6D3` | 23 consultas · **23 OK** · 0 sin índice · 0 denegadas |
+
+**Cero `FAILED_PRECONDITION` en las dos pasadas**: los dos índices que 11-28 dejó pendientes
+de desplegar están construidos y sirven a sus consultas. **Las 7 consultas de `app_cliente`
+salen OK con un uid de cliente real**, incluida la del incidente
+(`pedidos sesionId== usuarioId== orderBy(createdAt)`).
+
+Las 11 denegadas son **todas** consultas de `panel_admin` ejecutadas con uid de cliente: es lo
+correcto por diseño, un comensal no es staff. **No queda ningún defecto vivo de consultas ni
+de índices.**
+
 ---
 
 ## Verificado y funcionando tras el despliegue del 2026-08-20
