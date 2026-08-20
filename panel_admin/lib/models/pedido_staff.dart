@@ -180,7 +180,7 @@ extension EstadoPedidoUI on EstadoPedido {
   Color get color => switch (this) {
     EstadoPedido.enviado => GriColors.mesaLimpiezaDot, // azul #3478F6
     EstadoPedido.aceptado => GriColors.primary, // naranja #ff4c05
-    EstadoPedido.enPreparacion => const Color(0xFF8E44AD), // morado
+    EstadoPedido.enPreparacion => GriColors.pedidoEnPreparacion, // morado
     EstadoPedido.servido => GriColors.mesaDisponibleDot, // verde #20b26b
     EstadoPedido.rechazado => GriColors.mesaOcupadaDot, // rojo #e74c3c
     EstadoPedido.pagado => GriColors.mesaDisponibleDot,

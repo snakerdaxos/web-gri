@@ -36,17 +36,7 @@ class StatCard extends StatelessWidget {
     return Container(
       key: ValueKey('stat-card-$label'),
       padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D000000), // rgba(0,0,0,0.05)
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
+      decoration: griCardDecoration,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [

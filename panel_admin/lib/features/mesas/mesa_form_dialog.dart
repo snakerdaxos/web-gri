@@ -7,6 +7,7 @@ import '../dashboard/restaurante_provider.dart';
 import 'mesas_crud.dart';
 import '../../core/gri_icons.dart';
 
+import '../../core/theme.dart';
 /// Form crear/editar mesa (MESA-01) sobre Firestore (10-06).
 ///
 /// * [mesa] == null → crear ([crearMesa] con doc ID determinista
@@ -167,7 +168,7 @@ class _MesaFormDialogState extends ConsumerState<MesaFormDialog> {
             child: const Text('Cancelar'),
           ),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: griBotonPeligroTexto,
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Eliminar'),
           ),
@@ -238,7 +239,7 @@ class _MesaFormDialogState extends ConsumerState<MesaFormDialog> {
                       Icon(
                         GriIcons.aviso,
                         size: 13,
-                        color: Color(0xFFE65100),
+                        color: GriColors.advertencia,
                       ),
                       SizedBox(width: 6),
                       Expanded(
@@ -246,7 +247,7 @@ class _MesaFormDialogState extends ConsumerState<MesaFormDialog> {
                           'Cambiar el número regenera el código QR de la mesa '
                           '— el QR impreso anterior quedará obsoleto',
                           style: TextStyle(
-                            color: Color(0xFFE65100),
+                            color: GriColors.advertencia,
                             fontSize: 13,
                           ),
                         ),
@@ -261,7 +262,7 @@ class _MesaFormDialogState extends ConsumerState<MesaFormDialog> {
       actions: [
         if (_editando)
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: griBotonPeligroTexto,
             onPressed: _saving ? null : _eliminar,
             child: const Text('Eliminar'),
           ),

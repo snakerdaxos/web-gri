@@ -13,6 +13,7 @@ import 'widgets/mesa_legend.dart';
 import 'widgets/mesa_tile.dart';
 import 'widgets/stat_card.dart';
 import '../../core/design_tokens.dart';
+import '../shared/error_box.dart';
 import '../shared/responsive_page.dart';
 import '../../core/gri_icons.dart';
 
@@ -111,7 +112,7 @@ class DashboardScreen extends ConsumerWidget {
                   height: 130,
                   child: Center(child: CircularProgressIndicator()),
                 ),
-                error: (e, _) => _ErrorBox(
+                error: (e, _) => ErrorBox(
                   message: 'Error cargando estadísticas',
                   onRetry: () => ref.invalidate(statsProvider),
                 ),
@@ -177,17 +178,7 @@ class DashboardScreen extends ConsumerWidget {
               // ── Mapa de mesas ─────────────────────────────────────────────
               Container(
                 padding: const EdgeInsets.all(25),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x0D000000),
-                      blurRadius: 12,
-                      offset: Offset(0, 3),
-                    ),
-                  ],
-                ),
+                decoration: griCardDecoration,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -218,13 +209,7 @@ class DashboardScreen extends ConsumerWidget {
                           onPressed: () => context.go('/mesas'),
                           icon: const Text('+'),
                           label: const Text('Nueva mesa'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: GriColors.primary,
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor:
-                                GriColors.primary.withValues(alpha: 0.4),
-                            disabledForegroundColor: Colors.white70,
-                          ),
+                          style: griBotonPrimario,
                         ),
                       ],
                     ),
@@ -237,7 +222,7 @@ class DashboardScreen extends ConsumerWidget {
                         child:
                             Center(child: CircularProgressIndicator()),
                       ),
-                      error: (e, _) => _ErrorBox(
+                      error: (e, _) => ErrorBox(
                         message: 'Error cargando mesas',
                         onRetry: () => ref.invalidate(mesasProvider),
                       ),
@@ -293,41 +278,6 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _ErrorBox extends StatelessWidget {
-  const _ErrorBox({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 32),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message,
-              style: const TextStyle(color: GriColors.gray, fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: onRetry,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: GriColors.primary,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Reintentar'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-
 /// Guía de arranque para el `super_admin` sin restaurante activo (11-02).
 ///
 /// Sustituye a las 4 tarjetas de estadísticas en cero, que no comunicaban
@@ -365,17 +315,7 @@ class _GuiaSinRestaurante extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 40),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D000000),
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
+      decoration: griCardDecoration,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -414,10 +354,6 @@ class _GuiaSinRestaurante extends ConsumerWidget {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => context.go('/configuracion'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: GriColors.primary,
-                foregroundColor: Colors.white,
-              ),
               child: const Text('Ir a Configuración'),
             ),
           ],

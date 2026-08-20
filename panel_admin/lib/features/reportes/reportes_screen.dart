@@ -9,6 +9,7 @@ import 'reportes_provider.dart';
 import '../shared/responsive_page.dart';
 import '../../core/gri_icons.dart';
 
+import '../../core/design_tokens.dart';
 /// Pantalla /reportes (REPO-01/02, 10-06): ventas por rango + top platos,
 /// computados EN EL CLIENTE desde pedidos `servido` (fold — sin backend).
 ///
@@ -116,7 +117,7 @@ class ReportesScreenState extends ConsumerState<ReportesScreen> {
       // standalone (tests) sin esto Flutter inyecta estilos fallback.
       color: GriColors.background,
       child: ResponsivePage(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(GriSpacing.lg),
         builder: (context, ancho) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -347,17 +348,7 @@ class _ResumenCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D000000), // rgba(0,0,0,0.05)
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
+      decoration: griCardDecoration,
       child: Row(
         children: [
           Expanded(
@@ -382,13 +373,13 @@ class _ResumenCard extends StatelessWidget {
             width: 55,
             height: 55,
             decoration: BoxDecoration(
-              color: const Color(0xFFE8F0FE),
+              color: GriColors.reporteIconoBg,
               borderRadius: BorderRadius.circular(14),
             ),
             alignment: Alignment.center,
             // size 25 = el fontSize del emoji que sustituye; el color es el
             // azul del propio recuadro, que antes ponia la fuente de emoji.
-            child: Icon(icono, size: 25, color: const Color(0xFF3478F6)),
+            child: Icon(icono, size: 25, color: GriColors.reporteIconoFg),
           ),
         ],
       ),

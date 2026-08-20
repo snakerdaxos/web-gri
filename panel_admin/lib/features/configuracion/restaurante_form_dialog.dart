@@ -6,6 +6,7 @@ import '../dashboard/restaurante_provider.dart';
 import 'restaurantes_admin_provider.dart';
 import 'slug.dart';
 
+import '../../core/theme.dart';
 /// Alta de restaurante (BOOT-02) — la pantalla que saca a la plataforma del
 /// callejón sin salida: antes de esto, una base vacía solo se podía poblar con
 /// scripts o desde la consola de Firebase.
@@ -221,7 +222,7 @@ class _RestauranteFormDialogState
                     child: Text(
                       'Se usa en los códigos QR de las mesas '
                       '(GRI-MESA-identificador-001).',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF777777)),
+                      style: TextStyle(fontSize: 12, color: GriColors.gray),
                     ),
                   ),
                 ),

@@ -76,10 +76,6 @@ class NotFoundScreen extends StatelessWidget {
               ElevatedButton(
                 // Aquí '/' SÍ existe (initialLocation del panel = dashboard).
                 onPressed: () => context.go('/'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: GriColors.primary,
-                  foregroundColor: Colors.white,
-                ),
                 child: const Text('Volver al panel'),
               ),
             ],

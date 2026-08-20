@@ -8,6 +8,7 @@ import 'bootstrap_controller.dart';
 import '../shared/responsive_page.dart';
 import '../../core/gri_icons.dart';
 
+import '../../core/design_tokens.dart';
 /// Pantalla `/bootstrap` (BOOT-01): crea el PRIMER `super_admin` de la
 /// plataforma invocando la callable `bootstrapPlataforma`.
 ///
@@ -124,21 +125,11 @@ class _BootstrapScreenState extends ConsumerState<BootstrapScreen> {
       body: ResponsivePage(
         maxWidth: ResponsivePage.anchoMaxFormularioConPadding,
         alineacion: Alignment.center,
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(GriSpacing.lg),
         builder: (context, ancho) => SingleChildScrollView(
           child: Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 12,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
+              padding: const EdgeInsets.all(GriSpacing.xl),
+              decoration: griCardDecoration,
               child: Form(
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
@@ -247,16 +238,10 @@ class _BootstrapScreenState extends ConsumerState<BootstrapScreen> {
                     ElevatedButton(
                       key: const ValueKey('bootstrap-submit'),
                       onPressed: _canSubmit ? _submit : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: GriColors.primary,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor:
-                            GriColors.primary.withValues(alpha: 0.4),
-                        disabledForegroundColor: Colors.white70,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      style: griBotonPrimario.merge(
+                        ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          textStyle: GriText.boton,
                         ),
                       ),
                       child: _enVuelo

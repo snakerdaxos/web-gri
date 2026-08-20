@@ -90,7 +90,7 @@ class ReservasScreen extends ConsumerWidget {
       // standalone (tests) sin esto Flutter inyecta estilos fallback.
       color: GriColors.background,
       child: ResponsivePage(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(GriSpacing.lg),
         builder: (context, ancho) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

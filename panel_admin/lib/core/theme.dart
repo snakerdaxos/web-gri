@@ -59,6 +59,73 @@ class GriColors {
   static const Color statIconOcupadaBg = Color(0xFFFFF0E9);
   static const Color statIconReservasBg = Color(0xFFFFF7DF);
   static const Color statIconPedidosBg = Color(0xFFE9F0FF);
+
+  // ══ AÑADIDO EN 11-12 ═════════════════════════════════════════════════════
+  // Los literales que vivían sueltos en `lib/features/**` y en
+  // `lib/models/pedido_staff.dart`. NINGÚN valor cambia: cada constante lleva
+  // el MISMO hex que sustituye y el `archivo:línea` de donde salió.
+  // El gate `test/core/sin_hex_crudos_test.dart` impide que vuelvan.
+
+  // ── Chrome del shell (sidebar + topbar) ─────────────────────────────────
+  /// #EEEEEE — la línea que separa el topbar del contenido
+  /// (`features/shared/app_shell.dart:105`).
+  ///
+  /// Coincide HOY en valor con [imagenPlaceholderBg], pero son dos roles
+  /// distintos y se declaran por separado a propósito: cambiar el color de un
+  /// separador no debe arrastrar el fondo de una imagen rota.
+  static const Color divider = Color(0xFFEEEEEE);
+
+  /// #AAAAAA — subtítulo «Gestión de Restaurante» bajo el logo del sidebar
+  /// (`features/shared/app_shell.dart:258`). Sobre [sidebar] (#1F2329).
+  static const Color sidebarSubtitulo = Color(0xFFAAAAAA);
+
+  /// #CCCCCC — texto e icono de un ítem del menú lateral NO activo
+  /// (`features/shared/app_shell.dart:314`). El activo es blanco sobre
+  /// [primary].
+  static const Color sidebarItemInactivo = Color(0xFFCCCCCC);
+
+  // ── Badges del menú (categorías y productos) ─────────────────────────────
+  /// #E65100 — badge «Inactiva» de una categoría con soft-delete
+  /// (`features/menu/menu_screen.dart:152`).
+  static const Color badgeCategoriaInactiva = Color(0xFFE65100);
+
+  /// #E65100 — texto e icono de una advertencia destructiva en un formulario
+  /// («cambiar el número regenera el QR», `features/mesas/mesa_form_dialog.dart:241,249`).
+  ///
+  /// Mismo valor que [badgeCategoriaInactiva] y distinto significado: uno
+  /// etiqueta un estado del dato, el otro avisa de una consecuencia.
+  static const Color advertencia = Color(0xFFE65100);
+
+  /// #FF8F00 — badge «Agotado» (ámbar, estado TRANSITORIO de un producto:
+  /// `disponible == false`). `features/menu/menu_screen.dart:205`.
+  static const Color badgeAgotado = Color(0xFFFF8F00);
+
+  /// #9E9E9E — badge «Inactivo» (gris, soft-delete de un producto:
+  /// `activo == false` — semántica DISTINTA a agotado).
+  /// `features/menu/menu_screen.dart:208`.
+  static const Color badgeInactivo = Color(0xFF9E9E9E);
+
+  // ── Recuadros y placeholders ────────────────────────────────────────────
+  /// #EEEEEE — fondo del placeholder de una imagen de producto que no carga
+  /// (`features/menu/producto_form_dialog.dart:238`).
+  static const Color imagenPlaceholderBg = Color(0xFFEEEEEE);
+
+  /// #E8F0FE — tinte azul del recuadro del icono de una tarjeta de reporte
+  /// (`features/reportes/reportes_screen.dart:385`).
+  static const Color reporteIconoBg = Color(0xFFE8F0FE);
+
+  /// #3478F6 — icono dentro de [reporteIconoBg]
+  /// (`features/reportes/reportes_screen.dart:391`).
+  ///
+  /// Mismo valor que [mesaLimpiezaDot] y que [GriSemanticColors.pedidoEnviado];
+  /// se declara aparte porque un reporte no es una mesa ni un pedido.
+  static const Color reporteIconoFg = Color(0xFF3478F6);
+
+  // ── Dominio: estado de pedido ───────────────────────────────────────────
+  /// #8E44AD — morado de `en_preparacion`. Único color de estado de pedido
+  /// del panel que no coincide con otro token
+  /// (venía suelto en `models/pedido_staff.dart:183`).
+  static const Color pedidoEnPreparacion = Color(0xFF8E44AD);
 }
 
 /// Fondo del tile según [EstadoMesa] — switch exhaustivo sobre los 4 estados
@@ -129,7 +196,8 @@ class GriSemanticColors extends ThemeExtension<GriSemanticColors> {
   /// #FF4C05 — naranja de marca para `aceptado` (== [GriColors.primary]).
   final Color pedidoAceptado;
 
-  /// #8E44AD — morado de `en_preparacion` (literal de `pedido_staff.dart`).
+  /// #8E44AD — morado de `en_preparacion` (== [GriColors.pedidoEnPreparacion],
+  /// que 11-12 promovió desde el literal suelto de `pedido_staff.dart:183`).
   final Color pedidoEnPreparacion;
 
   /// #20B26B — verde de `servido` (== [GriColors.mesaDisponibleDot]).
@@ -175,7 +243,7 @@ class GriSemanticColors extends ThemeExtension<GriSemanticColors> {
   static const GriSemanticColors gri = GriSemanticColors(
     pedidoEnviado: GriColors.mesaLimpiezaDot,
     pedidoAceptado: GriColors.primary,
-    pedidoEnPreparacion: Color(0xFF8E44AD),
+    pedidoEnPreparacion: GriColors.pedidoEnPreparacion,
     pedidoServido: GriColors.mesaDisponibleDot,
     pedidoRechazado: GriColors.mesaOcupadaDot,
     pedidoPagado: GriColors.mesaDisponibleDot,
@@ -452,6 +520,15 @@ final ThemeData griTheme = ThemeData(
       backgroundColor: GriColors.primary,
       foregroundColor: Colors.white,
     ),
+  ),
+  // SÍ `floatingActionButtonTheme` (11-12): el panel tiene UN solo FAB
+  // (`features/mesas/mesas_screen.dart:30`) y declara exactamente este par
+  // inline. Es 1 de 1: registrarlo no puede cambiar ningún píxel hoy, y
+  // convierte la última declaración suelta del naranja de marca en una
+  // lectura del tema. Un test afirma que sigue registrado con estos valores.
+  floatingActionButtonTheme: const FloatingActionButtonThemeData(
+    backgroundColor: GriColors.primary,
+    foregroundColor: Colors.white,
   ),
   cardTheme: const CardThemeData(
     elevation: 0.5,

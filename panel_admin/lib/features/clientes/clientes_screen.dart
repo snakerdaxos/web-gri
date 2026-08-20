@@ -9,6 +9,7 @@ import 'clientes_provider.dart';
 import 'historial_dialog.dart';
 import '../shared/responsive_page.dart';
 
+import '../../core/design_tokens.dart';
 /// Tabla de clientes del restaurante (ADMN-03) — usuarios con pedidos en
 /// el tenant (DERIVADOS de pedidos: fold distinct por usuarioId con el
 /// clienteNombre denormalizado — sin leer usuarios/, que rules prohíben
@@ -31,7 +32,7 @@ class ClientesScreen extends ConsumerWidget {
     return Material(
       color: GriColors.background,
       child: ResponsivePage(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(GriSpacing.lg),
         builder: (context, ancho) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

@@ -6,6 +6,7 @@ import '../../models/producto_staff.dart';
 import '../dashboard/restaurante_provider.dart';
 import 'menu_provider.dart';
 
+import '../../core/theme.dart';
 /// Form crear/editar producto (MENU-02) sobre Firestore (10-06).
 ///
 /// * [producto] == null → crear ([crearProducto] con autoId; nace
@@ -235,7 +236,7 @@ class _ProductoFormDialogState extends ConsumerState<ProductoFormDialog> {
                         // URL inválida/offline → placeholder, JAMÁS crash
                         // (threat model 08-04).
                         errorBuilder: (_, _, _) => Container(
-                          color: const Color(0xFFEEEEEE),
+                          color: GriColors.imagenPlaceholderBg,
                           alignment: Alignment.center,
                           child: const Icon(Icons.broken_image_outlined),
                         ),

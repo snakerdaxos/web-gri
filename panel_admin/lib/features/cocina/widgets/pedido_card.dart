@@ -41,17 +41,7 @@ class PedidoCard extends StatelessWidget {
     final acciones = pedido.nextActions(rol);
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D000000),
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
+      decoration: griCardDecoration,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(15),
         child: IntrinsicHeight(
@@ -189,23 +179,13 @@ class PedidoCard extends StatelessWidget {
                                       onPressed: onAvanzar == null
                                           ? null
                                           : () => onAvanzar!(pedido, a.destino),
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor:
-                                            GriColors.mesaOcupadaFg,
-                                        side: const BorderSide(
-                                          color: GriColors.mesaOcupadaDot,
-                                        ),
-                                      ),
+                                      style: griBotonPeligroContorno,
                                       child: Text(a.label),
                                     )
                                   : ElevatedButton(
                                       onPressed: onAvanzar == null
                                           ? null
                                           : () => onAvanzar!(pedido, a.destino),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: GriColors.primary,
-                                        foregroundColor: Colors.white,
-                                      ),
                                       child: Text(a.label),
                                     ),
                           ],

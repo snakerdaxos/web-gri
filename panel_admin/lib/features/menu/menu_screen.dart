@@ -9,6 +9,7 @@ import 'menu_provider.dart';
 import 'producto_form_dialog.dart';
 import '../shared/responsive_page.dart';
 
+import '../../core/design_tokens.dart';
 /// Gestión del menú (MENU-01/02) — vive como tab de /configuracion
 /// (decisión discreta 08: el sidebar de 7 ítems no tiene entrada Menú).
 ///
@@ -36,7 +37,7 @@ class MenuScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 4),
+            padding: const EdgeInsets.fromLTRB(GriSpacing.lg, GriSpacing.md, GriSpacing.lg, 4),
             child: Row(
               children: [
                 const Expanded(
@@ -102,7 +103,8 @@ class MenuScreen extends ConsumerWidget {
                       ),
                     )
                   : ListView(
-                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                      padding: const EdgeInsets.fromLTRB(
+                          GriSpacing.lg, GriSpacing.sm, GriSpacing.lg, GriSpacing.lg),
                       children: [
                         for (final c in categorias) _CategoriaTile(categoria: c),
                       ],
@@ -149,7 +151,7 @@ class _CategoriaTileState extends State<_CategoriaTile> {
               ),
             ),
             // Soft-delete visible (naranja): el badge de categoría.
-            if (!c.activo) const _MenuBadge('Inactiva', Color(0xFFE65100)),
+            if (!c.activo) const _MenuBadge('Inactiva', GriColors.badgeCategoriaInactiva),
           ],
         ),
         subtitle: Text(
@@ -202,10 +204,10 @@ class _CategoriaTileState extends State<_CategoriaTile> {
                     Expanded(child: Text(p.nombre)),
                     // Agotado = !disponible (ámbar, transitorio).
                     if (!p.disponible)
-                      const _MenuBadge('Agotado', Color(0xFFFF8F00)),
+                      const _MenuBadge('Agotado', GriColors.badgeAgotado),
                     // Inactivo = soft-delete (gris) — semántica DISTINTA.
                     if (!p.activo)
-                      const _MenuBadge('Inactivo', Color(0xFF9E9E9E)),
+                      const _MenuBadge('Inactivo', GriColors.badgeInactivo),
                   ],
                 ),
                 subtitle: (p.descripcion ?? '').isEmpty

@@ -10,6 +10,7 @@ import 'restaurante_form_dialog.dart';
 import 'restaurantes_admin_provider.dart';
 import '../shared/responsive_page.dart';
 
+import '../../core/design_tokens.dart';
 /// Pantalla /configuracion — hub de administración (decisión discreta 08:
 /// el sidebar de 7 ítems no tiene entrada Menú; Configuración queda
 /// reservada para administración).
@@ -107,7 +108,7 @@ class _RestauranteTab extends ConsumerWidget {
           ),
         ),
         data: (r) => ListView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(GriSpacing.lg),
           children: [
             _InfoCard(
               titulo: 'Nombre',
@@ -249,7 +250,7 @@ class _RestaurantesTab extends ConsumerWidget {
               child: const Text('Cancelar'),
             ),
             TextButton(
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              style: griBotonPeligroTexto,
               onPressed: () => Navigator.of(dialogContext).pop(true),
               child: const Text('Desactivar'),
             ),
@@ -307,7 +308,8 @@ class _RestaurantesTab extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+              padding: const EdgeInsets.fromLTRB(
+                  GriSpacing.lg, GriSpacing.lg, GriSpacing.lg, GriSpacing.sm),
               child: Row(
                 children: [
                   Expanded(
@@ -321,10 +323,6 @@ class _RestaurantesTab extends ConsumerWidget {
                   ),
                   ElevatedButton(
                     onPressed: () => _abrirAlta(context, ref),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: GriColors.primary,
-                      foregroundColor: Colors.white,
-                    ),
                     child: const Text('+ Nuevo restaurante'),
                   ),
                 ],
@@ -359,10 +357,6 @@ class _RestaurantesTab extends ConsumerWidget {
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () => _abrirAlta(context, ref),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: GriColors.primary,
-                          foregroundColor: Colors.white,
-                        ),
                         child: const Text('Crear el primer restaurante'),
                       ),
                     ],

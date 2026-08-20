@@ -8,6 +8,7 @@ import 'staff_form_dialog.dart';
 import '../shared/responsive_page.dart';
 import '../../core/gri_icons.dart';
 
+import '../../core/design_tokens.dart';
 /// Gestión de equipo del restaurante (BOOT-04) — la pieza que hace al
 /// restaurante autosuficiente: hasta aquí, dar de alta a un mesero exigía
 /// `scripts/seed_firebase.mjs` con la clave de servicio del proyecto.
@@ -41,7 +42,7 @@ class EquipoScreen extends ConsumerWidget {
     return Material(
       color: GriColors.background,
       child: ResponsivePage(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(GriSpacing.lg),
         builder: (context, ancho) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

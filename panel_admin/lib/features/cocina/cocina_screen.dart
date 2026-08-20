@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../models/pedido_staff.dart';
 import 'pedidos_staff_provider.dart';
 import 'widgets/pedido_card.dart';
+import '../shared/error_box.dart';
 import '../shared/responsive_page.dart';
 import '../../core/gri_icons.dart';
 
@@ -89,7 +90,8 @@ class CocinaScreen extends ConsumerWidget {
             Expanded(
               child: pedidosAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => _ErrorBox(
+                error: (e, _) => ErrorBox(
+                  padding: EdgeInsets.zero,
                   message: 'Error cargando pedidos',
                   onRetry: () => ref.invalidate(pedidosStaffProvider),
                 ),
@@ -316,33 +318,3 @@ class _CuentaAvisosBadge extends StatelessWidget {
   }
 }
 
-class _ErrorBox extends StatelessWidget {
-  const _ErrorBox({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            message,
-            style: const TextStyle(color: GriColors.gray, fontSize: 16),
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: onRetry,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: GriColors.primary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Reintentar'),
-          ),
-        ],
-      ),
-    );
-  }
-}

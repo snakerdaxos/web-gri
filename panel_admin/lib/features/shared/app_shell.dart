@@ -102,7 +102,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                       userName: user?.displayName ?? user?.email ?? 'Usuario',
                       userRole: _roleLabel(claimsAsync.value?.role),
                     ),
-                    const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                    const Divider(height: 1, color: GriColors.divider),
                     Expanded(child: widget.child),
                   ],
                 ),
@@ -255,7 +255,7 @@ class _Sidebar extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: Color(0xFFAAAAAA),
+                          color: GriColors.sidebarSubtitulo,
                           fontSize: 11,
                         ),
                       ),
@@ -311,7 +311,7 @@ class _MenuItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = active ? GriColors.primary : Colors.transparent;
-    final fg = active ? Colors.white : const Color(0xFFCCCCCC);
+    final fg = active ? Colors.white : GriColors.sidebarItemInactivo;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(

@@ -8,6 +8,7 @@ import 'login_controller.dart';
 import '../shared/responsive_page.dart';
 import '../../core/gri_icons.dart';
 
+import '../../core/design_tokens.dart';
 /// Pantalla de login (PLAT-01) — card centrada con logo GRI, email+password.
 ///
 /// El botón "Iniciar sesión" está disabled mientras el email sea inválido,
@@ -87,21 +88,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: ResponsivePage(
         maxWidth: ResponsivePage.anchoMaxFormularioConPadding,
         alineacion: Alignment.center,
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(GriSpacing.lg),
         builder: (context, ancho) => SingleChildScrollView(
           child: Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 12,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
+              padding: const EdgeInsets.all(GriSpacing.xl),
+              decoration: griCardDecoration,
               child: Form(
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 child: Column(
@@ -156,15 +147,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: (submitting || !_canSubmit) ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: GriColors.primary,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: GriColors.primary.withValues(alpha: 0.4),
-                        disabledForegroundColor: Colors.white70,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      style: griBotonPrimario.merge(
+                        ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          textStyle: GriText.boton,
                         ),
                       ),
                       child: submitting

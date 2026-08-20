@@ -7,6 +7,7 @@ import '../dashboard/widgets/mesa_tile.dart';
 import 'mesa_actions_sheet.dart';
 import 'mesa_form_dialog.dart';
 import '../dashboard/dashboard_screen.dart' show mesaGridDelegate;
+import '../shared/error_box.dart';
 import '../shared/responsive_page.dart';
 
 /// Pantalla /mesas (MESA-01, 10-06) — grid vivo de mesas + alta/edición.
@@ -32,8 +33,6 @@ class MesasScreen extends ConsumerWidget {
           context: context,
           builder: (_) => const MesaFormDialog(),
         ),
-        backgroundColor: GriColors.primary,
-        foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Nueva mesa'),
       ),
@@ -63,7 +62,7 @@ class MesasScreen extends ConsumerWidget {
                     height: 300,
                     child: Center(child: CircularProgressIndicator()),
                   ),
-                  error: (e, _) => _ErrorBox(
+                  error: (e, _) => ErrorBox(
                     message: 'Error cargando mesas',
                     onRetry: () => ref.invalidate(mesasProvider),
                   ),
@@ -109,36 +108,3 @@ class MesasScreen extends ConsumerWidget {
   }
 }
 
-class _ErrorBox extends StatelessWidget {
-  const _ErrorBox({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 32),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message,
-              style: const TextStyle(color: GriColors.gray, fontSize: 16),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: onRetry,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: GriColors.primary,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Reintentar'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
