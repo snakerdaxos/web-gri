@@ -47,16 +47,23 @@ cuando se sirva, el total sube. La vista tiene que distinguir con claridad **lo 
 **lo que sigue pendiente de servir**, o el cliente pagará una cifra y verá otra. Este es el punto
 más delicado del diseño y no debe resolverse con un total a secas.
 
-## Decisión abierta, a resolver con el usuario antes de implementar
+## RESUELTO — una sesión, un usuario (decisión del usuario, 2026-08-20)
 
-Una mesa puede tener **varios comensales** pidiendo desde la misma sesión (`sesiones/{mesaId}` es
-por mesa, no por persona). Hay que decidir:
+*"Una mesa solo se puede [abrir] de a un usuario, sin importar que tengan 4 personas."*
 
-- El **mesero** cobra la mesa entera: suma por `sesionId`. Eso parece claro.
-- El **cliente**, ¿ve solo lo suyo o la cuenta común de la mesa?
+Quien escanea el QR es el dueño de la sesión y pide por todos los de la mesa. Por tanto
+**la cuenta del cliente y la cuenta de la mesa son la misma cosa**, y esto simplifica el diseño:
 
-Ambas son defendibles: "solo lo mío" evita confusión sobre qué pagas; "la cuenta común" es lo que
-espera un grupo de amigos que va a repartir. Preguntar antes de construir.
+- No hay comensales múltiples que reconciliar. El mesero y el cliente ven **el mismo importe**.
+- **No hay que tocar `firestore.rules`.** La rama que ya existe —el cliente ve los pedidos cuyo
+  `usuarioId` es el suyo— cubre la cuenta entera, porque todos los pedidos de esa sesión son suyos.
+- **No hace falta índice nuevo.** `pedidos(sesionId, usuarioId, createdAt)` ya está desplegado y
+  verificado en producción, y es exactamente la consulta que necesita la vista del cliente.
+
+Consecuencia de producto que conviene tener presente, no un problema a resolver ahora: si un
+segundo comensal quisiera pedir desde su propio móvil en esa misma mesa, no podría — la regla de
+sesión única por mesa se lo impide. Es una decisión deliberada y coherente con cómo funciona el
+QR de mesa, pero condiciona el reparto de cuenta si algún día se quisiera.
 
 ## Datos y restricciones técnicas
 
