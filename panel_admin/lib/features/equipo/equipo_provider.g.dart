@@ -125,3 +125,82 @@ final class EquipoProvider
 }
 
 String _$equipoHash() => r'930ac55ab2faff688d26d66761681fffe8de9da2';
+
+/// uid de quien ha iniciado sesión, o `null` sin sesión.
+///
+/// Existe para que la fila del propio usuario no ofrezca la acción de
+/// desactivar. Es una COSTURA: `FirebaseAuth.instance` no es instanciable en
+/// `flutter test`, así que sin este provider el ocultamiento quedaría afirmado
+/// por lectura de código en vez de verificado (misma razón que
+/// `crearStaffCallableProvider`, 11-10).
+///
+/// ⚠️ Esto es UX, NO SEGURIDAD: la decisión real vive en `cambiarEstadoStaff`,
+/// que rechaza la auto-baja con su propio mensaje y tiene caso e2e con token
+/// real. Ocultar el botón solo evita ofrecer algo que el servidor va a
+/// rechazar.
+
+@ProviderFor(uidSesion)
+final uidSesionProvider = UidSesionProvider._();
+
+/// uid de quien ha iniciado sesión, o `null` sin sesión.
+///
+/// Existe para que la fila del propio usuario no ofrezca la acción de
+/// desactivar. Es una COSTURA: `FirebaseAuth.instance` no es instanciable en
+/// `flutter test`, así que sin este provider el ocultamiento quedaría afirmado
+/// por lectura de código en vez de verificado (misma razón que
+/// `crearStaffCallableProvider`, 11-10).
+///
+/// ⚠️ Esto es UX, NO SEGURIDAD: la decisión real vive en `cambiarEstadoStaff`,
+/// que rechaza la auto-baja con su propio mensaje y tiene caso e2e con token
+/// real. Ocultar el botón solo evita ofrecer algo que el servidor va a
+/// rechazar.
+
+final class UidSesionProvider
+    extends $FunctionalProvider<String?, String?, String?>
+    with $Provider<String?> {
+  /// uid de quien ha iniciado sesión, o `null` sin sesión.
+  ///
+  /// Existe para que la fila del propio usuario no ofrezca la acción de
+  /// desactivar. Es una COSTURA: `FirebaseAuth.instance` no es instanciable en
+  /// `flutter test`, así que sin este provider el ocultamiento quedaría afirmado
+  /// por lectura de código en vez de verificado (misma razón que
+  /// `crearStaffCallableProvider`, 11-10).
+  ///
+  /// ⚠️ Esto es UX, NO SEGURIDAD: la decisión real vive en `cambiarEstadoStaff`,
+  /// que rechaza la auto-baja con su propio mensaje y tiene caso e2e con token
+  /// real. Ocultar el botón solo evita ofrecer algo que el servidor va a
+  /// rechazar.
+  UidSesionProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'uidSesionProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$uidSesionHash();
+
+  @$internal
+  @override
+  $ProviderElement<String?> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  String? create(Ref ref) {
+    return uidSesion(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(String? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<String?>(value),
+    );
+  }
+}
+
+String _$uidSesionHash() => r'4bc308b5dc700b2175b66c8623b378ff5731e7f3';

@@ -9,11 +9,17 @@ part 'equipo_provider.g.dart';
 /// Una persona del equipo del restaurante, tal y como la pinta `/equipo`.
 /// Proyección mínima del doc espejo `usuarios/{uid}` que escribe la callable
 /// `crearUsuarioStaff` (11-08): `{nombre, email, role, restauranteId}`.
+///
+/// `activo` lo escribe `cambiarEstadoStaff` (11-24). NO existe en las fichas
+/// creadas antes de ese plan, así que su ausencia se lee como `true`: si se
+/// leyera como `false`, todo el equipo ya existente aparecería de baja de
+/// golpe y el panel mentiría sobre quién puede entrar.
 typedef MiembroEquipo = ({
   String uid,
   String nombre,
   String email,
   String rol,
+  bool activo,
 });
 
 /// Roles que gestionan personal. Espejo de `ROLES_LLAMADORES` de
@@ -88,7 +94,29 @@ MiembroEquipo _miembro(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
         : 'Sin nombre',
     email: d['email'] as String? ?? '',
     rol: d['role'] as String? ?? '',
+    // Por defecto ACTIVO: ver la nota de [MiembroEquipo]. Solo un `false`
+    // explícito da de baja.
+    activo: d['activo'] as bool? ?? true,
   );
+}
+
+/// uid de quien ha iniciado sesión, o `null` sin sesión.
+///
+/// Existe para que la fila del propio usuario no ofrezca la acción de
+/// desactivar. Es una COSTURA: `FirebaseAuth.instance` no es instanciable en
+/// `flutter test`, así que sin este provider el ocultamiento quedaría afirmado
+/// por lectura de código en vez de verificado (misma razón que
+/// `crearStaffCallableProvider`, 11-10).
+///
+/// ⚠️ Esto es UX, NO SEGURIDAD: la decisión real vive en `cambiarEstadoStaff`,
+/// que rechaza la auto-baja con su propio mensaje y tiene caso e2e con token
+/// real. Ocultar el botón solo evita ofrecer algo que el servidor va a
+/// rechazar.
+@Riverpod(keepAlive: true)
+String? uidSesion(Ref ref) {
+  // Rebuild en cada cambio de sesión, igual que `claimsProvider`.
+  ref.watch(authStateChangesProvider);
+  return ref.watch(firebaseAuthProvider).currentUser?.uid;
 }
 
 /// Etiqueta en español del rol, para la tabla y el desplegable.

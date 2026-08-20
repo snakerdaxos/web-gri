@@ -142,6 +142,104 @@ CrearStaffAccion crearStaffAccion(Ref ref) {
   };
 }
 
+// ===========================================================================
+// BAJA REVERSIBLE DE PERSONAL (11-24)
+// ===========================================================================
+
+/// Lo que devuelve la callable `cambiarEstadoStaff` (11-24).
+typedef ResultadoCambioEstado = ({
+  String uid,
+  bool activo,
+  String rol,
+  String restauranteId,
+});
+
+/// Desactivar / reactivar a alguien del equipo. Misma COSTURA inyectable que
+/// el alta: la pantalla la lee del provider y los widget tests la sustituyen.
+typedef CambiarEstadoAccion = Future<ResultadoCambioEstado> Function({
+  required String uid,
+  required bool activo,
+});
+
+/// Costura de la callable sola (ver [CrearStaffCallable] para el porqué).
+typedef CambiarEstadoCallable = Future<Map<String, dynamic>> Function(
+  Map<String, dynamic> payload,
+);
+
+const _msgGenericoEstado =
+    'No se pudo cambiar el estado del usuario. Intenta de nuevo.';
+
+/// Traducción de los códigos de `cambiarEstadoStaff` a texto para el operador.
+///
+/// ⚠️ `permission-denied` cubre CINCO controles distintos del servidor (rol del
+/// llamador, objetivo `super_admin`, auto-baja, cruce de restaurante y objetivo
+/// que no es personal). El texto no puede afirmar cuál fue sin mentir en los
+/// otros cuatro, así que dice lo único cierto para todos. La UI ya oculta las
+/// acciones que sabe que el servidor va a rechazar; llegar aquí significa que
+/// algo no cuadra y el operador tiene que enterarse.
+///
+/// `failed-precondition` SÍ muestra el mensaje del servidor: es el único código
+/// que la función reserva para un estado que el operador puede arreglar ("falta
+/// el rol en su ficha; vuelve a darlo de alta con el mismo correo"), y
+/// resumirlo lo dejaría sin saber qué hacer.
+String mensajeCambioEstadoStaff(String code, [String? mensajeServidor]) {
+  switch (code) {
+    case 'permission-denied':
+      return 'No tienes permiso para cambiar el estado de ese usuario.';
+    case 'not-found':
+      return 'Ese usuario ya no existe.';
+    case 'failed-precondition':
+      final m = mensajeServidor?.trim() ?? '';
+      return m.isEmpty ? _msgGenericoEstado : m;
+    case 'unauthenticated':
+      return 'Tu sesión expiró. Vuelve a iniciar sesión.';
+    default:
+      return _msgGenericoEstado;
+  }
+}
+
+/// Invocación real de `cambiarEstadoStaff`.
+@Riverpod(keepAlive: true)
+CambiarEstadoCallable cambiarEstadoCallable(Ref ref) {
+  return (payload) async {
+    final res = await ref
+        .read(firebaseFunctionsProvider)
+        .httpsCallable('cambiarEstadoStaff')
+        .call<Object?>(payload);
+    return _comoMapa(res.data);
+  };
+}
+
+/// Implementación real de [CambiarEstadoAccion].
+///
+/// El payload lleva SOLO `uid` y `activo`: ni rol ni restaurante. Los dos los
+/// DERIVA el servidor del objetivo (de sus claims o, si ya está de baja, de su
+/// doc espejo). Mandarlos desde aquí sería darle al cliente una palanca sobre
+/// una decisión que no le corresponde, exactamente como el `restauranteId` del
+/// alta.
+@Riverpod(keepAlive: true)
+CambiarEstadoAccion cambiarEstadoAccion(Ref ref) {
+  return ({required String uid, required bool activo}) async {
+    final Map<String, dynamic> datos;
+    try {
+      datos = await ref.read(cambiarEstadoCallableProvider)(
+        <String, dynamic>{'uid': uid, 'activo': activo},
+      );
+    } on FirebaseFunctionsException catch (e) {
+      throw EquipoException(mensajeCambioEstadoStaff(e.code, e.message));
+    } catch (_) {
+      throw const EquipoException(_msgGenericoEstado);
+    }
+
+    return (
+      uid: datos['uid'] as String? ?? uid,
+      activo: datos['activo'] as bool? ?? activo,
+      rol: datos['rol'] as String? ?? '',
+      restauranteId: datos['restauranteId'] as String? ?? '',
+    );
+  };
+}
+
 /// `httpsCallable().call()` devuelve `Map<Object?, Object?>` en algunas
 /// plataformas y `Map<String, dynamic>` en otras: normalizar aquí evita un
 /// `type cast` que solo reventaría en producción y no en los tests.

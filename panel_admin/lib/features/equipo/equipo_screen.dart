@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import 'equipo_controller.dart';
 import 'equipo_provider.dart';
 import 'staff_form_dialog.dart';
 import '../shared/responsive_page.dart';
@@ -22,13 +23,15 @@ import '../../core/design_tokens.dart';
 /// ⚠️ ESTA PANTALLA NO ES UNA FRONTERA DE SEGURIDAD. El ítem del sidebar y el
 /// `redirect` del router evitan que un mesero se tropiece con ella, pero quien
 /// decide de verdad es (a) `firestore.rules` para el listado —solo el
-/// `admin_restaurante` de ese rid puede leer `usuarios` de su tenant— y (b) la
-/// callable `crearUsuarioStaff` para el alta. Las dos tienen suite propia
-/// contra emuladores.
+/// `admin_restaurante` de ese rid puede leer `usuarios` de su tenant—, (b) la
+/// callable `crearUsuarioStaff` para el alta y (c) `cambiarEstadoStaff` para la
+/// baja. Las tres tienen suite propia contra emuladores.
 ///
 /// Nota sobre "eliminar": no existe y no es un olvido. `firestore.rules`
-/// prohíbe `delete` en `usuarios` (`allow delete: if false`) y el alcance de
-/// la fase es crear, no borrar. Anotado como deuda conocida.
+/// prohíbe `delete` en `usuarios` (`allow delete: if false`) y la decisión
+/// BLOQUEADA del usuario es DESACTIVAR, nunca borrar: borrar dejaría pedidos
+/// huérfanos apuntando a un uid inexistente y rompería los reportes de ventas
+/// por mesero. La baja reversible (11-24) vive en la columna de acciones.
 class EquipoScreen extends ConsumerWidget {
   const EquipoScreen({super.key});
 
@@ -164,36 +167,200 @@ class _EquipoVacio extends StatelessWidget {
 /// Tabla del equipo. `DataTable2` con `minWidth` y dentro de bounds finitos
 /// (Expanded), igual que `clientes_screen` — el README del paquete prohíbe
 /// montarlo en un scroll sin límite.
-class _TablaEquipo extends StatelessWidget {
+///
+/// Es `Stateful` por una sola razón: [_TablaEquipoState._enVuelo] guarda el uid
+/// de la operación en curso para que un doble toque no dispare dos llamadas.
+/// Con un `ConsumerWidget` no habría dónde guardarlo y el segundo toque saldría
+/// antes de que el primero volviera.
+class _TablaEquipo extends ConsumerStatefulWidget {
   const _TablaEquipo({required this.equipo});
 
   final List<MiembroEquipo> equipo;
 
   @override
+  ConsumerState<_TablaEquipo> createState() => _TablaEquipoState();
+}
+
+class _TablaEquipoState extends ConsumerState<_TablaEquipo> {
+  /// uid de la operación en vuelo, o `null`. Mientras no sea `null`, NINGUNA
+  /// fila acepta pulsaciones.
+  String? _enVuelo;
+
+  /// Confirmación SOLO en el sentido destructivo, mismo criterio que el toggle
+  /// de restaurantes (11-05) y el borrado de mesa: desactivar echa a alguien
+  /// del sistema; reactivar es inocuo y pedir confirmación solo estorbaría.
+  Future<bool> _confirmarBaja(MiembroEquipo m) async {
+    final confirmo = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        key: const Key('equipo-confirmar-baja'),
+        // El diálogo NOMBRA a la persona: con varias filas parecidas, un
+        // "¿Desactivar usuario?" genérico no deja comprobar que se pulsó la
+        // fila correcta.
+        title: Text('¿Desactivar a ${m.nombre}?'),
+        content: Text(
+          'Dejará de poder entrar al panel y perderá sus permisos. No se '
+          'borra nada: sus pedidos y su historial siguen intactos, y puedes '
+          'reactivarlo cuando quieras — recuperará su rol de '
+          '${etiquetaRol(m.rol)}.',
+        ),
+        actions: [
+          TextButton(
+            key: const Key('equipo-baja-cancelar'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            key: const Key('equipo-baja-confirmar'),
+            style: griBotonPeligroTexto,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Desactivar'),
+          ),
+        ],
+      ),
+    );
+    return confirmo == true;
+  }
+
+  Future<void> _cambiarEstado(MiembroEquipo m, {required bool activo}) async {
+    if (_enVuelo != null) return;
+
+    if (!activo && !await _confirmarBaja(m)) return;
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final accion = ref.read(cambiarEstadoAccionProvider);
+
+    setState(() => _enVuelo = m.uid);
+    try {
+      await accion(uid: m.uid, activo: activo);
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(
+            activo
+                // El aviso NO es cortesía: un ID token ya emitido vive hasta
+                // ~1 h, así que ni la baja expulsa al instante una sesión
+                // abierta ni la readmisión devuelve los permisos a una sesión
+                // que siguiera viva. En los dos sentidos, volver a entrar es
+                // lo que hace efectivo el cambio.
+                ? '${m.nombre} vuelve a tener acceso. Tiene que volver a '
+                    'iniciar sesión para recuperar sus permisos.'
+                : '${m.nombre} ya no puede entrar. Si tenía la sesión '
+                    'abierta, se cerrará en cuanto caduque su token.',
+          ),
+        ),
+      );
+    } on EquipoException catch (e) {
+      messenger?.showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      messenger?.showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo cambiar el estado del usuario.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _enVuelo = null);
+      // Se refresca SIEMPRE, también tras un error: la operación no es atómica
+      // entre Auth y Firestore, así que un fallo no garantiza que nada haya
+      // cambiado. Dejar la lista con el estado anterior sería mentir.
+      ref.invalidate(equipoProvider);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final yo = ref.watch(uidSesionProvider);
+
     return DataTable2(
       columnSpacing: 12,
-      minWidth: 600,
+      minWidth: 720,
       columns: const [
         DataColumn2(label: Text('Nombre'), size: ColumnSize.L),
         DataColumn2(label: Text('Correo'), size: ColumnSize.L),
         DataColumn(label: Text('Rol')),
+        DataColumn(label: Text('Estado')),
+        DataColumn2(label: Text('Acción'), size: ColumnSize.S),
       ],
       rows: [
-        for (final m in equipo)
+        for (final m in widget.equipo)
           DataRow2(
             cells: [
               DataCell(
                 Text(
                   m.nombre,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    // La marca visual no puede ser SOLO la insignia: en una
+                    // tabla larga hay que distinguir la fila de un golpe.
+                    color: m.activo ? GriColors.text : GriColors.badgeInactivo,
+                  ),
                 ),
               ),
               DataCell(Text(m.email)),
               DataCell(Text(etiquetaRol(m.rol))),
+              DataCell(_EstadoBadge(activo: m.activo)),
+              DataCell(_accion(m, yo)),
             ],
           ),
       ],
+    );
+  }
+
+  /// La acción de una fila, o un hueco.
+  ///
+  /// ⚠️ OCULTAR NO ES IMPEDIR. Los dos casos sin acción —uno mismo y un
+  /// `super_admin`— son las dos PROHIBICIONES que la callable aplica en el
+  /// servidor, cada una con test unitario, test de propiedad y caso e2e con
+  /// token real. Aquí se ocultan para no ofrecer un botón que va a fallar; si
+  /// alguien llamara la función a mano, la decisión sigue siendo del servidor.
+  /// Mismo criterio que el gating de `/equipo` en el router (11-10).
+  Widget _accion(MiembroEquipo m, String? yo) {
+    if (m.uid == yo) {
+      return const Text(
+        'Eres tú',
+        key: Key('equipo-accion-propia'),
+        style: TextStyle(color: GriColors.gray, fontSize: 12),
+      );
+    }
+    if (m.rol == 'super_admin') return const SizedBox.shrink();
+
+    final bloqueado = _enVuelo != null;
+    return TextButton(
+      key: Key('equipo-accion-${m.uid}'),
+      style: m.activo ? griBotonPeligroTexto : null,
+      onPressed: bloqueado ? null : () => _cambiarEstado(m, activo: !m.activo),
+      child: Text(m.activo ? 'Desactivar' : 'Reactivar'),
+    );
+  }
+}
+
+/// Insignia de estado. Se pinta también para los activos: una marca que solo
+/// aparece en el caso raro se lee como un adorno, no como un dato de la fila.
+class _EstadoBadge extends StatelessWidget {
+  const _EstadoBadge({required this.activo});
+
+  final bool activo;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: GriSpacing.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color:
+            activo ? GriColors.mesaDisponibleBg : GriColors.imagenPlaceholderBg,
+        borderRadius: BorderRadius.circular(GriRadius.chip),
+      ),
+      child: Text(
+        activo ? 'Activo' : 'Desactivado',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: activo ? GriColors.mesaDisponibleFg : GriColors.badgeInactivo,
+        ),
+      ),
     );
   }
 }

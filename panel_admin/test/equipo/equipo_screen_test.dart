@@ -29,9 +29,16 @@ const _equipoDemo = <MiembroEquipo>[
     uid: 'u-ana',
     nombre: 'Ana Admin',
     email: 'ana@demo.com',
-    rol: 'admin_restaurante'
+    rol: 'admin_restaurante',
+    activo: true,
   ),
-  (uid: 'u-zoe', nombre: 'Zoe Mesera', email: 'zoe@demo.com', rol: 'mesero'),
+  (
+    uid: 'u-zoe',
+    nombre: 'Zoe Mesera',
+    email: 'zoe@demo.com',
+    rol: 'mesero',
+    activo: true,
+  ),
 ];
 
 /// Alta de mentira: registra lo recibido y devuelve lo que se le diga.
@@ -83,6 +90,11 @@ ProviderContainer _container({
   _AltaEspia? espia,
   String? seleccion,
   FakeFirebaseFirestore? db,
+  // 11-24: la tabla lee el uid de la sesión para no ofrecer la baja sobre la
+  // propia fila. Sin override, `uidSesionProvider` llega a
+  // `FirebaseAuth.instance`, que no es instanciable en `flutter test`. Por
+  // defecto, alguien que NO está en `_equipoDemo`.
+  String? uidSesion = 'u-yo',
 }) {
   final c = ProviderContainer(
     overrides: [
@@ -92,6 +104,7 @@ ProviderContainer _container({
       // por el camino REAL y no por un doble que siempre devuelve algo.
       if (db != null) firestoreProvider.overrideWithValue(db),
       claimsProvider.overrideWith((ref) async => (role: role, rid: rid)),
+      uidSesionProvider.overrideWithValue(uidSesion),
       equipoProvider.overrideWith((ref) async {
         if (errorEquipo != null) throw errorEquipo;
         return equipo;
