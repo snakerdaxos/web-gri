@@ -84,6 +84,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 
 // --- LA ÚNICA AUTORIDAD. No añadir comprobaciones propias junto a estas. -----
 import { ROLES_ASIGNABLES, autorizarAlta } from '../functions/src/auth-matrix.js';
+import { autorizarCambioEstado } from '../functions/src/baja-matrix.js';
 import { validarPassword } from '../functions/src/password-policy.js';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
@@ -545,6 +546,252 @@ async function comandoCrear({ auth, db, flags }) {
 }
 
 // ============================================================================
+// Comandos: baja / reactivar
+//
+// Réplica paso a paso de `functions/src/cambiar-estado-staff.js`, incluido el
+// FALLBACK AL DOC ESPEJO —que no es defensa en profundidad sino el camino normal
+// de la reactivación: a quien ya está de baja le quitamos los claims en su día.
+// ============================================================================
+
+async function resolverObjetivo(auth, flags) {
+  const uidPedido = texto(flags.uid);
+  const emailPedido = texto(flags['email-objetivo']);
+
+  if (uidPedido) return uidPedido;
+  if (!emailPedido) {
+    abortar(
+      'Falta el objetivo: --uid <uid> (lo muestra `listar`) o --email-objetivo <correo>.',
+    );
+  }
+  try {
+    const u = await auth.getUserByEmail(emailPedido.trim().toLowerCase());
+    return u.uid;
+  } catch (err) {
+    if (err?.code === 'auth/user-not-found') {
+      abortar(`No existe ninguna cuenta con el correo ${emailPedido}.`);
+    }
+    return abortar(`No se pudo leer la cuenta ${emailPedido} (${err?.code ?? 'error desconocido'}).`);
+  }
+}
+
+async function cambiarEstado({ auth, db, flags, activo }) {
+  const actor = await resolverActor(auth, flags);
+  const uid = await resolverObjetivo(auth, flags);
+
+  // --- 3. El objetivo tiene que existir en Auth ---------------------------
+  let objetivo;
+  try {
+    objetivo = await auth.getUser(uid);
+  } catch (err) {
+    if (err?.code === 'auth/user-not-found') abortar('Ese usuario ya no existe.');
+    return abortar(`No se pudo leer al usuario (${err?.code ?? 'error desconocido'}).`);
+  }
+
+  // --- 4. Quién es el objetivo · claims primero, doc espejo después -------
+  const espejoRef = db.doc(`usuarios/${uid}`);
+  const espejoSnap = await espejoRef.get();
+  const espejo = espejoSnap.exists ? (espejoSnap.data() ?? {}) : {};
+  const claims = objetivo.customClaims ?? {};
+
+  const objetivoRole = primerTexto(claims.role, espejo.role);
+  const objetivoRid = primerTexto(claims.rid, espejo.restauranteId);
+
+  // --- 5. AUTORIZACIÓN · toda la decisión vive en baja-matrix.js ----------
+  const decision = autorizarCambioEstado({
+    callerRole: actor.role,
+    callerRid: actor.rid,
+    callerUid: actor.uid,
+    objetivoRole,
+    objetivoRid,
+    objetivoUid: uid,
+  });
+  if (!decision.ok) abortar(`[${decision.code}] ${decision.msg}`);
+
+  if (activo === false) {
+    // --- 6. DESACTIVAR ----------------------------------------------------
+    // CONFIRMACIÓN antes de lo destructivo: se muestra A QUIÉN afecta, con
+    // nombre, correo, rol y restaurante, para que un uid mal copiado no pase.
+    if (flags.si !== true) {
+      console.log('');
+      console.log('=== VAS A DAR DE BAJA A ===');
+      console.log(` nombre      : ${espejo.nombre ?? objetivo.displayName ?? '(sin nombre)'}`);
+      console.log(` correo      : ${objetivo.email ?? espejo.email ?? '(sin correo)'}`);
+      console.log(` rol         : ${objetivoRole ?? '(desconocido)'}`);
+      console.log(` restaurante : ${objetivoRid ?? '(ninguno)'}`);
+      console.log(` uid         : ${uid}`);
+      console.log('');
+      console.log(' No se borra nada: pierde el acceso y se puede reactivar después.');
+      const r = await preguntar(' ¿Confirmas la baja? [s/N]: ');
+      if (r.toLowerCase() !== 's') {
+        console.log('\n Cancelado. No se ha tocado nada.\n');
+        return;
+      }
+    } else {
+      console.log('[aviso] --si: baja ejecutada SIN confirmación interactiva.');
+    }
+
+    await auth.updateUser(uid, { disabled: true });
+    await auth.setCustomUserClaims(uid, null);
+    await auth.revokeRefreshTokens(uid);
+
+    // NI UNA MENCIÓN a `role` / `restauranteId` cuando ya están: son lo único
+    // que permite reactivar. La excepción es una ficha INCOMPLETA, que se
+    // repara con los claims que estamos a punto de borrar.
+    const reparacion = {};
+    if (typeof espejo.role !== 'string' && objetivoRole) reparacion.role = objetivoRole;
+    if (typeof espejo.restauranteId !== 'string' && objetivoRid) {
+      reparacion.restauranteId = objetivoRid;
+    }
+
+    await espejoRef.set(
+      {
+        activo: false,
+        desactivadoAt: FieldValue.serverTimestamp(),
+        desactivadoPor: actor.uid,
+        ...reparacion,
+      },
+      { merge: true },
+    );
+
+    console.log('');
+    console.log('=== BAJA APLICADA ===');
+    console.log(` uid         : ${uid}`);
+    console.log(` rol         : ${objetivoRole} @ ${objetivoRid}`);
+    console.log(` por         : ${actor.email}`);
+    console.log(' cuenta deshabilitada · claims retirados · tokens revocados · ficha activo:false');
+    console.log(' Su historial de pedidos queda intacto. Para readmitirla:');
+    console.log(`   node scripts/gestion_staff.mjs reactivar --como ${actor.email} --uid ${uid}`);
+    console.log('');
+  } else {
+    // --- 7. REACTIVAR -----------------------------------------------------
+    // El rol se lee del ESPEJO, que es donde sobrevivió a la baja.
+    const rol = primerTexto(espejo.role);
+    const rid = primerTexto(espejo.restauranteId);
+
+    if (!rol || !rid) {
+      abortar(
+        'No se puede reactivar: falta el rol en su ficha. Vuelve a darlo de ' +
+          'alta con el mismo correo para repararla.',
+      );
+    }
+
+    await auth.updateUser(uid, { disabled: false });
+    await auth.setCustomUserClaims(uid, { role: rol, rid });
+
+    await espejoRef.set(
+      {
+        activo: true,
+        reactivadoAt: FieldValue.serverTimestamp(),
+        reactivadoPor: actor.uid,
+      },
+      { merge: true },
+    );
+
+    console.log('');
+    console.log('=== REACTIVACIÓN APLICADA ===');
+    console.log(` uid         : ${uid}`);
+    console.log(` rol         : ${rol} @ ${rid}  (restaurado desde su ficha)`);
+    console.log(` por         : ${actor.email}`);
+    console.log(' Ya puede volver a iniciar sesión con su contraseña de siempre.');
+    console.log('');
+  }
+}
+
+// ============================================================================
+// Comando: promover-super  ·  VÍA DE RECUPERACIÓN
+// ============================================================================
+
+/**
+ * Convierte una cuenta en `super_admin` SALTÁNDOSE la matriz.
+ *
+ * POR QUÉ VIVE EN ESTE MISMO ARCHIVO Y NO EN OTRO: (a) concentra en un solo
+ * sitio el manejo de la clave de servicio, en vez de repartirlo; (b) es la
+ * ÚNICA vía de recuperación si el propietario pierde su cuenta de plataforma, y
+ * esconderla en otro script la haría inencontrable justo el día que haga falta.
+ * `bootstrapPlataforma` (11-07) ya no sirve: es de un solo uso y queda inerte en
+ * cuanto existe el primer super_admin.
+ *
+ * POR QUÉ NO PASA POR `autorizarAlta`: porque esa matriz PROHÍBE asignar
+ * `super_admin`, a propósito y de forma absoluta (prohibición 1 de 11-08).
+ * Saltársela es literalmente lo que este comando hace. Por eso lleva nombre de
+ * comando distinto, bandera explícita y confirmación interactiva: no se puede
+ * llegar aquí por accidente ni desde un guion.
+ */
+async function comandoPromoverSuper({ auth, db, flags }) {
+  const correo = texto(flags.email);
+  if (!textoNoVacio(correo)) {
+    abortar('Falta --email <cuenta a promover>.');
+  }
+
+  console.log('');
+  console.log('╔══════════════════════════════════════════════════════════════════════╗');
+  console.log('║  ⚠  PROMOCIÓN A CUENTA DE PLATAFORMA — SE SALTA LA MATRIZ            ║');
+  console.log('╚══════════════════════════════════════════════════════════════════════╝');
+  console.log('');
+  console.log(' La matriz de autorización PROHÍBE asignar este rol a propósito: ni');
+  console.log(' siquiera una cuenta de plataforma puede crear otra. Este comando es la');
+  console.log(' vía de recuperación para cuando ya no queda ninguna, y por eso existe');
+  console.log(' fuera de la matriz.');
+  console.log('');
+  console.log(` Cuenta objetivo : ${correo}`);
+  console.log(' Efecto          : acceso TOTAL a todos los restaurantes de la plataforma.');
+  console.log('');
+
+  if (flags['confirmo-promover-super'] !== true) {
+    abortar(
+      'Falta la bandera --confirmo-promover-super.\n' +
+        '  Es deliberada: este comando no puede ejecutarse por accidente.',
+    );
+  }
+
+  // Segunda confirmación, interactiva y NO saltable con --si: reescribir el
+  // correo obliga a mirar a quién se está promoviendo.
+  const respuesta = await preguntar(` Escribe el correo COMPLETO para confirmar: `);
+  if (respuesta.toLowerCase() !== correo.trim().toLowerCase()) {
+    abortar('El correo no coincide. No se ha tocado nada.');
+  }
+
+  let usuario;
+  try {
+    usuario = await auth.getUserByEmail(correo.trim().toLowerCase());
+  } catch (err) {
+    if (err?.code === 'auth/user-not-found') {
+      abortar(
+        `No existe ninguna cuenta con el correo ${correo}. Créala primero desde\n` +
+          '  el panel o la app (registro normal) y vuelve a ejecutar este comando.',
+      );
+    }
+    return abortar(`No se pudo leer la cuenta (${err?.code ?? 'error desconocido'}).`);
+  }
+
+  await auth.setCustomUserClaims(usuario.uid, { role: ROL_PLATAFORMA, rid: null });
+
+  // Queda constancia de que esto se hizo saltándose la matriz (T-11-20-05).
+  await db.doc(`usuarios/${usuario.uid}`).set(
+    {
+      nombre: usuario.displayName ?? correo,
+      email: usuario.email ?? correo.trim().toLowerCase(),
+      role: ROL_PLATAFORMA,
+      restauranteId: null,
+      activo: true,
+      promovidoAt: FieldValue.serverTimestamp(),
+      promovidoPor: 'script:promover-super',
+    },
+    { merge: true },
+  );
+
+  console.log('');
+  console.log('=== PROMOCIÓN APLICADA (SALTÁNDOSE LA MATRIZ) ===');
+  console.log(` uid    : ${usuario.uid}`);
+  console.log(` correo : ${usuario.email ?? correo}`);
+  console.log(` rol    : ${ROL_PLATAFORMA}  ·  registrado como promovidoPor: script:promover-super`);
+  console.log('');
+  console.log(' Esa persona debe CERRAR SESIÓN y volver a entrar: los custom claims');
+  console.log(' viajan dentro del token y el suyo actual todavía no los lleva.');
+  console.log('');
+}
+
+// ============================================================================
 // Ayuda y despacho
 // ============================================================================
 
@@ -560,14 +807,17 @@ Comandos:
   listar          --como <email> [--rid <slug>]
   crear           --como <email> --email <nuevo> --nombre "..." --rol <${roles}>
                   [--rid <slug>] [--password <...>]
-  (baja / reactivar / promover-super llegan en la Tarea 2 de este plan)
+  baja            --como <email> (--uid <uid> | --email-objetivo <correo>) [--si]
+  reactivar       --como <email> (--uid <uid> | --email-objetivo <correo>)
+  promover-super  --email <cuenta> --confirmo-promover-super
 
 Opciones comunes:
-  --como <email>  OBLIGATORIO. La cuenta en cuyo nombre
+  --como <email>  OBLIGATORIO salvo en promover-super. La cuenta en cuyo nombre
                   se actúa: sus custom claims REALES son los que evalúa la
                   matriz de autorización. No hay valor por defecto.
   --key <ruta>    Clave de servicio. Por defecto: <raíz>/${CLAVE_POR_DEFECTO}
                   (o GOOGLE_APPLICATION_CREDENTIALS). Solo se usa la RUTA.
+  --si            Salta la confirmación interactiva de \`baja\` (para guiones).
 
 Ejemplos:
   node scripts/gestion_staff.mjs listar --como admin@demo.gri.dev
@@ -581,6 +831,9 @@ Manual completo: docs/GESTION-PERSONAL.md
 const COMANDOS = {
   listar: comandoListar,
   crear: comandoCrear,
+  baja: (ctx) => cambiarEstado({ ...ctx, activo: false }),
+  reactivar: (ctx) => cambiarEstado({ ...ctx, activo: true }),
+  'promover-super': comandoPromoverSuper,
 };
 
 async function main() {
