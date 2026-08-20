@@ -77,3 +77,25 @@
   compacta. Es una decisión de diseño, no un arreglo.
 - **Gate que lo cubriría:** el bucle de `test/shared/responsive_test.dart` está a 600px; bajarlo
   a 550 lo pone rojo el día que se decida.
+
+## 11-26 — La cabecera de `docs/FIREBASE_SETUP.md` nombra fuentes de configuración que las apps no usan
+
+- **Encontrado durante:** 11-26 Tarea 3, barriendo el documento.
+- **Qué dice:** *«Fuentes de configuración: `documentos/google-services.json` (Android) y
+  `documentos/firebase-config-web.js` (Web)»*.
+- **Qué se midió:** las dos apps arrancan con `firebase_options.dart`
+  (`app_cliente/lib/firebase_options.dart` y `panel_admin/lib/firebase_options.dart`, ambos
+  existen). **No hay `google-services.json` en `app_cliente/android/app/`**, que es donde el
+  plugin de Gradle lo buscaría. El que vive en `documentos/` es de otro registro
+  (`package_name: gri.app`, no `com.gri.gri_cliente`) y sin ninguna entrada `oauth_client`
+  — ya lo declaró `11-CONTEXT.md`.
+- **Por qué NO se arregla aquí:** está fuera del alcance de este plan (que corrige los
+  documentos que instruyen un **flujo imposible**, no todo el inventario de afirmaciones de
+  `FIREBASE_SETUP.md`) y no lo causó ningún cambio de 11-26. Tocar la cabecera sin revisar el
+  resto del documento dejaría la corrección a medias.
+- **Por qué importa igualmente:** es la MISMA clase de defecto que originó la Fase 11 —
+  documentación que describe una configuración que no es la real. Quien intente registrar la
+  huella SHA-1 guiándose por esa línea buscará un archivo que no se usa.
+- **Qué haría falta:** una pasada de revisión de `FIREBASE_SETUP.md` entera contra el árbol
+  real, y decidir qué se hace con `documentos/google-services.json` (borrarlo o marcarlo como
+  obsoleto). Media hora.
