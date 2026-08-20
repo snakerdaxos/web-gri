@@ -44,10 +44,10 @@ Una fila por punto de uso. Las líneas son las del árbol tras 11-21.
 | 🍽️ | `features/shared/app_shell.dart:262` | `restaurant` | `marca` | 24 |
 | 🍽️ | `features/auth/login_screen.dart:212` | `restaurant` | `marca` | 32 |
 | 🍽️ | `features/bootstrap/bootstrap_screen.dart:294` | `restaurant` | `marca` | 32 |
-| 🍽️ | `features/cocina/cocina_screen.dart:316` | `restaurant` | `marca` | 20 |
-| 🍽️ | `features/cocina/cocina_screen.dart:378` | `restaurant` | `marca` | 14 |
+| 🍽️ | `features/cocina/cocina_screen.dart:349` | `restaurant` | `marca` | 20 |
+| 🍽️ | `features/cocina/cocina_screen.dart:424` | `restaurant` | `marca` | 14 |
 | 🍽️ | `features/cocina/widgets/pedido_card.dart:247` | `restaurant` | `marca` | 14 |
-| 🎉 | `features/cocina/cocina_screen.dart:110` | `celebration_outlined` | `todoAlDia` | 18 |
+| 🎉 | `features/cocina/cocina_screen.dart:139` | `celebration_outlined` | `todoAlDia` | 18 |
 | 📝 | `features/cocina/widgets/pedido_card.dart:143` | `edit_note` | `notas` | 14 |
 | 🪑 | `features/dashboard/dashboard_screen.dart:150` | `table_restaurant_outlined` | `mesas` | 25 |
 | 👥 | `features/dashboard/dashboard_screen.dart:157` | `people_outline` | `clientes` | 25 |

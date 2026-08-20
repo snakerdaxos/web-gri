@@ -240,8 +240,24 @@ void main() {
         expect(t, isNot(contains('conexión')));
         expect(t, isNot(contains('internet')));
         // T-11-23-01: no nombra la regla ni el rol que haría falta.
-        for (final rol in ['mesero', 'cocina', 'admin_restaurante', 'super_admin']) {
-          expect(t, isNot(contains(rol)), reason: 'no revela el rol exigido');
+        //
+        // OJO con la lista: 'cocina' NO puede entrar aquí aunque sea un rol,
+        // porque también es el sustantivo legítimo de
+        // `Contexto.pedidosCocina` («los pedidos de la cocina») — el sitio,
+        // no el permiso. Esta assertion se escribió primero con 'cocina'
+        // dentro y se puso roja por esa colisión, no por una fuga. Los
+        // identificadores que sí serían una fuga no aparecen en ningún
+        // sustantivo de contexto.
+        for (final rol in [
+          'mesero',
+          'admin_restaurante',
+          'super_admin',
+          'necesitas ser',
+          'isCliente',
+          'staffOf',
+        ]) {
+          expect(t, isNot(contains(rol)),
+              reason: 'no revela el rol ni la regla exigida: $rol');
         }
       }
     });

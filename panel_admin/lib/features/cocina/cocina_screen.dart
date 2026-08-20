@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/firebase_providers.dart';
 import '../../core/format.dart';
 import '../../core/state_machines.dart';
@@ -30,7 +32,12 @@ class CocinaScreen extends ConsumerWidget {
     // Rol de claims (gating de UI; la matriz la re-valida avanzarPedidoStaff
     // y las rules son la autoridad final).
     final rol = ref.watch(claimsProvider).value?.role ?? '';
-    final avisos = ref.watch(avisoCuentaProvider).value ?? const [];
+    // 11-33: era `.value ?? const []`. Un listener denegado daba lista vacía
+    // y el badge decía «ninguna mesa pidió la cuenta»: una mesa esperando
+    // para pagar quedaba INVISIBLE, sin que nada indicara que el dato no se
+    // había podido leer. Ahora el fallo se conserva y se pinta.
+    final avisosAsync = ref.watch(avisoCuentaProvider);
+    final avisos = avisosAsync.value ?? const <AvisoCuenta>[];
 
     // Material ancestor: en producción lo provee el Scaffold del AppShell,
     // pero la pantalla debe ser fiel también standalone (tests/usuarios que
@@ -79,7 +86,25 @@ class CocinaScreen extends ConsumerWidget {
                 // en pantallas angostas el badge se acota y su texto
                 // ellipsiza (sin RenderFlex overflow). Tap → sheet de
                 // entrega (cierra sesión + mesa a limpieza, PAGO-04).
-                if (avisos.isNotEmpty)
+                // 11-33: si el listener de avisos FALLA, aquí no puede no
+                // haber nada. «Sin badge» significa «ninguna mesa pidió la
+                // cuenta», y eso es una afirmación sobre los datos que no
+                // podemos hacer cuando justamente no hemos podido leerlos.
+                // El aviso ocupa el sitio del badge, que es donde mira.
+                if (avisosAsync.hasError)
+                  Flexible(
+                    child: Text(
+                      mensajeDeFallo(avisosAsync.error!,
+                          contexto: Contexto.avisosCuenta),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: GriColors.mesaReservadaFg,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                else if (avisos.isNotEmpty)
                   Flexible(
                     child: _CuentaAvisosBadge(
                       cantidad: avisos.length,
@@ -90,14 +115,18 @@ class CocinaScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: pedidosAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => ErrorBox(
+              child: pedidosAsync.cuandoConFallo(
+                cargando: () =>
+                    const Center(child: CircularProgressIndicator()),
+                fallo: (e) => ErrorBox(
                   padding: EdgeInsets.zero,
-                  message: 'Error cargando pedidos',
+                  // Antes: 'Error cargando pedidos' — el mismo texto para un
+                  // permiso denegado que para una caída de red (11-33).
+                  message:
+                      mensajeDeFallo(e, contexto: Contexto.pedidosCocina),
                   onRetry: () => ref.invalidate(pedidosStaffProvider),
                 ),
-                data: (pedidos) {
+                datos: (pedidos) {
                   if (pedidos.isEmpty) {
                     return const Center(
                       child: Column(
@@ -311,6 +340,10 @@ class _FilaAvisoCuenta extends ConsumerWidget {
       enCurso: enCurso,
     );
     final n = cuenta.pendientes.length;
+    // Si la consulta del importe falló, el guion del `trailing` solo dice que
+    // no hay cifra; hace falta decir POR QUÉ y qué hacer. Sin esto el mesero
+    // ve un guion permanente sin saber si es que carga o que no puede leerlo.
+    final falloImporte = servidosAsync.error;
 
     return ListTile(
       leading: const Icon(GriIcons.marca, size: 20),
@@ -318,6 +351,14 @@ class _FilaAvisoCuenta extends ConsumerWidget {
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (falloImporte != null)
+            Text(
+              mensajeDeFallo(falloImporte, contexto: Contexto.cuentaMesa),
+              style: const TextStyle(
+                color: GriColors.mesaReservadaFg,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           if (cuenta.hayPendientes)
             Text(
               '$n ${n == 1 ? 'pedido' : 'pedidos'} sin servir por '
@@ -336,7 +377,12 @@ class _FilaAvisoCuenta extends ConsumerWidget {
       // El importe es lo primero que el ojo busca: va grande y a la derecha.
       // Mientras la consulta carga se muestra un guion, NUNCA un cero: un
       // cero es una cifra y se leería como "esta mesa no debe nada".
-      trailing: servidosAsync.isLoading
+      // Ni cargando ni fallando se enseña una cifra (11-33). 11-32 ya evitaba
+      // el CERO durante la carga —un cero es una cifra y se lee como «esta
+      // mesa no debe nada»—, pero la rama de ERROR caía en
+      // `.value ?? const []` y enseñaba ese mismo cero como si fuera el
+      // importe real. Un mesero que lo creyera cerraría la sesión sin cobrar.
+      trailing: servidosAsync.hasError || servidosAsync.isLoading
           ? const Text('—', style: TextStyle(fontSize: 18))
           : Text(
               formatCOP(cuenta.total),
@@ -346,7 +392,7 @@ class _FilaAvisoCuenta extends ConsumerWidget {
                 color: GriColors.text,
               ),
             ),
-      isThreeLine: cuenta.hayPendientes,
+      isThreeLine: cuenta.hayPendientes || falloImporte != null,
       onTap: onEntregar,
     );
   }
