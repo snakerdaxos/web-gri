@@ -24,9 +24,10 @@
 // ⚠️ `initEnv('reservas')`: namespace propio obligatorio (ver _contexts.mjs).
 // ============================================================================
 
+import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, runTransaction, setDoc, updateDoc } from 'firebase/firestore';
 
 import {
   adminDemo,
@@ -209,6 +210,54 @@ describe('firestore.rules — reservas', () => {
 
     it('en cuanto la reserva EXISTE, el admin de OTRO tenant vuelve a estar DENEGADO', async () => {
       await assertFails(getDoc(doc(adminOtro(env), 'reservas', R_FUTURA)));
+    });
+  });
+
+  // --- FLUJO COMPLETO: la transacción REAL de crearReserva() ----------------
+  //
+  // Réplica paso a paso de `_crearReserva()`
+  // (app_cliente/lib/features/reservas/reserva_controller.dart:100-140): la
+  // asignación automática de mesa sondea el slot de cada candidata y se queda
+  // con la PRIMERA que no existe. Leer y escribir en la misma transacción es
+  // lo que hace la app; probarlo por separado no basta.
+
+  describe('FLUJO COMPLETO — la transacción de reservar, de principio a fin', () => {
+    it('el CLIENTE reserva una franja LIBRE: get(slot ausente) + set + update de la mesa', async () => {
+      const db = cliente(env, DUENO);
+      const SLOT = new Date('2030-08-20T19:00:00Z');
+      const ID_SLOT = 'GRI-MESA-demo-001_20300820_19';
+
+      await assertSucceeds(
+        runTransaction(db, async (tx) => {
+          const slotRef = doc(db, 'reservas', ID_SLOT);
+
+          // EL PASO QUE ESTABA ROTO: el slot libre es un doc que no existe.
+          const slotSnap = await tx.get(slotRef);
+          assert.equal(slotSnap.exists(), false);
+
+          const mesaRef = doc(db, 'mesas', M_NORMAL);
+          const mesaSnap = await tx.get(mesaRef);
+          assert.equal(mesaSnap.data().estado, 'disponible');
+
+          tx.update(mesaRef, { estado: 'reservada', updatedAt: AHORA });
+          tx.set(slotRef, {
+            restauranteId: RID,
+            mesaId: M_NORMAL,
+            mesaNumero: 1,
+            usuarioId: DUENO,
+            fecha: SLOT,
+            fechaStr: '2030-08-20',
+            hora: 19,
+            numPersonas: 4,
+            estado: 'confirmada',
+            createdAt: AHORA,
+          });
+        }),
+      );
+    });
+
+    it('y el slot ya TOMADO sigue siendo ilegible para otro cliente', async () => {
+      await assertFails(getDoc(doc(cliente(env, INTRUSO), 'reservas', R_FUTURA)));
     });
   });
 

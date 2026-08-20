@@ -22,9 +22,10 @@
 // ⚠️ `initEnv('sesiones')`: namespace propio obligatorio (ver _contexts.mjs).
 // ============================================================================
 
+import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, runTransaction, setDoc, updateDoc } from 'firebase/firestore';
 
 import {
   adminDemo,
@@ -191,6 +192,52 @@ describe('firestore.rules — sesiones', () => {
 
     it('en cuanto la sesión EXISTE, el admin de OTRO tenant vuelve a estar DENEGADO', async () => {
       await assertFails(getDoc(doc(adminOtro(env), 'sesiones', M_OCUPADA)));
+    });
+  });
+
+  // --- FLUJO COMPLETO: la transacción REAL de abrirSesion() ------------------
+  //
+  // Los casos de arriba prueban la lectura y los de abajo la escritura, cada
+  // uno por separado. Ninguno prueba lo que hace la APP: leer el hueco y
+  // escribir en la MISMA transacción. Un fix que arreglara solo el read
+  // dejaría el flujo roto igual y esta suite no lo notaría.
+  //
+  // Réplica paso a paso de `_abrirSesion()`
+  // (app_cliente/lib/features/sesion_qr/sesion_provider.dart:82-125), contra
+  // el motor de rules real.
+
+  describe('FLUJO COMPLETO — la transacción de abrir mesa, de principio a fin', () => {
+    it('el CLIENTE abre una mesa NUNCA usada: get(mesa) + get(sesión ausente) + set + update', async () => {
+      const db = cliente(env, DUENO);
+      await assertSucceeds(
+        runTransaction(db, async (tx) => {
+          const mesaRef = doc(db, 'mesas', M_LIBRE);
+          const mesaSnap = await tx.get(mesaRef);
+          assert.equal(mesaSnap.exists(), true);
+
+          // EL PASO QUE ESTABA ROTO: la sesión no existe todavía.
+          const sesionRef = doc(db, 'sesiones', M_LIBRE);
+          const sesionSnap = await tx.get(sesionRef);
+          assert.equal(sesionSnap.exists(), false);
+
+          tx.set(sesionRef, {
+            restauranteId: mesaSnap.data().restauranteId,
+            mesaId: M_LIBRE,
+            usuarioId: DUENO,
+            estado: 'activa',
+            cuentaSolicitada: false,
+            inicioAt: AHORA,
+          });
+          tx.update(mesaRef, { estado: 'ocupada', updatedAt: LUEGO });
+        }),
+      );
+    });
+
+    it('y el INTRUSO que llega después pierde: lee la sesión ACTIVA y no la puede leer', async () => {
+      // El otro lado del flujo: en cuanto hay sesión, el hueco deja de existir
+      // y vuelve a mandar la regla de propiedad. La app traduce esto a "Mesa
+      // ocupada" con su propia lectura; aquí se fija el veredicto de las rules.
+      await assertFails(getDoc(doc(cliente(env, INTRUSO), 'sesiones', M_OCUPADA)));
     });
   });
 
