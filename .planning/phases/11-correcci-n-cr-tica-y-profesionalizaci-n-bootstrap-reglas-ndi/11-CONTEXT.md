@@ -165,10 +165,28 @@ llamador con alcances distintos, y debe validar el claim del llamador antes de c
   y nadie puede desactivarse a sí mismo (dejaría el restaurante sin administrador).
 - Va en la callable, no en el cliente, con tests de escalada equivalentes a los del alta.
 
-### Blaze — LOCKED (decisión del usuario, 2026-08-19)
-- **Se activa.** Es requisito para desplegar Cloud Functions; sin ellas el alta de staff y el
-  bootstrap se quedan en el repo y la plataforma seguiría dependiendo de scripts.
-- Recomendado configurar una alerta de presupuesto al activarlo.
+### Blaze — REVERTIDO (decisión del usuario, 2026-08-20)
+- **NO se activa.** El usuario no usará una cuenta de pago. Decisión legítima: Blaze exige tarjeta
+  y el almacenamiento de los despliegues genera cargos pequeños pero no nulos.
+- Consecuencia: las tres callables (`bootstrapPlataforma`, `crearUsuarioStaff`,
+  `cambiarEstadoStaff`) **no se despliegan**. Su código y sus tests (149 unitarios + 50 e2e,
+  incluidas todas las pruebas de escalada) **se conservan en el repo** para el día que se decida
+  desplegarlas. No se borran.
+- Lo ya desplegado no se toca: reglas e índices están al día y ambas apps funcionan.
+- La pantalla `/equipo` **sigue listando** al personal (es una lectura de Firestore, habilitada al
+  desplegar las reglas el 2026-08-20). Solo quedan sin función los botones de alta y baja.
+
+### Gestión de personal sin Cloud Functions — LOCKED (decisión del usuario, 2026-08-20)
+- **Script local** que ejecuta la misma lógica ya validada, con la clave de servicio del propietario.
+- Debe REUTILIZAR las matrices puras ya probadas (`functions/src/auth-matrix.js`,
+  `functions/src/baja-matrix.js`, `functions/src/password-policy.js`) — no reimplementar la
+  autorización, que es justo donde se introducen los agujeros. Si el script duplica esa lógica,
+  las 149 pruebas dejan de proteger lo que se ejecuta de verdad.
+- En el panel, los botones de alta y baja deben explicar por qué no están disponibles y qué hacer
+  en su lugar, en vez de fallar con un error técnico — mismo criterio que se aplicó a los mensajes
+  del escaneo.
+- Limitación aceptada y consciente: no es autoservicio. Viable mientras el usuario gestione sus
+  propios restaurantes; si algún día vende la plataforma a terceros, hará falta Blaze.
 
 ### Credenciales del bootstrap — LOCKED (decisión del usuario, 2026-08-19)
 - `BOOTSTRAP_EMAIL`: la cuenta personal del usuario (`snakerdaxos@gmail.com`).
