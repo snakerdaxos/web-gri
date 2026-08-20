@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -269,6 +270,22 @@ void main() {
         ),
         findsOneWidget,
       );
+
+      // «Visible» de verdad, no solo presente en el árbol: `find.text` lo
+      // encontraría igual dentro de un `Offstage` o con altura cero, y el
+      // aviso quedaría sin cumplir su única función. Se comprueba la
+      // GEOMETRÍA: ocupa espacio, cabe en el viewport y está ENTRE el botón de
+      // alta y la tabla — que es «junto a las acciones de escritura».
+      final rAviso = tester.getRect(aviso);
+      final rBoton = tester.getRect(find.byKey(const Key('equipo-nuevo')));
+      final rTabla = tester.getRect(find.byType(DataTable2));
+      expect(rAviso.width, greaterThan(0));
+      expect(rAviso.height, greaterThan(0));
+      expect(rAviso.top, greaterThanOrEqualTo(0));
+      expect(rAviso.bottom,
+          lessThanOrEqualTo(tester.view.physicalSize.height));
+      expect(rAviso.top, greaterThanOrEqualTo(rBoton.top));
+      expect(rAviso.bottom, lessThanOrEqualTo(rTabla.top));
     });
 
     testWidgets('los botones SIGUEN presentes y pulsables', (tester) async {
