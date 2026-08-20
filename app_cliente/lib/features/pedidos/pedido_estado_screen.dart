@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/firebase_providers.dart';
 import '../../core/format.dart';
 import '../../core/gri_icons.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
 import '../../models/pedido.dart';
 import '../../models/sesion_mesa.dart';
@@ -62,11 +63,13 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
         ),
       );
     } catch (e) {
-      debugPrint('pedir cuenta falló: $e');
+      // 11-23: mismo caso que el envío del pedido — el texto afirmaba la red
+      // como causa sin saber nada. La traza se conserva (T-11-23-04).
+      debugPrint('pedir cuenta falló [${clasificarFallo(e)}]: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error de conexión. Intenta de nuevo.'),
+        SnackBar(
+          content: Text(mensajeDeFallo(e, contexto: Contexto.solicitarCuenta)),
           backgroundColor: GriColors.chipCanceladaFg,
         ),
       );

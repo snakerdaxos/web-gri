@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/firebase_providers.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
 import '../../core/tx_mutex.dart';
 import '../../core/design_tokens.dart';
@@ -169,10 +170,13 @@ class _CalificacionSheetState extends ConsumerState<CalificacionSheet> {
       setState(() => _enviando = false);
       _error(e.message);
     } catch (e) {
-      debugPrint('calificar falló: $e');
+      // 11-23: «Intenta de nuevo» ante un permiso denegado es un consejo
+      // inútil — reintentar no cambia quién eres. La traza se conserva
+      // (T-11-23-04).
+      debugPrint('calificar falló [${clasificarFallo(e)}]: $e');
       if (!mounted) return;
       setState(() => _enviando = false);
-      _error('No pudimos enviar tu calificación. Intenta de nuevo.');
+      _error(mensajeDeFallo(e, contexto: Contexto.calificar));
     }
   }
 

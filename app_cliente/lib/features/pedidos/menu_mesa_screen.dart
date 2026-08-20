@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
 import '../../core/gri_icons.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
 import '../../models/producto.dart';
 import '../restaurantes/restaurantes_provider.dart';
@@ -399,12 +400,15 @@ class _CarritoSheetState extends ConsumerState<_CarritoSheet> {
         ),
       );
     } catch (e) {
-      debugPrint('enviar pedido falló: $e');
+      // 11-23: decía «Error de conexión» ante CUALQUIER excepción. Un
+      // `permission-denied` mandaba al usuario a revisar su wifi. Ahora se
+      // clasifica; la traza se conserva (T-11-23-04).
+      debugPrint('enviar pedido falló [${clasificarFallo(e)}]: $e');
       if (!mounted) return;
       setState(() => _sending = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error de conexión. Intenta de nuevo.'),
+        SnackBar(
+          content: Text(mensajeDeFallo(e, contexto: Contexto.crearPedido)),
           backgroundColor: GriColors.chipCanceladaFg,
         ),
       );

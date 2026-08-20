@@ -21,8 +21,9 @@
 // elegido en cada caso es uno que SOLO toca la mutación bajo prueba.
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -78,6 +79,40 @@ RestauranteDetalle _detalle() => RestauranteDetalle(
 FirebaseException _fb(String code) =>
     FirebaseException(plugin: 'cloud_firestore', code: code);
 
+/// Intercepta `debugPrint` para poder afirmar que los `catch` dejan traza.
+///
+/// EXISTE POR UNA VERDE CAZADA (rotura D): borrar el `debugPrint` entero de
+/// `menu_mesa_screen.dart` dejaba la suite ENTERA en verde. La mitigación
+/// T-11-23-04 («ningún catch queda mudo») estaba AFIRMADA, no verificada —
+/// exactamente el mismo agujero que apareció en `sesion_provider.dart`.
+///
+/// OJO: la restauración va DENTRO del cuerpo del caso, no en un `addTearDown`.
+/// `testWidgets` comprueba que las variables de depuración de `foundation`
+/// estén sin tocar (`debugAssertAllFoundationVarsUnset`) ANTES de ejecutar los
+/// tearDown, así que restaurar allí llega tarde y el caso falla con «The value
+/// of a foundation debug variable was changed by the test».
+class _Trazas {
+  _Trazas() : _original = debugPrint {
+    debugPrint =
+        (String? mensaje, {int? wrapWidth}) => _lineas.add(mensaje ?? '');
+  }
+
+  final DebugPrintCallback _original;
+  final List<String> _lineas = [];
+
+  /// Restaura `debugPrint` y afirma que la traza lleva la causa REAL y CÓMO se
+  /// clasificó. El usuario ve un texto amable; quien depura necesita el código
+  /// de Firebase.
+  void esperar(String code, CausaFallo causa) {
+    debugPrint = _original;
+    final todo = _lineas.join('\n');
+    expect(todo, contains(code),
+        reason: 'el catch tiene que dejar la causa real en el log');
+    expect(todo, contains('$causa'),
+        reason: 'y también cómo se clasificó, para poder auditar el mapeo');
+  }
+}
+
 /// Junta el `data` de TODOS los `Text` del árbol: se afirma sobre lo que el
 /// usuario PUEDE LEER, no sobre el widget que uno espera encontrar.
 String _textoVisible(WidgetTester tester) => tester
@@ -106,6 +141,9 @@ void main() {
 
   Future<void> armarYEnviar(WidgetTester tester) async {
     await tester.tap(find.byIcon(Icons.add_circle_outline).first);
+    await tester.pump();
+    // El boton de enviar vive DENTRO del sheet del carrito, no en el menu.
+    await tester.tap(find.textContaining('Carrito (1)'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Enviar pedido'));
     await tester.pump();
@@ -116,6 +154,7 @@ void main() {
   testWidgets('PEDIDO con permission-denied → habla del PERMISO, no de la conexión',
       (tester) async {
     final db = await pumpMenu(tester);
+    final trazas = _Trazas();
     // `sesiones/{mesa}` solo se lee por `.get()` dentro de la tx de
     // crearPedido: los streams de la pantalla usan `.snapshots()`.
     whenCalling(Invocation.method(#get, null))
@@ -123,6 +162,8 @@ void main() {
         .thenThrow(_fb('permission-denied'));
 
     await armarYEnviar(tester);
+
+    trazas.esperar('permission-denied', CausaFallo.permisoDenegado);
 
     expect(
         find.text(mensajeDe(CausaFallo.permisoDenegado,
@@ -186,11 +227,14 @@ void main() {
   testWidgets('CUENTA con permission-denied → habla del PERMISO, no de la conexión',
       (tester) async {
     final db = await pumpEstado(tester);
+    final trazas = _Trazas();
     whenCalling(Invocation.method(#get, null))
         .on(db.doc('sesiones/$_mesa'))
         .thenThrow(_fb('permission-denied'));
 
     await pedirCuenta(tester);
+
+    trazas.esperar('permission-denied', CausaFallo.permisoDenegado);
 
     expect(
         find.text(mensajeDe(CausaFallo.permisoDenegado,
@@ -278,12 +322,15 @@ void main() {
     final db = await buildFakeFirestoreConSeed();
     final id = await sembrarPedidoServido(db);
     await tester.pumpWidget(wrapSheet(db, id));
+    final trazas = _Trazas();
     // `calificaciones/{pedidoId}` solo lo toca la tx de calificar.
     whenCalling(Invocation.method(#get, null))
         .on(db.doc('calificaciones/$id'))
         .thenThrow(_fb('permission-denied'));
 
     await calificarConCincoEstrellas(tester);
+
+    trazas.esperar('permission-denied', CausaFallo.permisoDenegado);
 
     expect(
         find.text(
