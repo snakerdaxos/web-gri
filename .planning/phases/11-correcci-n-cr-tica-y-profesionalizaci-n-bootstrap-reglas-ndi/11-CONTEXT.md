@@ -155,6 +155,28 @@ llamador con alcances distintos, y debe validar el claim del llamador antes de c
   del cliente. No sustituye a la validación del servidor en la callable de alta de staff, que debe
   aplicar la misma política para que no se pueda saltar llamando a la función directamente.
 
+### Baja de personal — LOCKED (decisión del usuario, 2026-08-19)
+- **Desactivar, reversible.** Se deshabilita la cuenta en Firebase Auth y se le retiran los custom
+  claims: no puede entrar, pero su historial queda intacto y la cuenta se puede reactivar.
+- **No se elimina.** Borrar dejaría pedidos huérfanos apuntando a un usuario inexistente y rompería
+  los reportes de ventas por mesero. En un restaurante la gente además vuelve.
+- Alcance: la misma matriz de autorización que el alta — un `admin_restaurante` solo sobre su propio
+  `rid`, el `super_admin` sobre cualquiera. Nadie puede desactivar a un `super_admin` por esta vía,
+  y nadie puede desactivarse a sí mismo (dejaría el restaurante sin administrador).
+- Va en la callable, no en el cliente, con tests de escalada equivalentes a los del alta.
+
+### Blaze — LOCKED (decisión del usuario, 2026-08-19)
+- **Se activa.** Es requisito para desplegar Cloud Functions; sin ellas el alta de staff y el
+  bootstrap se quedan en el repo y la plataforma seguiría dependiendo de scripts.
+- Recomendado configurar una alerta de presupuesto al activarlo.
+
+### Credenciales del bootstrap — LOCKED (decisión del usuario, 2026-08-19)
+- `BOOTSTRAP_EMAIL`: la cuenta personal del usuario (`snakerdaxos@gmail.com`).
+- `BOOTSTRAP_SECRET`: generado aleatoriamente (48 bytes, `secrets.token_urlsafe`) el 2026-08-19.
+- **Ambos viven en `functions/.env`, que está gitignored.** El valor del secreto NO se escribe en
+  ningún documento versionado, ni aquí ni en los planes ni en los SUMMARY.
+- Es de un solo uso: en cuanto exista el primer `super_admin`, la función queda inerte para siempre.
+
 ### Bootstrap del restaurante
 - El doc ID del restaurante **debe ser un slug `[a-z0-9-]+`**. Restricción dura, no negociable:
   el escáner valida `^GRI-MESA-[a-z0-9-]+-\d{3}$` (`app_cliente/lib/features/sesion_qr/scan_screen.dart:41`)
