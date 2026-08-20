@@ -349,8 +349,21 @@ void main() {
       await tester.tap(find.byKey(const Key('equipo-nuevo')));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('staff-aviso-sin-funciones')), findsOneWidget);
-      expect(find.text(mensajeGestionPersonalNoDisponible), findsWidgets);
+      final aviso = find.byKey(const Key('staff-aviso-sin-funciones'));
+      expect(aviso, findsOneWidget);
+      // ⚠️ VERDE CAZADO: la primera versión afirmaba
+      // `find.text(mensaje…), findsWidgets` a secas. Es TAUTOLÓGICO en un
+      // modal: el aviso de la PANTALLA sigue en el árbol debajo del diálogo,
+      // así que el texto se encontraba igual aunque el diálogo dijera otra
+      // cosa. Verificado: con el texto del diálogo cambiado, la suite seguía
+      // verde. Ahora la búsqueda se acota al nodo del diálogo.
+      expect(
+        find.descendant(
+          of: aviso,
+          matching: find.text(mensajeGestionPersonalNoDisponible),
+        ),
+        findsOneWidget,
+      );
       // El botón de envío SIGUE habilitado: el día del despliegue no hay que
       // tocar nada aquí tampoco.
       final guardar = find.byKey(const Key('staff-guardar'));
