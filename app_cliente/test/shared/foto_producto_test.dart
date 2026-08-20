@@ -55,8 +55,15 @@ Future<void> _pump(
   await tester.pump();
 }
 
+/// `Image.network(..., cacheWidth: n)` NO deja el `NetworkImage` desnudo:
+/// lo envuelve en un `ResizeImage`. Esta pareja de helpers desenvuelve las
+/// dos capas, que son justo las dos que hay que comprobar (qué se pide a la
+/// red y a cuánto se decodifica).
+ResizeImage _resize(WidgetTester tester) =>
+    tester.widget<Image>(find.byType(Image)).image as ResizeImage;
+
 NetworkImage _network(WidgetTester tester) =>
-    tester.widget<Image>(find.byType(Image)).image as NetworkImage;
+    _resize(tester).imageProvider as NetworkImage;
 
 void main() {
   testWidgets('con foto: pide la URL con el ancho del LAYOUT, no la original',
@@ -74,7 +81,7 @@ void main() {
     expect(uri.host, 'images.unsplash.com');
 
     // …y la decodificación también se acota, que es memoria del móvil.
-    expect(tester.widget<Image>(find.byType(Image)).cacheWidth, esperado);
+    expect(_resize(tester).width, esperado);
   });
 
   testWidgets('la foto se anuncia con el nombre del plato', (tester) async {
