@@ -134,3 +134,22 @@
   rompió». Es la misma clase de deshonestidad de UI que la Fase 11 viene corrigiendo.
 - **Qué haría falta:** `yield <List<Pedido>>[]` en vez del stream vacío, y un caso en
   `query_sesion_test.dart` que exija el texto de estado vacío. Media hora.
+
+## 11-30 — Un producto nuevo nace SIN foto (seed y panel), y nadie avisa
+
+- **Encontrado durante:** 11-30, al decidir el marcador de posición de la carta.
+- **Qué pasa:** los 16 productos de hoy tienen `imagenUrl` de Unsplash, pero
+  `scripts/seed_firebase.mjs:269` escribe `imagenUrl: null` y
+  `panel_admin/lib/features/menu/menu_provider.dart:169` escribe `'imagenUrl': imagenUrl ?? ''`
+  al crear. Todo producto creado a partir de ahora sale sin foto salvo que alguien
+  pegue una URL a mano, y el formulario del panel no lo pide, no lo valida ni lo
+  previsualiza (Cloud Storage exige plan Blaze — descartado por el usuario).
+- **Cómo se degrada hoy (11-30):** la carta pinta `PlaceholderPlato`, del MISMO
+  tamaño que la foto, así que la rejilla no se rompe. No es un fallo: es lo peor
+  que puede pasar, y está acotado y probado.
+- **Por qué NO se arregla aquí:** el alcance de 11-30 son las dos pantallas de menú
+  del cliente. Tocar el seed y el formulario del panel es otro trabajo (y el panel
+  lo está barriendo otro ejecutor en paralelo).
+- **Qué haría falta:** (a) que el formulario del panel valide la URL con
+  `urlFotoSegura` (el gemelo Dart ya existe en app_cliente, habría que portarlo) y
+  muestre una vista previa; (b) que el seed traiga una URL por plato. 1-2 horas.

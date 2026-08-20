@@ -111,6 +111,10 @@ void main() {
   testWidgets('una URL que no es http(s) se trata como "sin foto"',
       (tester) async {
     for (final basura in <String>[
+      // '' es EL valor real: `panel_admin/features/menu/menu_provider.dart`
+      // escribe `'imagenUrl': imagenUrl ?? ''` al crear un producto sin foto.
+      // Un `imagenUrl != null` habría dado `Image.network('')` -> excepción.
+      '',
       '   ',
       'plato.jpg',
       'javascript:alert(1)',
