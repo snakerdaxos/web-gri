@@ -27,6 +27,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   query,
   setDoc,
@@ -169,5 +170,31 @@ describe('firestore.rules — productos', () => {
   it('CLIENTE: delete de un producto queda DENEGADO', async () => {
     const db = cliente(env);
     await assertFails(deleteDoc(doc(db, 'productos', 'p-ok')));
+  });
+
+  // --- AUDITORÍA 11-27: read de un doc AUSENTE -------------------------------
+  //
+  // Idéntico a `categorias`: la rama de read desreferencia `resource.data`, así
+  // que el doc inexistente se DENIEGA. NO se toca la regla porque nada depende
+  // de leer el hueco: los ids son autoId
+  // (`collection('productos').add(...)`, menu_provider.dart:163) y el menú se
+  // lee siempre por query. Veredicto fijado por escrito.
+
+  it('AUDITORÍA: getDoc de un producto INEXISTENTE queda denegado — sin impacto (autoId + solo queries)', async () => {
+    await assertFails(getDoc(doc(adminDemo(env), 'productos', 'prod-que-no-existe')));
+  });
+
+  it('AUDITORÍA: una query VACÍA sí funciona — es como el menú lee de verdad', async () => {
+    const snap = await assertSucceeds(
+      getDocs(
+        query(
+          collection(cliente(env), 'productos'),
+          where('restauranteId', '==', 'restaurante-inexistente'),
+          where('activo', '==', true),
+          where('disponible', '==', true),
+        ),
+      ),
+    );
+    assert.equal(snap.size, 0);
   });
 });

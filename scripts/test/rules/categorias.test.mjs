@@ -39,6 +39,7 @@ import { assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -185,5 +186,40 @@ describe('firestore.rules — categorias', () => {
     await assertFails(
       getDocs(query(collection(db, 'categorias'), where('restauranteId', '==', RID))),
     );
+  });
+
+  // --- AUDITORÍA 11-27: read de un doc AUSENTE -------------------------------
+  //
+  // `categorias` SÍ desreferencia `resource.data` en la rama de read, así que
+  // un doc inexistente se DENIEGA (no "no encontrado"). Es el mismo modo de
+  // fallo que tumbó sesiones/reservas/pedidos — pero aquí NO rompe nada y por
+  // eso NO se toca la regla:
+  //
+  //   · Los ids son autoId (`collection('categorias').add(...)` en
+  //     panel_admin/lib/features/menu/menu_provider.dart:126), no deterministas.
+  //   · No hay ningún check-then-create ni ningún `getDoc` por id en las dos
+  //     apps: el menú se lee SIEMPRE por query, y una query sin resultados no
+  //     desreferencia nada (se evalúa por documento devuelto).
+  //
+  // El veredicto queda fijado por escrito para que el día que alguien escriba
+  // un `getDoc('categorias/{id}')` sepa que tiene que ampliar la regla.
+
+  it('AUDITORÍA: getDoc de una categoria INEXISTENTE queda denegado — sin impacto (autoId + solo queries)', async () => {
+    await assertFails(getDoc(doc(adminDemo(env), 'categorias', 'cat-que-no-existe')));
+  });
+
+  it('AUDITORÍA: una query VACÍA sí funciona — es como el menú lee de verdad', async () => {
+    // La prueba de que el modo de fallo no alcanza a esta colección: las rules
+    // de list se evalúan por documento DEVUELTO, y aquí no se devuelve ninguno.
+    const snap = await assertSucceeds(
+      getDocs(
+        query(
+          collection(cliente(env), 'categorias'),
+          where('restauranteId', '==', 'restaurante-inexistente'),
+          where('activo', '==', true),
+        ),
+      ),
+    );
+    assert.equal(snap.size, 0);
   });
 });

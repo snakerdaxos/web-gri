@@ -292,6 +292,51 @@ describe('firestore.rules — usuarios', () => {
     });
   });
 
+  // --- read de un perfil AUSENTE: el cortocircuito que salva el auto-registro
+  //
+  // AUDITORÍA 11-27 — la rama de read de `usuarios` SÍ desreferencia
+  // `resource.data.restauranteId`, pero está a la DERECHA de dos `||`:
+  //
+  //   signedIn() && (request.auth.uid == uid || isSuper() || (admin && deref))
+  //
+  // El motor de rules CORTOCIRCUITA el `||`, así que quien lee su propio doc
+  // —o el super_admin— nunca llega a la desreferencia y el doc ausente se lee
+  // sin problema. De eso vive el auto-registro: `auth_controller.dart` lee
+  // `usuarios/{uid}` ANTES de crearlo (línea 164), y ese doc no existe.
+  //
+  // Por eso `usuarios` NO se toca en 11-27: no necesita `resource == null`, y
+  // añadírselo concedería a cualquier admin_restaurante un oráculo de "existe
+  // este uid" que ningún flujo pide. Estos casos fijan el cortocircuito como
+  // CONTRATO: si alguien reordena la disyunción y pone la desreferencia
+  // primero, se ponen en rojo.
+
+  describe('read de un perfil AUSENTE — el cortocircuito del || (11-27)', () => {
+    it('el RECIÉN REGISTRADO puede leer su propio doc antes de que exista', async () => {
+      // `request.auth.uid == uid` corta ANTES de tocar resource.data.
+      await assertSucceeds(getDoc(doc(cliente(env, UID_NUEVO), 'usuarios', UID_NUEVO)));
+    });
+
+    it('el SUPER_ADMIN puede leer un uid inexistente: isSuper() corta antes', async () => {
+      await assertSucceeds(getDoc(doc(superAdmin(env), 'usuarios', 'uid-fantasma')));
+    });
+
+    it('el ADMIN sigue DENEGADO sobre un uid inexistente — y así se queda', async () => {
+      // Veredicto FIJADO, no descuido: la 3ª rama sí desreferencia y por tanto
+      // deniega el doc ausente. Ningún flujo lo necesita (el panel lista el
+      // equipo con una QUERY, no con gets por uid), y arreglarlo regalaría un
+      // oráculo de existencia de cuentas. Se deja como está, por escrito.
+      await assertFails(getDoc(doc(adminDemo(env), 'usuarios', 'uid-fantasma')));
+    });
+
+    it('OTRO cliente sigue DENEGADO sobre un uid inexistente', async () => {
+      await assertFails(getDoc(doc(cliente(env, OTRO_UID), 'usuarios', 'uid-fantasma')));
+    });
+
+    it('el ANÓNIMO sigue DENEGADO sobre un uid inexistente', async () => {
+      await assertFails(getDoc(doc(anon(env), 'usuarios', 'uid-fantasma')));
+    });
+  });
+
   // --- read del EQUIPO: la ampliación del plan 11-10 --------------------------
   //
   // Lo que se concede: `admin_restaurante` lee los docs de `usuarios` cuyo

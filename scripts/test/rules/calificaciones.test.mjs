@@ -164,6 +164,33 @@ describe('firestore.rules — calificaciones', () => {
     });
   });
 
+  // --- read de una calificación AUSENTE: el 1:1 de `_calificar()` -----------
+  //
+  // AUDITORÍA 11-27 — `calificaciones` está LIMPIA del bug de `resource.data`,
+  // pero por un motivo FRÁGIL: `allow read: if true` no desreferencia nada
+  // simplemente porque no condiciona nada.
+  //
+  // De ello depende el paso 3 de `_calificar()`
+  // (app_cliente/lib/features/pagos/calificacion_sheet.dart:82): un
+  // check-then-create sobre `calificaciones/{pedidoId}` —doc ID determinista—
+  // para no calificar dos veces el mismo pedido. La primera calificación de
+  // cualquier pedido lee un documento que no existe.
+  //
+  // Si alguien acota este read algún día (p. ej. a `resource.data.usuarioId`),
+  // estos casos se ponen en rojo ANTES de que se rompa el flujo en producción.
+
+  describe('read de una calificación AUSENTE — el check del 1:1', () => {
+    it('el CLIENTE puede leer calificaciones/{pedidoId} cuando aún NO existe', async () => {
+      await assertSucceeds(
+        getDoc(doc(cliente(env, DUENO), 'calificaciones', P_CALIFICABLE)),
+      );
+    });
+
+    it('un ANÓNIMO también: el read es público (allow read: if true)', async () => {
+      await assertSucceeds(getDoc(doc(anon(env), 'calificaciones', 'ped-inexistente')));
+    });
+  });
+
   // --- create: la cadena completa --------------------------------------------
 
   describe('create — solo el cliente, sobre su pedido servido y con la mesa cerrada', () => {

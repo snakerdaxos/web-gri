@@ -78,6 +78,16 @@ describe('firestore.rules — restaurantes', () => {
     it('un CLIENTE también, obviamente', async () => {
       await assertSucceeds(getDoc(doc(cliente(env), 'restaurantes', RID)));
     });
+
+    it('AUDITORÍA 11-27: un restaurante INEXISTENTE también se lee sin error', async () => {
+      // `restaurantes` está LIMPIA del bug de `resource.data` en read (la rama
+      // es `if true`, no desreferencia nada). Se afirma porque `_calificar()`
+      // (calificacion_sheet.dart:89) hace `tx.get(restaurantes/{rid})` dentro
+      // de la transacción del agregado califProm/califCount, y una ficha
+      // ausente ahí tumbaría la calificación con permission-denied en vez de
+      // dejar el `?? 0` del código hacer su trabajo.
+      await assertSucceeds(getDoc(doc(cliente(env), 'restaurantes', 'no-existe')));
+    });
   });
 
   // --- create / delete: solo super_admin -------------------------------------

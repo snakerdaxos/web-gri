@@ -30,6 +30,7 @@ import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import {
   adminDemo,
   adminOtro,
+  anon,
   cliente,
   cocina,
   initEnv,
@@ -150,6 +151,56 @@ describe('firestore.rules — pedidos', () => {
 
     it('el SUPER_ADMIN puede leer cualquier pedido', async () => {
       await assertSucceeds(getDoc(doc(superAdmin(env), 'pedidos', P_ENVIADO)));
+    });
+  });
+
+  // --- read de un pedido AUSENTE ---------------------------------------------
+  //
+  // MISMO MODO DE FALLO que sesiones y reservas (11-27). Una rama de `read` que
+  // desreferencia `resource.data` DENIEGA los documentos inexistentes:
+  // `resource` es null, la expresión revienta, sale `permission-denied` en vez
+  // de "no encontrado".
+  //
+  // En `pedidos` no había todavía un check-then-create que lo hiciera caer el
+  // día 1 —los ids son autoId, no deterministas— pero SÍ hay código que ya
+  // depende de poder leer el hueco y que hoy es INALCANZABLE:
+  // `_calificar()` (app_cliente/lib/features/pagos/calificacion_sheet.dart:59)
+  // hace `tx.get(pedidos/{pedidoId})` y tiene una rama
+  // `if (!pedidoSnap.exists) throw 'Pedido no encontrado'` que NUNCA puede
+  // ejecutarse: el `tx.get` muere antes con permission-denied y el usuario ve
+  // el mensaje genérico. Lo mismo le pasa al seguimiento por doc de un pedido
+  // recién creado.
+  //
+  // Se arregla junto con las otras dos porque es el MISMO defecto, y dejarlo
+  // sería dejar la tercera cabeza del bug esperando a que alguien escriba el
+  // primer `db.doc('pedidos/$id').snapshots()`.
+
+  describe('read de un pedido AUSENTE — distinguir "no existe" de "no puedes"', () => {
+    it('el CLIENTE puede leer un pedidoId inexistente', async () => {
+      await assertSucceeds(getDoc(doc(cliente(env, DUENO), 'pedidos', 'ped-que-no-existe')));
+    });
+
+    it('COCINA del tenant también lee el hueco ausente', async () => {
+      await assertSucceeds(getDoc(doc(cocina(env), 'pedidos', 'ped-que-no-existe')));
+    });
+
+    it('LO QUE ESTO CONCEDE: el admin de OTRO tenant ve el hueco ausente', async () => {
+      // Es el grado más bajo de filtración de las tres colecciones: los ids de
+      // pedido son autoId de 20 caracteres aleatorios, así que "existe o no
+      // existe" no es enumerable ni permite descubrir nada.
+      await assertSucceeds(getDoc(doc(adminOtro(env), 'pedidos', 'ped-que-no-existe')));
+    });
+
+    it('el ANÓNIMO sigue DENEGADO sobre el pedido ausente: signedIn() manda', async () => {
+      await assertFails(getDoc(doc(anon(env), 'pedidos', 'ped-que-no-existe')));
+    });
+
+    it('en cuanto el pedido EXISTE, OTRO cliente vuelve a estar DENEGADO', async () => {
+      await assertFails(getDoc(doc(cliente(env, INTRUSO), 'pedidos', P_ENVIADO)));
+    });
+
+    it('en cuanto el pedido EXISTE, el admin de OTRO tenant vuelve a estar DENEGADO', async () => {
+      await assertFails(getDoc(doc(adminOtro(env), 'pedidos', P_ENVIADO)));
     });
   });
 

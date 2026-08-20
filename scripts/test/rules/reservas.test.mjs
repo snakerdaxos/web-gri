@@ -31,6 +31,7 @@ import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import {
   adminDemo,
   adminOtro,
+  anon,
   cliente,
   initEnv,
   mesero,
@@ -143,6 +144,71 @@ describe('firestore.rules — reservas', () => {
 
     it('el SUPER_ADMIN puede leer cualquier reserva', async () => {
       await assertSucceeds(getDoc(doc(superAdmin(env), 'reservas', R_FUTURA)));
+    });
+  });
+
+  // --- read de un SLOT AUSENTE: "¿está libre esta franja?" ------------------
+  //
+  // EL BUG QUE ESTA SUITE NO VIO (11-27). Los 27 casos de este archivo siembran
+  // la reserva antes de leerla. El caso real —la franja LIBRE, que es la que se
+  // quiere reservar— no lo ejercitaba ninguno.
+  //
+  // Una rama de `read` que desreferencia `resource.data` DENIEGA los documentos
+  // que aún no existen: `resource` es null y la expresión revienta. Sale como
+  // `permission-denied`, no como "no encontrado".
+  //
+  // `crearReserva()` (app_cliente/lib/features/reservas/reserva_controller.dart)
+  // recorre las mesas candidatas y hace `tx.get(reservas/{mesaId}_{fecha}_{HH})`
+  // sobre cada una: **la primera que NO existe es la elegida**. Con el doc
+  // ausente denegado, ese `tx.get` moría antes de encontrar nada y NINGÚN
+  // cliente podía reservar NINGUNA franja. Leer el hueco no es un accesorio del
+  // flujo: ES el flujo.
+
+  describe('read de un SLOT AUSENTE — el check-then-create de reservar', () => {
+    it('el CLIENTE puede leer el slot LIBRE (doc inexistente)', async () => {
+      // El id sigue la forma real `{mesaId}_{yyyyMMdd}_{HH}` y no está sembrado.
+      await assertSucceeds(
+        getDoc(doc(cliente(env, DUENO), 'reservas', 'GRI-MESA-demo-001_20300820_19')),
+      );
+    });
+
+    it('el CLIENTE puede sondear el slot de OTRA mesa candidata (el bucle de asignación)', async () => {
+      // La tx prueba mesa por mesa hasta dar con una libre: si el sondeo de la
+      // segunda candidata se deniega, la asignación automática no existe.
+      await assertSucceeds(
+        getDoc(doc(cliente(env, DUENO), 'reservas', 'GRI-MESA-demo-020_20300820_19')),
+      );
+    });
+
+    it('el MESERO del tenant también lee el slot ausente', async () => {
+      await assertSucceeds(
+        getDoc(doc(mesero(env), 'reservas', 'GRI-MESA-demo-001_20300820_19')),
+      );
+    });
+
+    it('LO QUE ESTO CONCEDE: el admin de OTRO tenant ve el slot ausente', async () => {
+      // No hay documento, así que no hay `restauranteId` contra el que acotar.
+      // Lo que se filtra es "esa franja está libre" — la disponibilidad que
+      // cualquier sistema de reservas publica por diseño.
+      await assertSucceeds(
+        getDoc(doc(adminOtro(env), 'reservas', 'GRI-MESA-demo-001_20300820_19')),
+      );
+    });
+
+    it('el ANÓNIMO sigue DENEGADO sobre el slot ausente: signedIn() manda', async () => {
+      await assertFails(
+        getDoc(doc(anon(env), 'reservas', 'GRI-MESA-demo-001_20300820_19')),
+      );
+    });
+
+    it('en cuanto la reserva EXISTE, OTRO cliente vuelve a estar DENEGADO', async () => {
+      // Se concede la ausencia, jamás el contenido: quién reservó, para cuántos
+      // y a qué hora sigue siendo privado.
+      await assertFails(getDoc(doc(cliente(env, INTRUSO), 'reservas', R_FUTURA)));
+    });
+
+    it('en cuanto la reserva EXISTE, el admin de OTRO tenant vuelve a estar DENEGADO', async () => {
+      await assertFails(getDoc(doc(adminOtro(env), 'reservas', R_FUTURA)));
     });
   });
 

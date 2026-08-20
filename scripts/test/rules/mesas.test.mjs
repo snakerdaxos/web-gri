@@ -95,6 +95,36 @@ describe('firestore.rules — mesas', () => {
     });
   });
 
+  // --- read de una mesa AUSENTE: la razón de que el QR diera un mensaje ------
+  //
+  // AUDITORÍA 11-27 — `mesas` está LIMPIA del bug de `resource.data` en la rama
+  // de read, y NO por casualidad: `allow read: if signedIn()` no toca `resource`
+  // en absoluto, así que el doc inexistente se lee sin problema.
+  //
+  // De eso dependen DOS flujos de producción:
+  //   · `abrirSesion()` distingue "esa mesa no existe" de "no puedes": si esta
+  //     rama se endureciera a `resource.data.restauranteId == rid()`, el mensaje
+  //     de mesa inexistente del escáner volvería a ser un permission-denied.
+  //   · `crearMesa()` (panel_admin/lib/features/mesas/mesas_crud.dart:35) es un
+  //     check-then-create con doc ID determinista: hace `tx.get` sobre la mesa
+  //     que va a crear, que POR DEFINICIÓN no existe.
+  //
+  // Estos casos son el cortafuegos de ese endurecimiento.
+
+  describe('read de una mesa AUSENTE — de esto vive el check-then-create', () => {
+    it('el ADMIN puede leer mesas/{id} inexistente (crearMesa comprueba antes de crear)', async () => {
+      await assertSucceeds(getDoc(doc(adminDemo(env), 'mesas', 'GRI-MESA-demo-999')));
+    });
+
+    it('el CLIENTE puede leer una mesa inexistente ("ese QR no es de ninguna mesa")', async () => {
+      await assertSucceeds(getDoc(doc(cliente(env), 'mesas', 'GRI-MESA-demo-999')));
+    });
+
+    it('el ANÓNIMO sigue DENEGADO también sobre la mesa ausente', async () => {
+      await assertFails(getDoc(doc(anon(env), 'mesas', 'GRI-MESA-demo-999')));
+    });
+  });
+
   // --- create / delete: menuStaffOf ------------------------------------------
 
   describe('create y delete — solo super o admin del propio restaurante', () => {

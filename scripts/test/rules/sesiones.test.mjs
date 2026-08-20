@@ -29,6 +29,7 @@ import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import {
   adminDemo,
   adminOtro,
+  anon,
   cliente,
   initEnv,
   mesero,
@@ -126,6 +127,70 @@ describe('firestore.rules — sesiones', () => {
 
     it('el SUPER_ADMIN puede leer cualquier sesión', async () => {
       await assertSucceeds(getDoc(doc(superAdmin(env), 'sesiones', M_OCUPADA)));
+    });
+  });
+
+  // --- read de un doc AUSENTE: el "¿existe?" del check-then-create --------
+  //
+  // EL BUG QUE ESTA SUITE NO VIO (11-27). Los 29 casos de este archivo siembran
+  // el documento ANTES de leerlo. El primer uso real —la mesa que NUNCA se ha
+  // abierto— no lo ejercitaba ni uno.
+  //
+  // En el motor de rules, una rama de `read` que desreferencia `resource.data`
+  // sobre un documento QUE NO EXISTE no devuelve "no encontrado": `resource` es
+  // null, la expresión revienta y la regla evalúa a DENEGADO. El cliente recibe
+  // `permission-denied`.
+  //
+  // `abrirSesion()` (app_cliente/lib/features/sesion_qr/sesion_provider.dart)
+  // hace `tx.get(sesiones/{codigoQR})` para saber si la mesa ya está ocupada
+  // ANTES de crear la sesión. La primera vez que alguien abre una mesa ese doc
+  // no existe → denegado → NADIE podía abrir NINGUNA mesa. El core value del
+  // producto, caído detrás de 221 tests en verde.
+  //
+  // Estos casos son la vacuna: hablan de la AUSENCIA, no del contenido.
+
+  describe('read de un doc AUSENTE — el check-then-create de abrir mesa', () => {
+    it('el CLIENTE puede leer sesiones/{mesaId} cuando la sesión NO EXISTE', async () => {
+      // M_LIBRE tiene mesa sembrada pero NINGUNA sesión: es exactamente el
+      // estado de toda mesa recién creada. Este es el caso que rompía el QR.
+      await assertSucceeds(getDoc(doc(cliente(env, DUENO), 'sesiones', M_LIBRE)));
+    });
+
+    it('el CLIENTE puede leer un sesionId inventado (aprender "aquí no hay nada")', async () => {
+      await assertSucceeds(
+        getDoc(doc(cliente(env, DUENO), 'sesiones', 'GRI-MESA-demo-999')),
+      );
+    });
+
+    it('el MESERO del tenant también lee el hueco ausente', async () => {
+      await assertSucceeds(getDoc(doc(mesero(env), 'sesiones', M_LIBRE)));
+    });
+
+    it('LO QUE ESTO CONCEDE: el admin de OTRO tenant ve el hueco ausente', async () => {
+      // Declarado, no accidental. `resource == null` no puede distinguir tenants
+      // porque NO HAY documento del que sacar el `restauranteId`. Lo único que
+      // se filtra es "no hay sesión abierta en la mesa cuyo código va IMPRESO en
+      // el QR de la mesa" — ocupación físicamente observable desde la puerta.
+      await assertSucceeds(getDoc(doc(adminOtro(env), 'sesiones', M_LIBRE)));
+    });
+
+    it('el ANÓNIMO sigue DENEGADO sobre el doc ausente: signedIn() manda', async () => {
+      // La puerta que NO se abre. Si el fix se hubiera escrito
+      // `resource == null || (signedIn() && ...)` en vez de
+      // `signedIn() && (resource == null || ...)`, este caso pasaría a verde y
+      // cualquiera sin cuenta podría sondear la ocupación del salón.
+      await assertFails(getDoc(doc(anon(env), 'sesiones', M_LIBRE)));
+    });
+
+    it('en cuanto la sesión EXISTE, OTRO cliente vuelve a estar DENEGADO', async () => {
+      // El contenido sigue protegido igual que antes: la ausencia es lo único
+      // que se concede. Mismo doc, mismo intruso, distinto veredicto según
+      // exista o no.
+      await assertFails(getDoc(doc(cliente(env, INTRUSO), 'sesiones', M_OCUPADA)));
+    });
+
+    it('en cuanto la sesión EXISTE, el admin de OTRO tenant vuelve a estar DENEGADO', async () => {
+      await assertFails(getDoc(doc(adminOtro(env), 'sesiones', M_OCUPADA)));
     });
   });
 
