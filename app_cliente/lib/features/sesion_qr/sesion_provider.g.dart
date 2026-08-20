@@ -170,28 +170,40 @@ String _$sesionActualHash() => r'7cb2b7446c6b0829613457891c63878da686fea5';
 
 /// Mutaciones de la sesión: [abrir] por código QR (cámara o input manual).
 ///
-/// Los errores de dominio ('Código de mesa inválido' / 'Mesa ocupada')
-/// llegan como [SesionException] con mensaje user-friendly; la mesa en
-/// limpieza ([TransicionInvalidaException]) se traduce a mensaje
-/// controlado — nunca un stack trace al usuario.
+/// TODO fallo sale como [SesionException] con un mensaje que dice la VERDAD
+/// sobre su causa (11-23). Cinco causas, cinco mensajes:
+/// formato del código, mesa inexistente, mesa no disponible, permiso denegado
+/// y backend inalcanzable. Los tres primeros los produce el dominio; los dos
+/// últimos salen de `clasificarFallo`/`mensajeDe`
+/// (`core/firebase_error_mapper.dart`). Nunca un stack trace al usuario, y
+/// nunca —esto es lo que arregla 11-23— un mensaje que culpe al código
+/// cuando el problema es la cuenta o la red.
 
 @ProviderFor(SesionController)
 final sesionControllerProvider = SesionControllerProvider._();
 
 /// Mutaciones de la sesión: [abrir] por código QR (cámara o input manual).
 ///
-/// Los errores de dominio ('Código de mesa inválido' / 'Mesa ocupada')
-/// llegan como [SesionException] con mensaje user-friendly; la mesa en
-/// limpieza ([TransicionInvalidaException]) se traduce a mensaje
-/// controlado — nunca un stack trace al usuario.
+/// TODO fallo sale como [SesionException] con un mensaje que dice la VERDAD
+/// sobre su causa (11-23). Cinco causas, cinco mensajes:
+/// formato del código, mesa inexistente, mesa no disponible, permiso denegado
+/// y backend inalcanzable. Los tres primeros los produce el dominio; los dos
+/// últimos salen de `clasificarFallo`/`mensajeDe`
+/// (`core/firebase_error_mapper.dart`). Nunca un stack trace al usuario, y
+/// nunca —esto es lo que arregla 11-23— un mensaje que culpe al código
+/// cuando el problema es la cuenta o la red.
 final class SesionControllerProvider
     extends $AsyncNotifierProvider<SesionController, void> {
   /// Mutaciones de la sesión: [abrir] por código QR (cámara o input manual).
   ///
-  /// Los errores de dominio ('Código de mesa inválido' / 'Mesa ocupada')
-  /// llegan como [SesionException] con mensaje user-friendly; la mesa en
-  /// limpieza ([TransicionInvalidaException]) se traduce a mensaje
-  /// controlado — nunca un stack trace al usuario.
+  /// TODO fallo sale como [SesionException] con un mensaje que dice la VERDAD
+  /// sobre su causa (11-23). Cinco causas, cinco mensajes:
+  /// formato del código, mesa inexistente, mesa no disponible, permiso denegado
+  /// y backend inalcanzable. Los tres primeros los produce el dominio; los dos
+  /// últimos salen de `clasificarFallo`/`mensajeDe`
+  /// (`core/firebase_error_mapper.dart`). Nunca un stack trace al usuario, y
+  /// nunca —esto es lo que arregla 11-23— un mensaje que culpe al código
+  /// cuando el problema es la cuenta o la red.
   SesionControllerProvider._()
     : super(
         from: null,
@@ -215,10 +227,14 @@ String _$sesionControllerHash() => r'46c7293daf5d1a2648502630985f0feab40c014b';
 
 /// Mutaciones de la sesión: [abrir] por código QR (cámara o input manual).
 ///
-/// Los errores de dominio ('Código de mesa inválido' / 'Mesa ocupada')
-/// llegan como [SesionException] con mensaje user-friendly; la mesa en
-/// limpieza ([TransicionInvalidaException]) se traduce a mensaje
-/// controlado — nunca un stack trace al usuario.
+/// TODO fallo sale como [SesionException] con un mensaje que dice la VERDAD
+/// sobre su causa (11-23). Cinco causas, cinco mensajes:
+/// formato del código, mesa inexistente, mesa no disponible, permiso denegado
+/// y backend inalcanzable. Los tres primeros los produce el dominio; los dos
+/// últimos salen de `clasificarFallo`/`mensajeDe`
+/// (`core/firebase_error_mapper.dart`). Nunca un stack trace al usuario, y
+/// nunca —esto es lo que arregla 11-23— un mensaje que culpe al código
+/// cuando el problema es la cuenta o la red.
 
 abstract class _$SesionController extends $AsyncNotifier<void> {
   FutureOr<void> build();

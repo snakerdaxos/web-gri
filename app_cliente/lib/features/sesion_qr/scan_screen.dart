@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
 import '../../core/design_tokens.dart';
 import 'sesion_provider.dart';
@@ -39,7 +40,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
 
   /// Doc ID de mesa = código QR: `GRI-MESA-{slug-restaurante}-{numero:03d}`
   /// (ej. GRI-MESA-demo-001 — research 10).
-  static final _codigoRegExp = RegExp(r'^GRI-MESA-[a-z0-9-]+-\d{3}$');
+  ///
+  /// MUDADA EN 11-23 a `codigoMesaRegExp` (sesion_provider.dart): la pantalla
+  /// no puede ser la dueña de la regla, porque la CÁMARA no pasa por este
+  /// validator. Aquí se reutiliza el MISMO objeto, así que las dos vías —campo
+  /// manual y escaneo— no pueden divergir. El valor no ha cambiado.
+  static final _codigoRegExp = codigoMesaRegExp;
 
   @override
   void dispose() {
@@ -98,14 +104,17 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
         ),
       );
     } catch (e) {
-      // Log del error inesperado — el usuario ve el SnackBar genérico, pero
-      // la causa queda trazada (nunca catch silencioso).
-      debugPrint('abrir sesión falló: $e');
+      // Última red: hoy `SesionController.abrir` ya envuelve todo en
+      // SesionException, así que esto es defensa en profundidad. Aun así NO
+      // vuelve a decir «Error de conexión» a ciegas — eso afirmaba una causa
+      // concreta (la red) para cualquier fallo, incluido un permiso denegado.
+      // La causa queda trazada; nunca un catch silencioso (T-11-23-04).
+      debugPrint('abrir sesión falló [${clasificarFallo(e)}]: $e');
       if (!mounted) return;
       _navigating = false;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error de conexión. Intenta de nuevo.'),
+        SnackBar(
+          content: Text(mensajeDeFallo(e, contexto: Contexto.abrirMesa)),
           backgroundColor: GriColors.chipCanceladaFg,
         ),
       );

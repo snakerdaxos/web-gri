@@ -2,14 +2,35 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/firebase_error_mapper.dart';
 import '../../core/firebase_providers.dart';
 import '../../core/state_machines.dart';
 import '../../core/tx_mutex.dart';
 import '../../models/sesion_mesa.dart';
 
 part 'sesion_provider.g.dart';
+
+/// Forma canónica del código QR de una mesa: `GRI-MESA-{slug}-{NNN}`
+/// (p. ej. `GRI-MESA-demo-001`). El doc ID de la mesa ES el código.
+///
+/// FUENTE ÚNICA de la regla. Vivía en `scan_screen.dart` como campo privado y
+/// se mudó aquí en 11-23 porque la validación NO puede vivir solo en la
+/// pantalla: la cámara (`_onDetect`) entrega el texto crudo del QR
+/// directamente al dominio, sin pasar por el validator del campo manual. Con
+/// la regla solo arriba, un QR de otra app llegaba a Firestore, no encontraba
+/// documento, y salía por el mensaje de «mesa inexistente» — que es falso: la
+/// mesa no es que no exista, es que eso no era un código de mesa.
+///
+/// AVISO: hay comentarios que citan esta expresión y todavía apuntan a
+/// `app_cliente/.../scan_screen.dart` (`panel_admin/lib/features/configuracion/
+/// slug.dart`, `panel_admin/test/configuracion/slug_test.dart`,
+/// `functions/src/auth-matrix.js` y `scripts/test/rules/mesas.test.mjs`). El
+/// VALOR no ha cambiado, solo el archivo; esos punteros están desactualizados
+/// en la ubicación, no en la regla.
+final RegExp codigoMesaRegExp = RegExp(r'^GRI-MESA-[a-z0-9-]+-\d{3}$');
 
 /// Error de dominio de sesión con mensaje user-friendly directo
 /// (contrato de la UI — mismo rol que el `detail` de la era REST).
@@ -26,7 +47,10 @@ class SesionException implements Exception {
 /// `sesiones/{mesaId}` con doc ID determinista (UNA sesión activa por
 /// mesa, MIGRA-06):
 ///
-/// 1. `tx.get(mesas/{codigoQR})` — si no existe → 'Código de mesa inválido'.
+/// 0. El código debe tener la forma de [codigoMesaRegExp]; si no, el fallo es
+///    de FORMATO y se dice así (11-23: antes se confundía con el siguiente).
+/// 1. `tx.get(mesas/{codigoQR})` — si no existe, la mesa NO EXISTE (mensaje
+///    propio, distinto del de formato).
 /// 2. `tx.get(sesiones/{mesaId})` — existe con estado 'activa' → 'Mesa
 ///    ocupada' (sesión ajena o propia: no se re-entra por el scanner).
 /// 3. `validarTransicion('mesa', actual → ocupada)` — acepta desde
@@ -51,12 +75,22 @@ Future<SesionMesa> _abrirSesion(
   required String uid,
   required String codigoQR,
 }) {
+  // 0) FORMATO, antes de gastar un viaje a Firestore. Esta comprobación es la
+  //    única que ve lo que entrega la CÁMARA: el validator del campo manual no
+  //    está en ese camino. Un QR de otra app muere aquí, con su mensaje.
+  if (!codigoMesaRegExp.hasMatch(codigoQR)) {
+    return Future.error(SesionException(
+        mensajeDe(CausaFallo.formatoInvalido, contexto: Contexto.abrirMesa)));
+  }
   return db.runTransaction<SesionMesa>((tx) async {
     // 1) La mesa debe existir — el código QR ES el doc ID (get O(1)).
+    //    Llegados aquí el formato ya es bueno, así que esto significa
+    //    exactamente «esa mesa no existe», y NO «revisa el código».
     final mesaRef = db.doc('mesas/$codigoQR');
     final mesaSnap = await tx.get(mesaRef);
     if (!mesaSnap.exists) {
-      throw const SesionException('Código de mesa inválido');
+      throw SesionException(
+          mensajeDe(CausaFallo.noEncontrado, contexto: Contexto.abrirMesa));
     }
     final mesaData = mesaSnap.data()!;
     final mesaEstado = mesaData['estado'] as String? ?? 'disponible';
@@ -185,10 +219,14 @@ Stream<User?> _usuarios(FirebaseAuth auth) async* {
 
 /// Mutaciones de la sesión: [abrir] por código QR (cámara o input manual).
 ///
-/// Los errores de dominio ('Código de mesa inválido' / 'Mesa ocupada')
-/// llegan como [SesionException] con mensaje user-friendly; la mesa en
-/// limpieza ([TransicionInvalidaException]) se traduce a mensaje
-/// controlado — nunca un stack trace al usuario.
+/// TODO fallo sale como [SesionException] con un mensaje que dice la VERDAD
+/// sobre su causa (11-23). Cinco causas, cinco mensajes:
+/// formato del código, mesa inexistente, mesa no disponible, permiso denegado
+/// y backend inalcanzable. Los tres primeros los produce el dominio; los dos
+/// últimos salen de `clasificarFallo`/`mensajeDe`
+/// (`core/firebase_error_mapper.dart`). Nunca un stack trace al usuario, y
+/// nunca —esto es lo que arregla 11-23— un mensaje que culpe al código
+/// cuando el problema es la cuenta o la red.
 @riverpod
 class SesionController extends _$SesionController {
   @override
@@ -208,10 +246,20 @@ class SesionController extends _$SesionController {
       rethrow; // ya trae mensaje user-friendly del dominio
     } on TransicionInvalidaException {
       // Mesa en limpieza (o transición no permitida) — mensaje controlado.
-      throw const SesionException('La mesa no está disponible en este momento');
-    } catch (_) {
-      throw const SesionException(
-          'No pudimos abrir la mesa. Verifica el código e intenta de nuevo.');
+      // El texto sale del mapeador para que haya UNA sola redacción por causa.
+      throw SesionException(
+          mensajeDe(CausaFallo.noDisponible, contexto: Contexto.abrirMesa));
+    } catch (e) {
+      // AQUÍ ESTABA EL BUG. Este `catch` decía «No pudimos abrir la mesa.
+      // Verifica el código e intenta de nuevo.» para CUALQUIER cosa, y por él
+      // pasaban las dos causas del incidente real: el `permission-denied` de
+      // una cuenta que no es de cliente y el `unavailable` de unos emuladores
+      // apagados. Ninguna de las dos tenía que ver con el código.
+      //
+      // Ahora se clasifica y se dice la verdad; y si de verdad no sabemos qué
+      // pasó, el mensaje de `desconocido` tampoco lo inventa.
+      debugPrint('abrirSesion falló [${clasificarFallo(e)}]: $e');
+      throw SesionException(mensajeDeFallo(e, contexto: Contexto.abrirMesa));
     } finally {
       state = const AsyncData<void>(null);
     }

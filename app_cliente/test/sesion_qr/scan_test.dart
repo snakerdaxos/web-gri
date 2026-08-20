@@ -218,6 +218,43 @@ void main() {
         mensajeDe(CausaFallo.sinConexion, contexto: Contexto.abrirMesa));
   });
 
+  test('T-11-23-04: el catch DEJA TRAZA del fallo (ningún error queda mudo)',
+      () async {
+    // VERDE CAZADA (rotura F): borrar el `debugPrint` entero dejaba la suite
+    // en verde. La mitigación del registro de amenazas estaba AFIRMADA, no
+    // verificada. `debugPrint` es una variable global reasignable, así que se
+    // intercepta de verdad.
+    final trazas = <String>[];
+    final original = debugPrint;
+    debugPrint = (String? mensaje, {int? wrapWidth}) =>
+        trazas.add(mensaje ?? '');
+    addTearDown(() => debugPrint = original);
+
+    final db = await buildFakeFirestoreConSeed();
+    whenCalling(Invocation.method(#get, null))
+        .on(db.doc('sesiones/$_mesa'))
+        .thenThrow(FirebaseException(
+            plugin: 'cloud_firestore', code: 'permission-denied'));
+
+    final container = ProviderContainer(overrides: [
+      firestoreProvider.overrideWithValue(db),
+      firebaseAuthProvider.overrideWithValue(mockAuth(uid: 'uid-a')),
+    ]);
+    addTearDown(container.dispose);
+
+    await container
+        .read(sesionControllerProvider.notifier)
+        .abrir(_mesa)
+        .then<Object?>((s) => s, onError: (Object e) => e);
+
+    final todo = trazas.join('\n');
+    expect(todo, contains('permission-denied'),
+        reason: 'la causa REAL tiene que quedar en el log del desarrollador,'
+            ' aunque el usuario vea un texto amable');
+    expect(todo, contains('CausaFallo.permisoDenegado'),
+        reason: 'y también CÓMO se clasificó, para poder auditar el mapeo');
+  });
+
   test('LAS CINCO CAUSAS dan CINCO mensajes distintos a través del controller',
       () async {
     // No es el test del mapeador (aquel compara la tabla consigo misma): aquí
@@ -561,6 +598,32 @@ void main() {
     expect(find.text('Código de mesa inválido'), findsNothing,
         reason: 'el mensaje viejo, que confundía las dos causas, ya no existe');
     expect(find.text('MESA_PAGE'), findsNothing);
+  });
+
+  testWidgets('el validator del campo y el dominio comparten la MISMA regla de formato',
+      (tester) async {
+    // VERDE CAZADA (rotura I): `_codigoRegExp = codigoMesaRegExp` es una
+    // afirmación, no una verificación — desandarla y volver a escribir la
+    // expresión a mano dejaba la suite ENTERA en verde, porque ningún caso
+    // usaba un slug con guion y ese es justo el carácter que se pierde al
+    // copiarla mal (`[a-z0-9-]+` -> `[a-z0-9]+`).
+    //
+    // Aquí el código es BIEN FORMADO (slug `mi-resto`, con guion) pero la mesa
+    // no existe: si la pantalla y el dominio comparten la regla, el usuario
+    // llega al mensaje de «mesa inexistente». Si divergen, se queda atascado
+    // en el error del campo.
+    final db = await buildFakeFirestoreConSeed();
+    await tester.pumpWidget(wrapFake(FakeTestFirestoreBuilder(db: db)));
+    await tester.pumpAndSettle();
+    await intentarAbrir(tester, 'GRI-MESA-mi-resto-001');
+
+    expect(find.textContaining('El código tiene formato'), findsNothing,
+        reason: 'el validator NO debe rechazar un slug con guion');
+    expect(
+        find.text(
+            mensajeDe(CausaFallo.noEncontrado, contexto: Contexto.abrirMesa)),
+        findsOneWidget,
+        reason: 'llegó al dominio, que es quien sabe que esa mesa no existe');
   });
 
   testWidgets('un fallo CRUDO que se salta al controller no sale como "Error de conexión"',
