@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gri_panel_admin/core/firebase_providers.dart';
+import 'package:gri_panel_admin/core/password_policy.dart';
 import 'package:gri_panel_admin/features/bootstrap/bootstrap_controller.dart';
 import 'package:gri_panel_admin/features/bootstrap/bootstrap_screen.dart';
 import 'package:mock_exceptions/mock_exceptions.dart';
@@ -429,6 +430,70 @@ void main() {
               .having((e) => e.message, 'message', caso.$2)),
         );
       }
+    });
+  });
+
+  // ── 11-22: la política de contraseñas en el bootstrap ───────────────────
+  //
+  // La cuenta del primer super_admin la crea el SDK cliente desde esta pantalla
+  // (`bootstrapPlataforma` NO fija contraseñas), así que aquí la política del
+  // formulario es la única que hay para este punto. Razón de más para que no
+  // se pueda enviar `12345678`.
+  group('política de contraseñas (11-22)', () {
+    Future<void> montar(WidgetTester tester) async {
+      _viewportPanel(tester);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          bootstrapAccionProvider.overrideWithValue(
+            ({
+              required nombre,
+              required email,
+              required password,
+              required secreto,
+            }) async {},
+          ),
+        ],
+        child: _app(),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('12345678 deja el botón APAGADO y dice QUÉ falta',
+        (tester) async {
+      await montar(tester);
+      await _rellenar(tester, password: '12345678');
+
+      expect(tester.widget<ElevatedButton>(_boton).onPressed, isNull);
+      expect(
+        find.text('Te faltan una mayúscula y una minúscula.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Abcdefg1 lo habilita', (tester) async {
+      await montar(tester);
+      await _rellenar(tester, password: 'Abcdefg1');
+
+      expect(tester.widget<ElevatedButton>(_boton).onPressed, isNotNull);
+      expect(find.textContaining('Te falta'), findsNothing);
+    });
+
+    testWidgets('la confirmación sigue mandando aunque la política pase',
+        (tester) async {
+      await montar(tester);
+      await _rellenar(
+        tester,
+        password: 'Abcdefg1',
+        password2: 'Abcdefg2',
+      );
+
+      expect(find.text('Las contraseñas no coinciden'), findsOneWidget);
+      expect(tester.widget<ElevatedButton>(_boton).onPressed, isNull);
+    });
+
+    testWidgets('el campo describe la política ANTES de fallar', (tester) async {
+      await montar(tester);
+      expect(find.text(ayudaPolitica), findsOneWidget);
     });
   });
 }

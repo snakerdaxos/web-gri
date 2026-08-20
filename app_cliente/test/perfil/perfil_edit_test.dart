@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_cliente/core/firebase_providers.dart';
+import 'package:gri_cliente/core/password_policy.dart';
 import 'package:gri_cliente/features/perfil/perfil_controller.dart';
 import 'package:gri_cliente/features/perfil/perfil_screen.dart';
 import 'package:mock_exceptions/mock_exceptions.dart';
@@ -281,6 +282,142 @@ void main() {
             .controller!
             .text,
         'Demo!1234');
+  });
+
+  // ── 11-22: la política de contraseñas en el perfil ──────────────────────
+  //
+  // ESTE ERA EL HUECO MÁS GRANDE de los cuatro: hasta este plan los dos campos
+  // del perfil NO llevaban `validator` ninguno, así que la pantalla no
+  // comprobaba absolutamente nada y la única defensa era el `length < 8` del
+  // controlador. `12345678` se guardaba.
+  //
+  // Lo delicado aquí no es aplicar la regla, es NO romper la semántica del
+  // campo: la contraseña nueva es OPCIONAL y vacía significa "no la cambio".
+
+  testWidgets('perfil: una contraseña nueva que incumple NO guarda NADA',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db);
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: _uid);
+
+    await tester.pumpWidget(_wrap(auth: auth, db: db));
+    await tester.pumpAndSettle();
+
+    // Se cambia TAMBIÉN el nombre: si el guardado no se cortara, el nombre se
+    // habría escrito antes de llegar a la contraseña (el orden del código es
+    // nombre → password) y el perfil quedaría a medias.
+    await tester.enterText(
+        find.byKey(const ValueKey('perfil-nombre')), 'Carlitos Rey');
+    await tester.enterText(
+        find.byKey(const ValueKey('perfil-pass-actual')), 'Demo!1234');
+    await tester.enterText(
+        find.byKey(const ValueKey('perfil-password')), '12345678');
+    await tester.tap(find.text('Guardar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Te faltan una mayúscula y una minúscula.'), findsOneWidget);
+    expect(find.text('Perfil actualizado ✅'), findsNothing);
+
+    final doc = await db.collection('usuarios').doc(_uid).get();
+    expect(
+      doc.data()!['nombre'],
+      'Carlos Pérez',
+      reason: 'no se puede guardar media edición cuando la contraseña no vale',
+    );
+  });
+
+  testWidgets('perfil: la contraseña VACÍA sigue significando "no la cambio"',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db);
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: _uid);
+
+    await tester.pumpWidget(_wrap(auth: auth, db: db));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+        find.byKey(const ValueKey('perfil-nombre')), 'Carlitos Rey');
+    await tester.tap(find.text('Guardar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Ni un aviso de política sobre un campo que el usuario dejó en blanco.
+    expect(find.textContaining('Te falta'), findsNothing);
+    expect(find.textContaining('al menos 8 caracteres'), findsNothing);
+    expect(find.text('Perfil actualizado ✅'), findsOneWidget);
+
+    final doc = await db.collection('usuarios').doc(_uid).get();
+    expect(doc.data()!['nombre'], 'Carlitos Rey');
+  });
+
+  testWidgets('perfil: contraseña nueva SIN la actual avisa y no guarda',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db);
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: _uid);
+
+    await tester.pumpWidget(_wrap(auth: auth, db: db));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+        find.byKey(const ValueKey('perfil-password')), 'NuevaPass1');
+    await tester.tap(find.text('Guardar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      find.text('Escribe tu contraseña actual para poder cambiarla'),
+      findsOneWidget,
+    );
+    expect(find.text('Perfil actualizado ✅'), findsNothing);
+  });
+
+  testWidgets('perfil: la política se anuncia ANTES de fallar', (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db);
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: _uid);
+
+    await tester.pumpWidget(_wrap(auth: auth, db: db));
+    await tester.pumpAndSettle();
+
+    expect(find.text(ayudaPolitica), findsOneWidget);
+    // Y el aviso de opcionalidad, que es la otra mitad de la información, NO se
+    // pierde por el camino.
+    expect(find.text('Déjala vacía para no cambiarla'), findsOneWidget);
+  });
+
+  test('cambiarPassword aplica la POLÍTICA, no solo la longitud', () async {
+    // La última línea de defensa del cliente. Sin esto, una pantalla futura que
+    // olvidara el validador volvería a dejar pasar `12345678`.
+    final db = await buildFakeFirestoreConSeed();
+    await _sembrarUsuario(db);
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', uid: _uid);
+
+    final container = ProviderContainer(overrides: [
+      firebaseAuthProvider.overrideWithValue(auth),
+      firestoreProvider.overrideWithValue(db),
+    ]);
+    addTearDown(container.dispose);
+
+    await expectLater(
+      container
+          .read(perfilControllerProvider.notifier)
+          .cambiarPassword('Demo!1234', '12345678'),
+      throwsA(isA<ArgumentError>().having(
+        (e) => e.message,
+        'message',
+        'Te faltan una mayúscula y una minúscula.',
+      )),
+    );
+
+    // Y la que SÍ cumple pasa (el control no es un "rechaza siempre").
+    expect(
+      await container
+          .read(perfilControllerProvider.notifier)
+          .cambiarPassword('Demo!1234', 'Abcdefg1'),
+      isTrue,
+    );
   });
 }
 

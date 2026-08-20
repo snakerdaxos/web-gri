@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_panel_admin/core/firebase_providers.dart';
+import 'package:gri_panel_admin/core/password_policy.dart';
 import 'package:gri_panel_admin/features/dashboard/restaurante_provider.dart';
 import 'package:gri_panel_admin/features/equipo/equipo_controller.dart';
 import 'package:gri_panel_admin/features/equipo/equipo_provider.dart';
@@ -416,6 +417,84 @@ void main() {
       completer.complete();
       await tester.pumpAndSettle();
       expect(espia.llamadas, 1);
+    });
+  });
+
+  // ── 11-22: la política de contraseñas en el alta de staff ───────────────
+  //
+  // El admin escribe la contraseña de SU empleado, así que el formulario es el
+  // único sitio donde puede enterarse de la regla antes de dictarla en voz alta.
+  // La misma política la aplica el SERVIDOR (`crear-usuario-staff.e2e.mjs`):
+  // esto de aquí ahorra una llamada, no es la frontera de seguridad.
+  group('StaffFormDialog — política de contraseñas (11-22)', () {
+    testWidgets('12345678 no llega a la callable y dice QUÉ falta',
+        (tester) async {
+      final espia = _AltaEspia();
+      await _montar(
+        tester,
+        _container(role: 'admin_restaurante', rid: 'demo', espia: espia),
+      );
+      await _abrirFormulario(tester);
+      await _rellenar(tester, password: '12345678');
+      await tester.tap(find.byKey(const Key('staff-guardar')));
+      await tester.pumpAndSettle();
+
+      expect(espia.llamadas, 0);
+      expect(
+        find.text('Te faltan una mayúscula y una minúscula.'),
+        findsOneWidget,
+      );
+      expect(find.byType(StaffFormDialog), findsOneWidget);
+    });
+
+    testWidgets('Abcdef1 — 7 caracteres CON los tres tipos — falla SOLO por '
+        'longitud', (tester) async {
+      // El caso preexistente usa '1234567', que incumple TRES cosas a la vez:
+      // serviría igual aunque la comprobación de longitud no existiera. Este
+      // aísla el borde de verdad.
+      final espia = _AltaEspia();
+      await _montar(
+        tester,
+        _container(role: 'admin_restaurante', rid: 'demo', espia: espia),
+      );
+      await _abrirFormulario(tester);
+      await _rellenar(tester, password: 'Abcdef1');
+      await tester.tap(find.byKey(const Key('staff-guardar')));
+      await tester.pumpAndSettle();
+
+      expect(espia.llamadas, 0);
+      expect(find.text('Debe tener al menos 8 caracteres.'), findsOneWidget);
+    });
+
+    testWidgets('el texto de ayuda describe la política COMPLETA',
+        (tester) async {
+      await _montar(tester, _container(role: 'admin_restaurante', rid: 'demo'));
+      await _abrirFormulario(tester);
+
+      expect(find.textContaining(ayudaPolitica), findsOneWidget);
+      expect(
+        find.textContaining('Mínimo 8 caracteres.'),
+        findsNothing,
+        reason: 'el copy viejo prometía menos de lo que ahora se exige',
+      );
+    });
+
+    testWidgets('una contraseña que CUMPLE llega intacta a la callable',
+        (tester) async {
+      // Contrapeso obligatorio: sin él, un validador que rechazara siempre
+      // dejaría los tres casos de arriba en verde.
+      final espia = _AltaEspia();
+      await _montar(
+        tester,
+        _container(role: 'admin_restaurante', rid: 'demo', espia: espia),
+      );
+      await _abrirFormulario(tester);
+      await _rellenar(tester, password: 'Abcdefg1');
+      await tester.tap(find.byKey(const Key('staff-guardar')));
+      await tester.pumpAndSettle();
+
+      expect(espia.llamadas, 1);
+      expect(espia.ultimo!['password'], 'Abcdefg1');
     });
   });
 }

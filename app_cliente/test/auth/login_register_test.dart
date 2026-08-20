@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gri_cliente/core/firebase_providers.dart';
+import 'package:gri_cliente/core/password_policy.dart';
 import 'package:gri_cliente/features/auth/auth_controller.dart';
 import 'package:gri_cliente/features/auth/login_screen.dart';
 import 'package:gri_cliente/features/auth/register_screen.dart';
@@ -561,6 +562,79 @@ void main() {
     expect(size.width, greaterThanOrEqualTo(48.0),
         reason: 'el area tactil no puede depender del tema ambiente');
     expect(size.height, greaterThanOrEqualTo(48.0));
+  });
+
+  // ── 11-22: la política de contraseñas en el registro ───────────────────
+  //
+  // Antes de este plan el registro solo miraba la longitud, así que `12345678`
+  // pasaba. Los casos de abajo prueban el punto 1 de los cuatro; la regla en sí
+  // (bordes, acentos, redacción) vive en `test/core/password_policy_test.dart`
+  // contra los vectores canónicos — aquí solo se comprueba que la PANTALLA la
+  // consulta y que enseña lo que devuelve.
+
+  Future<void> irARegistro(WidgetTester tester) async {
+    await tester.pumpWidget(_wrap());
+    await tester.ensureVisible(find.text('¿No tienes cuenta? Regístrate'));
+    await tester.tap(find.text('¿No tienes cuenta? Regístrate'));
+    await tester.pumpAndSettle();
+  }
+
+  ElevatedButton botonCrear(WidgetTester tester) =>
+      tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+
+  testWidgets('register: 12345678 apaga el botón y dice QUÉ falta',
+      (tester) async {
+    await irARegistro(tester);
+    await _rellenarRegistro(tester, pass: '12345678', pass2: '12345678');
+
+    expect(
+      botonCrear(tester).onPressed,
+      isNull,
+      reason: 'la contraseña que hoy pasaba ya no puede habilitar el envío',
+    );
+    // El texto está escrito a mano a propósito: comparar contra
+    // `validarPassword(...)` dejaría el caso verde justo cuando la redacción
+    // cambie, que es lo que el usuario pidió que NO pasara.
+    expect(find.text('Te faltan una mayúscula y una minúscula.'), findsOneWidget);
+  });
+
+  testWidgets('register: el mensaje nombra SOLO lo que falta', (tester) async {
+    await irARegistro(tester);
+    await _rellenarRegistro(tester, pass: 'Abcdefgh', pass2: 'Abcdefgh');
+
+    expect(find.text('Te falta un número.'), findsOneWidget);
+    expect(
+      find.textContaining('mayúscula'),
+      findsNothing,
+      reason: 'no puede reclamar algo que la contraseña SÍ tiene',
+    );
+    expect(botonCrear(tester).onPressed, isNull);
+  });
+
+  testWidgets('register: Abcdefg1 (8 justos, los tres tipos) habilita',
+      (tester) async {
+    await irARegistro(tester);
+    await _rellenarRegistro(tester, pass: 'Abcdefg1', pass2: 'Abcdefg1');
+
+    expect(botonCrear(tester).onPressed, isNotNull);
+    expect(find.textContaining('Te falta'), findsNothing);
+    expect(find.textContaining('al menos 8 caracteres'), findsNothing);
+  });
+
+  testWidgets('register: el campo describe la política ANTES de fallar',
+      (tester) async {
+    await irARegistro(tester);
+    // Sin escribir nada: la ayuda ya está ahí.
+    expect(find.text(ayudaPolitica), findsOneWidget);
+  });
+
+  testWidgets('register: la confirmación sigue mandando aunque la política pase',
+      (tester) async {
+    await irARegistro(tester);
+    await _rellenarRegistro(tester, pass: 'Abcdefg1', pass2: 'Abcdefg2');
+
+    expect(find.text('Las contraseñas no coinciden'), findsOneWidget);
+    expect(botonCrear(tester).onPressed, isNull);
   });
 }
 
