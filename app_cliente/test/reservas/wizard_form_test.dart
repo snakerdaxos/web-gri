@@ -282,7 +282,8 @@ void main() {
     expect(data['fechaStr'], _fechaStr(_slotDeManana()));
   });
 
-  testWidgets('ante slot agotado muestra "Ese horario acaba de ser reservado"',
+  testWidgets(
+      'ante slot agotado muestra el motivo REAL, no el mensaje ciego (11-29)',
       (tester) async {
     final db = await buildFakeFirestoreConSeed();
     final slot = _slotDeManana();
@@ -304,8 +305,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.textContaining('Ese horario acaba de ser reservado'),
+    // Aquí el slot SÍ está tomado en las tres candidatas, así que hablar del
+    // horario es correcto — pero el texto lo pone el dominio, no un `catch`
+    // que lo afirma pase lo que pase (BUG C).
+    expect(find.textContaining('No hay mesas disponibles en ese horario'),
         findsOneWidget);
+    expect(find.textContaining('Ese horario acaba de ser reservado'),
+        findsNothing);
     // Sin writes: las 3 del seed siguen siendo las únicas.
     expect((await db.collection('reservas').get()).docs, hasLength(3));
   });
