@@ -49,10 +49,10 @@ const ES_WIN = process.platform === 'win32';
 // mismo commit, para que quede el rastro de que fue una decisión.
 // ---------------------------------------------------------------------------
 const BASELINES = {
-  app_cliente: 348, // flutter test (11-28: 345 -> 348, la QUERY de pedidos del cliente)
-  panel_admin: 445, // flutter test (medido en 11-28; el 423 de 11-22 se había quedado atrás)
+  app_cliente: 371, // flutter test (11-29: 348 -> 371, bugs A/B/C de reservas + mensajes honestos)
+  panel_admin: 446, // flutter test (11-29: 445 -> 446, 'Marcar ocupada' con la mesa disponible)
   functions_unit: 149, // functions/: node --test test/*.test.js
-  rules: 282, // scripts/: @firebase/rules-unit-testing contra el emulador (11-27: 221 -> 260, +39 casos de LECTURA DE DOCS AUSENTES; 11-28: 260 -> 282, +22 de QUERY vs RULES en pedidos/sesiones/reservas)
+  rules: 285, // scripts/: @firebase/rules-unit-testing contra el emulador (11-27: 221 -> 260, +39 casos de LECTURA DE DOCS AUSENTES; 11-28: 260 -> 282, +22 de QUERY vs RULES; 11-29: 282 -> 285, +3 de la FORMA de la tx de reserva futura)
   functions_e2e: 50, // scripts/: callables contra emuladores auth+functions+firestore
 };
 

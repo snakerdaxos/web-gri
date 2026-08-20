@@ -590,33 +590,53 @@ bloqueado.
 
 ### [O] Reservas: crear, anti-sobre-reserva y cancelar
 
+> **ACTUALIZADO EN 11-29.** Este apartado describía el comportamiento con los
+> bugs A y B dentro: decía que reservar para **mañana** dejaba la mesa en
+> `estado: 'reservada'`. Ya no es así, y comprobarlo daría un falso fallo.
+> Ahora el `estado` de la mesa —que describe ESTE momento— solo lo mueve una
+> reserva de **hoy**.
+
 **Qué se hace (📱 como Ana):**
 1. Detalle del restaurante → **Reservar una mesa** → 2 personas, **mañana**,
    19:00 → confirmar.
 2. Repite **exactamente la misma fecha y hora** hasta agotar las mesas con
    capacidad suficiente (con las tres mesas de [F] y 2 personas: la 4.ª intentona
    debe fallar).
-3. En **Mis reservas** → cancelar la primera.
+3. **Con una mesa ocupada** (abre una mesa por QR desde otro dispositivo, o
+   márcala ocupada desde el panel) vuelve a reservar para **mañana**: tiene que
+   funcionar igual.
+4. En **Mis reservas** → cancelar la primera.
 
 **Qué debe pasar:**
 1. Reserva **confirmada**, visible en Mis reservas.
 2. La que sobra falla con **"No hay mesas disponibles en ese horario"**. Eso es
    el anti-sobre-reserva: el doc ID de la reserva deriva de `mesa + franja`, así
    que la colisión la impide el propio Firestore, no una comprobación optimista.
-3. La reserva desaparece y la mesa vuelve a `disponible`.
+3. El paso 3 **no falla**: una mesa ocupada AHORA no descalifica una reserva
+   para mañana, y aunque lo hiciera (reserva para hoy) el buscador la salta en
+   vez de abortar. Este era el **bug A**: una sola mesa ocupada impedía reservar
+   con siete libres detrás.
+4. La reserva desaparece de las próximas y queda `cancelada`.
 
 **Cómo verificarlo en los datos:**
 - `reservas/{mesaId}{YYYYMMDD}_{HH}` (p. ej.
   `GRI-MESA-la-brasa-roja-00120260821_19`) con `estado: 'confirmada'` y el
   `fechaStr` de mañana.
-- La mesa asignada pasó a `estado: 'reservada'`.
-- Tras cancelar: la reserva queda `cancelada` y la mesa **vuelve a
-  `disponible`** — pero solo si seguía en `reservada` (si el cliente ya la había
-  ocupado por QR, no se toca).
+- **La mesa asignada NO cambia de estado** si la reserva es para otro día: sigue
+  como estuviera (normalmente `disponible`). Solo una reserva **de hoy** la pasa
+  a `reservada` (bug B — antes una reserva para el martes que viene bloqueaba la
+  mesa desde ya).
+- Tras cancelar: la reserva queda `cancelada`. La mesa **solo** vuelve a
+  `disponible` si la reserva era **de hoy** y seguía en `reservada` (si el
+  cliente ya la había ocupado por QR, o si la marcó otra reserva distinta, no se
+  toca).
 
 **Contraprueba:** intentar reservar para 8 personas debe decir *no hay mesas con
 capacidad suficiente* (la mayor de [F] es de 4). Es un mensaje distinto del de
-franja agotada, a propósito.
+franja agotada, a propósito. Y con **todas** las mesas ocupadas y reservando
+para **hoy**, el mensaje es un tercero: *todas las mesas para N personas están
+ocupadas en este momento*. Tres causas, tres textos: si vuelve a salir «Ese
+horario acaba de ser reservado, elige otro», el bug C ha vuelto.
 
 ---
 
@@ -785,7 +805,9 @@ test borrado es una regresión que ningún runner reporta.
 - [ ] [L] `enviado → aceptado → en_preparacion → servido`, reflejado en vivo en el cliente
 - [ ] [M] Cuenta solicitada → entregada → sesión `cerrada` + mesa `limpieza` → `disponible`
 - [ ] [N] Calificación 1:1 y ★ visible en el discover
-- [ ] [O] Reserva creada, **anti-sobre-reserva** disparado y cancelación revierte la mesa
+- [ ] [O] Reserva creada, **anti-sobre-reserva** disparado, una mesa ocupada NO
+      impide reservar, y la reserva para otro día **no** toca el estado de la mesa
+      (11-29: A, B y C)
 - [ ] §7 `npm run gates` en verde, con los conteos iguales o mayores que el baseline
 - [ ] [I] Ingreso con Google → **NO aplica aquí**: queda para el checkpoint del plan 11-17 (huella SHA-1)
 - [ ] §4.1 Índices compuestos → **NO aplica aquí**: queda para el checkpoint del plan 11-16

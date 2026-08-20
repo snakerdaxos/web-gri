@@ -24,36 +24,34 @@ Verdad de campo medida contra producción con tokens de usuario reales:
 
 ## Cola de trabajo
 
-### 1. Reservas — dos bugs de lógica, heredados del backend archivado
+### 1. Reservas — dos bugs de lógica  ✔ RESUELTO en el plan 11-29
 
-**Bug A (bloqueante).** `app_cliente/lib/features/reservas/reserva_controller.dart:112-120`.
-El bucle sobre mesas candidatas es incoherente: si el **slot** está tomado hace `continue` y prueba
-la siguiente mesa, pero si la **mesa está ocupada** lanza excepción y **aborta el bucle entero**.
-Una sola mesa ocupada impide reservar aunque haya siete libres. Reproducido: `GRI-MESA-demo-001`
-(capacidad 2) está `ocupada`, y es la primera candidata para 2 personas.
-Arreglo: saltar la mesa, no abortar.
+**Bug A (bloqueante).** ARREGLADO. El bucle salta la mesa ocupada en vez de abortar, y solo
+falla cuando ha examinado TODAS las candidatas. Custodiado por
+`app_cliente/test/reservas/asignacion_mesa_test.dart`.
 
-**Bug B — DECISIÓN DEL USUARIO (2026-08-20): opción "tocar el estado solo si la reserva es para hoy".**
-`reserva_controller.dart:115` hace `tx.update(mesa, {'estado':'reservada'})` al crear la reserva,
-**sea para la fecha que sea**. Reservar para el martes que viene marca la mesa reservada hoy,
-bloqueándola para clientes que entren por la puerta.
-El estado de la mesa describe *este momento*; una reserva futura no debería tocarlo. Lo correcto a
-futuro es que el mapa lea las reservas del día; el usuario elige el cambio mínimo ahora:
-**solo actualizar el estado si el slot cae en el día de hoy.** Dejar anotado como deuda que el
-modelo correcto es que el estado no dependa de reservas futuras.
+**Bug B.** ARREGLADO con la opción mínima que eligió el usuario: `tx.update` del estado de la
+mesa **solo si el slot es de hoy**. Corolario aplicado: si para un slot futuro no se escribe el
+estado, tampoco se consulta (el guard existía solo para proteger esa escritura). Y su simétrico:
+`cancelarReserva` solo revierte la mesa si la reserva era de hoy — si no, podría liberar una mesa
+que reservó OTRA reserva de esta tarde.
 
-### 2. Barrido de mensajes que culpan a lo equivocado
+**DEUDA QUE SIGUE ABIERTA (declarada, no resuelta).** El mapa de mesas del panel pinta el campo
+`estado`, así que una reserva para **más tarde hoy creada en un día anterior** ya no tiñe la mesa
+de amarillo: es correcto respecto del momento presente, pero el operador pierde el aviso. Lo mismo
+con el contador `mesasReservadas` del dashboard. El modelo correcto es que el mapa lea las
+**reservas del día** en vez de depender de un campo en vivo.
 
-Tercera aparición del mismo patrón en esta sesión, y cada una costó tiempo real al usuario:
-- El escáner decía "verifica el código" ante un `permission-denied` (arreglado en 11-23).
-- El panel decía "El restaurante no existe" ante una función no desplegada (arreglado en 11-26).
-- **Reservas**: `reserva_controller.dart:239-245` aplasta tres causas distintas —slot tomado,
-  capacidad insuficiente, estado de mesa inválido— en el mensaje "Ese horario acaba de ser
-  reservado, elige otro", **descartando el mensaje preciso** que ya lanzaba la lógica interna.
-  El propio comentario lo admite: *"409-equivalentes del port (capacidad/slot tomado/estado mesa)"*.
+### 2. Barrido de mensajes que culpan a lo equivocado  ✔ RESUELTO en el plan 11-29
 
-No basta con arreglar este: **barrer todos los `catch` de ambas apps** buscando el patrón de
-sustituir un mensaje específico por uno genérico o equivocado, con el criterio que fijó 11-23.
+El bug C (`reserva_controller.dart`) está arreglado: el error de dominio sube tal cual y lo que no
+es de dominio pasa por el clasificador único de 11-23, con dos contextos nuevos (`crearReserva`,
+`cancelarReserva`). Los dos `catch (_)` **mudos** que 11-23 dejó anotados como deuda ahora dejan
+traza con el código de Firebase y su clasificación.
+
+**Barrido completo de los 36 `catch` de las dos apps: no quedó ningún otro que afirme una causa
+falsa.** El detalle, sitio por sitio, está en el SUMMARY de 11-29. Hallazgos menores anotados allí
+(ninguno es una mentira sobre la causa).
 
 ### 3. Menú del cliente — imágenes y presentación
 
