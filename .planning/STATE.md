@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-last_updated: "2026-08-20T03:43:22.733Z"
+last_updated: "2026-08-20T04:34:49.000Z"
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 57
-  completed_plans: 53
-  percent: 91
+  completed_plans: 54
+  percent: 93
 ---
 
 # STATE
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 21/25 planes [#####################----] 84%  (`roadmap.update-plan-progress 11` cuenta 25 planes y 21 SUMMARY en disco tras 11-25)
+Phase 11: 22/25 planes [######################---] 88%  (`roadmap.update-plan-progress 11` cuenta 25 planes y 22 SUMMARY en disco tras 11-22)
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -52,7 +52,8 @@ Phase 11: 21/25 planes [#####################----] 84%  (`roadmap.update-plan-pr
 - [x] 11-24 Baja REVERSIBLE de personal: baja-matrix.js (matriz PURA hermana de auth-matrix, 49 casos en 234ms) + callable cambiarEstadoStaff (disabled + claims a null + revokeRefreshTokens, CONSERVANDO role/restauranteId en el espejo, que es lo unico que permite reactivar) + 22 e2e con tokens reales + /equipo con insignia de estado y confirmacion solo destructiva. 26 roturas deliberadas, 4 VERDES cazadas (la propiedad de la prohibicion 1 NO la probaba —la tapaba otra comprobacion—; quitar revokeRefreshTokens no tumbaba NADA; el test de compatibilidad de `activo` era una TAUTOLOGIA; la forma del payload no estaba afirmada). MEDIDO: con la asercion de mensaje debilitada a solo-codigo, quitar la prohibicion 1 NO tumba ni una fila de la tabla. HALLAZGO: el razonamiento del plan para dejar a los clientes fuera de alcance solo cierra la puerta al admin_restaurante, no al super_admin. panel_admin 292 -> 313, functions unit 34 -> 96, functions e2e 25 -> 47 -- a392812, ea95ed8, 260da01, 2ada353 (este ultimo AJENO: ver colision en Blockers)
 - [x] 11-23 Mensajes honestos en el flujo de mesa: clasificador unico de fallos de Firebase (CausaFallo x6 / Contexto x4, modulo PURO sin dart:io porque la app compila tambien a web). Las CINCO causas del escaneo separadas con mensaje propio -- el permission-denied deja de decir 'verifica el codigo', que es el bug que le costo tiempo real al usuario. codigoMesaRegExp se muda al DOMINIO (la camara NO pasa por el validator del campo). Mismo criterio en pedido, cuenta y calificacion. 34 roturas deliberadas, 3 VERDES cazadas (borrar el debugPrint no lo notaba nadie -T-11-23-04 afirmada, no verificada-; la regexp 'compartida' no estaba verificada; la pista de emuladores comparada consigo misma). DECIMO gate de grep defectuoso de la fase, fallado en LAS DOS direcciones. app_cliente 230 -> 273 -- ccada96, 2ada353, 6064faf, 562be15, 4401b4d, 82eae56
 - [x] 11-25 Accesibilidad del panel admin: HALLAZGO CENTRAL — el sidebar y el topbar NO EXISTIAN en el arbol de semantica (0 nodos: los 8 items, el logo, el titulo y el nombre del restaurante), porque el ModalBarrier del Navigator interno del ShellRoute los envuelve en BlockSemantics y el descarte subia hasta la raiz sin encontrar ningun limite de semantica. Las TRES guias de Flutter pasaban VERDES sobre ese estado. Arreglado con Semantics(container:true) alrededor del child del shell. Ademas: Tooltip en el sidebar colapsado (y solo colapsado), el tile del mapa de mesas se anuncia como BOTON con numero y estado, /equipo y el menu nombran a la persona y a la categoria, y 57 puntos de TEXTO pasan de #777777 a #6E6E6E sin tocar el token de MARCA. 23 roturas deliberadas, 2 VERDES cazadas (explicitChildNodes era un no-op; mi propio comentario afirmaba de mas sobre donde colocar el Semantics). HALLAZGOS: textContrastGuideline es CIEGA a todo nodo con etiqueta fusionada (stat cards, tiles, filas); androidTapTargetGuideline SALTA lo que toca el borde de un scroll; bodySmall/labelSmall son slots MUERTOS tambien aqui (0 de 277 parrafos); la paleta de MESAS no llega a AA para su etiqueta de estado (3 de 4 pares). DECIMO gate de grep defectuoso de la fase. panel_admin 313 -> 354 -- 66af0f7, 90fa418, 1997ed0, f9cecf7, 4394136
-- [ ] 11-15, 11-16, 11-20, 11-22
+- [x] 11-22 Politica de contrasenas (min 8 + mayuscula + minuscula + numero) en los CUATRO puntos donde se fija una y TAMBIEN en el servidor: vectores canonicos UNICOS (scripts/password_policy_vectors.json, 22 casos) leidos por los tests de los TRES runtimes + los dos password_policy.dart IDENTICOS byte a byte con test que lo comprueba. El perfil (que no validaba NADA y ni siquiera tenia Form) queda cerrado. crearUsuarioStaff pierde MIN_PASSWORD y valida ANTES de tocar Auth, con 3 e2e que invocan la callable DIRECTAMENTE. 36 roturas deliberadas, 2 VERDES cazadas (los vectores acentuados del plan NO probaban la minuscula: cambiar \p{Ll} por [a-z] dejaba los 53 casos verdes; y aplicar la politica al LOGIN no lo notaba NADIE en ninguna de las dos apps). UNDECIMO gate de grep defectuoso de la fase: el <verify> de la Tarea 2 es INSATISFACIBLE porque exige 0 coincidencias donde 4 y 3 son del camino de login. app_cliente 273 -> 345, panel_admin 354 -> 423, functions unit 96 -> 149, e2e 47 -> 50 -- 70d7f64, dd5b44b, b75cfe9, 8d36736, 757bf4f, 0d75309
+- [ ] 11-15, 11-16, 11-20
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -61,6 +62,8 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 3. Smoke e2e flujo completo ([A]-[M] emuladores o [P] real)
 
 ## Test Baselines (final Firebase)
+
+- 11-22: app_cliente 273 -> 345 (+72) y panel_admin 354 -> 423 (+69); analyze 0 en las dos. Desglose IDENTICO en las dos apps para los archivos nuevos: +57 test/core/password_policy_test.dart (lee scripts/password_policy_vectors.json) y +3 test/core/password_policy_gate_test.dart. Ademas cliente: login_register 23->30, perfil_edit 10->15. Panel: equipo_screen 14->18, bootstrap_screen 13->17, login_form 15->16. functions unitarios 96 -> 149 (+49 password-policy.test.js, +4 contratos de la callable). functions e2e 47 -> 50 (+3). rules 221 -> 221 (el plan no toca rules). audit:indexes / audit:branding / verify:shell verdes. Base MEDIDA en las SEIS suites antes de tocar nada
 
 - 11-25: panel_admin 313 -> 354 (+41); analyze 0. Desglose: +41 test/a11y/a11y_test.dart (nuevo). Los 2 tests preexistentes tocados (theme_tokens_test renombrado y ampliado, sin_emojis_test por los archivo:linea del doc de iconos) NO cambian de numero. Base 313 MEDIDA antes de tocar nada
 
@@ -100,6 +103,23 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - panel_admin: cloud_functions 6.3.6 (pin exacto) — firebaseFunctionsProvider region us-central1; emulador de Functions en 127.0.0.1:5001 bajo --dart-define=USE_EMULATORS=true
 
 ## Decisions
+
+- 11-22: la fuente de verdad de la politica de contrasenas son los VECTORES (scripts/password_policy_vectors.json), no el codigo. Hay tres implementaciones porque Dart y Node no comparten codigo, pero los tres tests leen el mismo JSON: anadir un vector ejercita los tres sin tocar ningun test. Quien cambie la regla edita el JSON PRIMERO y luego arregla las implementaciones hasta que vuelvan a verde
+- 11-22: los dos password_policy.dart se comparan BYTE A BYTE en un test (uno en cada app), no con un comentario que pida sincronizar como hacen password_field.dart y design_tokens.dart. Verificado: divergirlos en UN espacio pone rojas las dos suites
+- 11-22: mayuscula/minuscula por categoria Unicode (\p{Lu}/\p{Ll} con bandera unicode), jamas [A-Z]/[a-z] — en espanol la A acentuada es mayuscula y la enye minuscula. En JS la bandera `u` es OBLIGATORIA: sin ella /\p{Lu}/ es la cadena literal "p{Lu}" y el control desaparece en silencio (37 casos rojos al quitarla)
+- 11-22: HALLAZGO — los vectores con acento que pedia el plan NO probaban la minuscula. Con Abcdefg1/anoNuev0/Nandu1no puestos, cambiar \p{Ll} por [a-z] dejaba los 53 casos VERDES, porque los tres llevan ademas letras ASCII. Un vector para esto tiene que tener la letra acentuada como UNICA de su caja (se anadieron dos; ahora la rotura tumba 4)
+- 11-22: "numero" significa DIGITO ASCII [0-9], no \p{Nd}, y hay un vector con digito arabigo-indico que lo fija. Sin el, cada runtime derivaria al default de su lenguaje sin que nadie lo notara
+- 11-22: la politica se aplica al FIJAR una contrasena, JAMAS al INICIAR SESION (T-11-22-04). Las 7 comprobaciones de longitud del camino de login se CONSERVAN y se declaran con // POLICY-LOGIN-OK, mismo patron que // AUDIT-STAFF (11-03) y // TOKEN-IGNORE (11-19)
+- 11-22: HALLAZGO — aplicar la politica al login no lo notaba NADIE. Medido rompiendolo en las dos apps: la suite ENTERA seguia verde (todos los casos usaban Demo!1234). Se anadio un caso por app que entra con 'contrasena'; ahora esa rotura pone rojo exactamente 1 caso en cada una
+- 11-22: HALLAZGO — el <verify> de grep de la Tarea 2 del plan es INSATISFACIBLE (undecimo gate defectuoso de la fase). Exige 0 coincidencias de `length >= 8` en lib/features, pero de las 7 del cliente y 9 del panel, 4 y 3 son del camino de LOGIN: llevarlas a 0 es exactamente la DoS que el propio plan declara fuera de alcance. Sustituido por un gate estatico que distingue FIJAR de INICIAR SESION
+- 11-22: el detector de ese gate necesita VENTANA DE CONTEXTO (5 lineas) y aceptar identificadores a la derecha del operador. Sin ventana no veia `if (nueva.length < 8)` de perfil_controller (el identificador no dice "contrasena"; lo dice la firma) y sin identificadores no veia `s.length < _minPassword` del panel. El gate lleva un caso que le da los CINCO fragmentos reales de antes del plan
+- 11-22: PerfilScreen no tenia `Form`: poner solo los `validator` no habria hecho nada porque nadie los ejecuta. Y la guarda va al PRINCIPIO de _guardar, porque el metodo escribia el nombre ANTES de tocar la contrasena y una invalida dejaba el perfil a medias
+- 11-22: la contrasena ACTUAL del perfil queda FUERA de la politica (otra cara de T-11-22-04): exigirsela a alguien es negarle el acceso a su propia cuenta. Su validador solo comprueba coherencia
+- 11-22: los CONTROLADORES tambien aplican la politica (RegisterController y PerfilController.cambiarPassword), no solo las pantallas — en el perfil eran la UNICA validacion que habia
+- 11-22: en la callable, la validacion va ANTES de createUser y hay un contrato ESTATICO que compara los indices de linea: validarla despues dejaria la cuenta creada con una contrasena prohibida. El mensaje del servidor SI viaja al cliente (unico caso permitido por el criterio de 11-08) y es identico palabra por palabra al de los formularios
+- 11-22: bootstrapPlataforma NO cambia y no es descuido: 0 coincidencias de password/createUser/updateUser en su fuente. La cuenta del primer super_admin la crea el SDK cliente desde /bootstrap, asi que su politica es la del formulario
+- 11-22: el <verify> de grep de la Tarea 3 (MIN_PASSWORD) SI funciona en las dos direcciones — primero de la fase que no falla
+- 11-22: AVISO DE METODO — revertir una rotura deliberada con `git checkout --` destruye el trabajo si aun no esta commiteado. Paso una vez en este plan (register_screen y perfil_screen, reconstruidos). Las roturas se aplican SOLO sobre codigo ya commiteado
 
 - 11-01: el wrapper de emuladores ejecuta firebase-tools/lib/bin/firebase.js con process.execPath, no el shim .bin/firebase.cmd (spawn de .cmd exige shell:true desde Node 18.20/20.12 y corrompe argumentos con comillas)
 - 11-01: todos los scripts de test pasan `--project demo-gri` explicito; el alias `default` queda PROHIBIDO en cualquier script de test
