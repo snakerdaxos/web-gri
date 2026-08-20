@@ -107,4 +107,11 @@ abstract final class GriIcons {
 
   /// Nada que hacer / bandeja vacía en cocina. Antes `🎉`.
   static const IconData todoAlDia = Icons.celebration_outlined;
+
+  /// Salir del panel (11-34). El `logout()` existía desde 10-05 y estaba
+  /// bien escrito, pero ningún widget lo llamaba: una vez dentro no se podía
+  /// salir salvo borrando los datos del navegador. En el equipo compartido
+  /// de un restaurante eso deja la sesión del administrador abierta para
+  /// quien se siente después.
+  static const IconData cerrarSesion = Icons.logout;
 }

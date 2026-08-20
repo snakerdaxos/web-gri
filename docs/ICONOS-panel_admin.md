@@ -33,19 +33,19 @@ Una fila por punto de uso. Las líneas son las del árbol tras 11-21.
 
 | Emoji | Archivo:línea | `Icons.*` | Nombre en `GriIcons` | `size` |
 |---|---|---|---|---|
-| 🏠 | `features/shared/app_shell.dart:191` | `home_outlined` | `dashboard` | 18 |
-| 🪑 | `features/shared/app_shell.dart:192` | `table_restaurant_outlined` | `mesas` | 18 |
-| 📋 | `features/shared/app_shell.dart:193` | `receipt_long_outlined` | `pedidos` | 18 |
-| 📅 | `features/shared/app_shell.dart:194` | `calendar_today_outlined` | `reservas` | 18 |
-| 👥 | `features/shared/app_shell.dart:195` | `people_outline` | `clientes` | 18 |
-| 📊 | `features/shared/app_shell.dart:196` | `bar_chart` | `reportes` | 18 |
-| 🪪 | `features/shared/app_shell.dart:197` | `badge_outlined` | `equipo` | 18 |
-| ⚙️ | `features/shared/app_shell.dart:198` | `settings_outlined` | `configuracion` | 18 |
-| 🍽️ | `features/shared/app_shell.dart:264` | `restaurant` | `marca` | 24 |
+| 🏠 | `features/shared/app_shell.dart:192` | `home_outlined` | `dashboard` | 18 |
+| 🪑 | `features/shared/app_shell.dart:193` | `table_restaurant_outlined` | `mesas` | 18 |
+| 📋 | `features/shared/app_shell.dart:194` | `receipt_long_outlined` | `pedidos` | 18 |
+| 📅 | `features/shared/app_shell.dart:195` | `calendar_today_outlined` | `reservas` | 18 |
+| 👥 | `features/shared/app_shell.dart:196` | `people_outline` | `clientes` | 18 |
+| 📊 | `features/shared/app_shell.dart:197` | `bar_chart` | `reportes` | 18 |
+| 🪪 | `features/shared/app_shell.dart:198` | `badge_outlined` | `equipo` | 18 |
+| ⚙️ | `features/shared/app_shell.dart:199` | `settings_outlined` | `configuracion` | 18 |
+| 🍽️ | `features/shared/app_shell.dart:265` | `restaurant` | `marca` | 24 |
 | 🍽️ | `features/auth/login_screen.dart:212` | `restaurant` | `marca` | 32 |
 | 🍽️ | `features/bootstrap/bootstrap_screen.dart:294` | `restaurant` | `marca` | 32 |
-| 🍽️ | `features/cocina/cocina_screen.dart:364` | `restaurant` | `marca` | 20 |
-| 🍽️ | `features/cocina/cocina_screen.dart:439` | `restaurant` | `marca` | 14 |
+| 🍽️ | `features/cocina/cocina_screen.dart:375` | `restaurant` | `marca` | 20 |
+| 🍽️ | `features/cocina/cocina_screen.dart:450` | `restaurant` | `marca` | 14 |
 | 🍽️ | `features/cocina/widgets/pedido_card.dart:247` | `restaurant` | `marca` | 14 |
 | 🎉 | `features/cocina/cocina_screen.dart:139` | `celebration_outlined` | `todoAlDia` | 18 |
 | 📝 | `features/cocina/widgets/pedido_card.dart:143` | `edit_note` | `notas` | 14 |
@@ -67,8 +67,9 @@ Una fila por punto de uso. Las líneas son las del árbol tras 11-21.
 | 🧾 | `features/reportes/reportes_screen.dart:263` | `receipt_outlined` | `ticket` | 25 |
 | 📅 | `features/reservas/reservas_screen.dart:110` | `calendar_today_outlined` | `reservas` | 18 |
 | `\u{1F9ED}` (🧭) | `features/shared/not_found_screen.dart:52` | `explore_outlined` | `rutaDesconocida` | 40 |
+| - (nuevo en 11-34) | `features/shared/app_shell.dart:664` | `logout` | `cerrarSesion` | 20 |
 
-**33 sustituciones** en 13 archivos. Rutas relativas a `panel_admin/lib/`.
+**33 sustituciones** en 13 archivos, mas 1 icono NUEVO (`cerrarSesion`, 11-34: el panel no tenia boton de salir). Rutas relativas a `panel_admin/lib/`.
 
 ### Dos cambios que van más allá de la fuente
 

@@ -269,8 +269,29 @@ class LogoutController extends _$LogoutController {
   @override
   FutureOr<void> build() {}
 
+  /// ── EL MISMO DEFECTO QUE EL PANEL, ENCONTRADO AL ARREGLARLO ALLÍ (11-34) ─
+  ///
+  /// El panel no tenía botón de cerrar sesión y 11-34 se lo puso. Al llamar
+  /// por primera vez a su `logout()` saltó: en Riverpod 3 los providers son
+  /// autoDispose y `ref.read(...notifier).logout()` NO crea listener, así que
+  /// el notifier se dispone mientras el `await signOut()` está en vuelo y el
+  /// `ref.invalidate(claimsProvider)` de después lanza «Cannot use "ref"
+  /// after the provider was disposed».
+  ///
+  /// AQUÍ EL BOTÓN SÍ EXISTÍA (`perfil_screen.dart`), pero el código es
+  /// idéntico y el patrón de llamada también, así que el defecto es el mismo:
+  /// los claims del usuario que acaba de salir se quedaban cacheados. El test
+  /// de unidad que había (`login_register_test.dart`, «logout cierra la
+  /// sesión») no lo veía porque llama al notifier desde un `ProviderContainer`
+  /// retenido por el propio test; hace falta el recorrido por la PANTALLA
+  /// (`test/perfil/cerrar_sesion_test.dart`).
   Future<void> logout() async {
-    await ref.read(firebaseAuthProvider).signOut();
-    ref.invalidate(claimsProvider);
+    final link = ref.keepAlive();
+    try {
+      await ref.read(firebaseAuthProvider).signOut();
+      ref.invalidate(claimsProvider);
+    } finally {
+      link.close();
+    }
   }
 }

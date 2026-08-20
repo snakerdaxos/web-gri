@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../dashboard/restaurante_provider.dart';
 import '../dashboard/restaurantes_list_provider.dart';
 import '../equipo/equipo_provider.dart' show rolesQueGestionanEquipo;
+import '../auth/login_controller.dart';
 import '../../core/design_tokens.dart';
 import '../../core/gri_icons.dart';
 
@@ -580,10 +581,90 @@ class _TopBar extends ConsumerWidget {
                     ),
                   ),
                 ),
+                const SizedBox(width: GriSpacing.sm),
+                // AQUÍ y no en el sidebar (11-34): el topbar es donde ya se
+                // muestra QUIÉN eres —el nombre y las iniciales, justo a la
+                // izquierda—, así que es donde se busca el «dejar de ser esta
+                // persona». Va DESPUÉS del avatar, en el extremo, que es la
+                // convención de todo panel de gestión.
+                const _BotonCerrarSesion(),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Botón de CERRAR SESIÓN del topbar (11-34).
+///
+/// ── POR QUÉ NO EXISTÍA ────────────────────────────────────────────────────
+/// `LoginController.logout()` está escrito desde 10-05 y es correcto: hace
+/// `signOut()` e invalida `claimsProvider`, y el `refreshListenable` del
+/// router redirige a `/login` solo. Pero NINGÚN widget lo llamaba — un grep de
+/// `logout` en todo `panel_admin/lib` no devolvía una sola llamada fuera del
+/// propio controlador. Consecuencia real: una vez dentro del panel no se podía
+/// salir salvo borrando los datos del navegador, y el caso de uso de un panel
+/// de gestión es precisamente el equipo COMPARTIDO del restaurante.
+///
+/// ── LAS TRES COSAS QUE NO SON OPCIONALES ─────────────────────────────────
+///  1. CONFIRMACIÓN. Cerrar sesión por un clic accidental tira el trabajo a
+///     medias de cualquier formulario abierto. No hay «deshacer» posible.
+///  2. ÁREA TÁCTIL DE 48dp. El icono es de 20 y el `IconButton` por defecto
+///     de Material da 48; se fija con `constraints` explícitas para que no
+///     dependa de un default que puede cambiar. Lo vigila
+///     `test/a11y/a11y_test.dart` (tapTargetGuideline).
+///  3. ETIQUETA. Un `IconButton` sin etiqueta es un nodo pulsable anónimo para
+///     un lector de pantalla y pone roja `labeledTapTargetGuideline`. El
+///     `tooltip` de Material ya alimenta la semántica; se pone además
+///     `semanticLabel` en el icono para que la etiqueta no dependa de que el
+///     tooltip siga ahí.
+class _BotonCerrarSesion extends ConsumerWidget {
+  const _BotonCerrarSesion();
+
+  Future<void> _confirmarYSalir(BuildContext context, WidgetRef ref) async {
+    final salir = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Cerrar sesión?'),
+        content: const Text(
+          'Se cerrará tu sesión en este equipo. Si tienes un formulario a '
+          'medias, perderás lo que no hayas guardado.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: griBotonPrimario,
+            child: const Text('Cerrar sesión'),
+          ),
+        ],
+      ),
+    );
+    if (salir != true) return;
+
+    // Sin `context` a través del gap async: la redirección a /login no la
+    // hace esta pantalla, la hace el `refreshListenable` del router al ver
+    // `authStateChanges` emitir null.
+    await ref.read(loginControllerProvider.notifier).logout();
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return IconButton(
+      onPressed: () => _confirmarYSalir(context, ref),
+      tooltip: 'Cerrar sesión',
+      // 48dp EXACTOS de área táctil, escritos y no heredados.
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      icon: const Icon(
+        GriIcons.cerrarSesion,
+        size: 20,
+        color: GriColors.textoSecundarioAccesible,
+        semanticLabel: 'Cerrar sesión',
       ),
     );
   }

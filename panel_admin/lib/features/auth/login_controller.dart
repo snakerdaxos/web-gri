@@ -109,8 +109,36 @@ class LoginController extends _$LoginController {
 
   /// Cierra la sesión. authStateChanges emite null → el refreshListenable
   /// del GoRouter redirige a /login.
+  ///
+  /// ── EL `keepAlive` NO ES DEFENSIVO: SIN ÉL ESTO REVIENTA (11-34) ────────
+  ///
+  /// Este método existía desde 10-05 y nadie lo llamaba (11-34 le puso por
+  /// fin un botón, en el topbar del AppShell). Al llamarlo por primera vez
+  /// salió su defecto: en Riverpod 3 los providers son autoDispose, y quien
+  /// pulsa el botón hace `ref.read(...notifier).logout()` — un `read` NO crea
+  /// listener, así que el controlador se crea y queda planificado para
+  /// disposición inmediata. Cuando el `await signOut()` vuelve, el notifier
+  /// YA está dispuesto y `ref.invalidate(claimsProvider)` lanza:
+  ///
+  ///   «Cannot use "ref" after the provider was disposed»
+  ///
+  /// Además del error, el efecto es peor que ruidoso: `claimsProvider` NO se
+  /// invalida, así que los claims del usuario que acaba de salir siguen
+  /// cacheados. Y en el panel esto pasa SIEMPRE, no de vez en cuando: la
+  /// redirección a `/login` desmonta el shell entero mientras el `signOut`
+  /// está en vuelo.
+  ///
+  /// `keepAlive()` retiene el provider durante la operación y `link.close()`
+  /// lo devuelve a su comportamiento normal. Lo cubre el caso «RECORRIDO
+  /// COMPLETO» de `test/shared/cerrar_sesion_test.dart`, que se pone rojo si
+  /// se quita esta línea.
   Future<void> logout() async {
-    await ref.read(firebaseAuthProvider).signOut();
-    ref.invalidate(claimsProvider);
+    final link = ref.keepAlive();
+    try {
+      await ref.read(firebaseAuthProvider).signOut();
+      ref.invalidate(claimsProvider);
+    } finally {
+      link.close();
+    }
   }
 }
