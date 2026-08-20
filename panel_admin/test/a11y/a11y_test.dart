@@ -468,7 +468,16 @@ void main() {
       // Sembradas arriba: 1-3 disponibles, pares ocupadas, impares reservadas.
       expect(nombres, contains('Mesa 1, Disponible, 2 personas'));
       expect(nombres, contains('Mesa 4, Ocupada, 4 personas'));
-      expect(nombres, contains('Mesa 5, Reservada, 4 personas'));
+      // La mesa 5 está sembrada con `estado: 'reservada'` y se anuncia
+      // DISPONIBLE desde 11-34, a conciencia: el mapa ya no lee ese campo,
+      // lee las reservas del día, y este seed no tiene ninguna. Es
+      // exactamente la migración sin script — las mesas que el `crearReserva`
+      // anterior dejó marcadas se liberan solas.
+      //
+      // Que la etiqueta accesible siga el color NO es un detalle: si el tile
+      // se pintara verde y se anunciara «Reservada», el lector de pantalla
+      // diría lo contrario de lo que ve el resto de la sala.
+      expect(nombres, contains('Mesa 5, Disponible, 4 personas'));
       handle.dispose();
     });
 

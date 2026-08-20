@@ -5,10 +5,8 @@ import '../../core/async_fallo.dart';
 import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
 import '../dashboard/mesas_provider.dart';
-import '../dashboard/widgets/mesa_tile.dart';
-import 'mesa_actions_sheet.dart';
+import '../dashboard/widgets/mapa_de_mesas.dart';
 import 'mesa_form_dialog.dart';
-import '../dashboard/dashboard_screen.dart' show mesaGridDelegate;
 import '../shared/error_box.dart';
 import '../shared/responsive_page.dart';
 
@@ -80,25 +78,10 @@ class MesasScreen extends ConsumerWidget {
                         ),
                       );
                     }
-                    return GridView(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      // El MISMO delegate que el mapa del dashboard: las dos
-                      // rejillas de mesas no pueden divergir.
-                      gridDelegate: mesaGridDelegate,
-                      children: [
-                        for (final m in mesas)
-                          MesaTile(
-                            mesa: m,
-                            onTap: () => showMesaActionsSheet(
-                              context,
-                              ref,
-                              m,
-                              showEdit: true,
-                            ),
-                          ),
-                      ],
-                    );
+                    // El MISMO widget que el mapa del dashboard (11-34):
+                    // las dos rejillas comparten delegate Y regla de color,
+                    // que desde la ventana de reserva ya no es trivial.
+                    return MapaDeMesas(mesas: mesas, showEdit: true);
                   },
                 ),
               ],

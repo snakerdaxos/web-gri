@@ -49,13 +49,13 @@ Una fila por punto de uso. Las líneas son las del árbol tras 11-21.
 | 🍽️ | `features/cocina/widgets/pedido_card.dart:247` | `restaurant` | `marca` | 14 |
 | 🎉 | `features/cocina/cocina_screen.dart:139` | `celebration_outlined` | `todoAlDia` | 18 |
 | 📝 | `features/cocina/widgets/pedido_card.dart:143` | `edit_note` | `notas` | 14 |
-| 🪑 | `features/dashboard/dashboard_screen.dart:152` | `table_restaurant_outlined` | `mesas` | 25 |
-| 👥 | `features/dashboard/dashboard_screen.dart:159` | `people_outline` | `clientes` | 25 |
-| 📅 | `features/dashboard/dashboard_screen.dart:166` | `calendar_today_outlined` | `reservas` | 25 |
-| 📋 | `features/dashboard/dashboard_screen.dart:173` | `receipt_long_outlined` | `pedidos` | 25 |
-| 🏪 | `features/dashboard/dashboard_screen.dart:330` | `storefront_outlined` | `restaurante` | 34 |
-| 👇 | `features/dashboard/dashboard_screen.dart:330` | `arrow_upward` | `selectorArriba` | 34 |
-| 👥 | `features/dashboard/widgets/mesa_tile.dart:98` | `people_outline` | `clientes` | 12 |
+| 🪑 | `features/dashboard/dashboard_screen.dart:151` | `table_restaurant_outlined` | `mesas` | 25 |
+| 👥 | `features/dashboard/dashboard_screen.dart:158` | `people_outline` | `clientes` | 25 |
+| 📅 | `features/dashboard/dashboard_screen.dart:165` | `calendar_today_outlined` | `reservas` | 25 |
+| 📋 | `features/dashboard/dashboard_screen.dart:172` | `receipt_long_outlined` | `pedidos` | 25 |
+| 🏪 | `features/dashboard/dashboard_screen.dart:312` | `storefront_outlined` | `restaurante` | 34 |
+| 👇 | `features/dashboard/dashboard_screen.dart:312` | `arrow_upward` | `selectorArriba` | 34 |
+| 👥 | `features/dashboard/widgets/mesa_tile.dart:135` | `people_outline` | `clientes` | 12 |
 | 🪪 | `features/equipo/equipo_screen.dart:188` | `badge_outlined` | `equipo` | 40 |
 | 📷 | `features/mesas/mesa_actions_sheet.dart:124` | `qr_code_2` | `verQr` | 20 |
 | ✏️ | `features/mesas/mesa_actions_sheet.dart:130` | `edit_outlined` | `editar` | 20 |
@@ -65,7 +65,7 @@ Una fila por punto de uso. Las líneas son las del árbol tras 11-21.
 | 📅 | `features/reportes/reportes_screen.dart:141` | `calendar_today_outlined` | `reservas` | 14 |
 | 💵 | `features/reportes/reportes_screen.dart:255` | `payments_outlined` | `ventas` | 25 |
 | 🧾 | `features/reportes/reportes_screen.dart:263` | `receipt_outlined` | `ticket` | 25 |
-| 📅 | `features/reservas/reservas_screen.dart:110` | `calendar_today_outlined` | `reservas` | 18 |
+| 📅 | `features/reservas/reservas_screen.dart:121` | `calendar_today_outlined` | `reservas` | 18 |
 | `\u{1F9ED}` (🧭) | `features/shared/not_found_screen.dart:52` | `explore_outlined` | `rutaDesconocida` | 40 |
 | - (nuevo en 11-34) | `features/shared/app_shell.dart:664` | `logout` | `cerrarSesion` | 20 |
 

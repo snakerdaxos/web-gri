@@ -43,6 +43,64 @@ Stream<List<Reserva>> reservasHoy(Ref ref) async* {
       .map((snap) => [for (final doc in snap.docs) Reserva.fromDoc(doc)]);
 }
 
+/// Cuántos días hacia adelante se muestran en «Próximas».
+///
+/// SIETE. La pregunta que el restaurante le hace a esta pantalla es «¿qué
+/// tengo esta semana?», que es lo que decide las compras y los turnos.
+/// Ampliarlo a «todas las futuras» exigiría paginación para un dato que casi
+/// nadie mira, y acortarlo a 2-3 días deja fuera justo el fin de semana.
+const int diasDeReservasProximas = 7;
+
+/// Reservas FUTURAS del restaurante EN VIVO (11-34): desde el inicio de MAÑANA
+/// hasta [diasDeReservasProximas] días después.
+///
+/// ── EL AGUJERO QUE ESTO TAPA ──────────────────────────────────────────────
+/// `reservasHoy` acota a `fecha >= inicioHoy && fecha < inicioMañana`: hoy y
+/// solo hoy. Y hasta 11-31 el cliente únicamente podía reservar de mañana en
+/// adelante (`firstDate: mañana`). Combinando las dos cosas: **ninguna reserva
+/// había sido nunca visible para el restaurante hasta el día en que ocurría.**
+/// Un restaurante que no ve las reservas de mañana no puede planificar ni las
+/// compras ni los turnos — y la pantalla no daba ninguna pista de que hubiera
+/// algo que no estaba viendo.
+///
+/// ── SEPARADA DE `reservasHoy` A PROPÓSITO ─────────────────────────────────
+/// Podría ser una sola consulta con una ventana más ancha, pero el uso es
+/// distinto y por eso la interfaz las separa (decisión del usuario): hoy se
+/// OPERA —marcar ocupada, no-show— y mañana se PLANIFICA. Además `reservasHoy`
+/// alimenta el color del mapa de mesas, que solo puede mirar hoy; mezclarlas
+/// obligaría a re-filtrar en cada consumidor.
+///
+/// ── ÍNDICE ────────────────────────────────────────────────────────────────
+/// Ninguno nuevo. `reservas(restauranteId ASC, fecha ASC)` ya existe en
+/// `firestore.indexes.json` desde 10-01 y sirve igual a una ventana más ancha:
+/// igualdad en `restauranteId` + rango y orden en `fecha`. El `orderBy('fecha')`
+/// es explícito porque aquí el ORDEN es parte del producto (una agenda
+/// desordenada no es una agenda) y no una casualidad del rango.
+@riverpod
+Stream<List<Reserva>> reservasProximas(Ref ref) async* {
+  final db = ref.watch(firestoreProvider);
+  final rid = await ref.watch(ridActivoProvider.future);
+
+  if (rid == null) {
+    yield const <Reserva>[];
+    return;
+  }
+
+  final ahora = DateTime.now();
+  final inicioManana = DateTime(ahora.year, ahora.month, ahora.day)
+      .add(const Duration(days: 1));
+  final fin = inicioManana.add(const Duration(days: diasDeReservasProximas));
+
+  yield* db
+      .collection('reservas')
+      .where('restauranteId', isEqualTo: rid)
+      .where('fecha', isGreaterThanOrEqualTo: Timestamp.fromDate(inicioManana))
+      .where('fecha', isLessThan: Timestamp.fromDate(fin))
+      .orderBy('fecha')
+      .snapshots()
+      .map((snap) => [for (final doc in snap.docs) Reserva.fromDoc(doc)]);
+}
+
 /// 'Marcar ocupada' al llegar el cliente de una reserva: la MESA pasa a
 /// `ocupada` DESDE EL ESTADO QUE TENGA, vía [cambiarEstadoMesa] (10-05 —
 /// valida la transición ANTES del update y toca SOLO {estado, updatedAt}; las

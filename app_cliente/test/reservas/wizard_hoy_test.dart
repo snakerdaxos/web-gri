@@ -122,9 +122,12 @@ void main() {
 
   testWidgets(
       'reservar para HOY desde la UI: el doc lleva la fecha de hoy y la mesa '
-      'queda RESERVADA', (tester) async {
-    // Esta es la primera vez que la rama `esHoy` del controller se ejecuta
-    // DESDE EL PRODUCTO: hasta ahora era inalcanzable (SUMMARY 11-29).
+      'y la mesa NO se toca (11-34)', (tester) async {
+    // 11-31 escribió aquí «la primera vez que la rama `esHoy` del controller
+    // se ejecuta DESDE EL PRODUCTO». Se ejecutó, se vio lo que hacía —
+    // bloquear la mesa desde las 14:30 por una reserva de las 19:00 — y
+    // 11-34 la quitó. Este caso comprueba ahora lo contrario, desde la misma
+    // pantalla y con el mismo recorrido.
     final db = await buildFakeFirestoreConSeed();
     await tester.pumpWidget(
         _wrap(db, () => DateTime(2026, 8, 20, 14, 30), nombre: 'D'));
@@ -149,10 +152,11 @@ void main() {
     expect(docs, hasLength(1));
     expect(docs.first.data()['fechaStr'], '2026-08-20');
     expect(docs.first.data()['hora'], 19);
-    // La reserva es de HOY, así que el estado de la mesa —que describe este
-    // momento— sí se mueve.
+    // La reserva es de HOY y la mesa sigue DISPONIBLE: son las 14:30 y la
+    // reserva es de las 19:00. El bloqueo lo pinta el panel cuando entre en
+    // la ventana de −30 min, sin escribir nada.
     expect((await db.doc('mesas/GRI-MESA-demo-001').get()).data()!['estado'],
-        'reservada');
+        'disponible');
   });
 
   testWidgets(

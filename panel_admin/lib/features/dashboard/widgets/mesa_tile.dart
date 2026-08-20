@@ -15,16 +15,38 @@ import '../../../core/gri_icons.dart';
 /// de estado + QR). null = no interactivo (mantiene el comportamiento
 /// pre-08-03); el InkWell es aditivo — los tests de color no cambian.
 class MesaTile extends StatelessWidget {
-  const MesaTile({super.key, required this.mesa, this.onTap});
+  const MesaTile({
+    super.key,
+    required this.mesa,
+    this.onTap,
+    this.estadoVisual,
+    this.detalleReserva,
+  });
 
   final Mesa mesa;
 
   final VoidCallback? onTap;
 
+  /// El estado que se PINTA cuando no es el que el documento guarda (11-34).
+  ///
+  /// Desde 11-34 el amarillo de «reservada» no sale del campo `estado` sino
+  /// de cruzar las reservas del día con la hora (`bloqueo_reserva.dart`). El
+  /// parámetro es opcional y cae a `mesa.estado`: los tiles que aún no pasan
+  /// por el mapa derivado se pintan exactamente como siempre.
+  final EstadoMesa? estadoVisual;
+
+  /// Por qué está amarilla, en una línea («21:00 · 4 personas»).
+  ///
+  /// NO es adorno. La queja literal del operador sobre el mapa anterior era
+  /// que el amarillo aparecía «a veces» y no se podía deducir de dónde venía.
+  /// Un color sin causa visible es una pregunta, no una información.
+  final String? detalleReserva;
+
   @override
   Widget build(BuildContext context) {
-    final bg = mesaTileBg(mesa.estado);
-    final fg = mesaTileFg(mesa.estado);
+    final estado = estadoVisual ?? mesa.estado;
+    final bg = mesaTileBg(estado);
+    final fg = mesaTileFg(estado);
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -56,8 +78,9 @@ class MesaTile extends StatelessWidget {
         // montado.
         child: Semantics(
           button: onTap != null,
-          label: 'Mesa ${mesa.numero}, ${_estadoLabel(mesa.estado)}, '
-              '${mesa.capacidad} personas',
+          label: 'Mesa ${mesa.numero}, ${_estadoLabel(estado)}, '
+              '${mesa.capacidad} personas'
+              '${detalleReserva == null ? '' : ', reserva $detalleReserva'}',
           excludeSemantics: true,
           child: Container(
         key: ValueKey('mesa-tile-${mesa.numero}'),
@@ -83,9 +106,23 @@ class MesaTile extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              _estadoLabel(mesa.estado),
+              _estadoLabel(estado),
               style: TextStyle(fontSize: 13, color: fg),
             ),
+            if (detalleReserva != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                detalleReserva!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: fg,
+                ),
+              ),
+            ],
             const SizedBox(height: 5),
             // El '👥' iba DENTRO del texto; pasa a ser un Icon del mismo
             // tamaño (12) y del mismo color a la izquierda. `mainAxisSize.min`

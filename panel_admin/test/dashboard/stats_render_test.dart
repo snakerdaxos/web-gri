@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_panel_admin/core/firebase_providers.dart';
+import 'package:gri_panel_admin/core/reloj.dart';
 import 'package:gri_panel_admin/core/gri_icons.dart';
 import 'package:gri_panel_admin/features/dashboard/dashboard_screen.dart';
 import 'package:gri_panel_admin/features/dashboard/widgets/stat_card.dart';
@@ -55,12 +56,31 @@ const _mesasFixture = <Mesa>[
 ];
 
 /// Container de unidad con fakes + claims staff (retiene los autoDispose).
-ProviderContainer _container(FakeFirebaseFirestore db) {
+/// Las 18:00 de HOY. Es el instante por defecto de la suite y NO es
+/// arbitrario: las reservas que se siembran abajo son de las 12:00 y las
+/// 14:00, así que a las 18:00 ninguna está dentro de su ventana de −30/+30
+/// min y los contadores valen lo mismo que valían antes de 11-34.
+///
+/// SE FIJA A PROPÓSITO. Antes de 11-34 esta suite no miraba la hora, así que
+/// no le hacía falta; desde que los contadores derivan de la ventana de
+/// reserva, con el reloj real la suite se pondría roja sola si alguien la
+/// ejecutara entre las 11:30 y las 14:30 — que es exactamente el defecto que
+/// 11-31 encontró en cinco archivos. Se descubrió porque pasó: la primera
+/// pasada dio `mesasDisponibles: Expected 3, Actual 2`.
+DateTime _hoyALas18() {
+  final hoy = DateTime.now();
+  return DateTime(hoy.year, hoy.month, hoy.day, 18, 0);
+}
+
+ProviderContainer _container(FakeFirebaseFirestore db, {DateTime? ahora}) {
   final container = ProviderContainer(overrides: [
     firestoreProvider.overrideWithValue(db),
     claimsProvider.overrideWith(
       (ref) async => (role: 'admin_restaurante', rid: 'demo'),
     ),
+    // El reloj de sala, fijado. Es el único punto por el que entra la hora.
+    fabricaDeRelojProvider
+        .overrideWithValue(() => Stream.value(ahora ?? _hoyALas18())),
   ]);
   addTearDown(container.dispose);
   return container;
@@ -479,5 +499,81 @@ void main() {
     expect(find.text('Mesa 1'), findsOneWidget, reason: 'mapa de mesas del seed');
     expect(find.text('Aún no hay restaurantes en la plataforma'), findsNothing);
     expect(find.text('Selecciona un restaurante'), findsNothing);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  // LOS CONTADORES DERIVAN DE LA VENTANA DE RESERVA (11-34)
+  //
+  // «Mesas disponibles» contaba el campo `estado`, y ese campo lo escribía
+  // `crearReserva` al crear una reserva de hoy. Resultado: una mesa con
+  // reserva para dentro de cinco horas no se contaba como disponible aunque
+  // lo estuviera. Ahora el contador usa la MISMA función que pinta el mapa
+  // (`componerMapaDeMesas`), así que tablero y mapa no pueden contradecirse.
+  //
+  // Los dos casos siguientes son el par: MISMO seed, MISMA reserva, distinta
+  // hora. Lo único que cambia es el reloj.
+  // ══════════════════════════════════════════════════════════════════════
+
+  test('11-34: con la reserva LEJOS, la mesa cuenta como DISPONIBLE',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    final hoy = DateTime.now();
+    await _reserva(db, fecha: DateTime(hoy.year, hoy.month, hoy.day, 21, 0));
+
+    final container = _container(db,
+        ahora: DateTime(hoy.year, hoy.month, hoy.day, 17, 0));
+    container.listen(statsProvider, (_, _) {});
+    final stats = await container.read(statsProvider.future);
+
+    expect(stats.mesasDisponibles, 3,
+        reason: 'a cuatro horas vista la mesa está libre para quien entre');
+    expect(stats.mesasReservadas, 0);
+    expect(stats.reservasHoy, 1, reason: 'la reserva SÍ existe y se cuenta');
+  });
+
+  test('11-34: dentro de la ventana, la MISMA mesa pasa a RESERVADA',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    final hoy = DateTime.now();
+    await _reserva(db, fecha: DateTime(hoy.year, hoy.month, hoy.day, 21, 0));
+
+    final container = _container(db,
+        ahora: DateTime(hoy.year, hoy.month, hoy.day, 20, 45));
+    container.listen(statsProvider, (_, _) {});
+    final stats = await container.read(statsProvider.future);
+
+    expect(stats.mesasDisponibles, 2);
+    expect(stats.mesasReservadas, 1);
+    expect(stats.totalMesas, 3, reason: 'nadie se pierde por el camino');
+  });
+
+  test('11-34: pasada la cortesía (+31 min) el contador la libera sola',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    final hoy = DateTime.now();
+    await _reserva(db, fecha: DateTime(hoy.year, hoy.month, hoy.day, 21, 0));
+
+    final container = _container(db,
+        ahora: DateTime(hoy.year, hoy.month, hoy.day, 21, 31));
+    container.listen(statsProvider, (_, _) {});
+    final stats = await container.read(statsProvider.future);
+
+    expect(stats.mesasDisponibles, 3);
+    expect(stats.mesasReservadas, 0);
+  });
+
+  test(
+      '11-34: una mesa marcada `reservada` en el doc, SIN reserva viva, '
+      'cuenta como disponible', () async {
+    // Migración sin script de los documentos que dejó el código anterior.
+    final db = await buildFakeFirestoreConSeed();
+    await db.doc('mesas/GRI-MESA-demo-002').update({'estado': 'reservada'});
+
+    final container = _container(db);
+    container.listen(statsProvider, (_, _) {});
+    final stats = await container.read(statsProvider.future);
+
+    expect(stats.mesasDisponibles, 3);
+    expect(stats.mesasReservadas, 0);
   });
 }

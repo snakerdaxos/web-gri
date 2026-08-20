@@ -6,13 +6,12 @@ import '../../core/firebase_providers.dart';
 import '../../core/async_fallo.dart';
 import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
-import '../mesas/mesa_actions_sheet.dart';
 import 'mesas_provider.dart';
 import 'restaurante_provider.dart';
 import 'restaurantes_list_provider.dart';
 import 'stats_provider.dart';
+import 'widgets/mapa_de_mesas.dart';
 import 'widgets/mesa_legend.dart';
-import 'widgets/mesa_tile.dart';
 import 'widgets/stat_card.dart';
 import '../../core/design_tokens.dart';
 import '../shared/error_box.dart';
@@ -240,32 +239,15 @@ class DashboardScreen extends ConsumerWidget {
                             ),
                           );
                         }
-                        return GridView(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          // Grid FLUIDO (11-21): el número de columnas sale
-                          // del ancho de tile, no de un tope de 4. Con el
-                          // techo de 1200 de [ResponsivePage] el resultado es
-                          // el MISMO que el 4/3/2 de antes a todos los anchos
-                          // (verificado a 1280 y 1440 en responsive_test), y
-                          // deja de tener un máximo escrito a mano.
-                          gridDelegate: mesaGridDelegate,
-                          children: [
-                            // Mapa operacional (ADMN-04): tap → sheet con
-                            // SOLO transiciones válidas + Ver QR (la
-                            // edición vive en /mesas → showEdit false).
-                            for (final m in mesas)
-                              MesaTile(
-                                mesa: m,
-                                onTap: () => showMesaActionsSheet(
-                                  context,
-                                  ref,
-                                  m,
-                                  showEdit: false,
-                                ),
-                              ),
-                          ],
-                        );
+                        // Mapa operacional (ADMN-04): tap → sheet con SOLO
+                        // transiciones válidas + Ver QR (la edición vive en
+                        // /mesas → showEdit false).
+                        //
+                        // 11-34: la rejilla y su color viven en
+                        // [MapaDeMesas], compartido con /mesas — el color ya
+                        // no sale del campo `estado` sino de la ventana de
+                        // reserva, y las dos pantallas no pueden divergir.
+                        return MapaDeMesas(mesas: mesas, showEdit: false);
                       },
                     ),
                   ],

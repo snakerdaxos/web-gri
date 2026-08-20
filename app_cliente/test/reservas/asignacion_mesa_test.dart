@@ -22,9 +22,28 @@
 //   de la mesa describe ESTE MOMENTO.
 //
 // ── LA REGLA QUE SE DERIVA (y que estos casos custodian) ───────────────────
-// El `estado` de la mesa solo interviene cuando el slot es de HOY, porque solo
-// entonces hay algo que escribir. Para un slot futuro no se consulta ni se
-// escribe: que la mesa esté ocupada ahora no dice nada de cómo estará mañana.
+// El `estado` de la mesa solo intervenía cuando el slot era de HOY, porque
+// solo entonces había algo que escribir. Para un slot futuro no se consultaba
+// ni se escribía: que la mesa esté ocupada ahora no dice nada de cómo estará
+// mañana.
+//
+// ── 11-34: LA REGLA SE EXTIENDE A HOY, Y EL ARCHIVO CAMBIA DE VEREDICTO ────
+// 11-29 hizo el cambio MÍNIMO y dejó escrito que el modelo correcto era otro:
+// que el panel derivara el color del mapa de las reservas del día en vez de
+// depender de un campo `estado` en vivo. 11-34 lo hace, y con eso el
+// argumento de 11-29 se aplica igual a las reservas de HOY:
+//
+//   · Con el margen mínimo de 4 h (11-31) una reserva de hoy nace SIEMPRE a
+//     cuatro horas vista. Marcar la mesa al crearla la retiraba de
+//     circulación media tarde por un cliente que quizá no venga.
+//   · Que una mesa esté ocupada AHORA tampoco dice nada de cómo estará dentro
+//     de cuatro horas, así que descartarla como candidata rechazaba reservas
+//     perfectamente válidas.
+//
+// Desde 11-34, RESERVAR NO TOCA LA MESA, ni hoy ni mañana, y NINGUNA
+// candidata se descarta por su estado actual. Varios casos de este archivo
+// afirmaban lo contrario y se han INVERTIDO a conciencia: llevan la marca
+// (11-34) y dicen qué afirmaban antes.
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_cliente/features/reservas/reserva_controller.dart';
@@ -85,8 +104,15 @@ Future<ReservaException> _capturarError(Future<void> Function() accion) async {
 void main() {
   // ══ BUG A ════════════════════════════════════════════════════════════════
   group('BUG A — una mesa ocupada NO aborta la búsqueda', () {
-    test('slot de HOY: la mesa ocupada se salta y gana la siguiente candidata',
+    test(
+        'slot de HOY: la mesa ocupada AHORA ya NI SIQUIERA se descarta (11-34)',
         () async {
+      // VEREDICTO INVERTIDO. Este caso afirmaba que la mesa ocupada «se salta
+      // y gana la siguiente candidata». Saltarla era la mitad buena del
+      // arreglo de 11-29 (antes LANZABA), pero seguía siendo un descarte
+      // injustificado: el slot está a cuatro horas como mínimo y para
+      // entonces la mesa habrá terminado su servicio. Ahora gana la primera
+      // candidata por capacidad, como debe ser.
       final db = await buildFakeFirestoreConSeed();
       await db.doc(_mesa1).update({'estado': 'ocupada'});
       final slot = _slotDeHoy();
@@ -98,16 +124,16 @@ void main() {
           ahora: _hoyALas(12),
           personas: 2);
 
-      // La 001 (capacidad 2) es la primera candidata y está ocupada; antes del
-      // arreglo esto lanzaba y las otras dos no se miraban.
-      expect(reserva.mesaId, 'GRI-MESA-demo-002');
-      expect(reserva.mesaNumero, 2);
-      expect(await _estado(db, _mesa2), 'reservada');
-      // La mesa saltada no se toca: sigue ocupada por su sesión real.
+      expect(reserva.mesaId, 'GRI-MESA-demo-001');
+      expect(reserva.mesaNumero, 1);
+      // Y su estado NO se toca: la sesión que la ocupa ahora es real.
       expect(await _estado(db, _mesa1), 'ocupada');
+      // La segunda tampoco: reservar ya no escribe en ninguna mesa.
+      expect(await _estado(db, _mesa2), 'disponible');
     });
 
-    test('slot de HOY: una mesa en LIMPIEZA también se salta', () async {
+    test('slot de HOY: una mesa en LIMPIEZA tampoco se descarta (11-34)',
+        () async {
       final db = await buildFakeFirestoreConSeed();
       await db.doc(_mesa1).update({'estado': 'limpieza'});
 
@@ -118,45 +144,49 @@ void main() {
           ahora: _hoyALas(12),
           personas: 2);
 
-      expect(reserva.mesaId, 'GRI-MESA-demo-002');
+      expect(reserva.mesaId, 'GRI-MESA-demo-001');
       expect(await _estado(db, _mesa1), 'limpieza');
     });
 
     test(
-        'slot de HOY con TODAS las mesas ocupadas: el mensaje habla de ocupación, no del horario',
+        'slot de HOY con TODAS las mesas ocupadas AHORA: la reserva se acepta '
+        'igual (11-34)',
         () async {
+      // VEREDICTO INVERTIDO. Antes esto era un error con un mensaje sobre la
+      // ocupación. Pero el restaurante está lleno AHORA y la reserva es para
+      // dentro de cuatro horas por lo menos: rechazarla era negarle una mesa
+      // a alguien por el estado de un momento que no tiene nada que ver.
       final db = await buildFakeFirestoreConSeed();
       for (final m in ['001', '002', '003']) {
         await db.doc('mesas/GRI-MESA-demo-$m').update({'estado': 'ocupada'});
       }
 
-      final e = await _capturarError(() => crearReserva(db,
+      final reserva = await crearReserva(db,
           uid: 'test-uid',
           restauranteId: 'demo',
           slot: _slotDeHoy(),
           ahora: _hoyALas(12),
-          personas: 2));
+          personas: 2);
 
-      expect(
-        e.message,
-        'Todas las mesas para 2 personas están ocupadas en este momento. '
-        'Prueba más tarde o reserva para otro día.',
-      );
-      // El mensaje del bug original culpaba al horario. Nunca más por esta vía.
-      expect(e.message.toLowerCase(), isNot(contains('horario')));
-      // Y ninguna mesa se movió.
+      expect(reserva.mesaId, 'GRI-MESA-demo-001');
+      expect((await db.collection('reservas').get()).docs, hasLength(1));
+      // Y las tres mesas siguen exactamente como estaban.
       expect(await _estado(db, _mesa1), 'ocupada');
-      expect((await db.collection('reservas').get()).docs, isEmpty);
     });
 
     test(
-        'slot de HOY con causas MEZCLADAS: el mensaje cuenta las dos, sin inventar una sola',
+        'slot de HOY: lo que SÍ agota las candidatas siguen siendo las franjas '
+        'tomadas',
         () async {
+      // El descarte por ocupación desapareció; el de franja tomada NO, porque
+      // ese sí es una colisión real: dos reservas no caben en el mismo slot de
+      // la misma mesa (lo garantiza el doc ID).
       final db = await buildFakeFirestoreConSeed();
       final slot = _slotDeHoy();
       await db.doc(_mesa1).update({'estado': 'ocupada'});
-      await _tomarSlot(db, 'GRI-MESA-demo-002', slot);
-      await _tomarSlot(db, 'GRI-MESA-demo-003', slot);
+      for (final m in ['001', '002', '003']) {
+        await _tomarSlot(db, 'GRI-MESA-demo-$m', slot);
+      }
 
       final e = await _capturarError(() => crearReserva(db,
           uid: 'test-uid',
@@ -165,16 +195,15 @@ void main() {
           ahora: _hoyALas(12),
           personas: 2));
 
-      expect(
-        e.message,
-        'No queda ninguna mesa para ese horario: 2 con la franja ya reservada '
-        'y 1 ocupada en este momento.',
-      );
+      expect(e.message, 'No hay mesas disponibles en ese horario');
     });
 
-    test('las tres causas producen tres mensajes DISTINTOS', () async {
-      // Sin esto, «cuenta las dos causas» podría cumplirse con el mismo texto
-      // repetido: es la comparación que faltaba en el bug original.
+    test('las causas que QUEDAN producen mensajes DISTINTOS (11-34)',
+        () async {
+      // Eran tres. Desde 11-34 son dos —la ocupación dejó de ser un motivo de
+      // rechazo— y el caso (2) comprueba justamente eso: que ya no falla.
+      // Sin esta comparación, «cada causa su mensaje» podría cumplirse con el
+      // mismo texto repetido, que es el bug original.
       final mensajes = <String>{};
 
       // (1) todos los slots tomados
@@ -191,18 +220,17 @@ void main() {
               personas: 2)))
           .message);
 
-      // (2) todas las mesas ocupadas
+      // (2) todas las mesas ocupadas AHORA: YA NO ES UN ERROR (11-34).
       final db2 = await buildFakeFirestoreConSeed();
       for (final m in ['001', '002', '003']) {
         await db2.doc('mesas/GRI-MESA-demo-$m').update({'estado': 'ocupada'});
       }
-      mensajes.add((await _capturarError(() => crearReserva(db2,
-              uid: 'u',
-              restauranteId: 'demo',
-              slot: _slotDeHoy(),
-              ahora: _hoyALas(12),
-              personas: 2)))
-          .message);
+      await crearReserva(db2,
+          uid: 'u',
+          restauranteId: 'demo',
+          slot: _slotDeHoy(),
+          ahora: _hoyALas(12),
+          personas: 2);
 
       // (3) capacidad insuficiente
       final db3 = await buildFakeFirestoreConSeed();
@@ -214,13 +242,14 @@ void main() {
               personas: 10)))
           .message);
 
-      expect(mensajes, hasLength(3),
-          reason: 'tres causas distintas exigen tres textos distintos');
+      expect(mensajes, hasLength(2),
+          reason: 'dos causas distintas exigen dos textos distintos');
     });
   });
 
   // ══ BUG B ════════════════════════════════════════════════════════════════
-  group('BUG B — una reserva FUTURA no toca el estado de la mesa', () {
+  group('BUG B — reservar no toca el estado de la mesa (ninguna, 11-34)',
+      () {
     test('reservar para MAÑANA deja la mesa como estaba (disponible)',
         () async {
       final db = await buildFakeFirestoreConSeed();
@@ -242,9 +271,14 @@ void main() {
       );
     });
 
-    test('reservar para HOY sí pasa la mesa disponible → reservada', () async {
-      // La otra mitad del arreglo: el cambio mínimo NO puede dejar de marcar
-      // las reservas del día, que es lo que el panel pinta en el mapa.
+    test('reservar para HOY TAMPOCO toca la mesa (11-34)', () async {
+      // VEREDICTO INVERTIDO. Este caso custodiaba «el cambio mínimo no puede
+      // dejar de marcar las reservas del día, que es lo que el panel pinta en
+      // el mapa». Desde 11-34 el panel ya NO pinta ese campo: deriva el color
+      // de las reservas del día cruzadas con la hora
+      // (panel_admin/lib/features/dashboard/bloqueo_reserva.dart), así que no
+      // hay nada que marcar y marcarlo era bloquear la mesa cuatro horas
+      // antes de tiempo.
       final db = await buildFakeFirestoreConSeed();
 
       await crearReserva(db,
@@ -254,7 +288,7 @@ void main() {
           ahora: _hoyALas(12),
           personas: 2);
 
-      expect(await _estado(db, _mesa1), 'reservada');
+      expect(await _estado(db, _mesa1), 'disponible');
     });
 
     test(
@@ -297,8 +331,13 @@ void main() {
       expect(await _estado(db, _mesa1), 'reservada');
     });
 
-    test('cancelar una reserva de HOY sí revierte reservada → disponible',
+    test('cancelar una reserva de HOY tampoco toca la mesa (11-34)',
         () async {
+      // VEREDICTO INVERTIDO, y por simetría con el create: si crear no la
+      // marcó, cancelar no tiene qué desmarcar. La mesa se libera IGUAL —
+      // mejor, incluso: el mapa deriva su color de las reservas VIVAS, así
+      // que en cuanto esta pasa a `cancelada` deja de teñirla, sin una
+      // segunda escritura que pudiera fallar por separado.
       final db = await buildFakeFirestoreConSeed();
       final reserva = await crearReserva(db,
           uid: 'test-uid',
@@ -306,11 +345,18 @@ void main() {
           slot: _slotDeHoy(),
           ahora: _hoyALas(12),
           personas: 2);
-      expect(await _estado(db, _mesa1), 'reservada');
+      // Alguien la ocupa mientras tanto: es el caso que hacía peligrosa la
+      // reversión automática.
+      await db.doc(_mesa1).update({'estado': 'ocupada'});
 
       await cancelarReserva(db, uid: 'test-uid', reserva: reserva);
 
-      expect(await _estado(db, _mesa1), 'disponible');
+      expect(
+        (await db.doc('reservas/${reserva.id}').get()).data()!['estado'],
+        'cancelada',
+      );
+      expect(await _estado(db, _mesa1), 'ocupada',
+          reason: 'cancelar una reserva no puede echar a quien está comiendo');
     });
   });
 }

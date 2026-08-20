@@ -233,14 +233,29 @@ void main() {
     });
   });
 
-  // ══ LA RAMA `esHoy` YA NO ES TEÓRICA ══════════════════════════════════════
+  // ══ LA RAMA `esHoy` NO LLEGÓ A CUMPLIR UN DÍA ═════════════════════════════
   //
-  // Hasta este plan el selector empezaba MAÑANA, así que esta rama —la que
-  // marca la mesa `reservada` y la que salta las mesas ocupadas— era
-  // inalcanzable desde el producto (medido y declarado en el SUMMARY de
-  // 11-29). Con el margen de 4 h pasa a ejecutarse de verdad.
-  group('esHoy en vivo: la reserva de hoy SÍ mueve el estado de la mesa', () {
-    test('reserva de hoy: la mesa asignada queda reservada', () async {
+  // Hasta 11-31 el selector empezaba MAÑANA, así que la rama que marcaba la
+  // mesa `reservada` y saltaba las mesas ocupadas era inalcanzable desde el
+  // producto (medido y declarado en el SUMMARY de 11-29). 11-31 la puso en
+  // ejecución de verdad... y ahí se vio lo que hacía: con el margen mínimo de
+  // 4 h, marcar la mesa al crear la reserva la retira de circulación media
+  // tarde por un cliente que quizá no venga. El usuario lo describió al día
+  // siguiente y 11-34 QUITÓ LA RAMA ENTERA.
+  //
+  // Los casos de este grupo custodiaban esa rama y están INVERTIDOS a
+  // conciencia. Lo que custodian ahora es lo contrario, que es lo que el
+  // producto necesita: reservar no toca ninguna mesa y ninguna candidata se
+  // descarta por su estado de AHORA. El bloqueo lo pinta el panel derivándolo
+  // de la ventana de −30/+30 min
+  // (panel_admin/lib/features/dashboard/bloqueo_reserva.dart).
+  group('esHoy: la reserva de hoy TAMPOCO mueve el estado de la mesa (11-34)',
+      () {
+    test('reserva de hoy: la mesa asignada sigue DISPONIBLE (11-34)',
+        () async {
+      // VEREDICTO INVERTIDO. Afirmaba `reservada`. La reserva es de las 19:00
+      // y se crea a las 14:30: bloquear la mesa cuatro horas y media es
+      // exactamente lo que el usuario pidió quitar.
       final db = await buildFakeFirestoreConSeed();
 
       final r = await crearReserva(db,
@@ -251,7 +266,10 @@ void main() {
           ahora: _a(14, 30));
 
       expect(r.mesaId, 'GRI-MESA-demo-001');
-      expect(await _estado(db, 'GRI-MESA-demo-001'), 'reservada');
+      expect(await _estado(db, 'GRI-MESA-demo-001'), 'disponible');
+      // La reserva SÍ existe: lo que no existe es la escritura sobre la mesa.
+      expect((await db.doc('reservas/${r.id}').get()).data()!['estado'],
+          'confirmada');
     });
 
     test('la misma reserva pero para MAÑANA no toca ninguna mesa', () async {
@@ -267,8 +285,12 @@ void main() {
       expect(await _estado(db, 'GRI-MESA-demo-001'), 'disponible');
     });
 
-    test('mesa OCUPADA ahora: se salta y gana la siguiente (bug A, en vivo)',
+    test('mesa OCUPADA ahora: ya no se descarta, gana igual (11-34)',
         () async {
+      // VEREDICTO INVERTIDO. Ganaba la 002. La 001 está ocupada AHORA (14:30)
+      // y la reserva es para las 19:00: dentro de cuatro horas y media esa
+      // sesión habrá terminado. Descartarla rechazaba mesas perfectamente
+      // reservables.
       final db = await buildFakeFirestoreConSeed();
       await db.doc('mesas/GRI-MESA-demo-001').update({'estado': 'ocupada'});
 
@@ -279,33 +301,52 @@ void main() {
           personas: 2,
           ahora: _a(14, 30));
 
-      expect(r.mesaId, 'GRI-MESA-demo-002');
-      expect(await _estado(db, 'GRI-MESA-demo-002'), 'reservada');
-      // La ocupada no se toca: sigue con su sesión real encima.
+      expect(r.mesaId, 'GRI-MESA-demo-001');
+      // Y su estado sigue intacto: la sesión de ahora es real.
       expect(await _estado(db, 'GRI-MESA-demo-001'), 'ocupada');
+      expect(await _estado(db, 'GRI-MESA-demo-002'), 'disponible');
     });
 
-    test(
-        'TODAS ocupadas hoy: el mensaje habla de ocupación, no del margen ni '
-        'del horario', () async {
+    test('TODAS ocupadas hoy: la reserva de las 19:00 se acepta (11-34)',
+        () async {
+      // VEREDICTO INVERTIDO. Era un error con un mensaje sobre la ocupación.
+      // El restaurante está lleno a las 14:30; eso no dice nada de las 19:00.
       final db = await buildFakeFirestoreConSeed();
       for (final m in ['001', '002', '003']) {
         await db.doc('mesas/GRI-MESA-demo-$m').update({'estado': 'ocupada'});
       }
+
+      final r = await crearReserva(db,
+          uid: 'test-uid',
+          restauranteId: 'demo',
+          slot: _slotHoy(19),
+          personas: 2,
+          ahora: _a(14, 30));
+
+      expect(r.mesaId, 'GRI-MESA-demo-001');
+      expect((await db.collection('reservas').get()).docs, hasLength(1));
+    });
+
+    test('EL MARGEN SIGUE VIGENTE: 11-34 no lo tocó', () async {
+      // Canario del par de casos de arriba. Que la ocupación ya no rechace
+      // NADA no puede haberse llevado por delante el margen de 4 h de 11-31,
+      // que es la otra barrera de `crearReserva` y sí depende de la hora.
+      final db = await buildFakeFirestoreConSeed();
 
       final e = await _error(() => crearReserva(db,
           uid: 'test-uid',
           restauranteId: 'demo',
           slot: _slotHoy(19),
           personas: 2,
-          ahora: _a(14, 30)));
+          ahora: _a(18, 0)));
 
-      expect(e.message, contains('ocupadas en este momento'));
-      expect(e.message, isNot(contains('antelación')));
+      expect(e.message, contains('antelación'));
+      expect((await db.collection('reservas').get()).docs, isEmpty);
     });
 
-    test('cancelar una reserva de HOY revierte la mesa (simétrico, en vivo)',
-        () async {
+    test('cancelar una reserva de HOY tampoco toca la mesa (11-34)', () async {
+      // VEREDICTO INVERTIDO, simétrico al create: si crear no la marcó,
+      // cancelar no tiene qué desmarcar.
       final db = await buildFakeFirestoreConSeed();
       final r = await crearReserva(db,
           uid: 'test-uid',
@@ -313,10 +354,14 @@ void main() {
           slot: _slotHoy(19),
           personas: 2,
           ahora: _a(14, 30));
-      expect(await _estado(db, 'GRI-MESA-demo-001'), 'reservada');
+      expect(await _estado(db, 'GRI-MESA-demo-001'), 'disponible');
 
       await cancelarReserva(db, uid: 'test-uid', reserva: r, ahora: _a(14, 35));
 
+      expect(
+        (await db.doc('reservas/${r.id}').get()).data()!['estado'],
+        'cancelada',
+      );
       expect(await _estado(db, 'GRI-MESA-demo-001'), 'disponible');
     });
   });

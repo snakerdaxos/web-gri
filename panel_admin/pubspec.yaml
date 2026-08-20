@@ -38,6 +38,11 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # fake_async: para probar el LATIDO del reloj de sala (11-34) sin esperar 30
+  # segundos por tic. Llegaba transitivamente por flutter_test, pero
+  # `depend_on_referenced_packages` exige declararlo — y con razón: un test
+  # que depende de una transitiva se rompe cuando la cadena cambia.
+  fake_async: ^1.3.1
 
   flutter_lints: ^6.0.0
 

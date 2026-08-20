@@ -24,13 +24,21 @@ import '../../core/gri_icons.dart';
 ///   staff movió la mesa primero) se traduce a SnackBar — el stream ya
 ///   muestra la verdad.
 ///
-/// DEUDA DECLARADA (11-29): el mapa de mesas del dashboard pinta el campo
-/// `estado`, así que una reserva para MÁS TARDE HOY creada en un día anterior
-/// no tiñe la mesa de amarillo. Es correcto respecto del momento presente
-/// —la mesa está libre ahora— pero el operador pierde el aviso. El modelo
-/// correcto es que el mapa lea las reservas del día; el usuario eligió el
-/// cambio mínimo. ESTA pantalla no se ve afectada: lee la colección
-/// `reservas`, no el estado de la mesa.
+/// ── HOY Y PRÓXIMAS, SEPARADAS (11-34) ──────────────────────────────────
+/// Hasta 11-34 esta pantalla acotaba a HOY, y el cliente solo podía reservar
+/// de mañana en adelante: **ninguna reserva había sido nunca visible para el
+/// restaurante hasta el día en que ocurría.** Ahora hay dos pestañas porque el
+/// uso es distinto (decisión del usuario): en «Hoy» se OPERA —marcar ocupada,
+/// no-show— y en «Próximas» se PLANIFICA, agrupado por día. Las acciones de
+/// sala NO aparecen en «Próximas»: marcar ocupada una mesa por una reserva de
+/// pasado mañana no significa nada.
+///
+/// ── LA DEUDA DE 11-29, SALDADA ─────────────────────────────────────────
+/// El mapa del dashboard pintaba el campo `estado`, así que una reserva para
+/// más tarde HOY creada en un día anterior no teñía la mesa. Desde 11-34 el
+/// mapa DERIVA el color de las reservas del día (`bloqueo_reserva.dart`) y esa
+/// incoherencia desaparece. Esta pantalla no cambió por eso: siempre leyó la
+/// colección `reservas`, no el estado de la mesa.
 /// * 'No-show' (pendientes/confirmadas): [cancelarReservaNoShow] — la
 ///   reserva pasa a `cancelada` (staff lo permite rules).
 class ReservasScreen extends ConsumerWidget {
@@ -94,81 +102,223 @@ class ReservasScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final reservasAsync = ref.watch(reservasHoyProvider);
+    final hoyAsync = ref.watch(reservasHoyProvider);
+    final proximasAsync = ref.watch(reservasProximasProvider);
 
     return Material(
       // Material ancestor: en producción lo provee el Scaffold del AppShell;
       // standalone (tests) sin esto Flutter inyecta estilos fallback.
       color: GriColors.background,
-      child: ResponsivePage(
-        padding: const EdgeInsets.all(GriSpacing.lg),
-        builder: (context, ancho) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                const Icon(GriIcons.reservas, size: 18, color: GriColors.text),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Reservas de hoy (${DateFormat('dd/MM/yyyy').format(DateTime.now())})',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: GriColors.text,
+      child: DefaultTabController(
+        length: 2,
+        child: ResponsivePage(
+          padding: const EdgeInsets.all(GriSpacing.lg),
+          builder: (context, ancho) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(GriIcons.reservas,
+                      size: 18, color: GriColors.text),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Reservas · hoy '
+                      '${DateFormat('dd/MM/yyyy').format(DateTime.now())}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: GriColors.text,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'En vivo — al llegar el cliente marca la mesa ocupada',
-              style: TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: reservasAsync.cuandoConFallo(
-                cargando: () =>
-                    const Center(child: CircularProgressIndicator()),
-                fallo: (e) => Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        mensajeDeFallo(e, contexto: Contexto.reservas),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: GriColors.textoSecundarioAccesible),
-                      ),
-                      TextButton(
-                        onPressed: () => ref.invalidate(reservasHoyProvider),
-                        child: const Text('Reintentar'),
-                      ),
-                    ],
-                  ),
-                ),
-                datos: (reservas) => reservas.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'Sin reservas para hoy',
-                          style: TextStyle(color: GriColors.textoSecundarioAccesible),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: reservas.length,
-                        itemBuilder: (context, i) => _ReservaCard(
-                          reserva: reservas[i],
-                          onMarcarOcupada: (r) => _marcarOcupada(context, ref, r),
-                          onNoShow: (r) => _cancelarNoShow(context, ref, r),
-                        ),
-                      ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              // Las CUENTAS van en la etiqueta de la pestaña: separar las dos
+              // vistas no puede significar esconder una de las dos. El
+              // restaurante tiene que ver de un vistazo que la semana que
+              // viene hay 12 reservas aunque esté mirando las de hoy.
+              TabBar(
+                labelColor: GriColors.primary,
+                unselectedLabelColor: GriColors.textoSecundarioAccesible,
+                indicatorColor: GriColors.primary,
+                tabs: [
+                  Tab(text: 'Hoy${_sufijoCuenta(hoyAsync)}'),
+                  Tab(
+                    text: 'Próximos $diasDeReservasProximas días'
+                        '${_sufijoCuenta(proximasAsync)}',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _ListaDeReservas(
+                      estado: hoyAsync,
+                      vacio: 'Sin reservas para hoy',
+                      subtitulo: 'En vivo — al llegar el cliente marca la '
+                          'mesa ocupada',
+                      conAcciones: true,
+                      agruparPorDia: false,
+                      onReintentar: () => ref.invalidate(reservasHoyProvider),
+                      onMarcarOcupada: (r) => _marcarOcupada(context, ref, r),
+                      onNoShow: (r) => _cancelarNoShow(context, ref, r),
+                    ),
+                    _ListaDeReservas(
+                      estado: proximasAsync,
+                      vacio: 'Sin reservas en los próximos '
+                          '$diasDeReservasProximas días',
+                      subtitulo: 'Para planificar compras y turnos. Las '
+                          'acciones de sala aparecen el día de la reserva',
+                      conAcciones: false,
+                      agruparPorDia: true,
+                      onReintentar: () =>
+                          ref.invalidate(reservasProximasProvider),
+                      onMarcarOcupada: (_) {},
+                      onNoShow: (_) {},
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  /// ' (3)' cuando hay datos; NADA mientras cargan o si fallan.
+  ///
+  /// Deliberadamente no pinta un 0 ante un fallo: «Próximas (0)» leído por un
+  /// encargado significa «no hay nada la semana que viene», y eso es
+  /// exactamente lo que no sabemos si el listener se cayó. Mismo criterio que
+  /// 11-33 aplicó a las cifras de dinero.
+  static String _sufijoCuenta(AsyncValue<List<Reserva>> a) =>
+      a.error != null || !a.hasValue ? '' : ' (${a.requireValue.length})';
+}
+
+/// Una de las dos listas de la pantalla. Misma tarjeta y mismo tratamiento
+/// del fallo; cambian el texto de vacío, si hay acciones de sala y si se
+/// agrupa por día.
+class _ListaDeReservas extends StatelessWidget {
+  const _ListaDeReservas({
+    required this.estado,
+    required this.vacio,
+    required this.subtitulo,
+    required this.conAcciones,
+    required this.agruparPorDia,
+    required this.onReintentar,
+    required this.onMarcarOcupada,
+    required this.onNoShow,
+  });
+
+  final AsyncValue<List<Reserva>> estado;
+  final String vacio;
+  final String subtitulo;
+  final bool conAcciones;
+  final bool agruparPorDia;
+  final VoidCallback onReintentar;
+  final void Function(Reserva) onMarcarOcupada;
+  final void Function(Reserva) onNoShow;
+
+  static final DateFormat _dia = DateFormat('EEEE d/MM');
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          subtitulo,
+          style: const TextStyle(
+            color: GriColors.textoSecundarioAccesible,
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          // `cuandoConFallo` y NO `when` (11-33): durante los reintentos de
+          // Riverpod el estado es AsyncLoading CON el error dentro, y `when`
+          // pintaría la rama de carga durante ~38 s.
+          child: estado.cuandoConFallo(
+            cargando: () => const Center(child: CircularProgressIndicator()),
+            fallo: (e) => Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    mensajeDeFallo(e, contexto: Contexto.reservas),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: GriColors.textoSecundarioAccesible),
+                  ),
+                  TextButton(
+                    onPressed: onReintentar,
+                    child: const Text('Reintentar'),
+                  ),
+                ],
+              ),
+            ),
+            datos: (reservas) {
+              if (reservas.isEmpty) {
+                return Center(
+                  child: Text(
+                    vacio,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: GriColors.textoSecundarioAccesible),
+                  ),
+                );
+              }
+              if (!agruparPorDia) {
+                return ListView.builder(
+                  itemCount: reservas.length,
+                  itemBuilder: (context, i) => _ReservaCard(
+                    reserva: reservas[i],
+                    conAcciones: conAcciones,
+                    onMarcarOcupada: onMarcarOcupada,
+                    onNoShow: onNoShow,
+                  ),
+                );
+              }
+              // Agrupado por día: una agenda de siete días sin cabeceras es
+              // una lista de horas sueltas y no hay forma de leerla.
+              final filas = <Widget>[];
+              DateTime? diaAnterior;
+              for (final r in reservas) {
+                final dia = DateTime(r.fecha.year, r.fecha.month, r.fecha.day);
+                if (diaAnterior == null || dia != diaAnterior) {
+                  filas.add(Padding(
+                    padding: EdgeInsets.only(
+                      top: diaAnterior == null ? 0 : GriSpacing.md,
+                      bottom: GriSpacing.sm,
+                    ),
+                    child: Text(
+                      _dia.format(dia),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: GriColors.text,
+                      ),
+                    ),
+                  ));
+                  diaAnterior = dia;
+                }
+                filas.add(_ReservaCard(
+                  reserva: r,
+                  conAcciones: conAcciones,
+                  onMarcarOcupada: onMarcarOcupada,
+                  onNoShow: onNoShow,
+                ));
+              }
+              return ListView(children: filas);
+            },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -180,11 +330,18 @@ class ReservasScreen extends ConsumerWidget {
 class _ReservaCard extends StatelessWidget {
   const _ReservaCard({
     required this.reserva,
+    required this.conAcciones,
     required this.onMarcarOcupada,
     required this.onNoShow,
   });
 
   final Reserva reserva;
+
+  /// Las acciones de SALA (marcar ocupada / no-show) solo existen el día de
+  /// la reserva. En «Próximas» no significan nada: marcar ocupada una mesa
+  /// por una reserva de pasado mañana la bloquearía hoy, que es justo el bug
+  /// que 11-34 viene a quitar.
+  final bool conAcciones;
   final void Function(Reserva) onMarcarOcupada;
   final void Function(Reserva) onNoShow;
 
@@ -202,7 +359,8 @@ class _ReservaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final viva = reserva.estado == 'confirmada' || reserva.estado == 'pendiente';
+    final viva = conAcciones &&
+        (reserva.estado == 'confirmada' || reserva.estado == 'pendiente');
 
     final hora = Text(
       _hora.format(reserva.fecha),

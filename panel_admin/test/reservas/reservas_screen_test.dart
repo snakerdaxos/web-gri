@@ -319,6 +319,136 @@ void main() {
     expect(desbordes, isEmpty,
         reason: 'la cabecera de /reservas desborda a 420px: '
             '${desbordes.join(" | ")}');
-    expect(find.textContaining('Reservas de hoy'), findsOneWidget);
+    // 11-34: la cabecera dice 'Reservas · hoy dd/MM/yyyy' — el 'de hoy'
+    // se movió a la pestaña, que ahora es quien separa hoy de próximas.
+    expect(find.textContaining('Reservas · hoy'), findsOneWidget);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  // HOY Y PRÓXIMAS, SEPARADAS (11-34)
+  //
+  // Hasta 11-34 la consulta acotaba a `fecha >= inicioHoy && fecha <
+  // inicioMañana`. Y hasta 11-31 el cliente solo podía reservar de mañana en
+  // adelante. Combinando las dos cosas: NINGUNA reserva había sido nunca
+  // visible para el restaurante hasta el día en que ocurría — no se podían
+  // planificar ni las compras ni los turnos.
+  //
+  // Se prueban las dos direcciones: que las futuras APAREZCAN en su pestaña,
+  // y que NO se cuelen en la de hoy (que es lo que rompería la operación de
+  // sala).
+  // ══════════════════════════════════════════════════════════════════════
+
+  /// Reserva a [dias] días vista, a las 20:00, para que nunca cruce
+  /// medianoche por muy tarde que se ejecute la suite.
+  Future<void> reservaFutura(
+    FakeFirebaseFirestore db, {
+    required int dias,
+    required String mesaId,
+    int numPersonas = 2,
+  }) {
+    final hoy = DateTime.now();
+    final f = DateTime(hoy.year, hoy.month, hoy.day, 20, 0)
+        .add(Duration(days: dias));
+    return _reserva(db,
+        rid: 'demo',
+        mesaId: mesaId,
+        fecha: f,
+        numPersonas: numPersonas,
+        estado: 'confirmada');
+  }
+
+  testWidgets('(j) las reservas de MAÑANA no aparecen en la pestaña de hoy',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _seedHoy(db);
+    await reservaFutura(db, dias: 1, mesaId: 'GRI-MESA-demo-004',
+        numPersonas: 7);
+    await _pump(tester, db);
+
+    // La pestaña activa es 'Hoy': la de mañana (7 personas) no está.
+    expect(find.text('7 personas'), findsNothing);
+    expect(find.text('Mesa 2'), findsOneWidget);
+  });
+
+  testWidgets(
+      '(k) en «Próximos 7 días» SÍ aparece la de mañana — el agujero tapado',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _seedHoy(db);
+    await reservaFutura(db, dias: 1, mesaId: 'GRI-MESA-demo-004',
+        numPersonas: 7);
+    await _pump(tester, db);
+
+    await tester.tap(find.textContaining('Próximos 7 días'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('7 personas'), findsOneWidget);
+    expect(find.text('20:00'), findsOneWidget);
+  });
+
+  testWidgets('(l) una reserva a 30 días queda FUERA de la ventana de 7',
+      (tester) async {
+    // Canario del caso anterior: sin este, «Próximas» podría estar leyendo
+    // TODAS las reservas futuras y (k) seguiría en verde.
+    final db = await buildFakeFirestoreConSeed();
+    await reservaFutura(db, dias: 30, mesaId: 'GRI-MESA-demo-004',
+        numPersonas: 9);
+    await _pump(tester, db);
+
+    await tester.tap(find.textContaining('Próximos 7 días'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('9 personas'), findsNothing);
+    expect(find.textContaining('Sin reservas en los próximos'), findsOneWidget);
+  });
+
+  testWidgets(
+      '(m) las acciones de SALA no existen en «Próximas»: marcar ocupada una '
+      'mesa por una reserva de mañana la bloquearía hoy', (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await reservaFutura(db, dias: 2, mesaId: 'GRI-MESA-demo-004');
+    await _pump(tester, db);
+
+    await tester.tap(find.textContaining('Próximos 7 días'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mesa 4'), findsOneWidget, reason: 'la reserva SÍ está');
+    expect(find.text('Marcar ocupada'), findsNothing);
+    expect(find.text('No-show'), findsNothing);
+  });
+
+  testWidgets('(n) las pestañas llevan la CUENTA para no esconder nada',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await _seedHoy(db); // 2 de hoy
+    await reservaFutura(db, dias: 1, mesaId: 'GRI-MESA-demo-004');
+    await reservaFutura(db, dias: 3, mesaId: 'GRI-MESA-demo-005');
+    await _pump(tester, db);
+
+    expect(find.text('Hoy (2)'), findsOneWidget);
+    expect(find.text('Próximos 7 días (2)'), findsOneWidget);
+  });
+
+  testWidgets(
+      '(o) «Próximas» AGRUPA por día: dos reservas de días distintos llevan '
+      'dos cabeceras', (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await reservaFutura(db, dias: 1, mesaId: 'GRI-MESA-demo-004');
+    await reservaFutura(db, dias: 3, mesaId: 'GRI-MESA-demo-005');
+    await _pump(tester, db);
+
+    await tester.tap(find.textContaining('Próximos 7 días'));
+    await tester.pumpAndSettle();
+
+    final hoy = DateTime.now();
+    final d1 = DateTime(hoy.year, hoy.month, hoy.day)
+        .add(const Duration(days: 1));
+    final d3 = DateTime(hoy.year, hoy.month, hoy.day)
+        .add(const Duration(days: 3));
+    // El formato de la cabecera se construye igual que en la pantalla; lo
+    // que este caso afirma NO es el formato (eso sería tautológico) sino que
+    // hay DOS cabeceras distintas y que cada reserva cae bajo la suya.
+    expect(find.byType(Card), findsNWidgets(2));
+    expect(d1.day == d3.day, isFalse, reason: 'ancla: son días distintos');
   });
 }

@@ -70,10 +70,14 @@ Future<void> _sembrarReserva(
 void main() {
   // ── Servicio: cancelación con reversión condicional ───────────────────
   group('cancelarReserva', () {
-    test('cancela una de HOY y revierte la mesa (estaba reservada)', () async {
+    test('cancela una de HOY sin tocar la mesa (11-34)', () async {
+      // VEREDICTO INVERTIDO. Este caso afirmaba la reversión `reservada →
+      // disponible`, simétrica de la escritura que hacía el create. Desde
+      // 11-34 el create no escribe nada en la mesa, así que cancelar no tiene
+      // qué revertir: el mapa del panel deriva el color de las reservas VIVAS
+      // del día, y una reserva `cancelada` deja de teñir la mesa sin que
+      // nadie escriba un segundo documento.
       final db = await buildFakeFirestoreConSeed();
-      // Slot de HOY: es el caso en que el create marcó la mesa, y por tanto el
-      // único en que cancelar debe revertirla (11-29).
       final slot = _slotDeHoy();
       final reserva = await crearReserva(db,
           uid: 'test-uid',
@@ -83,7 +87,7 @@ void main() {
           personas: 2);
       expect(
         (await db.doc('mesas/GRI-MESA-demo-001').get()).data()!['estado'],
-        'reservada', // precondición: la tx de create la reservó
+        'disponible', // precondición: el create ya NO la reserva
       );
 
       await cancelarReserva(db, uid: 'test-uid', reserva: reserva);
@@ -92,7 +96,6 @@ void main() {
         (await db.doc('reservas/${reserva.id}').get()).data()!['estado'],
         'cancelada',
       );
-      // Reversión: reservada → disponible.
       expect(
         (await db.doc('mesas/GRI-MESA-demo-001').get()).data()!['estado'],
         'disponible',

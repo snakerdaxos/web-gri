@@ -4,8 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/firebase_providers.dart';
+import '../../core/reloj.dart';
 import '../../models/dashboard_stats.dart';
 import '../../models/mesa.dart';
+import '../../models/reserva.dart';
+import 'bloqueo_reserva.dart';
 import 'restaurante_provider.dart';
 
 part 'stats_provider.g.dart';
@@ -66,17 +69,38 @@ Stream<DashboardStats> stats(Ref ref) async* {
       )
       .snapshots();
 
-  yield* _combineLatest3(mesas$, reservasHoy$, pedidosActivos$).map((v) {
+  // ── EL RELOJ COMO CUARTO STREAM (11-34) ─────────────────────────────────
+  //
+  // Los contadores de mesas ya no salen del campo `estado`: salen de cruzar
+  // las reservas del día con la hora (ver `bloqueo_reserva.dart`). Eso hace
+  // que el recuento correcto CAMBIE sin que cambie ningún documento — a los
+  // +30 min de cortesía una mesa deja de estar bloqueada y ningún onSnapshot
+  // va a emitir nada, porque en Firestore no se ha movido nada.
+  //
+  // El reloj entra como un stream MÁS del combineLatest y no como un
+  // `ref.watch`: un watch reconstruiría el provider entero cada 30 s y con él
+  // volvería a suscribir las TRES consultas de Firestore. Así solo se
+  // re-emite el cálculo, con los últimos snapshots ya en memoria: cero
+  // lecturas de pago por tick.
+  final reloj$ = ref.watch(fabricaDeRelojProvider)();
+
+  yield* _combineLatest4(mesas$, reservasHoy$, pedidosActivos$, reloj$)
+      .map((v) {
     final mesas = [for (final doc in v.$1.docs) Mesa.fromDoc(doc)];
+    final reservas = [for (final doc in v.$2.docs) Reserva.fromDoc(doc)];
+    // MISMA función que pinta el mapa. Si el contador y el mapa se
+    // calcularan por separado podrían discrepar, y un tablero que se
+    // contradice a sí mismo es peor que uno que no está.
+    final conteo = contarPorEstadoVisual(componerMapaDeMesas(
+      mesas: mesas,
+      reservasDelDia: reservas,
+      ahora: v.$4,
+    ));
     return DashboardStats(
-      mesasDisponibles: mesas
-          .where((m) => m.estado == EstadoMesa.disponible)
-          .length,
-      mesasOcupadas: mesas.where((m) => m.estado == EstadoMesa.ocupada).length,
-      mesasReservadas:
-          mesas.where((m) => m.estado == EstadoMesa.reservada).length,
-      mesasLimpieza:
-          mesas.where((m) => m.estado == EstadoMesa.limpieza).length,
+      mesasDisponibles: conteo.disponibles,
+      mesasOcupadas: conteo.ocupadas,
+      mesasReservadas: conteo.reservadas,
+      mesasLimpieza: conteo.limpieza,
       totalMesas: mesas.length,
       reservasHoy: v.$2.size,
       pedidosActivos: v.$3.size,
@@ -84,63 +108,55 @@ Stream<DashboardStats> stats(Ref ref) async* {
   });
 }
 
-/// combineLatest de 3 streams sin rxdart: emite apenas TODOS tienen su
+/// combineLatest de 4 streams sin rxdart: emite apenas TODOS tienen su
 /// primer valor y re-emite con los ÚLTIMOS valores de cada stream ante
 /// cualquier cambio posterior (derivación de stats — Firestore emite el
-/// snapshot inicial inmediato al escuchar, así que la primera emisión
-/// llega con los 3). Los errores se reenvían al stream resultado.
-Stream<(A, B, C)> _combineLatest3<A, B, C>(
+/// snapshot inicial inmediato al escuchar, así que la primera emisión llega
+/// con los tres de datos; el cuarto es el reloj, que emite su primer valor
+/// sin esperar). Los errores se reenvían al stream resultado.
+///
+/// Pasó de 3 a 4 en 11-34 al entrar el reloj de sala. Se generalizó a mano y
+/// no con rxdart por la misma razón de siempre en este repo: una dependencia
+/// menos que auditar para 40 líneas que se leen enteras.
+Stream<(A, B, C, D)> _combineLatest4<A, B, C, D>(
   Stream<A> a,
   Stream<B> b,
   Stream<C> c,
+  Stream<D> d,
 ) {
-  late StreamController<(A, B, C)> controller;
+  late StreamController<(A, B, C, D)> controller;
   A? ultimoA;
   B? ultimoB;
   C? ultimoC;
+  D? ultimoD;
   var cancelado = false;
   final subs = <StreamSubscription<dynamic>>[];
 
   void emitir() {
     if (cancelado) return;
-    if (ultimoA != null && ultimoB != null && ultimoC != null) {
-      controller.add((ultimoA as A, ultimoB as B, ultimoC as C));
+    if (ultimoA != null && ultimoB != null && ultimoC != null &&
+        ultimoD != null) {
+      controller.add((ultimoA as A, ultimoB as B, ultimoC as C, ultimoD as D));
     }
   }
 
-  controller = StreamController<(A, B, C)>(
+  controller = StreamController<(A, B, C, D)>(
     // sync: la re-emisión entrega EN el evento del snapshot (no en una
     // microtask posterior) — paridad con `yield*` directo sobre
     // snapshots(): un read posterior a la escritura ya ve el valor nuevo.
     sync: true,
     onListen: () {
-      subs.add(
-        a.listen(
-          (v) {
-            ultimoA = v;
-            emitir();
-          },
-          onError: controller.addError,
-        ),
-      );
-      subs.add(
-        b.listen(
-          (v) {
-            ultimoB = v;
-            emitir();
-          },
-          onError: controller.addError,
-        ),
-      );
-      subs.add(
-        c.listen(
-          (v) {
-            ultimoC = v;
-            emitir();
-          },
-          onError: controller.addError,
-        ),
-      );
+      void enchufar<T>(Stream<T> s, void Function(T) set) {
+        subs.add(s.listen((v) {
+          set(v);
+          emitir();
+        }, onError: controller.addError));
+      }
+
+      enchufar<A>(a, (v) => ultimoA = v);
+      enchufar<B>(b, (v) => ultimoB = v);
+      enchufar<C>(c, (v) => ultimoC = v);
+      enchufar<D>(d, (v) => ultimoD = v);
     },
     onCancel: () async {
       cancelado = true;

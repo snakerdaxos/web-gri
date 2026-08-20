@@ -188,16 +188,25 @@ void main() {
       expect(msg, 'No hay mesas disponibles en ese horario');
     });
 
-    test('todas las mesas ocupadas HOY → habla de la ocupación', () async {
+    test('todas las mesas ocupadas HOY ya NO es un error (11-34)', () async {
+      // VEREDICTO INVERTIDO. Este caso comprobaba que el mensaje hablaba de
+      // la ocupación y no del horario — un arreglo correcto de 11-29 sobre
+      // una premisa que 11-34 retira: con el margen mínimo de 4 h, que el
+      // restaurante esté lleno AHORA no dice nada del slot reservado, así que
+      // no hay error del que hablar. La reserva se acepta.
       final db = await buildFakeFirestoreConSeed();
       for (final m in ['001', '002', '003']) {
         await db.doc('mesas/GRI-MESA-demo-$m').update({'estado': 'ocupada'});
       }
 
-      final msg = await _mensajeDeCreate(db, _cuerpo(_slotDeHoy()));
+      await crearReserva(db,
+          uid: 'test-uid',
+          restauranteId: 'demo',
+          slot: _slotDeHoy(),
+          personas: 2,
+          ahora: _hoyALas(12));
 
-      expect(msg, contains('ocupadas en este momento'));
-      expect(msg.toLowerCase(), isNot(contains('horario')));
+      expect((await db.collection('reservas').get()).docs, hasLength(1));
     });
 
     test('permission-denied → habla de la CUENTA, y deja traza', () async {
@@ -237,8 +246,11 @@ void main() {
       expect(msg.toLowerCase(), isNot(contains('horario')));
     });
 
-    test('las cinco situaciones producen cinco mensajes DISTINTOS', () async {
-      // La comparación que el bug no hacía: cinco causas, cinco textos.
+    test('las cuatro situaciones producen cuatro mensajes DISTINTOS (11-34)',
+        () async {
+      // La comparación que el bug no hacía. Eran cinco; desde 11-34 son
+      // cuatro, porque «todas las mesas ocupadas ahora» dejó de ser un motivo
+      // de rechazo (ver el caso de arriba).
       final mensajes = <String>{};
 
       final db1 = await buildFakeFirestoreConSeed();
@@ -253,12 +265,6 @@ void main() {
             .set({'mesaId': 'GRI-MESA-demo-$m', 'estado': 'confirmada'});
       }
       mensajes.add(await _mensajeDeCreate(db2, _cuerpo(slot2)));
-
-      final db3 = await buildFakeFirestoreConSeed();
-      for (final m in ['001', '002', '003']) {
-        await db3.doc('mesas/GRI-MESA-demo-$m').update({'estado': 'ocupada'});
-      }
-      mensajes.add(await _mensajeDeCreate(db3, _cuerpo(_slotDeHoy())));
 
       final db4 = await buildFakeFirestoreConSeed();
       final slot4 = _slotDeManana();
@@ -278,7 +284,7 @@ void main() {
       mensajes.add(await _mensajeDeCreate(db5, _cuerpo(slot5)));
       t5.restaurar();
 
-      expect(mensajes, hasLength(5));
+      expect(mensajes, hasLength(4));
       expect(mensajes, isNot(contains(_mensajeCiego)));
     });
   });

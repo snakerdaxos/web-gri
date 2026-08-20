@@ -213,13 +213,18 @@ Future<Reserva> _crearReserva(
   }
 
   final fechaStr = _fechaStr(slot);
-  final esHoy = fechaStr == _fechaStr(momento);
 
   // Motivos por los que se descartó cada candidata. Se cuentan para poder
   // decir la VERDAD si no queda ninguna: el bug original aplastaba tres
   // causas distintas en «ese horario acaba de ser reservado».
   var slotsTomados = 0;
-  var mesasOcupadas = 0;
+  // Se conserva SIEMPRE EN CERO desde 11-34 (reservar ya no descarta
+  // candidatas por el estado actual de la mesa). No se borra el parámetro de
+  // `_sinCandidata` porque su rama sigue siendo la respuesta correcta si
+  // algún día vuelve a haber un motivo de descarte «de ahora mismo», y el
+  // texto que produce está probado. Hoy el mensaje que sale es siempre el de
+  // «no hay mesas disponibles en ese horario», que es la verdad.
+  const mesasOcupadas = 0;
 
   // 2-4. Elección determinista DENTRO de la transacción.
   return db.runTransaction<Reserva>((tx) async {
@@ -231,23 +236,32 @@ Future<Reserva> _crearReserva(
       }
 
       final data = mesa.data();
-      final estadoMesa = data['estado'] as String? ?? 'disponible';
       final mesaNumero = (data['numero'] as num?)?.toInt() ?? 0;
 
-      if (esHoy) {
-        if (estadoMesa == 'disponible') {
-          validarTransicion('mesa', 'disponible', 'reservada');
-          tx.update(mesa.reference, {
-            'estado': 'reservada',
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        } else if (estadoMesa != 'reservada') {
-          // ocupada/limpieza → hoy no sirve. SE SALTA (bug A: antes lanzaba
-          // aquí y mataba la búsqueda con el resto de mesas sin mirar).
-          mesasOcupadas++;
-          continue;
-        }
-      }
+      // ── RESERVAR NO TOCA LA MESA (11-34) ───────────────────────────────
+      //
+      // Aquí había un `tx.update(mesa, {'estado': 'reservada'})` para los
+      // slots de HOY, y un guard que además SALTABA las mesas ocupadas o en
+      // limpieza. Las dos cosas se han ido, y las dos por el mismo motivo: el
+      // panel ya no pinta el mapa desde el campo `estado`, sino cruzando las
+      // reservas del día con la hora (ventana de −30/+30 min,
+      // `panel_admin/lib/features/dashboard/bloqueo_reserva.dart`).
+      //
+      // POR QUÉ ESCRIBIRLO ERA UN DEFECTO Y NO UNA OPTIMIZACIÓN:
+      //   · Con el margen mínimo de 4 h de 11-31 una reserva de hoy nace
+      //     SIEMPRE a cuatro horas vista. Marcar la mesa al crearla la
+      //     retiraba de circulación media tarde por un cliente que quizá no
+      //     venga — literalmente el problema que el usuario describió.
+      //   · Producía el par incoherente que nadie sabía explicarse: la reserva
+      //     creada hoy teñía la mesa y la creada ayer para hoy no.
+      //   · Y no había NADA que lo deshiciera si el cliente no aparecía.
+      //
+      // Saltar las mesas ocupadas era la otra cara: que una mesa esté ocupada
+      // AHORA no dice nada de cómo estará dentro de cuatro horas. Descartar
+      // candidatas por eso rechazaba reservas perfectamente válidas.
+      //
+      // La unicidad mesa+franja la sigue garantizando el doc ID
+      // `{mesaId}_{yyyyMMdd}_{HH}`, que es quien de verdad la garantizaba.
 
       final id = docIdReserva(mesa.id, slot);
       tx.set(docRef, {
@@ -368,19 +382,17 @@ Future<void> _cancelarReserva(
       'cancelada',
     );
 
-    // Reversión condicional de la mesa: solo si la reserva era de HOY (la
-    // única que llegó a marcarla) y la mesa sigue 'reservada'.
-    if (reserva.fechaStr == _fechaStr(momento)) {
-      final mesaRef = db.doc('mesas/${reserva.mesaId}');
-      final mesaSnap = await tx.get(mesaRef);
-      if (mesaSnap.exists && mesaSnap.data()?['estado'] == 'reservada') {
-        validarTransicion('mesa', 'reservada', 'disponible');
-        tx.update(mesaRef, {
-          'estado': 'disponible',
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
-    }
+    // ── CANCELAR TAMPOCO TOCA LA MESA (11-34) ─────────────────────────
+    //
+    // Aquí había una reversión condicional `reservada → disponible` para las
+    // reservas de hoy. Era la simétrica de la escritura de `crearReserva`, y
+    // desaparece con ella: si nadie marca la mesa, no hay nada que desmarcar.
+    //
+    // La mesa se libera IGUAL, y mejor: el mapa deriva su color de las
+    // reservas vivas del día, así que en cuanto esta pasa a `cancelada` deja
+    // de teñirla — sin una segunda escritura que pudiera fallar por separado
+    // y sin el riesgo que 11-29 dejó anotado (liberar una mesa que estaba
+    // reservada por OTRA reserva de esa misma tarde).
 
     tx.update(ref, {'estado': 'cancelada'});
   });
