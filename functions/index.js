@@ -29,6 +29,13 @@
 //                          claims {role, rid}. super_admin → cualquier rid;
 //                          admin_restaurante → solo su propio rid. Nadie puede
 //                          asignar super_admin.
+//   cambiarEstadoStaff   → plan 11-24. Callable. BAJA REVERSIBLE de staff:
+//                          deshabilita la cuenta, retira los claims y revoca
+//                          los refresh tokens, CONSERVANDO role y
+//                          restauranteId en el doc espejo (es lo que permite
+//                          reactivar). Nadie puede tocar a un super_admin ni
+//                          a sí mismo. No borra nada: borrar dejaría pedidos
+//                          huérfanos.
 //
 //
 // Módulos de apoyo en src/ que NO son funciones desplegadas:
@@ -36,8 +43,13 @@
 //                          autorización. Cero imports de Firebase a propósito:
 //                          así su combinatoria completa se prueba sin
 //                          emulador (functions/test/auth-matrix.test.js).
+//   baja-matrix.js       → plan 11-24. Lógica PURA de la matriz de la BAJA,
+//                          hermana de la anterior (de la que IMPORTA
+//                          ROLES_LLAMADORES en vez de duplicarlo). Su
+//                          combinatoria vive en test/baja-matrix.test.js.
 //
-// Estado: `bootstrapPlataforma` (11-07) y `crearUsuarioStaff` (11-08) exportadas.
+// Estado: `bootstrapPlataforma` (11-07), `crearUsuarioStaff` (11-08) y
+// `cambiarEstadoStaff` (11-24) exportadas.
 // ============================================================================
 
 import { initializeApp } from 'firebase-admin/app';
@@ -46,3 +58,4 @@ initializeApp();
 
 export { bootstrapPlataforma } from './src/bootstrap-plataforma.js';  // plan 11-07
 export { crearUsuarioStaff } from './src/crear-usuario-staff.js';    // plan 11-08
+export { cambiarEstadoStaff } from './src/cambiar-estado-staff.js';  // plan 11-24

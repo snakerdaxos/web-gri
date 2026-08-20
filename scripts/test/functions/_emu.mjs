@@ -168,6 +168,42 @@ export function llamarCrearStaff(data) {
   return httpsCallable(fns, 'crearUsuarioStaff')(data);
 }
 
+/** Invoca `cambiarEstadoStaff` como el panel (plan 11-24). */
+export function llamarCambiarEstado(data) {
+  return httpsCallable(fns, 'cambiarEstadoStaff')(data);
+}
+
+/**
+ * Intenta iniciar sesión y devuelve el CÓDIGO de error en vez de lanzar
+ * (plan 11-24).
+ *
+ * Existe porque la prueba de que una baja SIRVE PARA ALGO no es que el doc
+ * espejo diga `activo: false` —eso es una etiqueta— sino que esa persona ya no
+ * puede entrar. Devuelve `null` si el login tuvo éxito, que es justo el caso
+ * que el test tiene que poder distinguir.
+ */
+export async function intentarLogin(email, password) {
+  try {
+    await signInWithEmailAndPassword(getAuthCliente(appCliente), email, password);
+    return null;
+  } catch (err) {
+    return err?.code ?? String(err);
+  }
+}
+
+/**
+ * Siembra un pedido mínimo atribuido a un mesero (plan 11-24).
+ *
+ * La decisión bloqueada del usuario es desactivar y NUNCA borrar, precisamente
+ * porque borrar dejaría pedidos huérfanos y rompería los reportes de ventas por
+ * mesero. Sin un pedido sembrado no hay forma de comprobar que eso se cumple.
+ */
+export async function crearPedido(id, { rid, meseroUid, total = 25000 }) {
+  await getFirestore(appAdmin)
+    .doc(`pedidos/${id}`)
+    .set({ restauranteId: rid, meseroUid, total, estado: 'entregado' });
+}
+
 /**
  * Siembra un usuario CON claims y devuelve su uid (plan 11-08).
  *
@@ -215,7 +251,10 @@ export async function limpiar() {
   // restaurante destino exista, así que cada caso siembra el suyo y no puede
   // heredar el del anterior (heredarlo convertiría el caso `not-found` en un
   // verde por el motivo equivocado).
-  for (const col of ['usuarios', 'plataforma', 'restaurantes']) {
+  // `pedidos` se añadió en 11-24: la baja de un mesero debe dejar intactos sus
+  // pedidos, y sin limpiarlos entre casos un pedido heredado del caso anterior
+  // dejaría esa comprobación verde por el motivo equivocado.
+  for (const col of ['usuarios', 'plataforma', 'restaurantes', 'pedidos']) {
     const snap = await db.collection(col).get();
     await Promise.all(snap.docs.map((d) => d.ref.delete()));
   }
