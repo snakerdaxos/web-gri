@@ -14,6 +14,7 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gri_cliente/core/design_tokens.dart';
 import 'package:gri_cliente/core/firebase_providers.dart';
 import 'package:gri_cliente/core/theme.dart';
 import 'package:gri_cliente/features/pedidos/menu_mesa_screen.dart';
@@ -205,6 +206,17 @@ void main() {
     // Escaparate: aquí no se pide nada, así que no hay controles de carrito.
     expect(find.byIcon(Icons.add_circle_outline), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('el nombre de la CATEGORÍA manda sobre el del plato',
+      (tester) async {
+    await _pumpMenuMesa(tester);
+    final categoria = tester.widget<Text>(find.text('Platos')).style!;
+    final plato = tester.widget<Text>(find.text('Pasta')).style!;
+    expect(categoria.fontSize, GriText.tituloSeccion.fontSize);
+    expect(categoria.fontWeight, FontWeight.bold);
+    expect(categoria.fontSize! > plato.fontSize!, isTrue,
+        reason: 'una carta se lee por secciones');
   });
 
   testWidgets('las fotos se anuncian con el nombre de su plato', (tester) async {

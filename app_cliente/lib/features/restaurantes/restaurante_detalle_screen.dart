@@ -158,8 +158,11 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                   initiallyExpanded: detalle.categorias.first == categoria,
                   title: Text(
                     categoria.nombre,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
+                    // 11-30: era el peso por defecto del `ListTile` (16). El
+                    // nombre de la sección de una carta —"Entradas", "Platos
+                    // fuertes"— manda sobre los platos que la siguen; con el
+                    // mismo tamaño que el nombre de un plato, no mandaba.
+                    style: GriText.tituloSeccion.copyWith(
                       color: GriColors.text,
                     ),
                   ),
