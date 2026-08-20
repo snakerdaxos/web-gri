@@ -338,6 +338,88 @@ describe('firestore.rules — reservas', () => {
     });
   });
 
+  // --- FORMA DE LA TX TRAS 11-29 --------------------------------------------
+  //
+  // El bloque de arriba replica la transaccion TAL Y COMO ERA: get(slot) +
+  // update de la mesa + set. Desde 11-29 esa forma solo se emite cuando el
+  // slot es de HOY. Para un slot FUTURO el cliente ya no escribe la mesa: su
+  // `estado` describe este momento y una reserva para el martes que viene no
+  // puede bloquearla hoy (bug B, decision del usuario 2026-08-20).
+  //
+  // Estos casos fijan que la forma NUEVA tambien pasa las rules. No sustituyen
+  // a los de arriba: la variante con update sigue siendo la de las reservas
+  // del dia y tiene que seguir permitida.
+
+  describe('FORMA DE LA TX TRAS 11-29 — la reserva FUTURA no toca la mesa', () => {
+    it('slot FUTURO: get(slot ausente) + set, SIN update de la mesa', async () => {
+      const db = cliente(env, DUENO);
+      const ID_SLOT = 'GRI-MESA-demo-001_20300820_20';
+
+      await assertSucceeds(
+        runTransaction(db, async (tx) => {
+          const slotRef = doc(db, 'reservas', ID_SLOT);
+          const slotSnap = await tx.get(slotRef);
+          assert.equal(slotSnap.exists(), false);
+
+          tx.set(slotRef, {
+            restauranteId: RID,
+            mesaId: M_NORMAL,
+            mesaNumero: 1,
+            usuarioId: DUENO,
+            fecha: new Date('2030-08-20T20:00:00Z'),
+            fechaStr: '2030-08-20',
+            hora: 20,
+            numPersonas: 4,
+            estado: 'confirmada',
+            createdAt: AHORA,
+          });
+        }),
+      );
+
+      // La mesa quedo EXACTAMENTE como estaba: nadie la reservo por adelantado.
+      await sembrar(env, async (adminDb) => {
+        const mesa = await getDoc(doc(adminDb, 'mesas', M_NORMAL));
+        assert.equal(mesa.data().estado, 'disponible');
+      });
+    });
+
+    it('slot FUTURO sobre una mesa OCUPADA ahora mismo: las rules no lo impiden', async () => {
+      // Las rules nunca gatearon el estado de la mesa para crear la reserva
+      // (mirar `match /reservas` — solo capacidad, tenant, fecha y numPersonas).
+      // El guard que impedia esto vivia SOLO en el cliente, y era el bug A.
+      await sembrar(env, async (adminDb) => {
+        await setDoc(doc(adminDb, 'mesas', M_NORMAL), {
+          restauranteId: RID,
+          numero: 1,
+          capacidad: 4,
+          estado: 'ocupada',
+          updatedAt: AHORA,
+        });
+      });
+
+      const db = cliente(env, DUENO);
+      await assertSucceeds(
+        setDoc(doc(db, 'reservas', 'GRI-MESA-demo-001_20300821_20'), reservaValida({
+          fecha: new Date('2030-08-21T20:00:00Z'),
+        })),
+      );
+    });
+
+    it('cancelar una FUTURA sin tocar la mesa sigue permitido', async () => {
+      // Simetrico del create: si la reserva futura no reservo la mesa,
+      // cancelarla no la libera. La tx del cliente pasa a ser un solo update.
+      const db = cliente(env, DUENO);
+      await assertSucceeds(
+        runTransaction(db, async (tx) => {
+          const ref = doc(db, 'reservas', R_FUTURA);
+          const snap = await tx.get(ref);
+          assert.equal(snap.data().estado, 'confirmada');
+          tx.update(ref, { estado: 'cancelada' });
+        }),
+      );
+    });
+  });
+
   // --- create ----------------------------------------------------------------
 
   describe('create — reservar un slot futuro que quepa en la mesa', () => {
