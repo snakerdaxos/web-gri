@@ -250,6 +250,17 @@ class CocinaScreen extends ConsumerWidget {
           duration: const Duration(seconds: 3),
         ),
       );
+    } on CuentaReabiertaException catch (e) {
+      // 11-34: la carrera con el pedido de última hora. El aviso desaparece
+      // solo (`avisoCuenta` filtra `cuentaSolicitada == true`), así que la
+      // fila con el importe VIEJO se va de la lista sin que el mesero tenga
+      // que hacer nada; esto solo explica por qué.
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text('Mesa ${aviso.mesaNumero}: ${e.message}'),
+          duration: const Duration(seconds: 5),
+        ),
+      );
     } on StateError catch (e) {
       messenger?.showSnackBar(
         SnackBar(content: Text(e.message)),

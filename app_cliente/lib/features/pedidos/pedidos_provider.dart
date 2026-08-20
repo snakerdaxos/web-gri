@@ -85,6 +85,39 @@ Future<String> _crearPedido(
     final total =
         items.fold<int>(0, (suma, item) => suma + item.precio * item.cantidad);
 
+    // 3b) REABRIR LA CUENTA (11-34) — decisión del usuario 2026-08-20.
+    //
+    // EL ESTADO SIN SALIDA QUE ESTO ARREGLA, reproducido por el usuario:
+    // pidió la cuenta, después pidió un café. El café se aceptó y pasó a
+    // preparación, pero (a) no entraba en el total —solo se cobra lo
+    // `servido`—, (b) el botón de pedir la cuenta ya no volvía, porque
+    // `cuentaSolicitada` seguía en true, y (c) el mesero tenía en su lista
+    // un importe viejo. La mesa se quedaba sin manera de terminar.
+    //
+    // Un restaurante real reabre la cuenta con el café de última hora: pedir
+    // otra vez ES la señal de que la cuenta anterior ya no vale. Se apaga
+    // aquí, DENTRO de la misma transacción que crea el pedido, para que las
+    // dos cosas ocurran o no ocurra ninguna: si el pedido se rechaza, la
+    // solicitud de cuenta sigue en pie tal cual estaba.
+    //
+    // SOLO se toca si estaba encendida. Un update incondicional a `false`
+    // sería (a) una escritura por pedido que no hace falta y (b) DENEGADO
+    // por las rules, que exigen `resource.data.cuentaSolicitada == true`
+    // para poder apagarla.
+    //
+    // LAS DOS CLAVES Y NADA MÁS: la regla es
+    // `hasOnly(['cuentaSolicitada','cuentaPedidaAt'])`, así que colar aquí
+    // un `updatedAt` reventaría la transacción ENTERA con permission-denied
+    // y el pedido tampoco se crearía. `null` y no `FieldValue.delete()`: la
+    // regla acepta las dos formas (`.get('cuentaPedidaAt', null)`), pero
+    // `null` es lo que `SesionMesa.fromDoc` ya sabe leer.
+    if (sesionData['cuentaSolicitada'] == true) {
+      tx.update(db.doc('sesiones/$mesaCodigo'), <String, dynamic>{
+        'cuentaSolicitada': false,
+        'cuentaPedidaAt': null,
+      });
+    }
+
     // 4) autoId para pedidos — la unicidad del dominio vive en la sesión.
     final ref = db.collection('pedidos').doc();
     tx.set(ref, <String, dynamic>{

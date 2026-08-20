@@ -187,6 +187,26 @@ Future<void> avanzarPedidoStaff(
   });
 }
 
+/// La cuenta se REABRIÓ entre que el mesero vio el aviso y pulsó entregar
+/// (11-34): el comensal mandó otro pedido y `crearPedido` apagó
+/// `cuentaSolicitada` en la misma transacción.
+///
+/// Es un desenlace NORMAL de la operación, no un error de programa: por eso
+/// tiene su propio tipo y su propio mensaje, en vez de aplastarse contra el
+/// `StateError` de «la sesión ya no está activa», que dice justo lo
+/// contrario de lo que pasó (la sesión sigue viva, y con un plato más).
+class CuentaReabiertaException implements Exception {
+  const CuentaReabiertaException();
+
+  /// Texto para el mesero: dice QUÉ pasó y QUÉ hacer, sin jerga.
+  String get message =>
+      'La mesa pidió algo más y la cuenta se reabrió — el importe ha '
+      'cambiado. Espera a que vuelva a pedirla.';
+
+  @override
+  String toString() => message;
+}
+
 /// Entrega la cuenta de una mesa (PAGO-04 manual — el checkout en línea
 /// quedó diferido v1): en UNA transacción cierra la sesión
 /// `sesiones/{mesaId}` (activa→cerrada) y pasa la MESA ocupada→limpieza.
@@ -203,6 +223,7 @@ Future<void> avanzarPedidoStaff(
 Future<void> entregarCuenta(
   FirebaseFirestore db, {
   required String mesaId,
+  bool exigirCuentaSolicitada = true,
 }) async {
   await db.runTransaction((tx) async {
     // TODOS los gets antes de TODOS los writes (requisito de las tx de
@@ -212,6 +233,34 @@ Future<void> entregarCuenta(
 
     if (!sesionSnap.exists || sesionSnap.data()?['estado'] != 'activa') {
       throw StateError('La sesión de la mesa ya no está activa');
+    }
+
+    // ── LA CARRERA (11-34) ────────────────────────────────────────────────
+    //
+    // El mesero pulsa «entregar cuenta» EN EL MISMO INSTANTE en que el
+    // comensal manda otro pedido. Hasta 11-34 daba igual: esta función cerraba
+    // la sesión mirando SOLO `estado == 'activa'`, así que el pedido nuevo se
+    // quedaba dentro de una sesión cerrada, sin cobrar y sin poder cobrarse
+    // (la sesión no se puede reabrir: `cerrada` es terminal en las rules).
+    // La ventana es real y se abre justo cuando más se usa: el comensal pide
+    // la cuenta, ve la carta un momento más y añade un café mientras el mesero
+    // ya va hacia la mesa.
+    //
+    // La comprobación es de LECTURA-EN-LA-TX, que es lo que la hace una
+    // barrera y no un adorno: `runTransaction` reintenta —o aborta— si
+    // `sesiones/{mesaId}` cambió entre el `tx.get` y el commit, así que la
+    // reapertura escrita por `crearPedido` NO puede colarse por debajo.
+    // Comprobarlo fuera de la transacción sería exactamente la carrera que
+    // 11-29 dejó anotada para el guard de transición de mesa: validar contra
+    // un modelo local ya viejo.
+    //
+    // `exigirCuentaSolicitada` es `true` por defecto porque la acción SOLO
+    // existe en la fila del aviso, y esa fila la produce
+    // `avisoCuenta` filtrando `cuentaSolicitada == true`. Un `false` explícito
+    // queda para un cierre administrativo que no nazca del aviso.
+    if (exigirCuentaSolicitada &&
+        sesionSnap.data()?['cuentaSolicitada'] != true) {
+      throw const CuentaReabiertaException();
     }
     validarTransicion('sesion_mesa', 'activa', 'cerrada');
     tx.update(db.doc('sesiones/$mesaId'), <String, dynamic>{

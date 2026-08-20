@@ -35,6 +35,14 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
 
   /// Mirror local tras pedir la cuenta exitosamente — la visibilidad no
   /// depende solo del stream (robusto en cualquier flujo).
+  ///
+  /// ⚠️ SE APAGA CUANDO LA CUENTA SE REABRE (11-34). Este espejo era un
+  /// LATCH de una sola dirección: una vez encendido no se apagaba nunca. Con
+  /// la reapertura de la cuenta (pedir otra vez limpia `cuentaSolicitada`)
+  /// eso dejaba el botón escondido para siempre — el espejo local tapaba la
+  /// verdad del stream y el comensal seguía sin poder pedir la cuenta,
+  /// exactamente el bug que se venía a arreglar. Lo apaga el `ref.listen` de
+  /// [build] cuando el doc de sesión pasa de `true` a `false`.
   bool _cuentaYaPedida = false;
 
   Future<void> _pedirCuenta() async {
@@ -97,6 +105,24 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
     final sesionAsync = ref.watch(sesionActualProvider);
     final sesion = sesionAsync.value;
     final pedidosAsync = ref.watch(pedidosSessionProvider);
+
+    // REAPERTURA DE LA CUENTA (11-34): el doc de sesión pasó de
+    // `cuentaSolicitada: true` a `false` — lo hace `crearPedido` dentro de la
+    // transacción del pedido nuevo. Se apaga el espejo local para que el
+    // botón vuelva.
+    //
+    // La condición mira la transición COMPLETA (antes true, ahora false) y no
+    // solo «ahora false»: si mirara solo el valor actual, la primera emisión
+    // posterior a pulsar el botón —que puede llegar todavía con el valor
+    // viejo— apagaría el espejo y el botón parpadearía. Es el único motivo
+    // por el que el espejo existe.
+    ref.listen<AsyncValue<SesionMesa?>>(sesionActualProvider, (antes, ahora) {
+      final estabaPedida = antes?.value?.cuentaSolicitada ?? false;
+      final siguePedida = ahora.value?.cuentaSolicitada ?? false;
+      if (estabaPedida && !siguePedida && _cuentaYaPedida) {
+        setState(() => _cuentaYaPedida = false);
+      }
+    });
 
     final sesionCerrada = sesion != null && sesion.estado != 'activa';
 

@@ -137,4 +137,114 @@ void main() {
     expect(
         (await _doc(db, 'mesas/GRI-MESA-demo-003'))?['estado'], 'limpieza');
   });
+
+  // ══════════════════════════════════════════════════════════════════════
+  // LA CARRERA CON EL PEDIDO DE ÚLTIMA HORA (11-34)
+  //
+  // El mesero pulsa «entregar cuenta» en el MISMO instante en que el comensal
+  // manda otro pedido. Hasta 11-34 daba igual: `entregarCuenta` miraba solo
+  // `estado == 'activa'` y cerraba la sesión, dejando el pedido nuevo dentro
+  // de una sesión cerrada — sin cobrar y sin poder cobrarse nunca, porque
+  // `cerrada` es terminal en las rules.
+  //
+  // La señal de que la carrera se perdió es `cuentaSolicitada == false` con la
+  // sesión todavía activa: es exactamente lo que escribe `crearPedido` del
+  // comensal al reabrir la cuenta. La comprobación va DENTRO de la
+  // transacción, sobre el snapshot leído en ella, que es lo que la convierte
+  // en una barrera y no en un vistazo a un modelo viejo.
+  // ══════════════════════════════════════════════════════════════════════
+
+  test('(e) carrera: la cuenta se REABRIÓ → CuentaReabiertaException y NADA '
+      'se escribe', () async {
+    final db = await buildFakeFirestoreConSeed();
+    await db.doc('mesas/GRI-MESA-demo-003').update({'estado': 'ocupada'});
+    // Sesión ACTIVA pero con la bandera ya apagada: el comensal ganó.
+    await _sesion(db,
+        mesaId: 'GRI-MESA-demo-003', estado: 'activa', cuentaSolicitada: false);
+
+    await expectLater(
+      entregarCuenta(db, mesaId: 'GRI-MESA-demo-003'),
+      throwsA(isA<CuentaReabiertaException>()),
+    );
+
+    // La sesión sigue viva y la mesa ocupada: el comensal puede terminar de
+    // comer y volver a pedir la cuenta.
+    expect((await _doc(db, 'sesiones/GRI-MESA-demo-003'))?['estado'], 'activa');
+    expect((await _doc(db, 'mesas/GRI-MESA-demo-003'))?['estado'], 'ocupada');
+  });
+
+  test('(f) el mensaje de la reapertura NO se confunde con el de sesión '
+      'cerrada', () async {
+    // Los dos desenlaces son distintos y dicen cosas contrarias: en uno la
+    // sesión ya no existe, en el otro sigue viva con un plato más. Aplastarlos
+    // contra el mismo StateError mandaría al mesero a buscar el problema
+    // donde no está.
+    final db = await buildFakeFirestoreConSeed();
+    await _sesion(db,
+        mesaId: 'GRI-MESA-demo-003', estado: 'activa', cuentaSolicitada: false);
+
+    await expectLater(
+      entregarCuenta(db, mesaId: 'GRI-MESA-demo-003'),
+      throwsA(isA<CuentaReabiertaException>()
+          .having((e) => e.message, 'mensaje', contains('pidió algo más'))),
+    );
+    // Y NO es un StateError: la rama del catch de la pantalla los separa.
+    await expectLater(
+      entregarCuenta(db, mesaId: 'GRI-MESA-demo-003'),
+      throwsA(isNot(isA<StateError>())),
+    );
+  });
+
+  test('(g) el cierre administrativo sigue siendo posible con '
+      'exigirCuentaSolicitada: false', () async {
+    final db = await buildFakeFirestoreConSeed();
+    await db.doc('mesas/GRI-MESA-demo-003').update({'estado': 'ocupada'});
+    await _sesion(db,
+        mesaId: 'GRI-MESA-demo-003', estado: 'activa', cuentaSolicitada: false);
+
+    await entregarCuenta(db,
+        mesaId: 'GRI-MESA-demo-003', exigirCuentaSolicitada: false);
+
+    expect(
+        (await _doc(db, 'sesiones/GRI-MESA-demo-003'))?['estado'], 'cerrada');
+    expect((await _doc(db, 'mesas/GRI-MESA-demo-003'))?['estado'], 'limpieza');
+  });
+
+  testWidgets(
+      '(h) widget: si el comensal reabre la cuenta mientras el sheet está '
+      'abierto, el mesero recibe la explicación y la fila desaparece sola',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await db.doc('mesas/GRI-MESA-demo-003').update({'estado': 'ocupada'});
+    await _sesion(db,
+        mesaId: 'GRI-MESA-demo-003', estado: 'activa', cuentaSolicitada: true);
+
+    await tester.pumpWidget(_cocina(db));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('1 mesa pidió la cuenta'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mesa 3'), findsOneWidget);
+
+    // ── El comensal manda un café: la bandera se apaga (esto es lo que hace
+    //    `crearPedido` en app_cliente, dentro de su transacción).
+    await db.doc('sesiones/GRI-MESA-demo-003').update({
+      'cuentaSolicitada': false,
+      'cuentaPedidaAt': null,
+    });
+    await tester.pumpAndSettle();
+
+    // El mesero pulsa igualmente (tenía el sheet abierto desde antes).
+    await tester.tap(find.text('Mesa 3'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('la cuenta se reabrió'), findsOneWidget);
+    expect(find.textContaining('cuenta entregada'), findsNothing);
+
+    // La sesión sigue viva: el comensal no se ha quedado sin poder pagar.
+    expect((await _doc(db, 'sesiones/GRI-MESA-demo-003'))?['estado'], 'activa');
+    expect((await _doc(db, 'mesas/GRI-MESA-demo-003'))?['estado'], 'ocupada');
+    // Y el aviso ya no está: el badge lo quita `avisoCuenta` por sí solo.
+    expect(find.text('1 mesa pidió la cuenta'), findsNothing);
+  });
 }
