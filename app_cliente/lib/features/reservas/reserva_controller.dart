@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/firebase_error_mapper.dart';
 import '../../core/firebase_providers.dart';
 import '../../core/state_machines.dart';
 import '../../core/tx_mutex.dart';
@@ -296,9 +298,24 @@ class ReservaController extends _$ReservaController {
   @override
   FutureOr<void> build() {}
 
-  /// Crea la reserva (asignación automática de mesa). Mapea los errores
-  /// del dominio a los mismos textos user-friendly de la era dio
-  /// (threat 6: jamás un stack trace o detail crudo).
+  /// Crea la reserva (asignación automática de mesa).
+  ///
+  /// ── BUG C, ARREGLADO EN 11-29 ─────────────────────────────────────────
+  /// Aquí había esto:
+  ///
+  ///     } on ReservaException {
+  ///       // 409-equivalentes del port (capacidad/slot tomado/estado mesa).
+  ///       throw const ReservaException('Ese horario acaba de ser reservado,
+  ///           elige otro');
+  ///
+  /// El comentario enumera TRES causas y elige el texto de UNA — falso para
+  /// las otras dos. Y `crearReserva` YA lanzaba el mensaje correcto: este
+  /// `catch` lo tiraba. El usuario lo sufrió reservando para una fecha futura
+  /// en una base con cero reservas.
+  ///
+  /// Ahora: el error de DOMINIO sube tal cual (ya trae la causa), y lo que no
+  /// es de dominio se clasifica con el mapeador único de 11-23. Sigue sin
+  /// salir jamás un stack trace ni un `detail` crudo (threat 6).
   Future<Reserva> create(ReservaCreate body) async {
     final db = ref.read(firestoreProvider);
     final uid = ref.read(firebaseAuthProvider).currentUser?.uid;
@@ -316,15 +333,19 @@ class ReservaController extends _$ReservaController {
           slot: slot,
           personas: body.numPersonas);
     } on ReservaException {
-      // 409-equivalentes del port (capacidad/slot tomado/estado mesa).
-      throw const ReservaException('Ese horario acaba de ser reservado, '
-          'elige otro');
+      rethrow; // ya trae la causa REAL redactada por el dominio
     } on TransicionInvalidaException {
-      throw const ReservaException('Ese horario acaba de ser reservado, '
-          'elige otro');
-    } catch (_) {
-      throw const ReservaException('No se pudo crear la reserva. '
-          'Intenta de nuevo');
+      // La mesa se movió entre la lectura y la escritura de la tx: no es que
+      // el horario esté tomado.
+      throw ReservaException(mensajeDe(CausaFallo.noDisponible,
+          contexto: Contexto.crearReserva));
+    } catch (e) {
+      // Antes: `catch (_)` MUDO (deuda que 11-23 dejó anotada). Un
+      // permission-denied o un backend caído salían por el mismo texto y sin
+      // dejar rastro para depurar.
+      debugPrint('crearReserva falló [${clasificarFallo(e)}]: $e');
+      throw ReservaException(
+          mensajeDeFallo(e, contexto: Contexto.crearReserva));
     } finally {
       state = const AsyncData<void>(null);
     }
@@ -344,9 +365,14 @@ class ReservaController extends _$ReservaController {
     } on ReservaException {
       rethrow; // ya trae mensaje user-friendly del dominio
     } on TransicionInvalidaException {
-      throw const ReservaException('La reserva ya estaba cancelada');
-    } catch (_) {
-      throw const ReservaException('No se pudo cancelar la reserva');
+      // 'cancelada' es terminal: la única transición que falla aquí es la
+      // doble cancelación.
+      throw ReservaException(mensajeDe(CausaFallo.noDisponible,
+          contexto: Contexto.cancelarReserva));
+    } catch (e) {
+      debugPrint('cancelarReserva falló [${clasificarFallo(e)}]: $e');
+      throw ReservaException(
+          mensajeDeFallo(e, contexto: Contexto.cancelarReserva));
     } finally {
       state = const AsyncData<void>(null);
     }

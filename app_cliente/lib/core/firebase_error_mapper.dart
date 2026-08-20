@@ -93,6 +93,15 @@ enum Contexto {
 
   /// Calificar un pedido ya servido.
   calificar,
+
+  /// Crear una reserva (asignación automática de mesa). AÑADIDO EN 11-29: el
+  /// `catch` de `ReservaController.create` aplastaba capacidad, slot tomado y
+  /// estado de mesa en «Ese horario acaba de ser reservado, elige otro»,
+  /// que además era FALSO para dos de las tres.
+  crearReserva,
+
+  /// Cancelar una reserva propia (11-29).
+  cancelarReserva,
 }
 
 /// Clasifica un fallo crudo en su [CausaFallo].
@@ -190,6 +199,11 @@ String mensajeDe(CausaFallo causa, {required Contexto contexto}) {
               'escanear el QR de la mesa.';
         case Contexto.calificar:
           return 'Los datos de la calificación no tienen el formato esperado.';
+        case Contexto.crearReserva:
+          return 'Los datos de la reserva no tienen el formato esperado. '
+              'Vuelve a elegir fecha, hora y número de personas.';
+        case Contexto.cancelarReserva:
+          return 'Los datos de esa reserva no tienen el formato esperado.';
       }
 
     case CausaFallo.noEncontrado:
@@ -205,6 +219,11 @@ String mensajeDe(CausaFallo causa, {required Contexto contexto}) {
               'de la mesa.';
         case Contexto.calificar:
           return 'Ese pedido ya no existe.';
+        case Contexto.crearReserva:
+          return 'Ese restaurante ya no admite reservas. Puede que lo hayan '
+              'dado de baja.';
+        case Contexto.cancelarReserva:
+          return 'Esa reserva ya no existe.';
       }
 
     case CausaFallo.noDisponible:
@@ -221,6 +240,13 @@ String mensajeDe(CausaFallo causa, {required Contexto contexto}) {
               'momento.';
         case Contexto.calificar:
           return 'Ese pedido todavía no se puede calificar.';
+        case Contexto.crearReserva:
+          // La mesa se movió MIENTRAS reservábamos (otro staff la ocupó entre
+          // la lectura y la escritura). No es «el horario está tomado».
+          return 'La mesa cambió de estado mientras hacíamos la reserva. '
+              'Vuelve a intentarlo.';
+        case Contexto.cancelarReserva:
+          return 'Esa reserva ya estaba cancelada.';
       }
 
     case CausaFallo.permisoDenegado:
@@ -239,6 +265,12 @@ String mensajeDe(CausaFallo causa, {required Contexto contexto}) {
         case Contexto.calificar:
           return 'Tu cuenta no puede calificar este pedido. Solo lo califica '
               'la cuenta de cliente que lo pidió.';
+        case Contexto.crearReserva:
+          return 'Tu cuenta no puede reservar mesas. Entra con una cuenta de '
+              'cliente para reservar.';
+        case Contexto.cancelarReserva:
+          return 'Tu cuenta no puede cancelar esta reserva. Entra con la '
+              'cuenta de cliente con la que se hizo.';
       }
 
     case CausaFallo.sinConexion:
@@ -256,6 +288,12 @@ String mensajeDe(CausaFallo causa, {required Contexto contexto}) {
         case Contexto.calificar:
           base = 'No pudimos conectar con el servidor para enviar tu '
               'calificación. Revisa tu conexión e inténtalo de nuevo.';
+        case Contexto.crearReserva:
+          base = 'No pudimos conectar con el servidor para crear tu reserva. '
+              'Revisa tu conexión e inténtalo de nuevo.';
+        case Contexto.cancelarReserva:
+          base = 'No pudimos conectar con el servidor para cancelar tu '
+              'reserva. Revisa tu conexión e inténtalo de nuevo.';
       }
       // Rama podada en producción: `usandoEmuladores` es una constante de
       // compilación (ver su doc).
@@ -277,6 +315,12 @@ String mensajeDe(CausaFallo causa, {required Contexto contexto}) {
         case Contexto.calificar:
           return 'No pudimos enviar tu calificación. Vuelve a intentarlo más '
               'tarde.';
+        case Contexto.crearReserva:
+          return 'No pudimos crear la reserva. Vuelve a intentarlo; si sigue '
+              'igual, llama al restaurante.';
+        case Contexto.cancelarReserva:
+          return 'No pudimos cancelar la reserva. Vuelve a intentarlo; si '
+              'sigue igual, llama al restaurante.';
       }
   }
 }
