@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/firebase_providers.dart';
+import '../../core/gri_icons.dart';
 import '../../core/password_policy.dart';
 import '../../core/theme.dart';
 import '../dashboard/restaurante_provider.dart';
@@ -176,6 +177,36 @@ class _StaffFormDialogState extends ConsumerState<StaffFormDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // El aviso de indisponibilidad se REPITE aqui (11-26). El
+                // dialogo es modal y tapa la pantalla: sin esto, quien lo abre
+                // rellena cuatro campos sin volver a ver el aviso y solo se
+                // entera al pulsar "Crear usuario" — que es el "error despues
+                // de pulsar" que este plan vino a evitar. MISMA constante que
+                // la pantalla y que el mensaje de error: no pueden divergir.
+                const Padding(
+                  key: Key('staff-aviso-sin-funciones'),
+                  padding: EdgeInsets.only(bottom: 14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        GriIcons.aviso,
+                        size: 13,
+                        color: GriColors.advertencia,
+                      ),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          mensajeGestionPersonalNoDisponible,
+                          style: TextStyle(
+                            color: GriColors.textoSecundarioAccesible,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 TextFormField(
                   key: const Key('staff-nombre'),
                   controller: _nombreCtrl,

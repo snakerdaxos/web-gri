@@ -336,6 +336,28 @@ void main() {
       expect(find.textContaining('Ese usuario ya no existe'), findsNothing);
     });
 
+    testWidgets('el formulario de alta REPITE el aviso, no lo pierde de vista',
+        (tester) async {
+      // [Regla 2] El plan solo pedía el aviso en la pantalla. Pero «Nuevo
+      // usuario» abre un diálogo MODAL que tapa esa pantalla: quien lo abre
+      // rellena cuatro campos sin volver a ver el aviso y solo se entera al
+      // pulsar «Crear usuario» — que es exactamente el «error después de
+      // pulsar» que este plan vino a evitar. El aviso se repite dentro, con la
+      // MISMA constante.
+      await _montar(tester, _container());
+
+      await tester.tap(find.byKey(const Key('equipo-nuevo')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('staff-aviso-sin-funciones')), findsOneWidget);
+      expect(find.text(mensajeGestionPersonalNoDisponible), findsWidgets);
+      // El botón de envío SIGUE habilitado: el día del despliegue no hay que
+      // tocar nada aquí tampoco.
+      final guardar = find.byKey(const Key('staff-guardar'));
+      expect(guardar, findsOneWidget);
+      expect(tester.widget<ElevatedButton>(guardar).onPressed, isNotNull);
+    });
+
     testWidgets('el alta con la callable ausente muestra el mismo mensaje',
         (tester) async {
       final accion = _container(
