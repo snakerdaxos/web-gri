@@ -58,11 +58,36 @@ String _fechaStr(DateTime d) =>
 ///    contendientes del mismo slot leen el mismo doc → Firestore serializa.
 ///    PROHIBIDO "query luego create con autoId" (la query no bloquea docs
 ///    futuros).
-/// 3. `validarTransicion('mesa', ...)`: disponible→reservada aplica la
-///    máquina; ya-reservada se tolera (idempotente); ocupada/limpieza lanza.
+/// 3. El `estado` de la mesa SOLO interviene si el slot es de HOY (bug B,
+///    ver abajo): disponible→reservada aplica la máquina; ya-reservada se
+///    tolera (idempotente); ocupada/limpieza SALTA a la siguiente candidata.
 /// 4. `tx.set` reserva confirmada (auto-confirm) + `tx.update` de la mesa
-///    SOLO si estaba disponible.
-/// 5. Sin candidata libre → [ReservaException] controlado.
+///    SOLO si el slot es de hoy y la mesa estaba disponible.
+/// 5. Sin candidata libre → [ReservaException] controlado, con el motivo
+///    REAL por el que se agotaron las candidatas.
+///
+/// ── LOS DOS BUGS QUE ESTA FUNCIÓN TENÍA (11-29) ─────────────────────────
+///
+/// **BUG A — una mesa ocupada abortaba la búsqueda entera.** El bucle era
+/// incoherente: un SLOT tomado hacía `continue`, pero una MESA ocupada
+/// LANZABA. Con `GRI-MESA-demo-001` ocupada (primera candidata para 2
+/// personas) no se podía reservar aunque hubiera ocho mesas libres detrás.
+/// Ahora se salta y solo se falla cuando se han examinado TODAS.
+///
+/// **BUG B — reservar para el futuro bloqueaba la mesa hoy.** El
+/// `tx.update(mesa, {'estado': 'reservada'})` corría fuera cual fuera la
+/// fecha del slot, así que una reserva para el martes que viene marcaba la
+/// mesa reservada AHORA y la quitaba de la circulación. El `estado` de la
+/// mesa describe ESTE momento: solo lo toca una reserva de HOY.
+///
+/// De ahí se sigue lo demás: si para un slot futuro no se escribe el
+/// estado, tampoco hay que consultarlo — el guard existía solo para
+/// proteger esa escritura. Que la mesa esté ocupada ahora no dice nada de
+/// cómo estará mañana, y la unicidad mesa+slot ya la garantiza el doc ID.
+///
+/// DEUDA DECLARADA (decisión del usuario, 2026-08-20): el modelo correcto es
+/// que el mapa de mesas del panel lea las reservas del día en vez de depender
+/// de un campo `estado` en vivo. Aquí se hace el cambio MÍNIMO.
 Future<Reserva> crearReserva(
   FirebaseFirestore db, {
   required String uid,
@@ -96,28 +121,40 @@ Future<Reserva> _crearReserva(
   }
 
   final fechaStr = _fechaStr(slot);
+  final esHoy = fechaStr == _fechaStr(DateTime.now());
+
+  // Motivos por los que se descartó cada candidata. Se cuentan para poder
+  // decir la VERDAD si no queda ninguna: el bug original aplastaba tres
+  // causas distintas en «ese horario acaba de ser reservado».
+  var slotsTomados = 0;
+  var mesasOcupadas = 0;
 
   // 2-4. Elección determinista DENTRO de la transacción.
   return db.runTransaction<Reserva>((tx) async {
     for (final mesa in candidatas) {
       final docRef = db.doc('reservas/${docIdReserva(mesa.id, slot)}');
-      if ((await tx.get(docRef)).exists) continue; // slot tomado
+      if ((await tx.get(docRef)).exists) {
+        slotsTomados++;
+        continue; // slot tomado
+      }
 
       final data = mesa.data();
       final estadoMesa = data['estado'] as String? ?? 'disponible';
       final mesaNumero = (data['numero'] as num?)?.toInt() ?? 0;
 
-      if (estadoMesa == 'disponible') {
-        validarTransicion('mesa', 'disponible', 'reservada');
-        tx.update(mesa.reference, {
-          'estado': 'reservada',
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } else if (estadoMesa != 'reservada') {
-        // ocupada/limpieza → no se puede reservar (port paso 5).
-        throw ReservaException(
-          'La mesa $mesaNumero no está disponible para reserva',
-        );
+      if (esHoy) {
+        if (estadoMesa == 'disponible') {
+          validarTransicion('mesa', 'disponible', 'reservada');
+          tx.update(mesa.reference, {
+            'estado': 'reservada',
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } else if (estadoMesa != 'reservada') {
+          // ocupada/limpieza → hoy no sirve. SE SALTA (bug A: antes lanzaba
+          // aquí y mataba la búsqueda con el resto de mesas sin mirar).
+          mesasOcupadas++;
+          continue;
+        }
       }
 
       final id = docIdReserva(mesa.id, slot);
@@ -146,9 +183,43 @@ Future<Reserva> _crearReserva(
         estado: 'confirmada',
       );
     }
-    // 5. Todas las candidatas tienen el slot tomado.
-    throw const ReservaException('No hay mesas disponibles en ese horario');
+    // 5. Se examinaron TODAS las candidatas y ninguna sirve. El mensaje dice
+    //    por qué de verdad (bug C: antes se descartaba aquí la causa).
+    throw ReservaException(_sinCandidata(
+      slotsTomados: slotsTomados,
+      mesasOcupadas: mesasOcupadas,
+      personas: personas,
+    ));
   });
+}
+
+/// Redacta el fallo de la asignación automática CON su causa.
+///
+/// Tres situaciones distintas que el bug original resumía en una sola frase
+/// —y la que elegía era falsa en dos de los tres casos:
+///
+/// * solo slots tomados  → es un problema de HORARIO (elige otra hora);
+/// * solo mesas ocupadas → es un problema de AHORA MISMO (espera o cambia de
+///   día); solo puede pasar reservando para hoy;
+/// * las dos            → se dicen las dos, con sus cifras.
+String _sinCandidata({
+  required int slotsTomados,
+  required int mesasOcupadas,
+  required int personas,
+}) {
+  final comensales = personas == 1 ? '1 persona' : '$personas personas';
+  if (mesasOcupadas == 0) {
+    // Texto histórico, correcto para esta causa: no se toca.
+    return 'No hay mesas disponibles en ese horario';
+  }
+  if (slotsTomados == 0) {
+    return 'Todas las mesas para $comensales están ocupadas en este momento. '
+        'Prueba más tarde o reserva para otro día.';
+  }
+  final ocupadas =
+      mesasOcupadas == 1 ? '1 ocupada' : '$mesasOcupadas ocupadas';
+  return 'No queda ninguna mesa para ese horario: $slotsTomados con la franja '
+      'ya reservada y $ocupadas en este momento.';
 }
 
 /// Port de `cancelar_reserva`: cancela una reserva futura propia.
@@ -157,8 +228,14 @@ Future<Reserva> _crearReserva(
 /// rules re-validan server-side, el cliente nunca es fuente de verdad).
 /// Luego en transacción: `validarTransicion('reserva', confirmada →
 /// cancelada)` (cancelada es terminal → doble cancelación lanza) y
-/// reversión de la mesa SOLO si estaba 'reservada' (si fue promovida a
-/// ocupada/limpieza NO se toca — Pitfall 4, paridad Phase 5).
+/// reversión de la mesa SOLO si la reserva era de HOY y la mesa estaba
+/// 'reservada' (si fue promovida a ocupada/limpieza NO se toca — Pitfall 4,
+/// paridad Phase 5).
+///
+/// **La condición «de hoy» es la simétrica del bug B (11-29).** Si crear una
+/// reserva futura no marca la mesa, cancelarla no puede desmarcarla: la mesa
+/// puede estar 'reservada' por OTRA reserva, la de esta tarde, y liberarla
+/// aquí la borraría del mapa del panel.
 Future<void> cancelarReserva(
   FirebaseFirestore db, {
   required String uid,
@@ -192,15 +269,18 @@ Future<void> _cancelarReserva(
       'cancelada',
     );
 
-    // Reversión condicional de la mesa (solo si estaba reservada).
-    final mesaRef = db.doc('mesas/${reserva.mesaId}');
-    final mesaSnap = await tx.get(mesaRef);
-    if (mesaSnap.exists && mesaSnap.data()?['estado'] == 'reservada') {
-      validarTransicion('mesa', 'reservada', 'disponible');
-      tx.update(mesaRef, {
-        'estado': 'disponible',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+    // Reversión condicional de la mesa: solo si la reserva era de HOY (la
+    // única que llegó a marcarla) y la mesa sigue 'reservada'.
+    if (reserva.fechaStr == _fechaStr(DateTime.now())) {
+      final mesaRef = db.doc('mesas/${reserva.mesaId}');
+      final mesaSnap = await tx.get(mesaRef);
+      if (mesaSnap.exists && mesaSnap.data()?['estado'] == 'reservada') {
+        validarTransicion('mesa', 'reservada', 'disponible');
+        tx.update(mesaRef, {
+          'estado': 'disponible',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
     }
 
     tx.update(ref, {'estado': 'cancelada'});
