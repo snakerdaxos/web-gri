@@ -373,6 +373,107 @@ describe('crearUsuarioStaff — e2e contra emuladores reales', () => {
     );
   });
 
+  // --------------------------------------------------------------------------
+  // 11-22 · La POLÍTICA de contraseñas también vive en el servidor
+  // --------------------------------------------------------------------------
+  // Estos dos casos son la prueba de T-11-22-01: la validación del formulario
+  // del panel es UX y se salta invocando la callable directamente, que es
+  // exactamente lo que hacen estos tests. Si la política solo estuviera en
+  // Flutter, los dos pasarían con ÉXITO y `12345678` quedaría en Auth.
+  //
+  // Además de comprobar el código de error se comprueba que NO QUEDA CUENTA en
+  // Auth: un rechazo que llegara después de `createUser` dejaría al usuario
+  // creado con una contraseña que la política prohíbe, y el test seguiría verde
+  // mirando solo el código.
+
+  it('POLÍTICA · 12345678 → invalid-argument y NO se crea la cuenta en Auth', async () => {
+    await crearUsuarioConClaims({
+      email: ADMIN_DEMO,
+      password: PASSWORD,
+      claims: { role: 'admin_restaurante', rid: 'demo' },
+    });
+    await login(ADMIN_DEMO, PASSWORD);
+
+    const objetivo = 'solo.digitos@demo.gri.dev';
+    const err = await esperarCodigo(
+      llamarCrearStaff({
+        email: objetivo,
+        password: '12345678',
+        nombre: 'Solo Dígitos',
+        rol: 'mesero',
+        restauranteId: 'demo',
+      }),
+      'functions/invalid-argument',
+      'la política del cliente NO se puede saltar llamando a la función',
+    );
+
+    // El mensaje del servidor dice QUÉ falta: el panel lo muestra tal cual.
+    assert.match(err.message, /mayúscula/);
+    assert.match(err.message, /minúscula/);
+
+    await assert.rejects(
+      () => adminAuth.getUserByEmail(objetivo),
+      (e) => e.code === 'auth/user-not-found',
+      'la validación tiene que correr ANTES de tocar Auth',
+    );
+  });
+
+  it('POLÍTICA · 7 caracteres CON los tres tipos → invalid-argument por longitud', async () => {
+    // Aísla el borde: `Abcdef1` cumple mayúscula, minúscula y dígito, así que
+    // lo único que puede rechazarlo es la longitud. El caso preexistente usa
+    // `Ab!2345`, que también los cumple, pero este deja el borde explícito
+    // junto al resto de la política.
+    await crearUsuarioConClaims({
+      email: ADMIN_DEMO,
+      password: PASSWORD,
+      claims: { role: 'admin_restaurante', rid: 'demo' },
+    });
+    await login(ADMIN_DEMO, PASSWORD);
+
+    const objetivo = 'siete@demo.gri.dev';
+    const err = await esperarCodigo(
+      llamarCrearStaff({
+        email: objetivo,
+        password: 'Abcdef1',
+        nombre: 'Siete Justos',
+        rol: 'mesero',
+        restauranteId: 'demo',
+      }),
+      'functions/invalid-argument',
+      'siete caracteres no bastan aunque la composición sea correcta',
+    );
+    assert.match(err.message, /8 caracteres/);
+
+    await assert.rejects(
+      () => adminAuth.getUserByEmail(objetivo),
+      (e) => e.code === 'auth/user-not-found',
+    );
+  });
+
+  it('POLÍTICA · una contraseña que CUMPLE sigue creando el usuario', async () => {
+    // Contrapeso: sin él, una validación que rechazara SIEMPRE dejaría los dos
+    // casos de arriba en verde y el alta rota sin que nadie se enterara.
+    await crearUsuarioConClaims({
+      email: ADMIN_DEMO,
+      password: PASSWORD,
+      claims: { role: 'admin_restaurante', rid: 'demo' },
+    });
+    await login(ADMIN_DEMO, PASSWORD);
+
+    const objetivo = 'valida@demo.gri.dev';
+    const res = await llamarCrearStaff({
+      email: objetivo,
+      password: 'Abcdefg1', // exactamente 8, los tres tipos
+      nombre: 'Justo Ocho',
+      rol: 'mesero',
+      restauranteId: 'demo',
+    });
+
+    assert.equal(res.data.creado, true);
+    const creado = await adminAuth.getUserByEmail(objetivo);
+    assert.equal(creado.uid, res.data.uid);
+  });
+
   // ==========================================================================
   // Idempotencia (mitigación de la no-atomicidad Auth/Firestore)
   // ==========================================================================
