@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 16/21 planes [################-----] 76%
+Phase 11: 18/25 planes [##################-------] 72%  (denominador corregido: `roadmap.update-plan-progress 11` cuenta 25 planes y 18 SUMMARY en disco; el 21 anterior venia arrastrado)
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -48,7 +48,8 @@ Phase 11: 16/21 planes [################-----] 76%
 - [x] 11-19 Tokens en la app cliente: los 20 hex crudos de 6 pantallas a GriColors (el ambar estaba 9 veces, el degradado copiado en 4) + 34 TextStyle a GriText + 103 espaciados a GriSpacing; resuelto el TODO(11-19) de 11-17. MEDIDO con sonda que el criterio del plan para migrar a textTheme NO es pixel-neutral (bodySmall trae letterSpacing 0.4/height 1.33 frente al 0.25/1.43 heredado: 12px pasaria de 257.3x17 a 260.4x16); solo bodyMedium lo es, y por ser el DefaultTextStyle. Migracion 1:1 DEMOSTRADA: reversion byte a byte del espaciado en 32 archivos + auditoria del multiconjunto de numeros/hex/pesos en los 16 archivos de pantalla con 0 diferencias. Gate sin_hex_crudos_test con exencion TOKEN-IGNORE. 20 roturas/inyecciones, 2 VERDES cazadas (romper un estilo de la escala no lo notaba ninguna pantalla). app_cliente 206 -> 214 -- fa85e34, ac2328b, b72f221
 - [~] 11-17 Login con Google en la app cliente: 3 de 4 tareas cerradas (adaptador con rama Web funcional, boton en login y registro, appId de Android corregido al registro real). PARADO en su checkpoint humano: falta registrar la huella SHA-1 en la app com.gri.gri_cliente y verificar el ingreso en Android
 - [x] 11-12 Tokens en el panel admin: los 18 hex crudos de 10 archivos a GriColors (11 constantes nuevas, 0 valores cambiados segun auditoria del diff), 7 copias de la sombra -> griCardDecoration, 9 estilos de boton duplicados retirados (6 los pone elevatedButtonTheme, el unico FAB pasa a floatingActionButtonTheme), 3 _ErrorBox privadas -> features/shared/error_box.dart y 12 paddings a GriSpacing. Gate sin_hex_crudos_test portado del ORIGINAL de 11-19. MEDIDO por rotura que la red de seguridad que el plan asignaba a T-11-12-01 cubria 2 de 11 tokens: se cierra con colores_render_test (10 casos que renderizan y miden contra el hex LITERAL). 36 roturas deliberadas. HALLAZGOS: el <verify> de grep del plan falla en LAS DOS direcciones (octavo de la fase); las 3 _ErrorBox NO eran iguales y aun asi el padding es un NO-OP dentro de un Expanded (medido). panel_admin 280 -> 292 -- 49574cb, 1967dc4, 7b58a40
-- [ ] 11-14, 11-15, 11-16, 11-20, 11-22 .. 11-25
+- [x] 11-14 Accesibilidad de la app cliente: boton QR a 48x48 CON nodo de semantica propio (sin el, el tap se fusionaba con toda la cabecera en un nodo de 800x77 y la guia del plan pasaba VERDE con el bug puesto), 7 controles de icono etiquetados incluido un FAB que la auditoria no conto, 29 puntos de TEXTO de #777777 a #6E6E6E sin tocar el token de MARCA, suite a11y de 16 casos sobre 7 pantallas (las tres guias, ninguna excluida) + gate ESTATICO sobre las fuentes porque el barrido solo ve lo que monta. 24 roturas deliberadas, 3 VERDES cazadas. app_cliente 214 -> 230 -- c732cda, 29c2078, defb8f5, 5dc0398, 950f3ae, 6d69637
+- [ ] 11-15, 11-16, 11-20, 11-22 .. 11-25
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -57,6 +58,8 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 3. Smoke e2e flujo completo ([A]-[M] emuladores o [P] real)
 
 ## Test Baselines (final Firebase)
+
+- 11-14: app_cliente 214 -> 230 (+16); analyze 0. Desglose: +16 en test/a11y/a11y_test.dart (nuevo). Los 3 tests preexistentes tocados (iconos_test 45->48, app_shell_responsive unselectedItemColor, theme_tokens_test) NO cambian de numero
 
 - 11-12: panel_admin 280 -> 292 (+12); analyze 0. Desglose: +2 sin_hex_crudos_test (nuevo, port del gemelo de 11-19), +10 colores_render_test (nuevo). Base 280 MEDIDA antes de tocar nada
 
@@ -181,6 +184,14 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-12: Colors.black.withValues(alpha: 0.05) y Color(0x0D000000) tienen el MISMO ARGB de 32 bits pero distinto alpha flotante (0.05 vs 0.050980). Sobre blanco los dos cuantizan a 242 en 8 bits. Es el UNICO valor del plan que no es bit a bit identico y por eso queda declarado. En cambio Colors.red y Color(0xFFF44336) tienen los cuatro componentes identicos: solo cambia el runtimeType
 - 11-12: se registra floatingActionButtonTheme (1 de 1 FAB, no puede mover un pixel hoy) pero NO textButtonTheme, outlinedButtonTheme ni inputDecorationTheme — la guarda de 11-11 que afirma su ausencia sigue intacta y verde
 
+- 11-14: HALLAZGO CENTRAL — `androidTapTargetGuideline` NO detecta el hallazgo de la auditoria. MEDIDO reconstruyendo el estado anterior al plan (boton QR 45x45 sin Semantics): la guia pasa VERDE. El InkWell no abre nodo propio y su tap se fusiona con toda la cabecera en UN nodo de 800x77 etiquetado "GRI / GRI / Escanear QR de la mesa" — la guia medía ese nodo. Un control de icono hecho con InkWell necesita `Semantics(container: true)` para EXISTIR como objetivo tactil ante las guias, y de paso deja de secuestrar el logo y el titulo en su etiqueta
+- 11-14: el `tooltip` de un IconButton acaba en `SemanticsData.tooltip`, NO en `.label`. `labeledTapTargetGuideline` acepta los dos de forma explicita (accessibility.dart:263) pero `find.bySemanticsLabel` solo mira label: una asercion de wording escrita con ese finder sale roja con la etiqueta ya puesta. 6 de los 7 controles etiquetados por el plan se anuncian por el campo tooltip
+- 11-14: el contraste NO se aplica a bodySmall/labelSmall del textTheme como pedia el plan. MEDIDO con sonda sobre login y home: NINGUN texto de app_cliente se pinta por esos slots (todos heredan bodyMedium, ls=0.25/h=1.43; bodySmall traeria 0.4/1.33). Habria cambiado 0 pixeles, arreglado 0 fallos y retenido el helperText del framework. Se aplico en los 29 puntos de uso REALES
+- 11-14: GriColors.gray sigue valiendo EXACTAMENTE #777777; lo que cambia es DONDE se usa. Sobre el fondo real de la app (#F7F7F7) da 4.180:1, peor que el 4.478:1 sobre blanco que citaba la auditoria — por eso el token accesible (#6E6E6E: 5.099 / 4.760) se afirma contra los DOS fondos. Rotura I: #767676 pasa sobre blanco (4.54) y falla sobre el fondo real (4.24)
+- 11-14: un barrido de pantallas solo cubre lo que monta. MEDIDO: devolver a #777777 el texto del 404 o del escaner dejaba la suite ENTERA verde (de los 29 puntos, el barrido cubre 11). Se anadio un GATE ESTATICO que lee las fuentes de lib/ y clasifica cada `GriColors.gray` por el marcador mas cercano por delante, reportando los contextos que no reconoce
+- 11-14: HALLAZGO — el `<verify>` del plan (`grep -q "0xFF777777" lib/core/theme.dart`) es DEFECTUOSO: bajo la rotura que cambia GriColors.gray a #6E6E6E imprime igual GRAY_INTACTO, porque el hex sigue en `neutroFg`. Noveno gate de grep defectuoso de la fase (11-06, 11-08 x2, 11-13 x2, 11-19, 11-12, 11-14)
+- 11-14: HALLAZGO — los `constraints: BoxConstraints(minWidth: 48, minHeight: 48)` de PasswordField (11-06) son REDUNDANTES. Borrando la linea ENTERA el ojo sigue midiendo 48x48: los pone el IconButton de M3. El test de 11-06 afirma la DECLARACION, no la geometria. Extiende el Hallazgo 3 de 11-11
+
 ## Performance Metrics
 
 | Phase | Plan | Duracion | Tareas | Archivos |
@@ -198,11 +209,13 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | 11 | 13 | ~110 min | 3 | 23 |
 | 11 | 12 | ~2h 40min | 2 | 24 |
 | 11 | 19 | ~80 min | 3 | 20 |
+| 11 | 14 | ~135 min | 3 | 19 |
 
 ## Session
 
 - Last session: 2026-08-19
-- Stopped at: Completado 11-12-PLAN.md (tokens del panel: 18 hex + 7 sombras + 9 botones + 3 ErrorBox; 36 roturas, cobertura de render anadida por desviacion Regla 2). Ejecutado ANTES que 11-14, que figura en su depends_on, sin necesitar nada de el.
+- Stopped at: Completado 11-14-PLAN.md (accesibilidad de app_cliente: 48dp + etiquetas + contraste AA; 24 roturas deliberadas, 3 verdes cazadas). Ejecutado en paralelo con 11-12 y 11-24.
+- Stopped at (anterior): Completado 11-12-PLAN.md (tokens del panel: 18 hex + 7 sombras + 9 botones + 3 ErrorBox; 36 roturas, cobertura de render anadida por desviacion Regla 2). Ejecutado ANTES que 11-14, que figura en su depends_on, sin necesitar nada de el.
 - Stopped at (anterior): Completado 11-19-PLAN.md (tokens de la app cliente: 20 hex + 34 TextStyle + 103 espaciados; migracion 1:1 demostrada mecanicamente, 0 diferencias de valor). Ejecutado en paralelo con 11-21.
 - Stopped at (anterior): Completado 11-13-PLAN.md (todo lo visible de la app cliente: zona segura, responsive, overflow e iconos; 21 roturas deliberadas, 2 verdes cazadas). Ejecutado en paralelo con 11-21.
 - Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-14-PLAN.md
@@ -258,3 +271,10 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-19: `test:rules` y `test:functions` NO se ejecutaron (el plan no toca rules, indices ni functions). Si se ejecutaron `audit:branding` y `audit:indexes`, ambos exit 0.
 - 11-19 (AJENO, sigue sin commitear): `app_cliente/lib/features/restaurantes/restaurantes_provider.g.dart` sigue regenerado por build_runner sin que ningun plan lo reclame (ya declarado por 11-13). 11-19 NO lo estageo: no ejecuto build_runner ni toco ningun @riverpod.
 - 11-19 (DISCREPANCIA DE CONTABILIDAD, preexistente): en disco hay 16 *-SUMMARY.md de la Fase 11 y `roadmap.update-plan-progress 11` cuenta 16, pero la lista de arriba solo marca 15 — **11-17 tiene SUMMARY pero nunca se anadio a este checklist**. No lo corrige 11-19 porque no es su trabajo; queda senalado para quien cierre la fase.
+- 11-14: DS-03 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11; ya lo reporto 11-13). Queda en el frontmatter del SUMMARY.
+- 11-14 DEUDA que EXIGE DECISION DEL USUARIO: blanco sobre el naranja de marca #FF4C05 da 3.34:1 en etiquetas de boton de 14px normal — el wizard de reserva ("Continuar"/"Atras") y el 404 ("Volver al inicio") FALLAN textContrastGuideline. Las pantallas del camino critico se libran porque sus CTA son 16 bold y la guia les aplica el umbral de 3:1. Arreglarlo exige oscurecer el naranja (paleta BLOQUEADA) o poner esas etiquetas en 16 bold. Las dos pantallas NO se anadieron a la suite: quedaria roja sin que nadie pueda arreglarlo.
+- 11-14 (DEUDA): GriSemanticColors.neutroFg sigue en #777777 (texto del chip de estado DESCONOCIDO). Cambiarlo tumbaria la asercion `pedidoFg('lo-que-sea') == #777777` de 11-11 y toca la paleta semantica; con los 5 estados del wire no deberia renderizarse nunca.
+- 11-14 PENDIENTE DE VERIFICACION HUMANA: (1) que TalkBack/VoiceOver lean los 7 controles etiquetados y en un orden con sentido — meetsGuideline mide geometria y ratios, no ejecuta lector de pantalla, y 6 de los 7 nombres viajan por el campo `tooltip`; (2) que el gris nuevo #6E6E6E se vea bien en las 14 pantallas (no hay golden tests); (3) que el boton QR a 48x48 no descoloque la cabecera en un movil real.
+- 11-14 (AJENO, sigue sin commitear): app_cliente/lib/features/restaurantes/restaurantes_provider.g.dart sigue regenerado sin que ningun plan lo reclame (declarado por 11-13 y 11-19). 11-14 tampoco lo estageo: no ejecuto build_runner ni toco ningun @riverpod.
+- 11-14 AVISO PARA 11-25 (accesibilidad del panel): (1) sonda si tus controles de icono abren nodo propio ANTES de confiar en androidTapTargetGuideline; (2) busca nombres accesibles por `tooltip` ademas de por `label`; (3) el fondo del panel es #F5F6F8, NO #F7F7F7: recalcula el ratio en vez de copiar el numero; (4) su textoSecundarioAccesible vive solo como campo de instancia — anade la constante a GriColors si tus puntos de uso son `const`.
+- 11-14: `test:rules`, `test:functions` y `audit:indexes` NO se ejecutaron (el plan no toca rules, indices ni functions, y 11-24 tenia functions/ y scripts/test/functions/ abiertos en el mismo arbol). Si se ejecuto `audit:branding`, exit 0.
