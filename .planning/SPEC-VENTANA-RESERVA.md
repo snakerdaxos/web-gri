@@ -107,3 +107,33 @@ Un restaurante que no ve las reservas de mañana no puede planificar compras ni 
 la interfaz, porque el uso es distinto: hoy se opera, mañana se planifica.
 Ojo al índice: `reservas(restauranteId, fecha)` ya existe y sirve para una ventana más amplia, pero
 verificar con `audit_indexes.mjs` y con la sonda contra producción.
+
+## C. Pedir después de haber pedido la cuenta deja la mesa en un estado sin salida
+
+Reproducido por el usuario: pidió la cuenta, después hizo otro pedido (se aceptó y pasó a
+preparación), y el pedido nuevo **no se sumó a la cuenta ni se reactivó el botón de pedir cuenta**.
+
+Causa: "solicitar la cuenta" solo activa la bandera `cuentaSolicitada`; **no cierra la sesión**. Las
+reglas de `pedidos` permiten crear mientras la sesión esté `activa`, sin mirar esa bandera. El
+pedido nuevo no entra en el total porque solo se cobra lo `servido`, y la bandera sigue en true, así
+que el cliente no puede volver a pedir la cuenta y el mesero no recibe un aviso nuevo. La mesa queda
+en un estado del que no se sale.
+
+**DECISIÓN DEL USUARIO (2026-08-20): se REABRE la cuenta.**
+Al crear un pedido con la sesión en `cuentaSolicitada: true`, la bandera se limpia sola (y su
+`cuentaPedidaAt`), el botón vuelve a estar disponible, y el mesero recibe el aviso de nuevo cuando
+el cliente la pida otra vez. Es lo que hace un restaurante real con el café de última hora.
+
+Puntos a resolver al implementar:
+- **Las reglas deben permitirlo.** Hoy el update de `sesiones` por el CLIENTE solo admite
+  `hasOnly(['cuentaSolicitada','cuentaPedidaAt'])` **y** exige `cuentaSolicitada == true`. Limpiar
+  la bandera (ponerla en `false`) está DENEGADO por esa última condición. Hay que ampliarla con
+  cuidado y con tests: el cliente debe poder ponerla a false solo en el contexto de crear un pedido,
+  no arbitrariamente.
+- Si la limpieza va dentro de la misma transacción que crea el pedido, revisar el presupuesto de
+  access-calls de las reglas (documentado en la cabecera de `firestore.rules`).
+- **Aviso al mesero**: si ya tenía la mesa en su lista de "pidió la cuenta", esa fila debe
+  desaparecer o marcarse como reabierta, o cobrará una cifra vieja.
+- Cubrir la carrera: el mesero pulsa "entregar cuenta" en el mismo instante en que el cliente envía
+  otro pedido. Hoy `entregarCuenta` cierra la sesión y manda la mesa a limpieza; conviene que falle
+  si la sesión ya no está como la vio.
