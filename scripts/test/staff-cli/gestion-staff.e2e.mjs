@@ -295,6 +295,66 @@ test('alta sobre el correo de un CLIENTE → rechazada (anti-secuestro, rama c)'
   assert.ok(!u.customClaims?.role, 'la cuenta del cliente NO puede quedar con claims de staff');
 });
 
+test('alta contra un restaurante INEXISTENTE → rechazada, sin crear staff huérfano', async () => {
+  await escenarioBase();
+
+  // Sin esta comprobación, un dedazo en el slug crea staff con claims válidos
+  // para un rid que no existe: invisible en todos los paneles y sin forma de
+  // limpiarlo desde el producto.
+  const r = await cli([
+    'crear', '--como', SUPER, '--rid', 'no-existe',
+    '--email', 'huerfano@nada.gri.dev', '--nombre', 'Huérfano',
+    '--rol', 'mesero', '--password', PASSWORD_OK,
+  ]);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /El restaurante no-existe no existe\./);
+
+  await assert.rejects(
+    auth.getUserByEmail('huerfano@nada.gri.dev'),
+    (e) => e.code === 'auth/user-not-found',
+  );
+});
+
+test('alta sobre el correo de una cuenta de PLATAFORMA → rechazada (rama a)', async () => {
+  const { uidSuper } = await escenarioBase();
+
+  // Degradar a un super_admin a mesero sería un apagón total de la plataforma
+  // además de un secuestro. Esta rama mira los CLAIMS, que aquí sí existen.
+  const r = await cli([
+    'crear', '--como', ADMIN,
+    '--email', SUPER, '--nombre', 'Secuestrado',
+    '--rol', 'mesero', '--password', PASSWORD_OK,
+  ]);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /Esa cuenta es de plataforma\./);
+  assert.deepEqual(
+    (await auth.getUser(uidSuper)).customClaims,
+    { role: 'super_admin', rid: null },
+    'la cuenta de plataforma no puede quedar degradada',
+  );
+});
+
+test('alta sobre el correo de staff de OTRO restaurante → rechazada (rama b)', async () => {
+  await escenarioBase();
+  await sembrarRestaurante(RID_AJENO);
+  const uidAjeno = await sembrarActor({
+    email: 'ajeno@otro.gri.dev', claims: { role: 'mesero', rid: RID_AJENO },
+  });
+
+  const r = await cli([
+    'crear', '--como', ADMIN,
+    '--email', 'ajeno@otro.gri.dev', '--nombre', 'Robado',
+    '--rol', 'cocina', '--password', PASSWORD_OK,
+  ]);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /Ese correo ya pertenece a otro restaurante\./);
+  assert.deepEqual(
+    (await auth.getUser(uidAjeno)).customClaims,
+    { role: 'mesero', rid: RID_AJENO },
+    'no se pudo haber cruzado de tenant',
+  );
+});
+
 test('alta repetida con el mismo correo es IDEMPOTENTE (repara, no duplica)', async () => {
   await escenarioBase();
 
@@ -316,6 +376,31 @@ test('alta repetida con el mismo correo es IDEMPOTENTE (repara, no duplica)', as
   assert.equal(conEseCorreo.length, 1, 'no puede haber dos cuentas con el mismo correo');
   assert.equal(conEseCorreo[0].uid, uid1, 'el uid debe converger al mismo');
   assert.deepEqual(conEseCorreo[0].customClaims, { role: 'mesero', rid: RID });
+});
+
+// HALLAZGO — este caso NO puede llamarse «el rid se deriva del claim, no del
+// payload»: MEDIDO por rotura, cambiar `decision.rid` por
+// `texto(flags.rid) ?? decision.rid` no tumba NI UN caso, y con razón. Cuando el
+// alta llega a ese punto la matriz ya corrió, y su prohibición 2 garantiza que
+// para un `admin_restaurante` el rid del payload o no vino o es el suyo. Los dos
+// valores son el MISMO por construcción. Quien protege ahí es la matriz, y eso
+// lo cubre el caso del rid ajeno. Lo que este caso sí guarda —y es real— es que
+// mandar el rid propio, que es redundante pero legítimo porque el formulario lo
+// hacía, no rompe el alta.
+test('mandar el rid propio (redundante) no rompe el alta', async () => {
+  await escenarioBase();
+  await sembrarRestaurante(RID_AJENO);
+
+  const r = await cli([
+    'crear', '--como', ADMIN, '--rid', RID,
+    '--email', 'redundante@demo.gri.dev', '--nombre', 'Redundante',
+    '--rol', 'mesero', '--password', PASSWORD_OK,
+  ]);
+  assert.equal(r.code, 0, r.out);
+
+  const u = await auth.getUserByEmail('redundante@demo.gri.dev');
+  assert.equal(u.customClaims.rid, RID);
+  assert.equal((await db.doc(`usuarios/${u.uid}`).get()).data().restauranteId, RID);
 });
 
 // ============================================================================
@@ -372,6 +457,35 @@ test('listar muestra el equipo del restaurante del actor, y solo ese', async () 
     !r.out.includes('ajeno@otro.gri.dev'),
     `el listado NO puede incluir a personal de otro restaurante:\n${r.out}`,
   );
+});
+
+test('listar con un rid AJENO siendo admin → rechazado por la matriz', async () => {
+  await escenarioBase();
+  await sembrarRestaurante(RID_AJENO);
+  await sembrarActor({ email: 'ajeno@otro.gri.dev', claims: { role: 'mesero', rid: RID_AJENO } });
+
+  // Este es el caso con dientes de la delegación en `listar`: un alcance
+  // calculado a mano («usa el rid del actor y, si viene --rid, ese») listaría
+  // tranquilamente el equipo ajeno. MEDIDO: sin `ridEfectivo`, el resto de la
+  // suite sigue verde y solo este caso se pone rojo.
+  const r = await cli(['listar', '--como', ADMIN, '--rid', RID_AJENO]);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /No puedes crear usuarios de otro restaurante\./);
+  assert.ok(!r.out.includes('ajeno@otro.gri.dev'), 'no puede filtrarse el equipo ajeno');
+});
+
+test('listar sin --rid siendo plataforma → la matriz exige restaurante explícito', async () => {
+  await escenarioBase();
+
+  // Consecuencia CONOCIDA y aceptada de preguntarle el alcance a la matriz: una
+  // cuenta de plataforma no tiene rid propio, así que no hay listado global.
+  const r = await cli(['listar', '--como', SUPER]);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /restauranteId es obligatorio/);
+
+  const ok = await cli(['listar', '--como', SUPER, '--rid', RID]);
+  assert.equal(ok.code, 0, ok.out);
+  assert.match(ok.out, new RegExp(ADMIN.replace('.', '\.')));
 });
 
 // ============================================================================
