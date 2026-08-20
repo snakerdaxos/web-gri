@@ -395,6 +395,8 @@ class _PersonasSelector extends StatelessWidget {
       children: [
         IconButton(
           icon: const Icon(Icons.remove_circle_outline, size: 32),
+          // 11-14: control de icono sin texto al lado -> necesita etiqueta.
+          tooltip: 'Quitar un comensal',
           onPressed: value > 1 ? () => onChanged(value - 1) : null,
         ),
         Padding(
@@ -407,6 +409,7 @@ class _PersonasSelector extends StatelessWidget {
         ),
         IconButton(
           icon: const Icon(Icons.add_circle_outline, size: 32),
+          tooltip: 'Agregar un comensal',
           onPressed: value < 20 ? () => onChanged(value + 1) : null,
         ),
       ],

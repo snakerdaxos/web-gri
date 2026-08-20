@@ -257,6 +257,9 @@ class _ProductoRow extends ConsumerWidget {
           else ...[
             IconButton(
               icon: const Icon(Icons.remove_circle_outline),
+              // Sin tooltip el lector de pantalla anunciaba solo "botón":
+              // el icono no lleva texto al lado (11-14).
+              tooltip: 'Quitar una unidad',
               onPressed: () => ref
                   .read(carritoProvider.notifier)
                   .decrementar(producto.id),
@@ -268,6 +271,7 @@ class _ProductoRow extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.add_circle_outline),
               color: GriColors.primary,
+              tooltip: 'Agregar una unidad',
               onPressed: () => ref
                   .read(carritoProvider.notifier)
                   .incrementar(producto.id),

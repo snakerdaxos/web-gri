@@ -213,6 +213,12 @@ class _CalificacionSheetState extends ConsumerState<CalificacionSheet> {
               for (var i = 1; i <= 5; i++)
                 IconButton(
                   onPressed: () => setState(() => _estrellas = i),
+                  // Etiqueta INDIVIDUAL: sin ella el lector de pantalla
+                  // anunciaba "botón" cinco veces seguidas y no había forma
+                  // de saber qué nota se estaba dando (11-14).
+                  tooltip: i == 1
+                      ? 'Calificar con 1 estrella'
+                      : 'Calificar con $i estrellas',
                   icon: Icon(
                     i <= _estrellas ? Icons.star : Icons.star_border,
                     color: GriColors.calificacionEstrella,

@@ -304,20 +304,36 @@ class _QrButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: GriColors.primaryTint,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
+    // `Semantics(container: true)` NO es decoración (11-14). MEDIDO con sonda:
+    // sin él, el `InkWell` no abre nodo propio y su acción de tap se fusiona
+    // con toda la fila de la cabecera — un único nodo de 800x77 etiquetado
+    // "GRI / GRI / Escanear QR de la mesa". Consecuencias: (a) el lector de
+    // pantalla anunciaba el logo y el título como parte del botón; (b)
+    // `androidTapTargetGuideline` medía 800x77 y por tanto NO veía que el
+    // objetivo real fuese de 45x45. Con el contenedor, el nodo mide justo el
+    // botón y la guía tiene dientes.
+    return Semantics(
+      container: true,
+      button: true,
+      label: 'Escanear QR de la mesa',
+      child: Material(
+        color: GriColors.primaryTint,
         borderRadius: BorderRadius.circular(12),
-        child: const SizedBox(
-          width: 45,
-          height: 45,
-          child: Center(
-            child: Icon(GriIcons.escanearQr,
-                size: 22,
-                color: GriColors.primary,
-                semanticLabel: 'Escanear QR de la mesa'),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: const SizedBox(
+            // 45 -> 48: mínimo táctil de Material/Android. Es el ÚNICO cambio
+            // dimensional del plan 11-14 y el token existe para esto
+            // (`GriSpacing.xxl`, declarado en 11-11 con este destino escrito).
+            width: GriSpacing.xxl,
+            height: GriSpacing.xxl,
+            child: Center(
+              // La etiqueta la pone el `Semantics` de arriba; repetirla aquí
+              // la duplicaría en el anuncio del lector.
+              child: Icon(GriIcons.escanearQr,
+                  size: 22, color: GriColors.primary),
+            ),
           ),
         ),
       ),
