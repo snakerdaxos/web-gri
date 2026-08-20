@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 14/21 planes [##############-------] 67%
+Phase 11: 15/21 planes [###############------] 71%
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -45,7 +45,8 @@ Phase 11: 14/21 planes [##############-------] 67%
 - [x] 11-11 Base del sistema de diseno: GriSpacing/GriRadius/GriBreakpoints/GriText en las DOS apps, griTextTheme con los 15 slots DECLARADOS (valores de M3 medidos con sonda: la escala de GRI NO cabe ahi porque esos slots los consume el chrome), GriSemanticColors registrada, models/pedido.dart pierde su segunda paleta, panel con elevatedButtonTheme + griCardDecoration + 4 estilos con nombre. 17 roturas deliberadas; 1 test propio RETIRADO por estar verde por construccion — 3e5f931, 6ad9a63, 808487b, 7d0528a
 - [x] 11-13 TODO lo visible de la app cliente: SafeArea(bottom:false) cierra el bug del espacio superior reportado por el usuario; el ConstrainedBox fijo de 480 pasa a techo adaptativo (0-840 IDENTICO, >=840 pasa a 720); overflow del wizard cerrado + 2 mas del mismo tipo hallados en el barrido; 37 emojis -> Icon de Material con GriIcons; primera red de seguridad del AppShell (17 casos de geometria real). 21 roturas deliberadas, 2 VERDES cazadas (SafeArea(bottom:true) es un no-op medido; el textAlign no lo veia getRect). Suite ENTERA verde a 320px con canario — 85f0f45, 81323f5, 6207ded, f5b6049, a0a83d9, da167b8, 65c1c17
 - [x] 11-21 TODO lo visible del panel admin: 7 desbordes de RenderFlex cerrados (4 del plan + 3 que no estaban: sidebar COLAPSADO 5px+13px x8 por geometria pura, topbar 77px, cabecera del mapa 148px, cabecera de cocina 150px a 450) y los TRES filtros de overflow del repo retirados (el plan solo conocia 1); ResponsivePage con techo de 1200 en las 12 pantallas contadas del arbol; 33 emojis -> Icon de Material con GriIcons, incluido uno camuflado como una secuencia de escape que ningun grep de glifos veia. 29 roturas deliberadas, 3 VERDES cazadas (el gate del plan no distingue filtro de detector; find.byIcon es tautologico respecto a QUE icono se eligio). HALLAZGO: los 85px del sidebar son de la fuente de TEST, no hay evidencia de que se vieran en produccion. panel_admin 226 -> 280 -- 4872666, 7e0d330, 67859cc, dea78d7, 9c67d7e, 5e55e8b
-- [ ] 11-12, 11-14 .. 11-17, 11-19, 11-20
+- [x] 11-19 Tokens en la app cliente: los 20 hex crudos de 6 pantallas a GriColors (el ambar estaba 9 veces, el degradado copiado en 4) + 34 TextStyle a GriText + 103 espaciados a GriSpacing; resuelto el TODO(11-19) de 11-17. MEDIDO con sonda que el criterio del plan para migrar a textTheme NO es pixel-neutral (bodySmall trae letterSpacing 0.4/height 1.33 frente al 0.25/1.43 heredado: 12px pasaria de 257.3x17 a 260.4x16); solo bodyMedium lo es, y por ser el DefaultTextStyle. Migracion 1:1 DEMOSTRADA: reversion byte a byte del espaciado en 32 archivos + auditoria del multiconjunto de numeros/hex/pesos en los 16 archivos de pantalla con 0 diferencias. Gate sin_hex_crudos_test con exencion TOKEN-IGNORE. 20 roturas/inyecciones, 2 VERDES cazadas (romper un estilo de la escala no lo notaba ninguna pantalla). app_cliente 206 -> 214 -- fa85e34, ac2328b, b72f221
+- [ ] 11-12, 11-14 .. 11-17, 11-20
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -57,6 +58,7 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 
 - 11-21: panel_admin 226 -> 280 (+54); analyze 0. Desglose: +9 app_shell_layout_test (nuevo), +34 responsive_test (nuevo), +1 sin_filtros_overflow_test (nuevo), +4 sin_emojis_test (nuevo), +4 stats_render_test, +3 reservas_screen_test. Los 3 filtros de FlutterError.onError que tapaban desbordes (bootstrap_router 11-07, router_404 11-09, equipo_gating 11-10) estan RETIRADOS
 
+- 11-19: app_cliente 206 -> 214 (+8); analyze 0. Desglose: +5 en theme_tokens_test (los 5 tokens nuevos valen su hex, gradienteInicio != primary, el gradiente conserva extremos, la home lo PINTA, el bloque de Google conserva sus dos grises), +1 mas de render tipografico (24/bold y 16/bold medidos en la home) y +2 de sin_hex_crudos_test (nuevo). RE-MEDIDO tras el corte de sesion con 11-21 ya integrado: identico
 - 11-13: app_cliente 178 -> 206 (+28); analyze 0. Desglose: +17 app_shell_responsive_test (nuevo), +4 wizard_form_test, +2 sin_emojis_test (nuevo), +4 iconos_test (nuevo), +1 theme_tokens_test. MEDIDO tambien con la suite ENTERA forzada a 320px (flutter_test_config.dart temporal): 206 verdes y CERO `RenderFlex overflowed`
 - 11-11: app_cliente 158 -> 178 (+20) y panel_admin 163 -> 189 (+26); analyze 0 en las dos. OJO: `flutter test` en panel_admin da 226 porque 11-10 aporta +37 en test/equipo (medido aparte con `flutter test test/equipo`)
 
@@ -157,6 +159,14 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-13: HALLAZGO — el gate `<verification>` del plan (`grep -rn "RenderFlex overflowed" app_cliente/test`) da FALSO POSITIVO: casa con un comentario explicativo dentro de un `reason:`. Confunde "hay un filtro" con "alguien menciona la frase"
 - 11-13: la regla que separa "icono" de "texto expresivo" es la PERSISTENCIA del elemento: chip/tab/tarjeta/estado vacio/metadatos de fila -> icono (se sustituye); SnackBar o frase conversacional -> texto (se conserva con // EMOJI-OK: motivo)
 - 11-13: un emoji DENTRO de una frase se traduce con WidgetSpan (iconoInline), no con Row — el Row cambia el salto de linea del parrafo y con dos iconos en la misma frase exigiria anidar
+- 11-19: los TextStyle inline NO migran a ThemeData.textTheme. MEDIDO con sonda bajo griTheme y 8 cadenas de la misma longitud: coincidir en tamano Y peso (el criterio de corte del plan) NO basta, porque el slot trae su propio letterSpacing/height y el inline los HEREDA del DefaultTextStyle. 12/w400: 257.3x17 inline vs 260.4x16 con bodySmall; 16/w400: 341.3x23 vs 346.5x24; 16/w500: 341.3x23 vs 339.1x24 con titleMedium. El UNICO slot pixel-neutral es bodyMedium, y solo porque ES el estilo ambiente. Destino correcto: GriText, que es literalmente el mismo TextStyle. AVISO PARA 11-12: no migres los fontSize del panel a textTheme
+- 11-19: GriText.tituloCard ("titulo de tarjeta, 12 usos") y GriText.boton ("etiqueta de boton, 3 usos") NO describen esta app. Los 9 usos de 16 bold de app_cliente son TODOS etiquetas de CTA y no hay ni un titulo de tarjeta a 16 bold; de los 3 de 15 bold solo uno es un boton (los otros son el contador del carrito y el banner "Cuenta solicitada"). Consecuencia de que 11-11 derivara la escala CONTANDO estilos repetidos. Se anade GriText.botonGrande con el MISMO valor y el significado correcto, con test que afirma la igualdad para que divergir sea consciente
+- 11-19: el espaciado se migra a nivel de VALOR, no de expresion: en EdgeInsets.fromLTRB(16, 8, 16, 12) los tres primeros pasan a token y el 12 se queda como numero suelto. El numero desnudo entre tokens senala la deuda; convertirlo al peldano mas cercano seria un cambio visual
+- 11-19: una asercion de render debe comparar contra el HEX/NUMERO literal, JAMAS contra el token. Comparando contra el token, cambiar el token deja el caso verde y no prueba nada. Es lo que hace que la rotura del ambar tumbe el caso PREEXISTENTE de iconos_test.dart (11-13) sin haber editado su valor esperado
+- 11-19: HALLAZGO - romper un estilo de GriText no lo notaba NINGUNA pantalla (roturas G y H tumbaban solo la asercion literal del propio token). La tipografia estaba afirmada solo contra si misma. Se anadio un caso que renderiza la home y mide 24/bold y 16/bold con los numeros escritos a mano
+- 11-19: HALLAZGO - el <verify> de la Tarea 2 del plan (`grep -rn "textTheme" lib | wc -l > 0`) esta VERDE POR CONSTRUCCION desde 11-11: devuelve 3 coincidencias antes de tocar nada y DOS SON COMENTARIOS. Pasa igual si la tarea no se hace. Septimo gate defectuoso de la fase (11-06, 11-08 x2, 11-13 x2, 11-19)
+- 11-19: HALLAZGO - subprocess(shell=True) en Windows lanza cmd.exe, donde `^` es el caracter de escape: `git show fa85e34^:archivo` se convierte en `fa85e34:archivo` y la comparacion se hace contra el commit EQUIVOCADO en silencio. Cualquier script de auditoria que use un ref con `^` o `~` desde Python en Windows debe resolver el SHA antes (git rev-parse)
+
 - 11-13: el gate de paridad token<->codigo de 11-11 se REESCRIBIO, tal y como su propio comentario pedia ("hay que reescribirlo, no borrarlo"): ya no hay literal que comparar, asi que afirma que NO vuelve ninguno y que los tres tokens se usan. El gate fuerte es el nuevo, que renderiza y mide
 
 ## Performance Metrics
@@ -174,11 +184,13 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | 11 | 09 | ~50 min | 2 | 12 |
 | 11 | 11 | ~95 min | 2 | 8 |
 | 11 | 13 | ~110 min | 3 | 23 |
+| 11 | 19 | ~80 min | 3 | 20 |
 
 ## Session
 
 - Last session: 2026-08-19
-- Stopped at: Completado 11-13-PLAN.md (todo lo visible de la app cliente: zona segura, responsive, overflow e iconos; 21 roturas deliberadas, 2 verdes cazadas). Ejecutado en paralelo con 11-21.
+- Stopped at: Completado 11-19-PLAN.md (tokens de la app cliente: 20 hex + 34 TextStyle + 103 espaciados; migracion 1:1 demostrada mecanicamente, 0 diferencias de valor). Ejecutado en paralelo con 11-21.
+- Stopped at (anterior): Completado 11-13-PLAN.md (todo lo visible de la app cliente: zona segura, responsive, overflow e iconos; 21 roturas deliberadas, 2 verdes cazadas). Ejecutado en paralelo con 11-21.
 - Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-12-PLAN.md
 
 ## Blockers / Notas
@@ -218,3 +230,11 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-13 AVISO PARA 11-14: el boton QR de la home sigue midiendo 45x45 (< 48 de Material) y hay un test que lo CONGELA en 45 — al subirlo hay que actualizar test/restaurantes/iconos_test.dart. Los iconos sin texto al lado ya llevan semanticLabel.
 - 11-13 AVISO PARA 11-19: todo Icon sale de GriIcons y su `size` esta atado al fontSize del Text que sustituyo; si mueves codigo, actualiza los archivo:linea de docs/ICONOS-app_cliente.md.
 - 11-13 (AJENO, sin commitear): `app_cliente/lib/features/restaurantes/restaurantes_provider.g.dart` aparecio REGENERADO por build_runner durante la ejecucion sin que este plan lo ejecutara. Queda en el arbol de trabajo sin estagear y sin explicacion. Tambien quedan sin estagear los 13 archivos de panel_admin (11-21, en vuelo) y .planning/config.json (parallelization 1 -> 3, del orquestador).
+- 11-19: DS-01 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11); ya lo reporto 11-11. Queda en el frontmatter del SUMMARY.
+- 11-19 AVISO PARA 11-12: (1) NO migres los fontSize inline del panel a textTheme.* — no es pixel-neutral (medicion en 11-19-SUMMARY.md); usa GriText. (2) `panel_admin/test/core/sin_hex_crudos_test.dart` NO existia al escribir el del cliente (11-12 no habia corrido): el gate de app_cliente es el ORIGINAL y hay que PORTARLO, no escribir otro.
+- 11-19 AVISO PARA 11-14: el rol de texto secundario del cliente vive ahora en `GriText.auxiliar.copyWith(color: GriColors.gray)` en 7 sitios — un unico patron buscable, no 7 literales. GriColors.gray sigue siendo #777777 con dos tests que lo impiden cambiar.
+- 11-19 (DEUDA): `docs/ICONOS-app_cliente.md` lleva `archivo:linea` que este plan ha desplazado en 13 pantallas (lo aviso el propio 11-13). No se actualizo: fuera de alcance.
+- 11-19 PENDIENTE DE VERIFICACION HUMANA: que la app se vea EXACTAMENTE igual que antes. Lo demostrado es que ningun valor numerico ni de color cambio (auditoria mecanica, 0 diferencias en 16 archivos); que el render sea identico se sigue por construccion pero NO se ha fotografiado — este repo no tiene golden tests.
+- 11-19: `test:rules` y `test:functions` NO se ejecutaron (el plan no toca rules, indices ni functions). Si se ejecutaron `audit:branding` y `audit:indexes`, ambos exit 0.
+- 11-19 (AJENO, sigue sin commitear): `app_cliente/lib/features/restaurantes/restaurantes_provider.g.dart` sigue regenerado por build_runner sin que ningun plan lo reclame (ya declarado por 11-13). 11-19 NO lo estageo: no ejecuto build_runner ni toco ningun @riverpod.
+- 11-19 (DISCREPANCIA DE CONTABILIDAD, preexistente): en disco hay 16 *-SUMMARY.md de la Fase 11 y `roadmap.update-plan-progress 11` cuenta 16, pero la lista de arriba solo marca 15 — **11-17 tiene SUMMARY pero nunca se anadio a este checklist**. No lo corrige 11-19 porque no es su trabajo; queda senalado para quien cierre la fase.
