@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-last_updated: "2026-08-20T04:34:49.000Z"
+last_updated: "2026-08-20T10:52:30.421Z"
 progress:
   total_phases: 11
   completed_phases: 10
-  total_plans: 57
-  completed_plans: 54
-  percent: 93
+  total_plans: 58
+  completed_plans: 57
+  percent: 91
 ---
 
 # STATE
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 23/25 planes [#######################--] 92%  (`roadmap.update-plan-progress 11` cuenta 25 planes y 23 SUMMARY en disco tras 11-15)
+Phase 11: 25/26 planes [########################-] 96%  (26 planes y 25 SUMMARY en disco tras 11-20; queda 11-17, parado en su checkpoint humano)
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -55,7 +55,8 @@ Phase 11: 23/25 planes [#######################--] 92%  (`roadmap.update-plan-pr
 - [x] 11-22 Politica de contrasenas (min 8 + mayuscula + minuscula + numero) en los CUATRO puntos donde se fija una y TAMBIEN en el servidor: vectores canonicos UNICOS (scripts/password_policy_vectors.json, 22 casos) leidos por los tests de los TRES runtimes + los dos password_policy.dart IDENTICOS byte a byte con test que lo comprueba. El perfil (que no validaba NADA y ni siquiera tenia Form) queda cerrado. crearUsuarioStaff pierde MIN_PASSWORD y valida ANTES de tocar Auth, con 3 e2e que invocan la callable DIRECTAMENTE. 36 roturas deliberadas, 2 VERDES cazadas (los vectores acentuados del plan NO probaban la minuscula: cambiar \p{Ll} por [a-z] dejaba los 53 casos verdes; y aplicar la politica al LOGIN no lo notaba NADIE en ninguna de las dos apps). UNDECIMO gate de grep defectuoso de la fase: el <verify> de la Tarea 2 es INSATISFACIBLE porque exige 0 coincidencias donde 4 y 3 son del camino de login. app_cliente 273 -> 345, panel_admin 354 -> 423, functions unit 96 -> 149, e2e 47 -> 50 -- 70d7f64, dd5b44b, b75cfe9, 8d36736, 757bf4f, 0d75309
 - [x] 11-15 Runbook E2E desde base VACIA + gate unico: `npm run gates` corre NUEVE gates (no ocho: los 149 unitarios de functions/ NO corrian dentro de scripts test:functions) y falla cuando el conteo BAJA aunque el runner devuelva 0. 16 roturas deliberadas: cada sub-gate roto por sus DOS vias (runner en rojo + conteo que baja en silencio con exit 0), mas `flutter` fuera del PATH y una corrida COMPLETA con el primer gate roto (8 restantes se ejecutan igual, exit 1). docs/SMOKE-E2E-v2.md: 15 pasos [A]-[O] con verificacion EN LOS DATOS leida del codigo, limites explicitos (indices -> 11-16, Google -> 11-20) y las deudas declaradas. HALLAZGO: el paso [A] era INEJECUTABLE (la pantalla /bootstrap no envia correo de verificacion, la callable exige email_verified y una denegacion BORRA la cuenta) -> scripts/verificar_email_emulador.mjs. DUODECIMO gate de grep defectuoso de la fase: el <verify> de la Tarea 2 lo pasa docs/FIREBASE_SETUP.md, que existia ANTES del plan -- 4286d3f, b68afff
 - [x] 11-16 CHECKPOINT A CUMPLIDO (2026-08-20, ejecutado por el propietario fuera del flujo de agentes): firestore.rules desplegado a p-gri-b5b40 y verificado releyendo el ruleset activo 25efd44a-8a0e-496a-9e96-2a92d8e3a28b, identico al repo. Los 10 indices ya estaban desplegados. Cierra el aviso de 11-15 sobre las rules de la Fase 10 y el pendiente de sellado del indice categorias(restauranteId, orden)
-- [ ] 11-20 (gestion de personal por script local), 11-26 (degradacion honesta del panel + cierre documental)
+- [x] 11-26 Degradacion HONESTA de /equipo + cierre documental de la fase: el controlador dejaba de traducir `not-found` como "El restaurante no existe" — heredado del caso en que faltaba el rid, y FALSO aplicado a una callable que nunca se desplego (mismo defecto que 11-23 cerro en el escaneo). Se separan los DOS not-found por el mensaje del servidor (las dos callables mandan siempre el suyo) y se reconoce ademas el marcador crudo del transporte, que el plan no pedia. Constante UNICA para los tres sitios: aviso permanente en pantalla, aviso dentro del dialogo modal (Regla 2: el modal tapa la pantalla) y mensaje de error. Botones y listado INTACTOS. docs/ESTADO-DESPLIEGUE.md (177 lineas, 7 secciones) + 13 puntos corregidos en SMOKE-E2E-v2 y 4 en FIREBASE_SETUP, SIN reescribirlos: el runbook sigue valido contra emuladores porque el emulador de Functions no necesita Blaze. 14 roturas deliberadas, 1 VERDE cazada (find.text sin acotar dentro de un modal es TAUTOLOGICO: el aviso de la pantalla de debajo contesta por el del dialogo). HALLAZGO: 3 de los 4 <verify> del plan son defectuosos y uno no tiene dientes en absoluto — el grep "no est" ya casaba 5 veces en el SMOKE-E2E-v2 ORIGINAL. HALLAZGO: el plan afirma que al desplegar los botones funcionan solos sin tocar codigo; es cierto para not-found y FALSO para unavailable/internal (anotado en el codigo y en ESTADO-DESPLIEGUE §5). panel_admin 423 -> 445 -- b8eac8c, 68ac12e, 7ba13d4, e5fdef0, 1646cf5, f887290, 1920004, dd03ad1
+- [x] 11-20 Gestion de personal por SCRIPT LOCAL (sustituye a las callables que Blaze dejo sin desplegar): scripts/gestion_staff.mjs con listar/crear/baja/reactivar/promover-super, que IMPORTA auth-matrix, baja-matrix y password-policy en vez de reimplementarlas — cero literales de rol asignable y cero regex de contrasena propias, medido por un gate de contrato que MIRA EL CODIGO, no los comentarios. 33 roturas deliberadas (16 de contrato + 17 de e2e), 5 VERDES cazadas: revokeRefreshTokens sigue sin tumbar nada (estructural aqui: el CLI no sostiene ningun refresh token — AFIRMADO, no verificado); la delegacion de `listar` estaba verde por construccion; solo estaba probada la rama (c) del anti-secuestro; la comprobacion de restaurante existente no la notaba nadie; y un test propio era una TAUTOLOGIA (derivar el rid del payload es indistinguible porque la matriz ya corrio). DECIMOTERCER gate de grep defectuoso de la fase: el <verify> de la Tarea 2 NO TIENE DIENTES — `grep -q baja-matrix` pasa sobre un archivo sin una linea de baja, lo satisface la cabecera. La clave de servicio se referencia por RUTA con applicationDefault: el proceso NUNCA la abre. NUEVO gate scripts test:staff = 40 (13 contrato + 27 e2e); engancharlo a `npm run gates` es de 11-26. NO VERIFICADO: el script nunca se ha corrido contra p-gri-b5b40 real -- 8fcdfbe, f1aed92, c014c54, 066c2d5
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -65,8 +66,16 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 
 ## Test Baselines (final Firebase)
 
+- 11-20: NUEVO gate `cd scripts && npm run test:staff` = 40 (13 de contrato sin emulador + 27 e2e contra auth+firestore).
+  Todavia FUERA de `npm run gates` (lo engancha 11-26). El resto SIN cambio: app_cliente 345, functions unitarios 149,
+  functions e2e 50, rules 221 versionados, analyze 0 en las dos apps, audit:indexes y audit:branding exit 0.
+  OJO al leer una corrida de `gates` de esta fecha: `test:rules` sale FALLO con 221 pass + 2 fail, y los 2 rojos son
+  los 2 unicos casos de scripts/test/rules/_diag_sesion.test.mjs, un archivo SIN VERSIONAR que dejo el diagnostico de
+  11-26 y que el glob del npm script recoge. Los 221 versionados estan verdes. panel_admin marca 445 por el +22 de 11-26
+
 - 11-15: SIN cambio de conteos (plan de documentacion y tooling). MEDIDO dos veces con el nuevo `npm run gates`, identico: app_cliente 345, panel_admin 423, functions unitarios 149, rules 221, functions e2e 50, analyze 0 en las dos apps, audit:indexes y audit:branding exit 0. Los baselines quedan CODIFICADOS en scripts/gates.mjs: bajarlos exige editarlos ahi en el mismo commit. `verify:shell` NO se ejecuto (exige `flutter build web --release` en las dos apps) y queda declarado fuera de la pasada rapida
 
+- 11-26: panel_admin 423 -> 445 (+22: equipo_sin_functions_test.dart nuevo, entero); analyze 0. Ningun test preexistente se borro; TRES se reescribieron a conciencia porque afirmaban el comportamiento que este plan separa (mensajeCambioEstadoStaff('not-found') SIN mensaje de servidor, y `internal` usado como ejemplo de 'codigo desconocido' en las dos suites -> `aborted`, que ninguna callable emite). Base 423 MEDIDA antes de tocar nada
 - 11-22: app_cliente 273 -> 345 (+72) y panel_admin 354 -> 423 (+69); analyze 0 en las dos. Desglose IDENTICO en las dos apps para los archivos nuevos: +57 test/core/password_policy_test.dart (lee scripts/password_policy_vectors.json) y +3 test/core/password_policy_gate_test.dart. Ademas cliente: login_register 23->30, perfil_edit 10->15. Panel: equipo_screen 14->18, bootstrap_screen 13->17, login_form 15->16. functions unitarios 96 -> 149 (+49 password-policy.test.js, +4 contratos de la callable). functions e2e 47 -> 50 (+3). rules 221 -> 221 (el plan no toca rules). audit:indexes / audit:branding / verify:shell verdes. Base MEDIDA en las SEIS suites antes de tocar nada
 
 - 11-25: panel_admin 313 -> 354 (+41); analyze 0. Desglose: +41 test/a11y/a11y_test.dart (nuevo). Los 2 tests preexistentes tocados (theme_tokens_test renombrado y ampliado, sin_emojis_test por los archivo:linea del doc de iconos) NO cambian de numero. Base 313 MEDIDA antes de tocar nada
@@ -107,6 +116,33 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - panel_admin: cloud_functions 6.3.6 (pin exacto) — firebaseFunctionsProvider region us-central1; emulador de Functions en 127.0.0.1:5001 bajo --dart-define=USE_EMULATORS=true
 
 ## Decisions
+
+- 11-20: el CLI de personal NO decide la autorizacion: importa autorizarAlta, autorizarCambioEstado y validarPassword.
+  El gate que lo hace cumplir ELIMINA LOS COMENTARIOS antes de buscar y lleva un caso de control de su propio detector
+  — sin eso estaria verde por construccion. Los dos unicos literales de rol permitidos (super_admin, cliente) son los
+  que la matriz NO puede razonar (ROLES_ASIGNABLES y ROLES_GESTIONABLES los excluyen) y van declarados con
+  // ROL-LITERAL-OK, cuarto marcador de exencion de la fase tras // AUDIT-STAFF, // TOKEN-IGNORE y // POLICY-LOGIN-OK
+- 11-20: el ALCANCE de `listar` tambien se le pregunta a la matriz (rol de sonda tomado de ROLES_ASIGNABLES) en vez de
+  escribir aqui un "si es X usa su rid". Consecuencia ACEPTADA y documentada: la plataforma DEBE pasar --rid y no hay
+  listado global. MEDIDO que sin esto la delegacion estaba verde por construccion
+- 11-20: la clave de servicio se referencia por RUTA (existsSync + GOOGLE_APPLICATION_CREDENTIALS + applicationDefault),
+  NO se lee como hace seed_firebase.mjs (readFileSync + cert). Si el contenido no entra en el proceso, no puede acabar
+  en un log ni en el volcado de una excepcion. Y el modo EMULADORES tiene PRECEDENCIA sobre la clave: apuntando a
+  emuladores no se mira siquiera
+- 11-20: la contrasena temporal se genera por BUCLE DE RECHAZO contra validarPassword, no construyendola por categorias.
+  Si la politica cambia, el bucle falla ruidosamente en vez de generar en silencio algo que el servidor rechazaria
+- 11-20: `crear` NO escribe activo:true, igual que la callable — asi que NO sirve para readmitir (la persona seguiria
+  deshabilitada). Se replica tal cual y se documenta en el manual, en vez de divergir del comportamiento que volvera
+  cuando se despliegue Blaze
+- 11-20: HALLAZGO — la rama failed-precondition de reactivar es INALCANZABLE para un admin_restaurante. Sin role ni rid
+  en la ficha y sin claims, la matriz lo corta antes por alcance de tenant. Solo la alcanza la plataforma. El primer
+  test que escribi estaba VERDE POR EL MOTIVO EQUIVOCADO
+- 11-20: HALLAZGO — DECIMOTERCER gate de grep defectuoso de la fase, y este no tiene DIENTES: `grep -q "baja-matrix"`
+  pasa sobre un archivo sin una sola linea de baja, porque lo satisface la cabecera que menciona el modulo. MEDIDO en
+  vivo contra el commit de la Tarea 1. Todo gate de grep sobre codigo debe descartar los comentarios primero
+- 11-20: en un script local la matriz es una barrera contra ERRORES, NO una frontera de seguridad. Quien tiene la clave
+  de servicio puede hacer cualquier cosa sin pasar por el script. Con las callables era una frontera real evaluada en el
+  servidor. Dicho EN CLARO en docs/GESTION-PERSONAL.md: la seguridad pasa a depender de donde este guardada la clave
 
 - 11-15: `npm run gates` es la puerta unica de la fase. Un gate de tests falla tambien cuando el numero de tests BAJA respecto al baseline, aunque el runner devuelva 0 — una prueba borrada es una regresion que ningun runner reporta. MEDIDO con 6 roturas (B/D/H/J/L y la del panel) en las que `flutter test`/`node --test` devolvieron 0 y el gate fallo igual
 - 11-15: son NUEVE gates, no los ocho del plan. `scripts` test:functions hace glob de `scripts/test/functions/*.test.mjs`, que casa con CERO archivos: los 149 unitarios viven en `functions/test/*.test.js` y no los corria nadie. Sin el noveno gate quedaban fuera la matriz de autorizacion (11-08), la de baja (11-24) y los vectores de contrasena del servidor (11-22)
@@ -260,6 +296,7 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | Phase | Plan | Duracion | Tareas | Archivos |
 | --- | --- | --- | --- | --- |
 | 11 | 01 | ~25 min | 3 | 14 |
+| 11 | 26 | ~35 min | 3 (+1 Regla 2) | 10 |
 | 11 | 08 | ~2h 14min | 3 | 8 |
 | 11 | 02 | ~30 min | 3 | 13 |
 | 11 | 03 | ~13 min | 3 | 10 |
@@ -285,10 +322,18 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-25: la paleta de MESAS no llega a AA para su etiqueta de estado (13px normal): disponible 3.98, ocupada 4.36, reservada 3.51; solo limpieza (4.69) cumple. Es la parte que la auditoria senalaba como bien ejecutada y el plan prohibe tocarla: se fija en un test y se reporta como deuda que REQUIERE DECISION DEL USUARIO
 - 11-25: en vez de excluir pantallas ruidosas de textContrastGuideline, se CENSA: se afirma que el conjunto de ratios de fallo de las 8 rutas es exactamente {3.34} (blanco sobre el naranja de marca). Detecta el gris nuevo sin bloquear la deuda que nadie puede arreglar
 
+- 11-26: cuando un codigo de error significa DOS cosas, se separan por una senal OBSERVABLE del propio error, nunca por adivinacion. Aqui: las dos callables lanzan su `not-found` SIEMPRE con un mensaje redactado, asi que un `not-found` sin mensaje es "la funcion no esta desplegada". Se reconoce ademas el marcador crudo del transporte (NOT FOUND / 404), que el plan no pedia y sin el cual la regla volveria a soltar "El restaurante no existe" con el gate en verde
+- 11-26: un mensaje que el usuario puede ver ANTES y DESPUES de actuar vive en UNA constante compartida por la pantalla, el modal y el `catch`. Escrito tres veces, un dia dicen cosas distintas y el operador no sabe a cual creer
+- 11-26: el texto de la UI NO lleva la invocacion literal del script; nombra `docs/GESTION-PERSONAL.md`, que tiene los cinco comandos. Un comando embebido en una cadena de UI se desincroniza del CLI y vuelve a mentir, que es el defecto que este plan cierra
+- 11-26: un documento que describe un flujo no desplegado se MARCA, no se borra. SMOKE-E2E-v2 sigue siendo valido TAL CUAL contra emuladores (el emulador de Functions no necesita Blaze) y vuelve a serlo contra el proyecto real el dia del despliegue: se anadio la cabecera de contraste y una nota en cada uno de los 4 pasos afectados, sin recortar ni uno
+- 11-26: "visible" en un widget test es GEOMETRIA (rect no vacio, dentro del viewport, en su sitio), no presencia en el arbol: `find.byKey` + `find.text` pasan con el aviso dentro de un `Offstage` o con altura cero
+- 11-26: dentro de un modal, `find.text(...)` sin acotar es TAUTOLOGICO — el arbol de la pantalla sigue debajo y contesta por el del dialogo. Toda asercion sobre un aviso modal va con `find.descendant`
+
 ## Session
 
 - Last session: 2026-08-20
-- Stopped at: Completado 11-15-PLAN.md (runbook E2E desde base vacia + `npm run gates` con NUEVE gates; 16 roturas deliberadas, 6 de ellas con el runner en VERDE; duodecimo gate de grep defectuoso de la fase). Ultimo plan de implementacion: solo quedan los checkpoints de despliegue 11-16 y 11-20.
+- Stopped at: Completado 11-26-PLAN.md (degradacion honesta de /equipo + cierre documental: 14 roturas deliberadas, 1 verde cazada; 3 de los 4 <verify> del plan defectuosos). Ejecutado en paralelo con 11-20 en el mismo arbol.
+- Stopped at (anterior): Completado 11-15-PLAN.md (runbook E2E desde base vacia + `npm run gates` con NUEVE gates; 16 roturas deliberadas, 6 de ellas con el runner en VERDE; duodecimo gate de grep defectuoso de la fase). Ultimo plan de implementacion: solo quedan los checkpoints de despliegue 11-16 y 11-20.
 - Stopped at (anterior): Completado 11-25-PLAN.md (accesibilidad del panel: el sidebar y el topbar NO existian en el arbol de semantica y las tres guias pasaban verdes sobre eso; 23 roturas deliberadas, 2 verdes cazadas). Ejecutado en paralelo con 11-23 en el mismo arbol.
 - Stopped at (anterior): Completado 11-23-PLAN.md (mensajes honestos del flujo de mesa: 5 causas / 5 mensajes; 34 roturas deliberadas, 3 verdes cazadas, decimo gate de grep defectuoso de la fase). Ejecutado en paralelo con 11-24 y 11-25 en el mismo arbol.
 - Stopped at (anterior): Completado 11-24-PLAN.md (baja reversible de personal: matriz pura + callable cambiarEstadoStaff + acciones en /equipo; 26 roturas deliberadas, 4 verdes cazadas). Ejecutado en paralelo con 11-14 y 11-23 en el mismo arbol.
@@ -296,7 +341,7 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - Stopped at (anterior): Completado 11-12-PLAN.md (tokens del panel: 18 hex + 7 sombras + 9 botones + 3 ErrorBox; 36 roturas, cobertura de render anadida por desviacion Regla 2). Ejecutado ANTES que 11-14, que figura en su depends_on, sin necesitar nada de el.
 - Stopped at (anterior): Completado 11-19-PLAN.md (tokens de la app cliente: 20 hex + 34 TextStyle + 103 espaciados; migracion 1:1 demostrada mecanicamente, 0 diferencias de valor). Ejecutado en paralelo con 11-21.
 - Stopped at (anterior): Completado 11-13-PLAN.md (todo lo visible de la app cliente: zona segura, responsive, overflow e iconos; 21 roturas deliberadas, 2 verdes cazadas). Ejecutado en paralelo con 11-21.
-- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-25-PLAN.md
+- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-26-PLAN.md
 
 ## Blockers / Notas
 
@@ -314,6 +359,14 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-24: `npm run verify:shell` NO se ejecuto — exige `flutter build web --release` en las DOS apps y app_cliente estaba siendo modificada por 11-14 y 11-23. Si se ejecutaron `audit:indexes` (22 queries, 5 sujetas a paridad, 0 fallos, exit 0), `audit:branding` (exit 0), `test:rules` (221) y `test:functions` (47).
 - 11-24 AVISO CUMPLIDO (el de 11-12): mover lineas en panel_admin/lib puso rojo el gate de paridad de `docs/ICONOS-panel_admin.md` (GriIcons.equipo 135 -> 138). Actualizado en el mismo commit que lo movio.
 - 11-24 AVISO PARA 11-25 / quien toque /equipo: la accion por fila se oculta para uno mismo y para los `super_admin`, pero eso es UX y esta comentado como tal. La decision real vive en `cambiarEstadoStaff` y tiene e2e con token real; PROHIBIDO mover ahi ninguna comprobacion de autorizacion.
+- 11-26: UX-06 y E2E-02 tampoco existen en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11): `requirements.mark-complete` los reporta como not_found. Quedan en el frontmatter del SUMMARY.
+- 11-26 (ARBOL COMPARTIDO, sin incidente): los 8 commits se hicieron con `git commit -- <rutas>` explicitas y `git diff --cached --name-only` antes de cada uno. Verificado con `git show --name-only`: CERO archivos de functions/ o scripts/ en ninguno de los 8. Es la leccion de 11-23/11-24 aplicada.
+- 11-26 AVISO DE ENTORNO (leccion nueva): `git checkout -- <archivo>` para revertir una mutacion deliberada DESTRUYE el trabajo si ese archivo aun no esta commiteado. Paso DOS veces. Regla: commitear el GREEN ANTES de empezar a mutar, para que el checkout restaure a lo correcto y no a lo anterior.
+- 11-26: `scripts/test/rules/_diag_sesion.test.mjs` es un archivo de DIAGNOSTICO de 11-20, sin commitear, que pone 2 tests en rojo en la suite de rules (223 total, 221 pass, 2 fail — el baseline es 221, asi que NO hay regresion). No existia al empezar 11-26 y no se toco. Si al cerrar la fase sigue ahi, hay que commitearlo arreglado o borrarlo.
+- 11-26: los gates `test:rules` y `test:functions` fallaron en la pasada completa de `npm run gates` por CONFLICTO DE PUERTOS (`Could not start Authentication Emulator, port taken`; comprobado con netstat: 8080 y 9099 LISTENING con PIDs de 11-20). Ejecutados a solas con los puertos libres: test:functions 50/50 exit 0, test:rules 221 pass. Los otros 7 gates OK, panel_admin 445 (baseline 423, +22).
+- 11-26 PENDIENTE DE VERIFICACION HUMANA: que el texto de indisponibilidad SE LEA bien y de verdad ayude (un widget test prueba que la cadena se renderiza, no que una persona entienda que tiene que abrir una terminal). Y que un proyecto sin la funcion devuelva `not-found` con el mensaje VACIO: aqui se INYECTA la excepcion, y observarlo de verdad exige pulsar el boton contra p-gri-b5b40.
+- 11-26 AVISO PARA EL DIA DEL DESPLIEGUE: el plan afirma que los botones de /equipo empiezan a funcionar solos SIN tocar codigo. Es cierto para `not-found` y FALSO para `unavailable`/`internal`, que este plan mete en el grupo de indisponibilidad por instruccion del plan: desplegadas las funciones, esos dos codigos significan 'la funcion existe y se cayo'. Hay que sacarlos de `_callableNoDesplegada()` — dos lineas. Anotado en el codigo y en docs/ESTADO-DESPLIEGUE.md §5.
+- 11-26 DEUDA REGISTRADA en deferred-items.md: la cabecera de docs/FIREBASE_SETUP.md nombra `documentos/google-services.json` como fuente de configuracion de Android, y las dos apps usan `firebase_options.dart` (no hay google-services.json en app_cliente/android/app/). Misma clase de defecto que origino la fase; fuera del alcance de 11-26.
 - ENV-01, DOC-01 y TEST-02 (requisitos de la Fase 11 segun ROADMAP.md) NO existen en .planning/REQUIREMENTS.md, que solo contiene los requisitos v1: `requirements.mark-complete` los reporta como not_found (reconfirmado en 11-02).
 - 11-03: FIX-01, FIX-02 y TEST-01 tampoco existen en .planning/REQUIREMENTS.md (mismo motivo que ENV-01/DOC-01/TEST-02): `requirements.mark-complete` no puede marcarlos.
 - 11-06: UX-01 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo). Queda registrado en el frontmatter del SUMMARY.
