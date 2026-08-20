@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/reloj.dart';
 import '../../core/theme.dart';
 import '../../models/restaurante.dart';
@@ -489,11 +491,16 @@ class _RestaurantePicker extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(restaurantesListProvider);
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => const Text('No se pudieron cargar los restaurantes',
-          style: TextStyle(color: GriColors.textoSecundarioAccesible)),
-      data: (list) => DropdownButtonFormField<Restaurante>(
+    return async.cuandoConFallo(
+      cargando: () => const Center(child: CircularProgressIndicator()),
+      // 11-33: el texto no MENTÍA («no se pudieron cargar» es cierto), pero
+      // tampoco decía cuál de las causas fue ni ofrecía nada. Y con `when`
+      // se pintaba la rama de carga durante los reintentos de Riverpod.
+      fallo: (e) => Text(
+        mensajeDeFallo(e, contexto: Contexto.verRestaurantes),
+        style: const TextStyle(color: GriColors.textoSecundarioAccesible),
+      ),
+      datos: (list) => DropdownButtonFormField<Restaurante>(
         initialValue: selected,
         hint: const Text('Elige un restaurante'),
         decoration: const InputDecoration(

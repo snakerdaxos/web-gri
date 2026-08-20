@@ -239,8 +239,14 @@ class CocinaScreen extends ConsumerWidget {
       await entregarCuenta(db, mesaId: aviso.mesaId);
       messenger?.showSnackBar(
         SnackBar(
-          content: Text('Mesa ${aviso.mesaNumero} — cuenta entregada por '
-              '${formatCOP(cobrado)} (sesión cerrada)'),
+          content: Text(cobrado == null
+              // Sin cifra NO se inventa una: se dice que hay que consultarla.
+              // La sesión ya se cerró, así que callar dejaría al mesero sin
+              // saber ni cuánto cobrar ni que no lo sabemos.
+              ? 'Mesa ${aviso.mesaNumero} — sesión cerrada, pero NO pudimos '
+                  'calcular el importe. Consúltalo antes de cobrar.'
+              : 'Mesa ${aviso.mesaNumero} — cuenta entregada por '
+                  '${formatCOP(cobrado)} (sesión cerrada)'),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -303,12 +309,21 @@ class CocinaScreen extends ConsumerWidget {
 
 /// El importe ya servido de [mesaId], leído SIN suscribirse (`read`): se usa
 /// en el instante del cobro, no en un `build`.
-int _importeMesa(WidgetRef ref, String mesaId) {
-  final servidos =
-      ref.read(pedidosServidosMesaProvider(mesaId)).value ?? const [];
-  final enCurso = ref.read(pedidosStaffProvider).value ?? const [];
-  return cuentaDeMesa(mesaId: mesaId, servidos: servidos, enCurso: enCurso)
-      .total;
+///
+/// Devuelve `null` si el importe NO SE PUDO CALCULAR (11-33). Antes esto era
+/// `.value ?? const []` y devolvía `0` en ese caso, así que el recibo del
+/// snackbar decía «cuenta entregada por 0 $» — un importe falso, escrito en
+/// el instante exacto del cobro y con la sesión ya cerrada detrás. Un cero no
+/// es «no se pudo leer»: es una cifra, y aquí se lee como un recibo.
+int? _importeMesa(WidgetRef ref, String mesaId) {
+  final servidosAsync = ref.read(pedidosServidosMesaProvider(mesaId));
+  final enCursoAsync = ref.read(pedidosStaffProvider);
+  if (servidosAsync.hasError || enCursoAsync.hasError) return null;
+  return cuentaDeMesa(
+    mesaId: mesaId,
+    servidos: servidosAsync.value ?? const [],
+    enCurso: enCursoAsync.value ?? const [],
+  ).total;
 }
 
 /// Una mesa que pidió la cuenta, CON SU IMPORTE (plan 11-32).

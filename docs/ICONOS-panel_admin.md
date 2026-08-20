@@ -44,8 +44,8 @@ Una fila por punto de uso. Las líneas son las del árbol tras 11-21.
 | 🍽️ | `features/shared/app_shell.dart:264` | `restaurant` | `marca` | 24 |
 | 🍽️ | `features/auth/login_screen.dart:212` | `restaurant` | `marca` | 32 |
 | 🍽️ | `features/bootstrap/bootstrap_screen.dart:294` | `restaurant` | `marca` | 32 |
-| 🍽️ | `features/cocina/cocina_screen.dart:349` | `restaurant` | `marca` | 20 |
-| 🍽️ | `features/cocina/cocina_screen.dart:424` | `restaurant` | `marca` | 14 |
+| 🍽️ | `features/cocina/cocina_screen.dart:364` | `restaurant` | `marca` | 20 |
+| 🍽️ | `features/cocina/cocina_screen.dart:439` | `restaurant` | `marca` | 14 |
 | 🍽️ | `features/cocina/widgets/pedido_card.dart:247` | `restaurant` | `marca` | 14 |
 | 🎉 | `features/cocina/cocina_screen.dart:139` | `celebration_outlined` | `todoAlDia` | 18 |
 | 📝 | `features/cocina/widgets/pedido_card.dart:143` | `edit_note` | `notas` | 14 |
