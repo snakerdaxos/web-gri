@@ -2,6 +2,8 @@ import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
 import 'equipo_controller.dart';
 import 'equipo_provider.dart';
@@ -84,14 +86,15 @@ class EquipoScreen extends ConsumerWidget {
             const _AvisoSinFunciones(),
             const SizedBox(height: 16),
             Expanded(
-              child: equipoAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
+              child: equipoAsync.cuandoConFallo(
+                cargando: () => const Center(child: CircularProgressIndicator()),
+                fallo: (e) => Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'No se pudo cargar el equipo',
+                      Text(
+                        mensajeDeFallo(e, contexto: Contexto.equipo),
+                        textAlign: TextAlign.center,
                         style: TextStyle(color: GriColors.textoSecundarioAccesible),
                       ),
                       TextButton(
@@ -101,7 +104,7 @@ class EquipoScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                data: (equipo) => equipo.isEmpty
+                datos: (equipo) => equipo.isEmpty
                     ? const _EquipoVacio()
                     : _TablaEquipo(equipo: equipo),
               ),

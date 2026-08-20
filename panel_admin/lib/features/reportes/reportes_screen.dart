@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/format.dart';
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
 import '../../models/reporte.dart';
 import 'reportes_provider.dart';
@@ -193,14 +195,15 @@ class _Resultados extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final reporteAsync = ref.watch(reporteProvider(desde, hasta));
 
-    return reporteAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
+    return reporteAsync.cuandoConFallo(
+      cargando: () => const Center(child: CircularProgressIndicator()),
+      fallo: (e) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Error al consultar los reportes',
+            Text(
+              mensajeDeFallo(e, contexto: Contexto.reportes),
+              textAlign: TextAlign.center,
               style: TextStyle(color: GriColors.textoSecundarioAccesible),
             ),
             TextButton(
@@ -210,7 +213,7 @@ class _Resultados extends ConsumerWidget {
           ],
         ),
       ),
-      data: (reporte) => _Contenido(
+      datos: (reporte) => _Contenido(
         reporte: reporte,
         desde: desde,
         hasta: hasta,

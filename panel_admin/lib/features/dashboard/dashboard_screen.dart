@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/firebase_providers.dart';
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
 import '../mesas/mesa_actions_sheet.dart';
 import 'mesas_provider.dart';
@@ -107,16 +109,16 @@ class DashboardScreen extends ConsumerWidget {
               if (sinRestauranteActivo)
                 const _GuiaSinRestaurante()
               else
-                statsAsync.when(
-                loading: () => const SizedBox(
+                statsAsync.cuandoConFallo(
+                cargando: () => const SizedBox(
                   height: 130,
                   child: Center(child: CircularProgressIndicator()),
                 ),
-                error: (e, _) => ErrorBox(
-                  message: 'Error cargando estadísticas',
+                fallo: (e) => ErrorBox(
+                  message: mensajeDeFallo(e, contexto: Contexto.estadisticas),
                   onRetry: () => ref.invalidate(statsProvider),
                 ),
-                data: (s) => GridView(
+                datos: (s) => GridView(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   // ALTO FIJO, no childAspectRatio (11-21).
@@ -216,17 +218,17 @@ class DashboardScreen extends ConsumerWidget {
                     const SizedBox(height: 25),
                     const MesaLegend(),
                     const SizedBox(height: 25),
-                    mesasAsync.when(
-                      loading: () => const SizedBox(
+                    mesasAsync.cuandoConFallo(
+                      cargando: () => const SizedBox(
                         height: 200,
                         child:
                             Center(child: CircularProgressIndicator()),
                       ),
-                      error: (e, _) => ErrorBox(
-                        message: 'Error cargando mesas',
+                      fallo: (e) => ErrorBox(
+                        message: mensajeDeFallo(e, contexto: Contexto.mesas),
                         onRetry: () => ref.invalidate(mesasProvider),
                       ),
-                      data: (mesas) {
+                      datos: (mesas) {
                         if (mesas.isEmpty) {
                           return const Padding(
                             padding: EdgeInsets.symmetric(vertical: 40),

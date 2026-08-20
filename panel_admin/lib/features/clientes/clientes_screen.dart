@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/format.dart';
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
 import 'clientes_provider.dart';
 import 'historial_dialog.dart';
@@ -51,15 +53,16 @@ class ClientesScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: clientesAsync.when(
-                loading: () =>
+              child: clientesAsync.cuandoConFallo(
+                cargando: () =>
                     const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
+                fallo: (e) => Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'Error cargando clientes',
+                      Text(
+                        mensajeDeFallo(e, contexto: Contexto.clientes),
+                        textAlign: TextAlign.center,
                         style: TextStyle(color: GriColors.textoSecundarioAccesible),
                       ),
                       TextButton(
@@ -69,7 +72,7 @@ class ClientesScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                data: (clientes) => clientes.isEmpty
+                datos: (clientes) => clientes.isEmpty
                     ? const Center(
                         child: Text(
                           'Aún no hay clientes con pedidos',

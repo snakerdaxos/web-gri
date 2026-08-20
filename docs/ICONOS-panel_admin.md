@@ -33,15 +33,15 @@ Una fila por punto de uso. Las líneas son las del árbol tras 11-21.
 
 | Emoji | Archivo:línea | `Icons.*` | Nombre en `GriIcons` | `size` |
 |---|---|---|---|---|
-| 🏠 | `features/shared/app_shell.dart:189` | `home_outlined` | `dashboard` | 18 |
-| 🪑 | `features/shared/app_shell.dart:190` | `table_restaurant_outlined` | `mesas` | 18 |
-| 📋 | `features/shared/app_shell.dart:191` | `receipt_long_outlined` | `pedidos` | 18 |
-| 📅 | `features/shared/app_shell.dart:192` | `calendar_today_outlined` | `reservas` | 18 |
-| 👥 | `features/shared/app_shell.dart:193` | `people_outline` | `clientes` | 18 |
-| 📊 | `features/shared/app_shell.dart:194` | `bar_chart` | `reportes` | 18 |
-| 🪪 | `features/shared/app_shell.dart:195` | `badge_outlined` | `equipo` | 18 |
-| ⚙️ | `features/shared/app_shell.dart:196` | `settings_outlined` | `configuracion` | 18 |
-| 🍽️ | `features/shared/app_shell.dart:262` | `restaurant` | `marca` | 24 |
+| 🏠 | `features/shared/app_shell.dart:191` | `home_outlined` | `dashboard` | 18 |
+| 🪑 | `features/shared/app_shell.dart:192` | `table_restaurant_outlined` | `mesas` | 18 |
+| 📋 | `features/shared/app_shell.dart:193` | `receipt_long_outlined` | `pedidos` | 18 |
+| 📅 | `features/shared/app_shell.dart:194` | `calendar_today_outlined` | `reservas` | 18 |
+| 👥 | `features/shared/app_shell.dart:195` | `people_outline` | `clientes` | 18 |
+| 📊 | `features/shared/app_shell.dart:196` | `bar_chart` | `reportes` | 18 |
+| 🪪 | `features/shared/app_shell.dart:197` | `badge_outlined` | `equipo` | 18 |
+| ⚙️ | `features/shared/app_shell.dart:198` | `settings_outlined` | `configuracion` | 18 |
+| 🍽️ | `features/shared/app_shell.dart:264` | `restaurant` | `marca` | 24 |
 | 🍽️ | `features/auth/login_screen.dart:212` | `restaurant` | `marca` | 32 |
 | 🍽️ | `features/bootstrap/bootstrap_screen.dart:294` | `restaurant` | `marca` | 32 |
 | 🍽️ | `features/cocina/cocina_screen.dart:349` | `restaurant` | `marca` | 20 |
@@ -49,23 +49,23 @@ Una fila por punto de uso. Las líneas son las del árbol tras 11-21.
 | 🍽️ | `features/cocina/widgets/pedido_card.dart:247` | `restaurant` | `marca` | 14 |
 | 🎉 | `features/cocina/cocina_screen.dart:139` | `celebration_outlined` | `todoAlDia` | 18 |
 | 📝 | `features/cocina/widgets/pedido_card.dart:143` | `edit_note` | `notas` | 14 |
-| 🪑 | `features/dashboard/dashboard_screen.dart:150` | `table_restaurant_outlined` | `mesas` | 25 |
-| 👥 | `features/dashboard/dashboard_screen.dart:157` | `people_outline` | `clientes` | 25 |
-| 📅 | `features/dashboard/dashboard_screen.dart:164` | `calendar_today_outlined` | `reservas` | 25 |
-| 📋 | `features/dashboard/dashboard_screen.dart:171` | `receipt_long_outlined` | `pedidos` | 25 |
-| 🏪 | `features/dashboard/dashboard_screen.dart:328` | `storefront_outlined` | `restaurante` | 34 |
-| 👇 | `features/dashboard/dashboard_screen.dart:328` | `arrow_upward` | `selectorArriba` | 34 |
+| 🪑 | `features/dashboard/dashboard_screen.dart:152` | `table_restaurant_outlined` | `mesas` | 25 |
+| 👥 | `features/dashboard/dashboard_screen.dart:159` | `people_outline` | `clientes` | 25 |
+| 📅 | `features/dashboard/dashboard_screen.dart:166` | `calendar_today_outlined` | `reservas` | 25 |
+| 📋 | `features/dashboard/dashboard_screen.dart:173` | `receipt_long_outlined` | `pedidos` | 25 |
+| 🏪 | `features/dashboard/dashboard_screen.dart:330` | `storefront_outlined` | `restaurante` | 34 |
+| 👇 | `features/dashboard/dashboard_screen.dart:330` | `arrow_upward` | `selectorArriba` | 34 |
 | 👥 | `features/dashboard/widgets/mesa_tile.dart:98` | `people_outline` | `clientes` | 12 |
-| 🪪 | `features/equipo/equipo_screen.dart:185` | `badge_outlined` | `equipo` | 40 |
+| 🪪 | `features/equipo/equipo_screen.dart:188` | `badge_outlined` | `equipo` | 40 |
 | 📷 | `features/mesas/mesa_actions_sheet.dart:124` | `qr_code_2` | `verQr` | 20 |
 | ✏️ | `features/mesas/mesa_actions_sheet.dart:130` | `edit_outlined` | `editar` | 20 |
 | ⚠️ | `features/mesas/mesa_form_dialog.dart:240` | `warning_amber_outlined` | `aviso` | 13 |
 | 🖨️ | `features/mesas/qr_dialog.dart:50` | `print_outlined` | `imprimir` | 14 |
-| 📅 | `features/reportes/reportes_screen.dart:132` | `calendar_today_outlined` | `reservas` | 14 |
-| 📅 | `features/reportes/reportes_screen.dart:139` | `calendar_today_outlined` | `reservas` | 14 |
-| 💵 | `features/reportes/reportes_screen.dart:252` | `payments_outlined` | `ventas` | 25 |
-| 🧾 | `features/reportes/reportes_screen.dart:260` | `receipt_outlined` | `ticket` | 25 |
-| 📅 | `features/reservas/reservas_screen.dart:108` | `calendar_today_outlined` | `reservas` | 18 |
+| 📅 | `features/reportes/reportes_screen.dart:134` | `calendar_today_outlined` | `reservas` | 14 |
+| 📅 | `features/reportes/reportes_screen.dart:141` | `calendar_today_outlined` | `reservas` | 14 |
+| 💵 | `features/reportes/reportes_screen.dart:255` | `payments_outlined` | `ventas` | 25 |
+| 🧾 | `features/reportes/reportes_screen.dart:263` | `receipt_outlined` | `ticket` | 25 |
+| 📅 | `features/reservas/reservas_screen.dart:110` | `calendar_today_outlined` | `reservas` | 18 |
 | `\u{1F9ED}` (🧭) | `features/shared/not_found_screen.dart:52` | `explore_outlined` | `rutaDesconocida` | 40 |
 
 **33 sustituciones** en 13 archivos. Rutas relativas a `panel_admin/lib/`.

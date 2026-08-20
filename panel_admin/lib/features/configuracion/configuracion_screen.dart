@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/firebase_providers.dart';
 import '../../core/theme.dart';
 import '../../models/restaurante.dart';
@@ -33,12 +35,14 @@ class ConfiguracionScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final claimsAsync = ref.watch(claimsProvider);
 
-    return claimsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => const Center(
-        child: Text('Error cargando la sesión', style: TextStyle(color: GriColors.textoSecundarioAccesible)),
+    return claimsAsync.cuandoConFallo(
+      cargando: () => const Center(child: CircularProgressIndicator()),
+      fallo: (e) => Center(
+        child: Text(mensajeDeFallo(e, contexto: Contexto.sesion),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: GriColors.textoSecundarioAccesible)),
       ),
-      data: (claims) {
+      datos: (claims) {
         final isSuperAdmin = claims.role == 'super_admin';
         return DefaultTabController(
           length: isSuperAdmin ? 3 : 2,
@@ -90,15 +94,22 @@ class _RestauranteTab extends ConsumerWidget {
 
     return Material(
       color: GriColors.background,
-      child: rAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
+      child: rAsync.cuandoConFallo(
+        cargando: () => const Center(child: CircularProgressIndicator()),
+        // 11-33: decía «No hay restaurante seleccionado». SÍ hay uno
+        // seleccionado — lo que falló fue leerlo. Es exactamente la familia
+        // del incidente de 11-24 («el restaurante no existe» cuando lo que
+        // faltaba era una function sin desplegar): afirmar una condición del
+        // estado a partir de un error de transporte.
+        fallo: (e) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'No hay restaurante seleccionado',
-                style: TextStyle(color: GriColors.textoSecundarioAccesible),
+              Text(
+                mensajeDeFallo(e, contexto: Contexto.restaurantes),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: GriColors.textoSecundarioAccesible),
               ),
               TextButton(
                 onPressed: () => ref.invalidate(restauranteProvider),
@@ -107,7 +118,7 @@ class _RestauranteTab extends ConsumerWidget {
             ],
           ),
         ),
-        data: (r) => ListView(
+        datos: (r) => ListView(
           padding: const EdgeInsets.all(GriSpacing.lg),
           children: [
             _InfoCard(
@@ -287,15 +298,17 @@ class _RestaurantesTab extends ConsumerWidget {
 
     return Material(
       color: GriColors.background,
-      child: restaurantesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
+      child: restaurantesAsync.cuandoConFallo(
+        cargando: () => const Center(child: CircularProgressIndicator()),
+        fallo: (e) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Error cargando restaurantes',
-                style: TextStyle(color: GriColors.textoSecundarioAccesible),
+              Text(
+                mensajeDeFallo(e, contexto: Contexto.restaurantes),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: GriColors.textoSecundarioAccesible),
               ),
               TextButton(
                 onPressed: () => ref.invalidate(restaurantesAdminProvider),
@@ -304,7 +317,7 @@ class _RestaurantesTab extends ConsumerWidget {
             ],
           ),
         ),
-        data: (restaurantes) => Column(
+        datos: (restaurantes) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(

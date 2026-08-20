@@ -298,7 +298,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Error'), findsOneWidget);
+    // 11-33: antes se afirmaba `textContaining('Error')`, que pasaba con
+    // cualquier cadena que llevara esa palabra y no distinguía la causa.
+    // `'boom'` no es una FirebaseException: la causa es `desconocido`, así
+    // que el mensaje NO puede culpar a la red ni a la cuenta.
+    expect(
+        find.text('No pudimos cargar las estadísticas. Vuelve a intentarlo; '
+            'si sigue igual, avisa a quien administre la plataforma.'),
+        findsOneWidget);
+    expect(find.textContaining('conexión'), findsNothing);
+    expect(find.textContaining('Tu cuenta'), findsNothing);
     expect(find.text('Reintentar'), findsWidgets);
   });
 

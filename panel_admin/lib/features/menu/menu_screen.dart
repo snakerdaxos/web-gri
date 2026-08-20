@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format.dart';
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
 import '../../models/categoria_staff.dart';
 import 'categoria_form_dialog.dart';
@@ -62,14 +64,15 @@ class MenuScreen extends ConsumerWidget {
             ),
           ),
           Expanded(
-            child: menuAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
+            child: menuAsync.cuandoConFallo(
+              cargando: () => const Center(child: CircularProgressIndicator()),
+              fallo: (e) => Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Error cargando el menú',
+                    Text(
+                      mensajeDeFallo(e, contexto: Contexto.menu),
+                      textAlign: TextAlign.center,
                       style: TextStyle(color: GriColors.textoSecundarioAccesible),
                     ),
                     TextButton(
@@ -79,7 +82,7 @@ class MenuScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              data: (categorias) => categorias.isEmpty
+              datos: (categorias) => categorias.isEmpty
                   ? const Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,

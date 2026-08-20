@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 
 import '../../core/firebase_providers.dart';
 import '../../core/state_machines.dart';
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
 import '../../models/reserva.dart';
 import 'reservas_provider.dart';
@@ -128,15 +130,16 @@ class ReservasScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: reservasAsync.when(
-                loading: () =>
+              child: reservasAsync.cuandoConFallo(
+                cargando: () =>
                     const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
+                fallo: (e) => Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        'Error cargando reservas',
+                      Text(
+                        mensajeDeFallo(e, contexto: Contexto.reservas),
+                        textAlign: TextAlign.center,
                         style: TextStyle(color: GriColors.textoSecundarioAccesible),
                       ),
                       TextButton(
@@ -146,7 +149,7 @@ class ReservasScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                data: (reservas) => reservas.isEmpty
+                datos: (reservas) => reservas.isEmpty
                     ? const Center(
                         child: Text(
                           'Sin reservas para hoy',

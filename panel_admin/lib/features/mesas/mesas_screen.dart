@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
 import '../dashboard/mesas_provider.dart';
 import '../dashboard/widgets/mesa_tile.dart';
@@ -57,16 +59,16 @@ class MesasScreen extends ConsumerWidget {
                   style: TextStyle(color: GriColors.textoSecundarioAccesible),
                 ),
                 const SizedBox(height: 20),
-                mesasAsync.when(
-                  loading: () => const SizedBox(
+                mesasAsync.cuandoConFallo(
+                  cargando: () => const SizedBox(
                     height: 300,
                     child: Center(child: CircularProgressIndicator()),
                   ),
-                  error: (e, _) => ErrorBox(
-                    message: 'Error cargando mesas',
+                  fallo: (e) => ErrorBox(
+                    message: mensajeDeFallo(e, contexto: Contexto.mesas),
                     onRetry: () => ref.invalidate(mesasProvider),
                   ),
-                  data: (mesas) {
+                  datos: (mesas) {
                     if (mesas.isEmpty) {
                       return const Padding(
                         padding: EdgeInsets.symmetric(vertical: 60),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/firebase_providers.dart';
 import '../../core/theme.dart';
 import '../dashboard/restaurante_provider.dart';
@@ -498,14 +500,22 @@ class _TopBar extends ConsumerWidget {
                 // el seed: 77px de desborde.
                 if (isSuperAdmin) ...[
                   Flexible(
-                    child: restaurantesListAsync?.when(
-                          loading: () => const SizedBox(
+                    // 11-33: la rama de error era `SizedBox.shrink()`. El
+                    // selector desaparecía sin decir nada, que es peor que un
+                    // mensaje malo: no hay qué leer ni qué hacer, y el
+                    // super-admin no puede deducir si es que no hay
+                    // restaurantes o que no se pudieron cargar.
+                    child: restaurantesListAsync?.cuandoConFallo(
+                          cargando: () => const SizedBox(
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
-                          error: (_, _) => const SizedBox.shrink(),
-                          data: (list) =>
+                          fallo: (e) => _AvisoTopbar(
+                            mensaje: mensajeDeFallo(e,
+                                contexto: Contexto.restaurantes),
+                          ),
+                          datos: (list) =>
                               _RestauranteDropdown(restaurantes: list),
                         ) ??
                         const SizedBox.shrink(),
@@ -524,8 +534,8 @@ class _TopBar extends ConsumerWidget {
                             color: GriColors.text,
                           ),
                         ),
-                        restauranteAsync.when(
-                          loading: () => const Text(
+                        restauranteAsync.cuandoConFallo(
+                          cargando: () => const Text(
                             'Cargando…',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -534,8 +544,13 @@ class _TopBar extends ConsumerWidget {
                               fontSize: 13,
                             ),
                           ),
-                          error: (_, _) => const SizedBox.shrink(),
-                          data: (r) => Text(
+                          // Ídem: callar aquí deja el topbar sin nombre y sin
+                          // explicación (11-33).
+                          fallo: (e) => _AvisoTopbar(
+                            mensaje: mensajeDeFallo(e,
+                                contexto: Contexto.restaurantes),
+                          ),
+                          datos: (r) => Text(
                             r?.nombre ?? 'Sin restaurante',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -617,6 +632,43 @@ class _RestauranteDropdown extends ConsumerWidget {
           ref.read(seleccionRestauranteProvider.notifier).set(newId);
         }
       },
+      ),
+    );
+  }
+}
+
+/// Aviso compacto para el topbar (11-33).
+///
+/// Las dos ramas de error del topbar eran `SizedBox.shrink()`: el selector de
+/// restaurante y el nombre del restaurante activo desaparecían en silencio.
+/// El sitio es estrecho, así que el texto se acota a una línea y el mensaje
+/// completo queda en el tooltip — pero algo se ve SIEMPRE, que es el punto.
+class _AvisoTopbar extends StatelessWidget {
+  const _AvisoTopbar({required this.mensaje});
+
+  final String mensaje;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: mensaje,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(GriIcons.aviso, size: 16, color: GriColors.mesaReservadaFg),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              mensaje,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: GriColors.mesaReservadaFg,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

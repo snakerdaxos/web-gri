@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/firebase_providers.dart';
 import '../../core/gri_icons.dart';
 import '../../core/password_policy.dart';
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
 import '../dashboard/restaurante_provider.dart';
 import '../dashboard/restaurantes_list_provider.dart';
@@ -311,13 +313,14 @@ class _SelectorRestaurante extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final listaAsync = ref.watch(restaurantesListProvider);
 
-    return listaAsync.when(
-      loading: () => const LinearProgressIndicator(),
-      error: (_, _) => const Text(
-        'No se pudo cargar la lista de restaurantes',
+    return listaAsync.cuandoConFallo(
+      cargando: () => const LinearProgressIndicator(),
+      fallo: (e) => Text(
+        mensajeDeFallo(e, contexto: Contexto.restaurantes),
+        textAlign: TextAlign.center,
         style: TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 12),
       ),
-      data: (lista) => DropdownButtonFormField<String>(
+      datos: (lista) => DropdownButtonFormField<String>(
         key: const Key('staff-restaurante'),
         initialValue: lista.any((r) => r.id == valor) ? valor : null,
         decoration: const InputDecoration(
