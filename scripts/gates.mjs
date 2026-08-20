@@ -48,7 +48,7 @@ const BASELINES = {
   app_cliente: 345, // flutter test
   panel_admin: 423, // flutter test
   functions_unit: 149, // functions/: node --test test/*.test.js
-  rules: 221, // scripts/: @firebase/rules-unit-testing contra el emulador
+  rules: 260, // scripts/: @firebase/rules-unit-testing contra el emulador (11-27: 221 -> 260, +39 casos de LECTURA DE DOCS AUSENTES)
   functions_e2e: 50, // scripts/: callables contra emuladores auth+functions+firestore
 };
 
