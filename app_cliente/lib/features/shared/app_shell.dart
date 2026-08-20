@@ -85,7 +85,7 @@ class AppShell extends StatelessWidget {
           initialLocation: index == navigationShell.currentIndex,
         ),
         selectedItemColor: GriColors.primary,
-        unselectedItemColor: GriColors.gray,
+        unselectedItemColor: GriColors.textoSecundarioAccesible,
         selectedFontSize: 12,
         unselectedFontSize: 12,
         items: [

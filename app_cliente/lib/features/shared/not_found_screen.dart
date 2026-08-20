@@ -48,14 +48,14 @@ class NotFoundScreen extends StatelessWidget {
                 const Text(
                   'El enlace que abriste no existe o ya no está disponible.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: GriColors.gray),
+                  style: TextStyle(color: GriColors.textoSecundarioAccesible),
                 ),
                 const SizedBox(height: GriSpacing.sm),
                 // Solo el path. Ver el bloque de seguridad de arriba.
                 Text(
                   uri.path,
                   textAlign: TextAlign.center,
-                  style: GriText.auxiliar.copyWith(color: GriColors.gray, fontFamily: 'monospace'),
+                  style: GriText.auxiliar.copyWith(color: GriColors.textoSecundarioAccesible, fontFamily: 'monospace'),
                 ),
                 const SizedBox(height: GriSpacing.md),
                 ElevatedButton(

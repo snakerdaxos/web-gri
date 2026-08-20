@@ -132,7 +132,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           const SizedBox(height: GriSpacing.xs),
                           Text(
                             'Reserva y pide desde tu mesa',
-                            style: GriText.cuerpoCompacto.copyWith(color: GriColors.gray),
+                            style: GriText.cuerpoCompacto.copyWith(color: GriColors.textoSecundarioAccesible),
                           ),
                         ],
                       ),

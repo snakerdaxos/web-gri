@@ -135,7 +135,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen> {
           const Text(
             'Apunta la cámara al código QR de la mesa, o escribe el código '
             'que aparece debajo de él.',
-            style: TextStyle(color: GriColors.gray),
+            style: TextStyle(color: GriColors.textoSecundarioAccesible),
           ),
           const SizedBox(height: 20),
 

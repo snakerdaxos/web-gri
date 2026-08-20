@@ -297,13 +297,20 @@ void main() {
       expect(GriColors.gray, const Color(0xFF777777));
     });
 
-    test('textoSecundarioAccesible es OTRO token, y hoy no está aplicado', () {
-      // Guarda 2 de 2. Existe para que 11-14 lo aplique a los roles de texto
-      // pequeño; declararlo aquí no cambia ningún píxel hoy.
+    test('textoSecundarioAccesible es OTRO token, y desde 11-14 está aplicado',
+        () {
+      // Guarda 2 de 2. 11-11 lo declaró SIN aplicar; 11-14 lo aplicó a los 29
+      // puntos de TEXTO de la app (el barrido de test/a11y/a11y_test.dart es
+      // el que comprueba que no queda ni uno con el gris de marca).
       expect(GriSemanticColors.gri.textoSecundarioAccesible,
           const Color(0xFF6E6E6E));
       expect(GriSemanticColors.gri.textoSecundarioAccesible,
           isNot(GriColors.gray));
+      // Un solo valor con dos caminos de acceso: la constante de GriColors
+      // (usable en un `const TextStyle`) y el campo de la extensión.
+      expect(GriColors.textoSecundarioAccesible, const Color(0xFF6E6E6E));
+      expect(GriSemanticColors.gri.textoSecundarioAccesible,
+          GriColors.textoSecundarioAccesible);
     });
 
     test('of() cae a la instancia canónica si el tema no la registra', () {

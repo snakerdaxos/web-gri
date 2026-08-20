@@ -23,7 +23,7 @@ class SeparadorAuth extends StatelessWidget {
         Expanded(child: Divider(color: GriColors.divisor)),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text('o', style: TextStyle(color: GriColors.gray)),
+          child: Text('o', style: TextStyle(color: GriColors.textoSecundarioAccesible)),
         ),
         Expanded(child: Divider(color: GriColors.divisor)),
       ],
@@ -69,7 +69,7 @@ class GoogleBoton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         backgroundColor: Colors.white,
         foregroundColor: GriColors.text,
-        disabledForegroundColor: GriColors.gray,
+        disabledForegroundColor: GriColors.textoSecundarioAccesible,
         side: const BorderSide(color: GriColors.bordeBotonGoogle),
         // 48 de alto: el default de OutlinedButton es 40, así que este
         // mínimo lo pone el widget, no el framework. GriSpacing.xxl vale

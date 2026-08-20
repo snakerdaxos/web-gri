@@ -86,7 +86,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                           const SizedBox(height: 6),
                           Text(
                             detalle.tipoCocina!,
-                            style: const TextStyle(color: GriColors.gray),
+                            style: const TextStyle(color: GriColors.textoSecundarioAccesible),
                           ),
                         ],
                         if (detalle.descripcion != null) ...[
@@ -165,7 +165,7 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                   ),
                   subtitle: Text(
                     '${categoria.productos.length} ítems',
-                    style: GriText.auxiliar.copyWith(color: GriColors.gray),
+                    style: GriText.auxiliar.copyWith(color: GriColors.textoSecundarioAccesible),
                   ),
                   children: [
                     for (final producto in categoria.productos)

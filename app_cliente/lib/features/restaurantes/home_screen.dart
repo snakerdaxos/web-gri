@@ -101,7 +101,7 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 5),
               const Text(
                 '¿Dónde quieres comer hoy?',
-                style: TextStyle(color: GriColors.gray),
+                style: TextStyle(color: GriColors.textoSecundarioAccesible),
               ),
               const SizedBox(height: GriSpacing.lg),
 
@@ -115,7 +115,7 @@ class HomeScreen extends ConsumerWidget {
               else
                 const Text(
                   'No hay restaurantes disponibles todavía',
-                  style: TextStyle(color: GriColors.gray),
+                  style: TextStyle(color: GriColors.textoSecundarioAccesible),
                 ),
 
               const SizedBox(height: 20),
@@ -388,7 +388,7 @@ class _RestauranteCard extends StatelessWidget {
                 ),
                 if (tipoCocina != null) ...[
                   const SizedBox(height: 6),
-                  Text(tipoCocina!, style: const TextStyle(color: GriColors.gray)),
+                  Text(tipoCocina!, style: const TextStyle(color: GriColors.textoSecundarioAccesible)),
                 ],
                 const SizedBox(height: 10),
                 Row(
@@ -482,7 +482,7 @@ class _ActionCard extends StatelessWidget {
               Text(
                 subtitulo,
                 textAlign: TextAlign.center,
-                style: GriText.auxiliar.copyWith(color: GriColors.gray),
+                style: GriText.auxiliar.copyWith(color: GriColors.textoSecundarioAccesible),
               ),
             ],
           ),

@@ -270,7 +270,13 @@ void main() {
       final barra = tester
           .widget<BottomNavigationBar>(find.byType(BottomNavigationBar));
       expect(barra.selectedItemColor, GriColors.primary);
-      expect(barra.unselectedItemColor, GriColors.gray);
+      // 11-14: la etiqueta del tab INACTIVO es texto de 12px sobre blanco.
+      // Con #777777 daba 4.478:1, por debajo del 4.5:1 de WCAG AA, así que
+      // pasa al token accesible (#6E6E6E, 5.099:1). El hex va literal a
+      // propósito: comparar contra el token dejaría el caso verde si alguien
+      // cambiase el valor del token.
+      expect(barra.unselectedItemColor, const Color(0xFF6E6E6E));
+      expect(barra.unselectedItemColor, GriColors.textoSecundarioAccesible);
       // Y el Icon NO fija color propio: si lo fijara, ganaría al de la barra
       // y el tab activo dejaría de pintarse de naranja.
       expect(tester.widget<Icon>(find.byIcon(GriIcons.inicio)).color, isNull);

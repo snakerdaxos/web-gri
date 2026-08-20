@@ -73,7 +73,7 @@ class MisReservasScreen extends ConsumerWidget {
                   SizedBox(height: GriSpacing.xs),
                   Text(
                     'Toca el botón + para crear una',
-                    style: TextStyle(color: GriColors.gray),
+                    style: TextStyle(color: GriColors.textoSecundarioAccesible),
                   ),
                 ],
               ),
@@ -147,7 +147,7 @@ class _Seccion extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: GriSpacing.sm),
               child:
-                  Text(vacio, style: const TextStyle(color: GriColors.gray)),
+                  Text(vacio, style: const TextStyle(color: GriColors.textoSecundarioAccesible)),
             ),
         ] else ...[
           for (final reserva in reservas)

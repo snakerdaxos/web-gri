@@ -150,7 +150,7 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
                 child: Center(
                   child: Text(
                     'Se actualiza automáticamente',
-                    style: GriText.auxiliar.copyWith(color: GriColors.gray),
+                    style: GriText.auxiliar.copyWith(color: GriColors.textoSecundarioAccesible),
                   ),
                 ),
               ),
@@ -182,7 +182,7 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
             child: Text(
               // ignore: lines_longer_than_80_chars
               'Sesión cerrada — ¡gracias por tu visita! 🙌', // EMOJI-OK: despedida
-              style: TextStyle(color: GriColors.gray),
+              style: TextStyle(color: GriColors.textoSecundarioAccesible),
             ),
           ),
         ),

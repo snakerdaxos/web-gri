@@ -204,7 +204,7 @@ class _CalificacionSheetState extends ConsumerState<CalificacionSheet> {
           const SizedBox(height: GriSpacing.xs),
           Text(
             'Tu calificación ayuda a otros comensales',
-            style: GriText.auxiliar.copyWith(color: GriColors.gray),
+            style: GriText.auxiliar.copyWith(color: GriColors.textoSecundarioAccesible),
           ),
           const SizedBox(height: GriSpacing.md),
           Row(

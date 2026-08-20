@@ -141,7 +141,7 @@ class _RestauranteCard extends StatelessWidget {
                         restaurante.tipoCocina,
                         restaurante.direccion,
                       ].whereType<String>().join(' · '),
-                      style: const TextStyle(color: GriColors.gray),
+                      style: const TextStyle(color: GriColors.textoSecundarioAccesible),
                     ),
                   ],
                   const SizedBox(height: 10),

@@ -10,7 +10,9 @@ import '../../core/theme.dart';
 /// Esto es una EXTRACCIÓN, no un rediseño. La estructura, los tamaños, los
 /// colores y el espaciado salen tal cual del patrón que ya era bueno en esta
 /// app (`mis_reservas_screen.dart` y `pedido_estado_screen.dart`): icono a 40,
-/// 8px, titular con el estilo por defecto, 4px, guía en [GriColors.gray] y —si
+/// 8px, titular con el estilo por defecto, 4px, guía en
+/// [GriColors.textoSecundarioAccesible] (era [GriColors.gray] hasta 11-14, que
+/// separó el gris de MARCA del gris de TEXTO por contraste AA) y —si
 /// hay acción— 16px y el botón. La identidad visual está BLOQUEADA por decisión
 /// del usuario (11-CONTEXT §"Alcance visual"): aquí no se introduce ni un color
 /// ni una tipografía nueva.
@@ -69,7 +71,7 @@ class EmptyState extends StatelessWidget {
         Text(
           guia,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: GriColors.gray),
+          style: const TextStyle(color: GriColors.textoSecundarioAccesible),
         ),
         if (accion != null) ...[
           const SizedBox(height: GriSpacing.md),

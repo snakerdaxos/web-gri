@@ -26,8 +26,31 @@ class GriColors {
   /// #222 — texto principal.
   static const Color text = Color(0xFF222222);
 
-  /// #777 — texto secundario (labels de tabs inactivos incluidos).
+  /// #777 — gris de MARCA. Bordes, iconos, indicadores y decoración.
+  ///
+  /// ⚠ YA NO ES EL COLOR DEL TEXTO SECUNDARIO (11-14). Sobre blanco da
+  /// 4.478:1 y sobre el fondo real de la app (#F7F7F7) 4.180:1 — los dos por
+  /// debajo del 4.5:1 que exige WCAG AA para texto normal. El valor NO se
+  /// toca (decisión BLOQUEADA del usuario: la paleta del mockup no cambia);
+  /// lo que cambia es DÓNDE se usa. Para texto va
+  /// [textoSecundarioAccesible].
   static const Color gray = Color(0xFF777777);
+
+  /// #6e6e6e — gris del TEXTO secundario. 5.099:1 sobre blanco y 4.760:1
+  /// sobre [background]: cumple AA en los dos fondos de la app.
+  ///
+  /// Lo declaró el plan 11-11 dentro de [GriSemanticColors] y lo dejó SIN
+  /// aplicar a propósito, reservado para 11-14. Aquí vive la constante
+  /// (`static const`, para poder usarse dentro de un `const TextStyle`) y la
+  /// extensión la referencia: un solo valor, dos caminos de acceso.
+  ///
+  /// Es el ÚNICO cambio de píxeles del plan 11-14 aparte del botón QR, y es
+  /// deliberado: 29 puntos de 14 archivos pasan de #777777 a #6E6E6E. Todos
+  /// son TEXTO (incluida la etiqueta de los tabs inactivos del `AppShell` y
+  /// las dos etiquetas de botón deshabilitado). Lo que NO se mueve: los 9
+  /// `Icon`, el fondo del SnackBar y el `CircularProgressIndicator`, que
+  /// siguen en [gray] porque no son texto.
+  static const Color textoSecundarioAccesible = Color(0xFF6E6E6E);
 
   /// #20b26b — success (confirmada).
   static const Color green = Color(0xFF20B26B);
@@ -197,10 +220,10 @@ class GriSemanticColors extends ThemeExtension<GriSemanticColors> {
 
   /// #6E6E6E — gris de texto secundario que SÍ alcanza 4.5:1 sobre #F7F7F7.
   ///
-  /// ⚠ HOY NO ESTÁ APLICADO EN NINGÚN SITIO, y es deliberado. Aplicarlo es
-  /// trabajo del plan 11-14 (accesibilidad). Existe aquí para que ese plan
-  /// NO tenga que tocar [GriColors.gray] (#777777), que es un token de MARCA
-  /// y no puede cambiar de valor. Dos tests guardan esa separación.
+  /// APLICADO desde 11-14 en los 26 textos secundarios de la app, sin tocar
+  /// [GriColors.gray] (#777777), que es un token de MARCA y no puede cambiar
+  /// de valor. Es el MISMO valor que [GriColors.textoSecundarioAccesible]:
+  /// esta extensión lo referencia para no tener dos fuentes de verdad.
   final Color textoSecundarioAccesible;
 
   /// La instancia canónica de GRI. Es la que registra [griTheme] y la que
@@ -223,7 +246,7 @@ class GriSemanticColors extends ThemeExtension<GriSemanticColors> {
     neutroFg: Color(0xFF777777),
     neutroBg: Color(0xFFEEEEEE),
     exito: GriColors.green,
-    textoSecundarioAccesible: Color(0xFF6E6E6E),
+    textoSecundarioAccesible: GriColors.textoSecundarioAccesible,
   );
 
   /// Lee la extensión del tema. Cae a [gri] si no está registrada.

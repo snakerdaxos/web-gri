@@ -94,17 +94,25 @@ Color _colorPintado(WidgetTester tester, String texto) {
   return (parrafos.single.renderObject! as RenderParagraph).text.style!.color!;
 }
 
-/// Todos los colores de texto pintados en el árbol, con su tamaño de fuente.
-List<(String, Color, double)> _textosPintados(WidgetTester tester) => [
-      for (final e in find.byType(RichText).evaluate())
-        if ((e.renderObject! as RenderParagraph).text.style?.color != null &&
-            (e.renderObject! as RenderParagraph).text.toPlainText().isNotEmpty)
-          (
-            (e.renderObject! as RenderParagraph).text.toPlainText(),
-            (e.renderObject! as RenderParagraph).text.style!.color!,
-            (e.renderObject! as RenderParagraph).text.style?.fontSize ?? 14,
-          ),
-    ];
+/// Todos los TEXTOS pintados en el árbol, con su color y tamaño reales.
+///
+/// Excluye los `Icon`: un icono de Material también se pinta con un
+/// `RenderParagraph` (su glifo vive en la fuente `MaterialIcons`), pero NO es
+/// texto — el umbral de 4.5:1 de WCAG 1.4.3 no le aplica, y `GriColors.gray`
+/// se queda ahí a propósito.
+List<(String, Color, double)> _textosPintados(WidgetTester tester) {
+  final out = <(String, Color, double)>[];
+  for (final e in find.byType(RichText).evaluate()) {
+    final span = (e.renderObject! as RenderParagraph).text;
+    final estilo = span.style;
+    if (estilo?.color == null) continue;
+    if (estilo?.fontFamily == 'MaterialIcons') continue;
+    final txt = span.toPlainText().trim();
+    if (txt.isEmpty) continue;
+    out.add((txt, estilo!.color!, estilo.fontSize ?? 14));
+  }
+  return out;
+}
 
 RestauranteDetalle _detalle() => RestauranteDetalle(
       id: 'demo',
@@ -414,6 +422,14 @@ void main() {
     var vistos = 0;
     var accesibles = 0;
 
+    // Riverpod prohíbe cambiar el NÚMERO de overrides de un `ProviderScope`
+    // ya montado, y cada pantalla trae los suyos: entre pantalla y pantalla
+    // hay que desmontar el árbol entero.
+    Future<void> limpiar() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }
+
     Future<void> barrer(String pantalla) async {
       final textos = _textosPintados(tester);
       expect(textos, isNotEmpty, reason: 'el barrido no vio nada en $pantalla');
@@ -431,15 +447,18 @@ void main() {
     await tester.pumpAndSettle();
     await barrer('login');
 
+    await limpiar();
     await tester.pumpWidget(_auth(inicio: '/register'));
     await tester.pumpAndSettle();
     await barrer('registro');
 
+    await limpiar();
     final db = await buildFakeFirestoreConSeed();
     await tester.pumpWidget(_home(db));
     await tester.pumpAndSettle();
     await barrer('home');
 
+    await limpiar();
     await _pumpMenu(tester);
     await barrer('menú de la mesa');
 
@@ -452,8 +471,11 @@ void main() {
     // CANARIO: si el barrido no viese párrafos, todos los `isNot` de arriba
     // pasarían por vacío. Estos dos números demuestran que miró y que
     // encontró el token nuevo aplicado de verdad.
-    expect(vistos, greaterThan(40), reason: 'párrafos recorridos');
-    expect(accesibles, greaterThan(5),
+    // Números MEDIDOS: 53 párrafos recorridos, 11 con el token accesible. El
+    // umbral va por debajo del valor real para que añadir un texto a una
+    // pantalla no ponga esto rojo, pero vaciar el barrido sí.
+    expect(vistos, greaterThanOrEqualTo(50), reason: 'párrafos recorridos');
+    expect(accesibles, greaterThanOrEqualTo(10),
         reason: 'párrafos ya pintados con el token accesible');
   });
 

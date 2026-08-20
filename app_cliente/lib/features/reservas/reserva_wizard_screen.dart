@@ -251,7 +251,7 @@ class _ReservaWizardScreenState extends ConsumerState<ReservaWizardScreen> {
         const SizedBox(height: GriSpacing.sm),
         Text(
           'Al confirmar, el sistema te asignará una mesa automáticamente.',
-          style: GriText.auxiliar.copyWith(color: GriColors.gray),
+          style: GriText.auxiliar.copyWith(color: GriColors.textoSecundarioAccesible),
         ),
       ],
     );
@@ -360,7 +360,7 @@ class _ResumenRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: GriColors.gray)),
+          Text(label, style: const TextStyle(color: GriColors.textoSecundarioAccesible)),
           // 11-13: el valor va en Expanded + ellipsis. Un `Row` reparte
           // restricciones INFINITAS de ancho a sus hijos, así que el `Text`
           // se maquetaba a su ancho natural y desbordaba en cuanto el nombre
@@ -430,7 +430,7 @@ class _RestaurantePicker extends ConsumerWidget {
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => const Text('No se pudieron cargar los restaurantes',
-          style: TextStyle(color: GriColors.gray)),
+          style: TextStyle(color: GriColors.textoSecundarioAccesible)),
       data: (list) => DropdownButtonFormField<Restaurante>(
         initialValue: selected,
         hint: const Text('Elige un restaurante'),

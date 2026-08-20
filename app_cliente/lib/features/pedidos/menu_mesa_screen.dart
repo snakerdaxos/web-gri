@@ -151,7 +151,7 @@ class MenuMesaScreen extends ConsumerWidget {
                   subtitle: Text(
                     '${categoria.productos.length} ítems',
                     style:
-                        GriText.auxiliar.copyWith(color: GriColors.gray),
+                        GriText.auxiliar.copyWith(color: GriColors.textoSecundarioAccesible),
                   ),
                   children: [
                     for (final producto in categoria.productos)
@@ -175,7 +175,7 @@ class MenuMesaScreen extends ConsumerWidget {
                 backgroundColor: GriColors.primary,
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: GriColors.primaryTint,
-                disabledForegroundColor: GriColors.gray,
+                disabledForegroundColor: GriColors.textoSecundarioAccesible,
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               icon: const Icon(Icons.shopping_cart_outlined),
@@ -210,18 +210,18 @@ class _ProductoRow extends ConsumerWidget {
         enabled: false,
         title: Text(
           producto.nombre,
-          style: const TextStyle(color: GriColors.gray),
+          style: const TextStyle(color: GriColors.textoSecundarioAccesible),
         ),
         subtitle: const Text(
           'Agotado',
           style: TextStyle(
-            color: GriColors.gray,
+            color: GriColors.textoSecundarioAccesible,
             fontWeight: FontWeight.bold,
           ),
         ),
         trailing: Text(
           formatCOP(producto.precio),
-          style: const TextStyle(color: GriColors.gray),
+          style: const TextStyle(color: GriColors.textoSecundarioAccesible),
         ),
       );
     }
@@ -342,7 +342,7 @@ class _CarritoSheetState extends ConsumerState<_CarritoSheet> {
               const Divider(height: 24),
               Row(
                 children: [
-                  const Text('Total', style: TextStyle(color: GriColors.gray)),
+                  const Text('Total', style: TextStyle(color: GriColors.textoSecundarioAccesible)),
                   const Spacer(),
                   Text(
                     formatCOP(cart.total),
