@@ -39,6 +39,10 @@ class MisReservasScreen extends ConsumerWidget {
         onPressed: () => context.push('/reservas/wizard'),
         backgroundColor: GriColors.primary,
         foregroundColor: Colors.white,
+        // 11-14: el FAB era el sexto control de icono sin etiqueta. La
+        // auditoría contó 6 `IconButton` y este no es uno, así que no
+        // aparecía en su lista; lo destapó `labeledTapTargetGuideline`.
+        tooltip: 'Reservar una mesa',
         child: const Icon(Icons.add),
       ),
       body: async.when(

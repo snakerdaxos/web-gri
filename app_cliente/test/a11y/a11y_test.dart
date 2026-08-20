@@ -25,6 +25,8 @@ import 'package:gri_cliente/core/theme.dart';
 import 'package:gri_cliente/features/pagos/calificacion_sheet.dart';
 import 'package:gri_cliente/features/pedidos/menu_mesa_screen.dart';
 import 'package:gri_cliente/features/pedidos/pedidos_provider.dart';
+import 'package:gri_cliente/features/reservas/mis_reservas_screen.dart';
+import 'package:gri_cliente/features/reservas/reserva_wizard_screen.dart';
 import 'package:gri_cliente/features/restaurantes/home_screen.dart';
 import 'package:gri_cliente/features/restaurantes/restaurantes_provider.dart';
 import 'package:gri_cliente/features/sesion_qr/sesion_provider.dart';
@@ -299,7 +301,7 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('home cumple androidTapTargetGuideline y labeledTapTarget',
+  testWidgets('home cumple las tres guías (táctil, etiqueta y contraste)',
       (tester) async {
     final db = await buildFakeFirestoreConSeed();
     final handle = tester.ensureSemantics();
@@ -307,6 +309,7 @@ void main() {
     await tester.pumpAndSettle();
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
     handle.dispose();
   });
 
@@ -338,13 +341,14 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('menú de la mesa cumple las dos guías táctiles', (tester) async {
+  testWidgets('menú de la mesa cumple las tres guías', (tester) async {
     final handle = tester.ensureSemantics();
     await _pumpMenu(tester);
     await tester.tap(_btnProducto('Pasta', Icons.add_circle_outline));
     await tester.pumpAndSettle();
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
     handle.dispose();
   });
 
@@ -363,11 +367,12 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('calificación cumple las dos guías táctiles', (tester) async {
+  testWidgets('calificación cumple las tres guías', (tester) async {
     final handle = tester.ensureSemantics();
     await _pumpCalificacion(tester);
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
     handle.dispose();
   });
 
@@ -489,6 +494,104 @@ void main() {
     await tester.pumpWidget(_auth(inicio: '/register'));
     await tester.pumpAndSettle();
     await expectLater(tester, meetsGuideline(textContrastGuideline));
+    handle.dispose();
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  // Tarea 3 — el resto del camino crítico
+  // ══════════════════════════════════════════════════════════════════════
+
+  testWidgets('login y registro cumplen las dos guías táctiles',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(_auth());
+    await tester.pumpAndSettle();
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+
+    await tester.pumpWidget(_auth(inicio: '/register'));
+    await tester.pumpAndSettle();
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    handle.dispose();
+  });
+
+  testWidgets('el carrito cumple las dos guías táctiles y la de contraste',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    await _pumpMenu(tester);
+    await tester.tap(_btnProducto('Pasta', Icons.add_circle_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Carrito ('));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Enviar pedido'), findsOneWidget,
+        reason: 'canario: sin esto el sheet no está abierto y las guías de '
+            'abajo estarían midiendo el menú, no el carrito');
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
+    handle.dispose();
+  });
+
+  testWidgets('mis reservas: el FAB tiene etiqueta y la pantalla cumple',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        firestoreProvider.overrideWithValue(db),
+        firebaseAuthProvider.overrideWithValue(mockAuth()),
+      ],
+      child: MaterialApp(theme: griTheme, home: const MisReservasScreen()),
+    ));
+    await tester.pumpAndSettle();
+
+    // El FAB NO estaba en la lista de la auditoría (contó `IconButton`, y
+    // esto es un `FloatingActionButton`): lo destapó la guía.
+    expect(_nombresAccesiblesTappables(tester), contains('Reservar una mesa'));
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
+    handle.dispose();
+  });
+
+  testWidgets('el wizard de reserva etiqueta sus controles de comensales',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        firebaseAuthProvider.overrideWithValue(mockAuth()),
+        firestoreProvider.overrideWithValue(db),
+      ],
+      child: const MaterialApp(
+        home: ReservaWizardScreen(
+          restauranteId: 'demo',
+          restauranteNombre: 'Restaurante Demo GRI',
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // Al step de personas: fecha -> hora -> personas.
+    await tester.tap(find.text('Elegir fecha'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Elige una hora'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('19:00').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+
+    final nombres = _nombresAccesiblesTappables(tester);
+    expect(nombres, contains('Agregar un comensal'));
+    expect(nombres, contains('Quitar un comensal'));
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
     handle.dispose();
   });
 }
