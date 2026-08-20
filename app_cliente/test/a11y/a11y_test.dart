@@ -661,11 +661,17 @@ void main() {
 
     expect(infracciones, isEmpty, reason: infracciones.join('\n'));
     // Autocomprobación de cobertura: si el gate dejara de leer archivos o de
-    // encontrar apariciones, `isEmpty` pasaría por vacío. MEDIDO: 12
-    // apariciones legítimas (9 Icon, 1 fondo de SnackBar, 1 indicador de
-    // progreso y 1 en el doc de un parámetro) en 60+ archivos.
+    // encontrar apariciones, `isEmpty` pasaría por vacío.
+    //
+    // MEDIDO 11-33: 7 apariciones legítimas. Eran 12; el plan 11-33 unificó
+    // en `features/shared/fallo_de_stream.dart` las CINCO copias del bloque
+    // de error (4 pantallas + el `_ErrorView` de la lista de restaurantes),
+    // cada una con su `Icon(..., color: GriColors.gray)`. El umbral baja de
+    // 10 a 6 por ese motivo, no porque el gate mire menos: sigue leyendo los
+    // mismos archivos y clasificando las mismas apariciones. Si alguien
+    // vaciara el barrido, esto seguiría poniéndose rojo.
     expect(archivos, greaterThanOrEqualTo(40), reason: 'archivos leídos');
-    expect(apariciones, greaterThanOrEqualTo(10),
+    expect(apariciones, greaterThanOrEqualTo(6),
         reason: 'apariciones de GriColors.gray clasificadas');
   });
 

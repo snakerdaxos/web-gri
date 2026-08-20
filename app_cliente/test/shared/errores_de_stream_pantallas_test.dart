@@ -24,7 +24,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:riverpod/misc.dart' show Override;
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_cliente/core/firebase_providers.dart';
 import 'package:gri_cliente/features/pedidos/menu_mesa_screen.dart';

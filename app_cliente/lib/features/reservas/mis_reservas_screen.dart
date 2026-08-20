@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/firebase_providers.dart';
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/gri_icons.dart';
+import '../shared/fallo_de_stream.dart';
 import '../../core/theme.dart';
 import '../../models/reserva.dart';
 import '../shared/icono_inline.dart';
@@ -45,27 +48,17 @@ class MisReservasScreen extends ConsumerWidget {
         tooltip: 'Reservar una mesa',
         child: const Icon(Icons.add),
       ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(GriIcons.reservas, size: 40, color: GriColors.gray),
-              const SizedBox(height: GriSpacing.sm),
-              const Text('Error al cargar tus reservas'),
-              const SizedBox(height: GriSpacing.md),
-              ElevatedButton.icon(
-                onPressed: () {
-                  if (uid != null) ref.invalidate(misReservasProvider(uid));
-                },
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reintentar'),
-              ),
-            ],
-          ),
+      body: async.cuandoConFallo(
+        cargando: () => const Center(child: CircularProgressIndicator()),
+        fallo: (e) => FalloDeStream(
+          icono: GriIcons.reservas,
+          // Antes: 'Error al cargar tus reservas' (11-33).
+          mensaje: mensajeDeFallo(e, contexto: Contexto.verReservas),
+          onReintentar: () {
+            if (uid != null) ref.invalidate(misReservasProvider(uid));
+          },
         ),
-        data: (reservas) {
+        datos: (reservas) {
           if (reservas.isEmpty) {
             return const Center(
               child: Column(

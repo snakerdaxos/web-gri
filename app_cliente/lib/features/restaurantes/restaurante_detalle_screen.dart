@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
 import '../../core/gri_icons.dart';
+import '../shared/fallo_de_stream.dart';
 import '../../core/theme.dart';
 import '../shared/empty_state.dart';
 import '../shared/producto_card.dart';
@@ -32,26 +35,15 @@ class RestauranteDetalleScreen extends ConsumerWidget {
           orElse: () => const Text('Restaurante'),
         ),
       ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(GriIcons.menu, size: 40, color: GriColors.gray),
-              const SizedBox(height: GriSpacing.sm),
-              const Text('Error al cargar el restaurante'),
-              const SizedBox(height: GriSpacing.md),
-              ElevatedButton.icon(
-                onPressed: () =>
-                    ref.invalidate(restauranteDetalleProvider(restauranteId)),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reintentar'),
-              ),
-            ],
-          ),
+      body: async.cuandoConFallo(
+        cargando: () => const Center(child: CircularProgressIndicator()),
+        fallo: (e) => FalloDeStream(
+          icono: GriIcons.menu,
+          mensaje: mensajeDeFallo(e, contexto: Contexto.verMenu),
+          onReintentar: () =>
+              ref.invalidate(restauranteDetalleProvider(restauranteId)),
         ),
-        data: (detalle) => ListView(
+        datos: (detalle) => ListView(
           padding: const EdgeInsets.all(GriSpacing.md),
           children: [
             // ── Info del restaurante ────────────────────────────────────────

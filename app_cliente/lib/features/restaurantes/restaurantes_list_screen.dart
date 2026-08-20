@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/async_fallo.dart';
+import '../../core/firebase_error_mapper.dart';
+import '../shared/fallo_de_stream.dart';
 import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 import '../../models/restaurante.dart';
@@ -18,13 +21,15 @@ class RestaurantesListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(restaurantesListProvider);
 
-    return async.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => _ErrorView(
-        message: 'Error al cargar restaurantes',
-        onRetry: () => ref.invalidate(restaurantesListProvider),
+    return async.cuandoConFallo(
+      cargando: () => const Center(child: CircularProgressIndicator()),
+      fallo: (e) => FalloDeStream(
+        icono: GriIcons.menu,
+        // Antes: 'Error al cargar restaurantes' (11-33).
+        mensaje: mensajeDeFallo(e, contexto: Contexto.verRestaurantes),
+        onReintentar: () => ref.invalidate(restaurantesListProvider),
       ),
-      data: (restaurantes) => CustomScrollView(
+      datos: (restaurantes) => CustomScrollView(
         slivers: [
           const SliverAppBar(
             title: Text('Restaurantes'),
@@ -64,33 +69,6 @@ class RestaurantesListScreen extends ConsumerWidget {
                     _RestauranteCard(restaurante: restaurantes[i]),
               ),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(GriIcons.menu, size: 40, color: GriColors.gray),
-          const SizedBox(height: GriSpacing.sm),
-          Text(message, textAlign: TextAlign.center),
-          const SizedBox(height: GriSpacing.md),
-          ElevatedButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Reintentar'),
-          ),
         ],
       ),
     );

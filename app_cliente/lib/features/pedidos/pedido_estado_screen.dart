@@ -11,6 +11,7 @@ import '../../core/theme.dart';
 import '../../models/pedido.dart';
 import '../../models/sesion_mesa.dart';
 import '../pagos/calificacion_sheet.dart';
+import '../shared/fallo_de_stream.dart';
 import '../sesion_qr/sesion_provider.dart';
 import '../../core/design_tokens.dart';
 import 'cuenta.dart';
@@ -128,7 +129,7 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
         // hacer. Ahora el texto sale del clasificador único de 11-23, que
         // distingue un permiso denegado (es TU CUENTA) de una caída de red
         // (es la CONEXIÓN) de un fallo que no sabemos identificar.
-        fallo: (e) => _FalloDeStream(
+        fallo: (e) => FalloDeStream(
           icono: GriIcons.enVivo,
           mensaje: mensajeDeFallo(e, contexto: Contexto.verPedidos),
           onReintentar: () {
@@ -142,7 +143,7 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
           // Sin mesa abierta la pantalla no tiene nada que listar y ANTES
           // se quedaba girando (el provider cerraba sin emitir). Se dice.
           if (sesion == null) {
-            return _FalloDeStream(
+            return FalloDeStream(
               icono: GriIcons.cocinando,
               mensaje: 'No tienes ninguna mesa abierta. Escanea el QR de tu '
                   'mesa para pedir y ver tus pedidos.',
@@ -500,54 +501,6 @@ class _EstadoChip extends StatelessWidget {
       child: Text(
         pedido.estadoLabel,
         style: GriText.chip.copyWith(color: pedido.estadoColor(context)),
-      ),
-    );
-  }
-}
-
-/// Estado de FALLO de un stream, con su mensaje y su salida (11-33).
-///
-/// Existe para que la rama `error:` de un `AsyncValue` no vuelva a ser un
-/// bloque de texto suelto copiado en cada pantalla: el mensaje entra ya
-/// clasificado por `core/firebase_error_mapper.dart` y la acción es
-/// obligatoria — un error sin nada que hacer es un callejón sin salida.
-class _FalloDeStream extends StatelessWidget {
-  const _FalloDeStream({
-    required this.icono,
-    required this.mensaje,
-    required this.onReintentar,
-    this.etiquetaAccion = 'Reintentar',
-  });
-
-  final IconData icono;
-  final String mensaje;
-  final VoidCallback onReintentar;
-  final String etiquetaAccion;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(GriSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icono, size: 40, color: GriColors.gray),
-            const SizedBox(height: GriSpacing.sm),
-            Text(
-              mensaje,
-              textAlign: TextAlign.center,
-              style: GriText.cuerpo
-                  .copyWith(color: GriColors.textoSecundarioAccesible),
-            ),
-            const SizedBox(height: GriSpacing.md),
-            ElevatedButton.icon(
-              onPressed: onReintentar,
-              icon: const Icon(Icons.refresh),
-              label: Text(etiquetaAccion),
-            ),
-          ],
-        ),
       ),
     );
   }

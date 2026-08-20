@@ -116,7 +116,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Error'), findsOneWidget);
+    // 11-33: antes se afirmaba `textContaining('Error')`, que pasaba con
+    // cualquier cadena que llevara esa palabra —incluido el «Error al cargar
+    // restaurantes» que no decía ni la causa ni qué hacer—. Ahora se afirma
+    // el texto del clasificador: `'boom'` no es una FirebaseException, así
+    // que la causa es `desconocido` y el mensaje NO puede culpar ni a la red
+    // ni a la cuenta.
+    expect(find.text('No pudimos cargar los restaurantes. Vuelve a intentarlo '
+        'más tarde.'), findsOneWidget);
+    expect(find.textContaining('conexión'), findsNothing);
+    expect(find.textContaining('cuenta'), findsNothing);
     expect(find.text('Reintentar'), findsOneWidget);
   });
 

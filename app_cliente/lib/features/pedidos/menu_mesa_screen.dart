@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/format.dart';
+import '../../core/async_fallo.dart';
+import '../shared/fallo_de_stream.dart';
 import '../../core/gri_icons.dart';
 import '../../core/firebase_error_mapper.dart';
 import '../../core/theme.dart';
@@ -99,27 +101,20 @@ class MenuMesaScreen extends ConsumerWidget {
         elevation: 0,
         title: Text('Mesa ${sesion.mesaNumero} · ${sesion.restauranteNombre}'),
       ),
-      body: detalleAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(GriIcons.resumenPedido,
-                  size: 40, color: GriColors.gray),
-              const SizedBox(height: GriSpacing.sm),
-              const Text('Error al cargar el menú'),
-              const SizedBox(height: GriSpacing.md),
-              ElevatedButton.icon(
-                onPressed: () => ref.invalidate(
-                    restauranteDetalleProvider(sesion.restauranteId)),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reintentar'),
-              ),
-            ],
-          ),
+      // `cuandoConFallo` y no `when` (11-33): durante los reintentos de
+      // Riverpod el estado es AsyncLoading CON el error dentro y `when`
+      // elegía la rama de carga — spinner mudo en vez de mensaje.
+      body: detalleAsync.cuandoConFallo(
+        cargando: () => const Center(child: CircularProgressIndicator()),
+        fallo: (e) => FalloDeStream(
+          icono: GriIcons.resumenPedido,
+          // Antes: 'Error al cargar el menú' — el mismo texto para un permiso
+          // denegado que para una caída de red.
+          mensaje: mensajeDeFallo(e, contexto: Contexto.verMenu),
+          onReintentar: () => ref.invalidate(
+              restauranteDetalleProvider(sesion.restauranteId)),
         ),
-        data: (detalle) {
+        datos: (detalle) {
           // EL AGUJERO QUE ESTO CIERRA (11-09). Sin este guard el `children`
           // del ListView salía entero de `for (cat in detalle.categorias)`:
           // con 0 categorías el cuerpo quedaba COMPLETAMENTE EN BLANCO. Y
