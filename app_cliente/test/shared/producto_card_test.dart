@@ -15,6 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_cliente/core/design_tokens.dart';
+import 'package:gri_cliente/core/format.dart';
 import 'package:gri_cliente/core/theme.dart';
 import 'package:gri_cliente/features/shared/foto_producto.dart';
 import 'package:gri_cliente/features/shared/producto_card.dart';
@@ -97,9 +98,13 @@ void main() {
     expect(find.text('Bandeja paisa'), findsOneWidget);
     expect(find.text('Frijoles, chicharrón, chorizo, huevo y arepa'),
         findsOneWidget);
-    expect(find.text('\$ 28.000'), findsOneWidget, reason: 'formatCOP');
+    // `formatCOP` mete un espacio DURO entre el símbolo y la cifra (es_CO):
+    // escribir el literal a mano daría un finder que nunca casa.
+    final etiquetaPrecio = formatCOP(28000);
+    expect(etiquetaPrecio, contains('28.000'), reason: 'canario del formato');
+    expect(find.text(etiquetaPrecio), findsOneWidget, reason: 'formatCOP');
 
-    final precio = _estilo(tester, '\$ 28.000');
+    final precio = _estilo(tester, etiquetaPrecio);
     final nombre = _estilo(tester, 'Bandeja paisa');
     final desc = _estilo(tester, 'Frijoles, chicharrón, chorizo, huevo y arepa');
 
@@ -112,7 +117,7 @@ void main() {
     expect(precio.fontSize! > desc.fontSize!, isTrue);
 
     // …y no es solo el estilo declarado: la caja pintada es más alta.
-    expect(tester.getSize(find.text('\$ 28.000')).height,
+    expect(tester.getSize(find.text(etiquetaPrecio)).height,
         greaterThan(tester.getSize(find.text('Bandeja paisa')).height));
   });
 
@@ -146,7 +151,7 @@ void main() {
         reason: 'la foto del plato agotado se ve en gris');
     expect(find.byIcon(Icons.add_circle_outline), findsNothing,
         reason: 'no se pide lo que no hay, aunque le pasen una acción');
-    expect(_estilo(tester, '\$ 28.000').color,
+    expect(_estilo(tester, formatCOP(28000)).color,
         GriColors.textoSecundarioAccesible);
     expect(tester.widget<InkWell>(find.byType(InkWell)).onTap, isNull,
         reason: 'y la tarjeta tampoco es pulsable');
