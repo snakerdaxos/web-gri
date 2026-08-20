@@ -216,9 +216,9 @@ void main() {
     expect(uno.width, greaterThan(250), reason: 'ocupa el ancho disponible');
   });
 
-  testWidgets('en ventana ancha (900) la carta va a DOS columnas',
+  testWidgets('en tablet (700) caben DOS columnas y la tercera baja',
       (tester) async {
-    await pumpLista(tester, 900);
+    await pumpLista(tester, 700);
     expect(tester.takeException(), isNull);
     final uno = tester.getRect(find.byType(ProductoCard).at(0));
     final dos = tester.getRect(find.byType(ProductoCard).at(1));
@@ -227,7 +227,27 @@ void main() {
     expect(dos.left, greaterThan(uno.right - 1), reason: 'segunda al lado');
     expect(dos.top, uno.top);
     expect(tres.top, greaterThan(uno.bottom - 1), reason: 'tercera abajo');
-    expect(uno.width, lessThan(500),
-        reason: 'una tarjeta de 900 px de ancho no es una carta');
+    expect(uno.width, lessThan(400),
+        reason: 'una tarjeta de 700 px de ancho no es una carta');
+  });
+
+  testWidgets('en una ventana ANCHA (1400) la tarjeta NO se estira',
+      (tester) async {
+    // Estas dos pantallas viven fuera del `AppShell`, así que en un navegador
+    // maximizado reciben el ancho entero. Con dos columnas fijas serían dos
+    // tarjetas de 700 pt con una foto de 200 de alto: una tira aplastada.
+    await pumpLista(tester, 1400);
+    expect(tester.takeException(), isNull);
+    final rects = [
+      for (var i = 0; i < 3; i++) tester.getRect(find.byType(ProductoCard).at(i))
+    ];
+    expect(rects[1].top, rects[0].top);
+    expect(rects[2].top, rects[0].top, reason: 'las tres en la misma fila');
+    for (final r in rects) {
+      expect(r.width, lessThan(450));
+      expect(r.width, greaterThan(280),
+          reason: 'ni estirada ni un sello: se mantiene en su ancho de '
+              'lectura ($anchoObjetivoTarjeta pt de objetivo)');
+    }
   });
 }

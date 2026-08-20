@@ -186,7 +186,19 @@ class _ChipAgotado extends StatelessWidget {
   }
 }
 
-/// La rejilla de la carta: una columna en el móvil, dos en cuanto hay sitio.
+/// Ancho al que se aspira para una tarjeta de la carta.
+///
+/// No es un breakpoint de pantalla: es el ancho al que una tarjeta con foto
+/// 16:9, nombre, descripción y precio se lee bien. La rejilla mete tantas
+/// columnas como quepan a ESE ancho, así que la tarjeta mide casi lo mismo en
+/// un móvil de 320 que en una ventana de 1600 — lo que cambia es cuántas hay.
+const double anchoObjetivoTarjeta = 300;
+
+/// Tope de columnas. Sin él, un monitor ancho daría una cuadrícula de sellos.
+const int columnasMax = 4;
+
+/// La rejilla de la carta: tantas columnas como quepan a
+/// [anchoObjetivoTarjeta], entre 1 y [columnasMax].
 ///
 /// POR QUÉ NO UN `GridView`: esto vive DENTRO de un `ListView` (los hijos de
 /// un `ExpansionTile` de categoría). Un viewport dentro de otro viewport en el
@@ -195,11 +207,20 @@ class _ChipAgotado extends StatelessWidget {
 /// se puede: cada tarjeta mide lo que midan su nombre y su descripción. Un
 /// `Wrap` de anchos calculados hace lo mismo sin ninguna de las dos ataduras.
 ///
-/// El salto es [GriBreakpoints.compact] (600), el mismo de Material 3 que ya
-/// usa el resto de la app. Como la columna de contenido se topa en 720 pt
-/// (`GriBreakpoints.contenidoMaxAmplio`), en la práctica son dos columnas de
-/// ~350 pt: el mismo tamaño de tarjeta que en el móvil, no una tarjeta
-/// deformada.
+/// POR QUÉ NO UN BREAKPOINT FIJO (1 columna / 2 columnas): estas dos pantallas
+/// viven FUERA del `AppShell` (`app.dart`: `/mesa` y `/restaurantes/:id` son
+/// rutas hermanas del shell), así que NO heredan el techo de 720 pt de
+/// `GriBreakpoints.contenidoMaxAmplio`. En un navegador maximizado reciben el
+/// ancho entero: con dos columnas fijas saldrían dos tarjetas de 800 pt con
+/// una foto de 200 de alto, una tira aplastada. Contando columnas, la tarjeta
+/// conserva su proporción a cualquier ancho.
+///
+/// | viewport | columnas | ancho de tarjeta |
+/// |----------|----------|------------------|
+/// | 320      | 1        | 320              |
+/// | 700      | 2        | 342              |
+/// | 1000     | 3        | 322              |
+/// | 1600     | 4        | 388              |
 class ListaProductos extends StatelessWidget {
   const ListaProductos({
     super.key,
@@ -221,7 +242,8 @@ class ListaProductos extends StatelessWidget {
         final ancho = restricciones.maxWidth.isFinite
             ? restricciones.maxWidth
             : GriBreakpoints.contenidoMax;
-        final columnas = ancho >= GriBreakpoints.compact ? 2 : 1;
+        final columnas =
+            (ancho / anchoObjetivoTarjeta).floor().clamp(1, columnasMax);
         // `floor`: con la división exacta, un error de coma flotante de 10^-13
         // basta para que el `Wrap` decida que la segunda tarjeta no cabe y la
         // baje de fila.
