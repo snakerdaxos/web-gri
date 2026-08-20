@@ -257,11 +257,16 @@ class _PedidoEstadoScreenState extends ConsumerState<PedidoEstadoScreen> {
                 // de verificacion" detras de la frase.
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      'Cuenta solicitada',
-                      style: GriText.boton
-                          .copyWith(color: GriColors.chipConfirmadaFg),
+                    Flexible(
+                      child: Text(
+                        'Cuenta solicitada',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GriText.boton
+                            .copyWith(color: GriColors.chipConfirmadaFg),
+                      ),
                     ),
                     const SizedBox(width: GriSpacing.xs),
                     const Icon(GriIcons.confirmado,
@@ -338,13 +343,20 @@ class _ResumenCuenta extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                // Tras el cierre el mesero ya cobro: la etiqueta deja de ser
-                // una peticion y pasa a ser el recibo.
-                sesionCerrada ? 'Total pagado' : 'Total a pagar',
-                style: GriText.boton.copyWith(color: GriColors.text),
+              // `Expanded` + elipsis, no `Text` + `Spacer` (11-33): a 320 px
+              // la etiqueta y la cifra juntas no caben y el Row desbordaba.
+              // Cede la ETIQUETA; el importe nunca se recorta.
+              Expanded(
+                child: Text(
+                  // Tras el cierre el mesero ya cobro: la etiqueta deja de ser
+                  // una peticion y pasa a ser el recibo.
+                  sesionCerrada ? 'Total pagado' : 'Total a pagar',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GriText.boton.copyWith(color: GriColors.text),
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: GriSpacing.xs),
               Text(
                 formatCOP(cuenta.total),
                 style:
@@ -449,12 +461,17 @@ class _PedidoCard extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                Text(
-                  etiquetaCobro,
-                  style: GriText.auxiliar
-                      .copyWith(color: GriColors.textoSecundarioAccesible),
+                // Mismo patrón que el total (11-33): cede la etiqueta.
+                Expanded(
+                  child: Text(
+                    etiquetaCobro,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GriText.auxiliar
+                        .copyWith(color: GriColors.textoSecundarioAccesible),
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: GriSpacing.xs),
                 Text(
                   formatCOP(pedido.total),
                   style: GriText.botonGrande.copyWith(color: GriColors.primary),
