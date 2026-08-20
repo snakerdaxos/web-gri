@@ -56,7 +56,7 @@ Una fila por punto de uso. Las líneas son las del árbol tras 11-21.
 | 🏪 | `features/dashboard/dashboard_screen.dart:328` | `storefront_outlined` | `restaurante` | 34 |
 | 👇 | `features/dashboard/dashboard_screen.dart:328` | `arrow_upward` | `selectorArriba` | 34 |
 | 👥 | `features/dashboard/widgets/mesa_tile.dart:98` | `people_outline` | `clientes` | 12 |
-| 🪪 | `features/equipo/equipo_screen.dart:138` | `badge_outlined` | `equipo` | 40 |
+| 🪪 | `features/equipo/equipo_screen.dart:185` | `badge_outlined` | `equipo` | 40 |
 | 📷 | `features/mesas/mesa_actions_sheet.dart:124` | `qr_code_2` | `verQr` | 20 |
 | ✏️ | `features/mesas/mesa_actions_sheet.dart:130` | `edit_outlined` | `editar` | 20 |
 | ⚠️ | `features/mesas/mesa_form_dialog.dart:240` | `warning_amber_outlined` | `aviso` | 13 |

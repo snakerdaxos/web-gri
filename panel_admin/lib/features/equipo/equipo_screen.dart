@@ -81,6 +81,7 @@ class EquipoScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            const _AvisoSinFunciones(),
             const SizedBox(height: 16),
             Expanded(
               child: equipoAsync.when(
@@ -107,6 +108,52 @@ class EquipoScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Aviso permanente de que el alta y la baja NO se ejecutan desde el panel
+/// (11-26).
+///
+/// **Va ANTES de pulsar, no después.** Un mensaje que solo aparece al fallar
+/// deja al operador rellenar un formulario entero para nada; y si además ese
+/// mensaje miente sobre la causa —«El restaurante no existe», que es lo que
+/// decía hasta este plan— lo manda a investigar lo que no es. El texto es la
+/// MISMA constante que muestra el error, así que no pueden divergir.
+///
+/// **Los botones se quedan.** No se ocultan ni se deshabilitan: el día que las
+/// callables se desplieguen, la rama de error se apaga sola y no hay que tocar
+/// nada aquí. Ver `docs/ESTADO-DESPLIEGUE.md`.
+///
+/// El estilo es el aviso que YA usa el panel (`mesa_form_dialog.dart:232`):
+/// `Row` + `Icon(GriIcons.aviso)` ámbar del tamaño del texto, sin recuadro. Lo
+/// único que cambia es el color del TEXTO: `GriColors.advertencia` no llega a
+/// AA sobre el fondo de página (3.5:1) y este aviso es permanente, así que usa
+/// el token secundario accesible, que 11-25 mide sobre los dos fondos.
+class _AvisoSinFunciones extends StatelessWidget {
+  const _AvisoSinFunciones();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      key: Key('equipo-aviso-sin-funciones'),
+      padding: EdgeInsets.only(top: GriSpacing.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(GriIcons.aviso, size: 13, color: GriColors.advertencia),
+          SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              mensajeGestionPersonalNoDisponible,
+              style: TextStyle(
+                color: GriColors.textoSecundarioAccesible,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -272,7 +272,12 @@ void main() {
       expect(m, contains('cliente'));
     });
 
-    test('not-found', () async {
+    test('not-found CON mensaje del servidor sigue siendo el del rid', () async {
+      // `mensajeDe` manda «texto crudo del servidor» por defecto, así que este
+      // caso ejercita el `not-found` que emite la CALLABLE
+      // (`crear-usuario-staff.js:152`), no el de la función sin desplegar.
+      // Los dos se separan desde 11-26; el segundo vive en
+      // `equipo_sin_functions_test.dart`.
       expect(await mensajeDe('not-found'), 'El restaurante no existe.');
     });
 
@@ -291,7 +296,13 @@ void main() {
 
     test('un código desconocido cae en el genérico y NO filtra el texto crudo',
         () async {
-      final m = await mensajeDe('internal', message: 'stack interno del SDK');
+      // Era `internal`, que desde 11-26 significa «la callable no está
+      // desplegada» y tiene su propio texto. El caso que este test protege es
+      // otro —código que nadie maneja → genérico, sin filtrar el crudo— y
+      // `aborted` lo ejercita igual: no lo emite ninguna de las dos callables
+      // ni está en el grupo de indisponibilidad. Que `internal` tampoco filtre
+      // el crudo se comprueba en `equipo_sin_functions_test.dart`.
+      final m = await mensajeDe('aborted', message: 'stack interno del SDK');
       expect(m, 'No se pudo crear el usuario. Intenta de nuevo.');
       expect(m, isNot(contains('stack interno')));
     });

@@ -2,6 +2,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gri_panel_admin/core/firebase_providers.dart';
 import 'package:gri_panel_admin/features/equipo/equipo_controller.dart';
 import 'package:gri_panel_admin/features/equipo/equipo_provider.dart';
 import 'package:gri_panel_admin/features/equipo/equipo_screen.dart';
@@ -37,8 +38,7 @@ import 'package:gri_panel_admin/features/equipo/equipo_screen.dart';
 /// el controlador llama «sin mensaje de servidor» es la cadena VACÍA (o solo
 /// espacios), que es lo que llega cuando el 404 no trae cuerpo útil.
 class _ErrorCallable extends FirebaseFunctionsException {
-  _ErrorCallable(String code, {String message = ''})
-      : super(code: code, message: message);
+  _ErrorCallable(String code, {super.message = ''}) : super(code: code);
 }
 
 const _equipo = <MiembroEquipo>[

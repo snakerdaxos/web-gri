@@ -421,14 +421,25 @@ void main() {
     });
 
     test('not-found y unauthenticated tienen texto propio', () {
-      expect(mensajeCambioEstadoStaff('not-found'), 'Ese usuario ya no existe.');
+      // ⚠️ REESCRITO EN 11-26. Este caso llamaba `mensajeCambioEstadoStaff`
+      // SIN mensaje del servidor, y desde 11-26 ese es justamente el caso de
+      // «la callable no está desplegada»: hoy en producción NO significa que el
+      // usuario haya desaparecido. El `not-found` que sí emite la función
+      // (`cambiar-estado-staff.js:118`) viaja SIEMPRE con su texto, y es el que
+      // se afirma aquí. La separación se prueba en
+      // `equipo_sin_functions_test.dart`.
+      expect(mensajeCambioEstadoStaff('not-found', 'Ese usuario ya no existe.'),
+          'Ese usuario ya no existe.');
       expect(mensajeCambioEstadoStaff('unauthenticated'),
           'Tu sesión expiró. Vuelve a iniciar sesión.');
     });
 
     test('un código desconocido cae al genérico, jamás al texto del servidor',
         () {
-      final m = mensajeCambioEstadoStaff('internal', 'stack trace del SDK');
+      // Era `internal`; desde 11-26 pertenece al grupo de indisponibilidad.
+      // `aborted` ejercita lo mismo que este caso protege: código que nadie
+      // maneja → genérico, sin filtrar el crudo del servidor.
+      final m = mensajeCambioEstadoStaff('aborted', 'stack trace del SDK');
       expect(m, 'No se pudo cambiar el estado del usuario. Intenta de nuevo.');
       expect(m.contains('stack'), isFalse);
     });
