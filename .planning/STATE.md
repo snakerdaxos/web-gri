@@ -60,6 +60,24 @@ Phase 11: 25/26 planes [########################-] 96%  (26 planes y 25 SUMMARY 
 
 - [x] 11-28 P0 de `pedidos` en produccion: DOS bugs distintos con el mismo sintoma. (a) La query del cliente `pedidos where sesionId + orderBy createdAt` NO era demostrable frente a la regla (`usuarioId == uid`) y Firestore denegaba el LISTENER ENTERO — pantalla en blanco tras enviar el pedido; reproducido contra el emulador ANTES de tocar nada (`Property usuarioId is undefined on object. for 'list'`). Arreglado con `where('usuarioId')`, que ademas cierra una INCORRECCION: `sesiones/{mesaId}` se REUTILIZA (`abrirSesion` hace tx.set sobre el mismo id), asi que sin el filtro el siguiente comensal veia los pedidos del anterior. (b) Cocina y reportes daban FAILED_PRECONDITION en el proyecto REAL con el indice DECLARADO Y CONSTRUIDO: estaba en `createdAt DESCENDING` y las consultas ordenan ASC (la de reportes, por el rango sin orderBy, que impone ASC implicito). NO reproducible en local — el emulador no evalua indices compuestos. HALLAZGO CENTRAL: `audit_indexes.mjs` comprobaba la PRESENCIA del indice y no su SENTIDO, por eso las tres consultas rotas salian OK. Ahora exige sentido exacto, admite paridad por RAMAS (`usuarioId` | `restauranteId`, la forma real de las reglas en disyuncion) para pedidos/sesiones/reservas, y falla si una coleccion de las queries o de firestore.rules se queda SIN CLASIFICAR (AUDIT 3/4, el cierre por los dos lados). Nuevo `scripts/probar_consultas_reales.mjs`: firma custom token por uid+rol, lo canjea por idToken y lanza las consultas del MISMO inventario por REST contra el proyecto real — lo unico que distingue «falta indice» de «las reglas deniegan». 4 roturas deliberadas, las 4 en rojo como debian. Ninguna regla tocada: la consulta se adapta a la regla. app_cliente 345 -> 348, rules 260 -> 282, baseline panel_admin corregido 423 -> 445. PENDIENTE DE DESPLIEGUE: 2 indices nuevos de pedidos -- 22075de, 328bac1, 9893966, 1063ac7, 5a74aa5
 
+- [x] 11-30 La CARTA del menu del cliente: las fotos que los 16 productos tenian guardadas desde la Fase 10 no se
+  pintaban en ninguna parte (cero `Image`/`NetworkImage` en las dos pantallas de menu) y el menu era una lista de
+  `ListTile` con el precio de `trailing` — las dos cosas reportadas por el usuario probando la app real. Ahora:
+  `core/imagen_url.dart` (solo http/s con host; la cadena VACIA es el valor REAL que escribe el panel, no null),
+  `FotoProducto` (ancho pedido = ancho del LAYOUT x dpr topado en 2, redondeado a bucket de 128 para que la clave del
+  ImageCache no baile; fundido de 300 ms; `errorBuilder` y ausencia degradan al MISMO marcador, de la misma caja) y
+  `ProductoCard`/`ListaProductos` (foto 16:9 acotada 120-200, descripcion a 2 lineas, precio 18 bold naranja, agotado
+  en gris con chip, tarjeta pulsable etiquetada). MEDIDO con curl contra el CDN real: 87 525 B con `w=768` (lo que
+  pide un movil) frente a 175 953 B con el `w=1200` guardado y 2 037 979 B sin `w`. NINGUNA dependencia nueva:
+  `cached_network_image` arrastra sqflite+path_provider al binario y el ImageCache del framework ya cubre scroll y
+  revisita. 14 roturas deliberadas, todas en rojo. HALLAZGO: /mesa y /restaurantes/:id viven FUERA del AppShell y no
+  heredan su techo de 720 pt — con una rejilla por breakpoint, una ventana de 1400 daba dos tarjetas de 690 pt con
+  foto de 200; se cuenta por ancho de lectura (~300 pt, max 4). HALLAZGO: con foto se ven ~2 platos por pantalla y
+  `carrito_test` tuvo que aprender a bajar hasta la segunda categoria — el coste real del rediseno.
+  NO VERIFICADO: que la carta se vea bien (ningun widget test lo mide) ni que las fotos lleguen a pintarse (en
+  `flutter test` no hay red). app_cliente 371 -> 408 -- 7a4733b, d1f0f40, cee7492, 1bda6df, 607d186, 75e1f3c,
+  ca7e2ab, 179aa14, 3a24bbc, 0bd449a, 92e6b9e
+
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
 1. firebase login + deploy --only firestore:rules,firestore:indexes (SMOKE-E2E [N])
@@ -67,6 +85,17 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 3. Smoke e2e flujo completo ([A]-[M] emuladores o [P] real)
 
 ## Test Baselines (final Firebase)
+
+- 11-30: app_cliente 371 -> 408 (+37: imagen_url_test.dart 12 puro, foto_producto_test.dart 8, producto_card_test.dart
+  11, menu_carta_test.dart 6 — el CABLEADO, que es el unico nivel donde se habria cazado el fallo original de que la
+  pantalla no leyera `imagenUrl`). Baseline SUBIDO a 408 en scripts/gates.mjs en el mismo trabajo y COMPROBADO que el
+  gate falla: con 409 la pasada dice `REGRESION: 408 tests < baseline 409`, 8 OK - 1 fallo. Ningun test preexistente
+  borrado; TRES retocados a conciencia (los dos finders anclados a `ListTile` en carrito_test y a11y_test, que ahora se
+  anclan a `ProductoCard`, y el caso de las 2 categorias, que ahora hace scroll). panel_admin 446, functions 149 + 50,
+  rules 285: SIN cambio (no se toco nada suyo). **9 gates - 9 OK - 0 fallos**, 1.9 min.
+  NO CUBIERTO POR NINGUN GATE: que las fotos se pinten. En `flutter test` el HttpClient del binding devuelve 400 a
+  todo, asi que NINGUNA imagen de la suite se decodifica jamas — lo que se prueba es QUE URL se pide. El ahorro de
+  datos si esta medido, pero con `curl` fuera de los gates (2,0 MB sin `w` -> 176 KB con w=1200 -> 88 KB con w=768).
 
 - 11-29: app_cliente 348 -> 371 (+23: asignacion_mesa_test.dart 10 casos de los bugs A/B de reservas,
   errores_honestos_reserva_test.dart 13 del bug C), panel_admin 445 -> 446 (+1, 'Marcar ocupada' con la mesa
