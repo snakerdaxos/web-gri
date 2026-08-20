@@ -73,10 +73,35 @@ String _$restaurantesListHash() => r'2dbf6414521be1bf6703537e87dc12d48a20969b';
 /// doc `restaurantes/{id}` + categorías + productos del restaurante,
 /// agrupados por `categoriaId` (colección plana, research 10).
 ///
-/// Nota de índices: el `orderBy('orden')` de las categorías se hace
-/// client-side — el índice compuesto `categorias(restauranteId, orden)` NO
-/// existe en 10-01 y el where simple usa índice de campo único (el N por
-/// restaurante es chico; comportamiento idéntico).
+/// ⚠️ POR QUÉ LOS FILTROS SON SERVER-SIDE (11-03 — NO "optimizar" quitándolos):
+/// la razón NO es rendimiento, es AUTORIZACIÓN. Firestore evalúa las security
+/// rules contra la CONSULTA, nunca contra los documentos devueltos: si la query
+/// pudiera alcanzar un solo doc que la regla no permite, se rechaza la petición
+/// ENTERA con `permission-denied`. Filtrar client-side después de traer los
+/// documentos no sirve de nada, porque nunca llegan.
+///
+/// Las reglas vigentes son (`firestore.rules`, matches /categorias y
+/// /productos):
+///
+///     categorias → activo == true            || menuStaffOf(restauranteId)
+///     productos  → activo == true
+///                  && disponible == true     || menuStaffOf(restauranteId)
+///
+/// Regla mental permanente: **si la rule menciona `resource.data.X`, la query
+/// DEBE llevar `where('X', …)`**. De ahí que `productos` lleve DOS filtros:
+/// replicar la regla a medias (solo `activo`) también deniega la query.
+/// Cobertura: `scripts/test/rules/categorias.test.mjs` y `productos.test.mjs`
+/// lo afirman contra el emulador con las rules reales.
+///
+/// Nota de índices: el `orderBy('orden')` de las categorías se sigue haciendo
+/// client-side, y es una decisión deliberada de 11-03 — hacerlo server-side
+/// obligaría al índice compuesto `categorias(restauranteId, activo, orden)`.
+/// El N de categorías por restaurante es pequeño y evitar un índice extra
+/// elimina un punto de fallo más: los índices tardan minutos en construirse y
+/// el emulador de Firestore ni siquiera los valida, así que un índice que falte
+/// solo se descubre en producción. Los `where` de igualdad de arriba se
+/// resuelven con los índices automáticos de campo único: no requieren
+/// compuesto.
 
 @ProviderFor(restauranteDetalle)
 final restauranteDetalleProvider = RestauranteDetalleFamily._();
@@ -85,10 +110,35 @@ final restauranteDetalleProvider = RestauranteDetalleFamily._();
 /// doc `restaurantes/{id}` + categorías + productos del restaurante,
 /// agrupados por `categoriaId` (colección plana, research 10).
 ///
-/// Nota de índices: el `orderBy('orden')` de las categorías se hace
-/// client-side — el índice compuesto `categorias(restauranteId, orden)` NO
-/// existe en 10-01 y el where simple usa índice de campo único (el N por
-/// restaurante es chico; comportamiento idéntico).
+/// ⚠️ POR QUÉ LOS FILTROS SON SERVER-SIDE (11-03 — NO "optimizar" quitándolos):
+/// la razón NO es rendimiento, es AUTORIZACIÓN. Firestore evalúa las security
+/// rules contra la CONSULTA, nunca contra los documentos devueltos: si la query
+/// pudiera alcanzar un solo doc que la regla no permite, se rechaza la petición
+/// ENTERA con `permission-denied`. Filtrar client-side después de traer los
+/// documentos no sirve de nada, porque nunca llegan.
+///
+/// Las reglas vigentes son (`firestore.rules`, matches /categorias y
+/// /productos):
+///
+///     categorias → activo == true            || menuStaffOf(restauranteId)
+///     productos  → activo == true
+///                  && disponible == true     || menuStaffOf(restauranteId)
+///
+/// Regla mental permanente: **si la rule menciona `resource.data.X`, la query
+/// DEBE llevar `where('X', …)`**. De ahí que `productos` lleve DOS filtros:
+/// replicar la regla a medias (solo `activo`) también deniega la query.
+/// Cobertura: `scripts/test/rules/categorias.test.mjs` y `productos.test.mjs`
+/// lo afirman contra el emulador con las rules reales.
+///
+/// Nota de índices: el `orderBy('orden')` de las categorías se sigue haciendo
+/// client-side, y es una decisión deliberada de 11-03 — hacerlo server-side
+/// obligaría al índice compuesto `categorias(restauranteId, activo, orden)`.
+/// El N de categorías por restaurante es pequeño y evitar un índice extra
+/// elimina un punto de fallo más: los índices tardan minutos en construirse y
+/// el emulador de Firestore ni siquiera los valida, así que un índice que falte
+/// solo se descubre en producción. Los `where` de igualdad de arriba se
+/// resuelven con los índices automáticos de campo único: no requieren
+/// compuesto.
 
 final class RestauranteDetalleProvider
     extends
@@ -104,10 +154,35 @@ final class RestauranteDetalleProvider
   /// doc `restaurantes/{id}` + categorías + productos del restaurante,
   /// agrupados por `categoriaId` (colección plana, research 10).
   ///
-  /// Nota de índices: el `orderBy('orden')` de las categorías se hace
-  /// client-side — el índice compuesto `categorias(restauranteId, orden)` NO
-  /// existe en 10-01 y el where simple usa índice de campo único (el N por
-  /// restaurante es chico; comportamiento idéntico).
+  /// ⚠️ POR QUÉ LOS FILTROS SON SERVER-SIDE (11-03 — NO "optimizar" quitándolos):
+  /// la razón NO es rendimiento, es AUTORIZACIÓN. Firestore evalúa las security
+  /// rules contra la CONSULTA, nunca contra los documentos devueltos: si la query
+  /// pudiera alcanzar un solo doc que la regla no permite, se rechaza la petición
+  /// ENTERA con `permission-denied`. Filtrar client-side después de traer los
+  /// documentos no sirve de nada, porque nunca llegan.
+  ///
+  /// Las reglas vigentes son (`firestore.rules`, matches /categorias y
+  /// /productos):
+  ///
+  ///     categorias → activo == true            || menuStaffOf(restauranteId)
+  ///     productos  → activo == true
+  ///                  && disponible == true     || menuStaffOf(restauranteId)
+  ///
+  /// Regla mental permanente: **si la rule menciona `resource.data.X`, la query
+  /// DEBE llevar `where('X', …)`**. De ahí que `productos` lleve DOS filtros:
+  /// replicar la regla a medias (solo `activo`) también deniega la query.
+  /// Cobertura: `scripts/test/rules/categorias.test.mjs` y `productos.test.mjs`
+  /// lo afirman contra el emulador con las rules reales.
+  ///
+  /// Nota de índices: el `orderBy('orden')` de las categorías se sigue haciendo
+  /// client-side, y es una decisión deliberada de 11-03 — hacerlo server-side
+  /// obligaría al índice compuesto `categorias(restauranteId, activo, orden)`.
+  /// El N de categorías por restaurante es pequeño y evitar un índice extra
+  /// elimina un punto de fallo más: los índices tardan minutos en construirse y
+  /// el emulador de Firestore ni siquiera los valida, así que un índice que falte
+  /// solo se descubre en producción. Los `where` de igualdad de arriba se
+  /// resuelven con los índices automáticos de campo único: no requieren
+  /// compuesto.
   RestauranteDetalleProvider._({
     required RestauranteDetalleFamily super.from,
     required String super.argument,
@@ -153,16 +228,41 @@ final class RestauranteDetalleProvider
 }
 
 String _$restauranteDetalleHash() =>
-    r'2bd8d3f5aa2f51ed3ff17dfb708e1205881138d7';
+    r'2a21ff09b4cc1b273208a796037b538abb25bec5';
 
 /// Detalle público con menú anidado — 3 lecturas de Firestore (MIGRA-01):
 /// doc `restaurantes/{id}` + categorías + productos del restaurante,
 /// agrupados por `categoriaId` (colección plana, research 10).
 ///
-/// Nota de índices: el `orderBy('orden')` de las categorías se hace
-/// client-side — el índice compuesto `categorias(restauranteId, orden)` NO
-/// existe en 10-01 y el where simple usa índice de campo único (el N por
-/// restaurante es chico; comportamiento idéntico).
+/// ⚠️ POR QUÉ LOS FILTROS SON SERVER-SIDE (11-03 — NO "optimizar" quitándolos):
+/// la razón NO es rendimiento, es AUTORIZACIÓN. Firestore evalúa las security
+/// rules contra la CONSULTA, nunca contra los documentos devueltos: si la query
+/// pudiera alcanzar un solo doc que la regla no permite, se rechaza la petición
+/// ENTERA con `permission-denied`. Filtrar client-side después de traer los
+/// documentos no sirve de nada, porque nunca llegan.
+///
+/// Las reglas vigentes son (`firestore.rules`, matches /categorias y
+/// /productos):
+///
+///     categorias → activo == true            || menuStaffOf(restauranteId)
+///     productos  → activo == true
+///                  && disponible == true     || menuStaffOf(restauranteId)
+///
+/// Regla mental permanente: **si la rule menciona `resource.data.X`, la query
+/// DEBE llevar `where('X', …)`**. De ahí que `productos` lleve DOS filtros:
+/// replicar la regla a medias (solo `activo`) también deniega la query.
+/// Cobertura: `scripts/test/rules/categorias.test.mjs` y `productos.test.mjs`
+/// lo afirman contra el emulador con las rules reales.
+///
+/// Nota de índices: el `orderBy('orden')` de las categorías se sigue haciendo
+/// client-side, y es una decisión deliberada de 11-03 — hacerlo server-side
+/// obligaría al índice compuesto `categorias(restauranteId, activo, orden)`.
+/// El N de categorías por restaurante es pequeño y evitar un índice extra
+/// elimina un punto de fallo más: los índices tardan minutos en construirse y
+/// el emulador de Firestore ni siquiera los valida, así que un índice que falte
+/// solo se descubre en producción. Los `where` de igualdad de arriba se
+/// resuelven con los índices automáticos de campo único: no requieren
+/// compuesto.
 
 final class RestauranteDetalleFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<RestauranteDetalle>, String> {
@@ -179,10 +279,35 @@ final class RestauranteDetalleFamily extends $Family
   /// doc `restaurantes/{id}` + categorías + productos del restaurante,
   /// agrupados por `categoriaId` (colección plana, research 10).
   ///
-  /// Nota de índices: el `orderBy('orden')` de las categorías se hace
-  /// client-side — el índice compuesto `categorias(restauranteId, orden)` NO
-  /// existe en 10-01 y el where simple usa índice de campo único (el N por
-  /// restaurante es chico; comportamiento idéntico).
+  /// ⚠️ POR QUÉ LOS FILTROS SON SERVER-SIDE (11-03 — NO "optimizar" quitándolos):
+  /// la razón NO es rendimiento, es AUTORIZACIÓN. Firestore evalúa las security
+  /// rules contra la CONSULTA, nunca contra los documentos devueltos: si la query
+  /// pudiera alcanzar un solo doc que la regla no permite, se rechaza la petición
+  /// ENTERA con `permission-denied`. Filtrar client-side después de traer los
+  /// documentos no sirve de nada, porque nunca llegan.
+  ///
+  /// Las reglas vigentes son (`firestore.rules`, matches /categorias y
+  /// /productos):
+  ///
+  ///     categorias → activo == true            || menuStaffOf(restauranteId)
+  ///     productos  → activo == true
+  ///                  && disponible == true     || menuStaffOf(restauranteId)
+  ///
+  /// Regla mental permanente: **si la rule menciona `resource.data.X`, la query
+  /// DEBE llevar `where('X', …)`**. De ahí que `productos` lleve DOS filtros:
+  /// replicar la regla a medias (solo `activo`) también deniega la query.
+  /// Cobertura: `scripts/test/rules/categorias.test.mjs` y `productos.test.mjs`
+  /// lo afirman contra el emulador con las rules reales.
+  ///
+  /// Nota de índices: el `orderBy('orden')` de las categorías se sigue haciendo
+  /// client-side, y es una decisión deliberada de 11-03 — hacerlo server-side
+  /// obligaría al índice compuesto `categorias(restauranteId, activo, orden)`.
+  /// El N de categorías por restaurante es pequeño y evitar un índice extra
+  /// elimina un punto de fallo más: los índices tardan minutos en construirse y
+  /// el emulador de Firestore ni siquiera los valida, así que un índice que falte
+  /// solo se descubre en producción. Los `where` de igualdad de arriba se
+  /// resuelven con los índices automáticos de campo único: no requieren
+  /// compuesto.
 
   RestauranteDetalleProvider call(String id) =>
       RestauranteDetalleProvider._(argument: id, from: this);

@@ -1,7 +1,7 @@
-﻿{
+{
   "model_profile": "inherit",
   "commit_docs": true,
-  "parallelization": 1,
+  "parallelization": 3,
   "search_gitignored": false,
   "brave_search": false,
   "firecrawl": false,
