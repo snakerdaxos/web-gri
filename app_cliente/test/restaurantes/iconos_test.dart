@@ -40,7 +40,7 @@ void main() {
             'sugeriría hacer una foto');
   });
 
-  testWidgets('el botón de QR conserva sus 45x45 (el mínimo táctil es de 11-14)',
+  testWidgets('el botón de QR mide 48x48 (mínimo táctil, aplicado en 11-14)',
       (tester) async {
     final db = await buildFakeFirestoreConSeed();
     await tester.pumpWidget(_wrap(db));
@@ -51,10 +51,10 @@ void main() {
       of: find.byIcon(GriIcons.escanearQr).first,
       matching: find.byType(SizedBox),
     ).first);
-    expect(caja, const Size(45, 45),
-        reason: 'sustituir el emoji NO puede encoger el objetivo táctil. '
-            'Que 45 < 48 (mínimo de Material) es deuda CONOCIDA y le toca a '
-            '11-14: aquí solo se congela para que no empeore');
+    expect(caja, const Size(48, 48),
+        reason: 'la deuda que 11-13 congeló en 45x45 la cierra 11-14: 45 < 48, '
+            'el mínimo táctil de Material. Sustituir el emoji tampoco puede '
+            'encoger el objetivo táctil');
 
     expect(tester.widget<Icon>(find.byIcon(GriIcons.escanearQr).first).size,
         22.0,
