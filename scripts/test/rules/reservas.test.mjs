@@ -666,12 +666,34 @@ describe('firestore.rules — reservas', () => {
       );
     });
 
-    it('el SUPER_ADMIN no cancela reservas: la rama de staff exige rid propio', async () => {
-      // Veredicto fijado: `staffOf()` compara contra `rid()` y el super_admin no
-      // tiene rid. Lee todo, opera nada.
+    it('el SUPER_ADMIN SÍ cancela reservas (11-34): opStaffOf lo incluye', async () => {
+      // VEREDICTO INVERTIDO EN 11-34. Antes afirmaba lo contrario porque
+      // `staffOf()` exige `rid()` y el super no tiene. Desde 11-34 cancelar
+      // la reserva es además LO QUE LIBERA LA MESA (el mapa deriva el color
+      // de las reservas del día), así que negárselo al super le impedía la
+      // única acción manual de liberación que existe.
+      await assertSucceeds(
+        updateDoc(doc(superAdmin(env), 'reservas', R_FUTURA), {
+          estado: 'cancelada',
+          updatedAt: AHORA,
+        }),
+      );
+    });
+
+    it('el SUPER_ADMIN tampoco puede cambiar otro campo al cancelar (soloEstado)', async () => {
       await assertFails(
         updateDoc(doc(superAdmin(env), 'reservas', R_FUTURA), {
           estado: 'cancelada',
+          numPersonas: 20,
+          updatedAt: AHORA,
+        }),
+      );
+    });
+
+    it('el SUPER_ADMIN no puede llevar la reserva a un estado que no sea cancelada', async () => {
+      await assertFails(
+        updateDoc(doc(superAdmin(env), 'reservas', R_FUTURA), {
+          estado: 'confirmada',
           updatedAt: AHORA,
         }),
       );

@@ -55,6 +55,40 @@ service cloud.firestore {
         && role() in ['admin_restaurante', 'mesero', 'cocina'];
     }
 
+    // ---- opStaffOf: quien OPERA la sala (11-34) --------------------------
+    //
+    // POR QUÉ EXISTE. `staffOf()` exige `r == rid()` y un rol de la lista, y
+    // el `super_admin` no cumple NINGUNA de las dos: no tiene `rid`
+    // (seed_firebase.mjs:47) y su rol no está en la lista. Resultado
+    // REPRODUCIDO por el usuario operando de verdad como super: pulsar
+    // «entregar cuenta» devolvía `permission-denied` en el commit que escribe
+    // `sesiones/{id}.estado = 'cerrada'` + `mesas/{id}.estado = 'limpieza'`.
+    // Lo mismo con cambiar el estado de una mesa y con cancelar una reserva
+    // por no-show. La auditoría de reglas (11-04) ya había marcado la
+    // asimetría —`pedidos` SÍ contempla `isSuper()` con `cocinaStaffOf`, el
+    // resto no— y nadie la tropezó hasta operar la sala.
+    //
+    // QUÉ CONCEDE, EXACTAMENTE: al `super_admin` las TRES operaciones de sala
+    // que ya podía OBSERVAR (las tres ramas de `read` de `sesiones`, `mesas` y
+    // `reservas` llevan `isSuper()` desde el día uno): cerrar/expirar una
+    // sesión, mover el estado de una mesa por la máquina de transiciones, y
+    // cancelar una reserva. NO concede ni un campo nuevo: las mismas
+    // restricciones de forma (`soloEstado`, `transMesa`, estado destino) se
+    // evalúan igual para él que para el staff.
+    //
+    // QUÉ NO CONCEDE: nada sobre `usuarios` (el padrón sigue con su propia
+    // regla), nada sobre `plataforma` (deny total, incluido el super), y no
+    // convierte al super en cliente (no puede abrir sesiones ni crear
+    // pedidos/reservas: esas ramas son `isCliente()` y él tiene claim `role`).
+    //
+    // NOTA DE PRODUCTO (decisión del usuario 2026-08-20): hoy el usuario es
+    // dueño de la plataforma Y operador del restaurante. Si algún día hubiera
+    // restaurantes de dueños distintos, lo correcto sería lo contrario —
+    // revertir es sustituir `opStaffOf` por `staffOf` en los tres sitios.
+    function opStaffOf(r) {
+      return isSuper() || staffOf(r);
+    }
+
     // Quien administra el menú/fichas: super o admin del restaurante.
     function menuStaffOf(r) {
       return signedIn() && (isSuper()
@@ -170,7 +204,8 @@ service cloud.firestore {
                        == resource.data.restauranteId;
       // Cambio de estado por staff (mapa de mesas / mesero): solo
       // estado+updatedAt con transición válida.
-      allow update: if staffOf(resource.data.restauranteId)
+      // `opStaffOf` y no `staffOf` (11-34): el super_admin opera la sala.
+      allow update: if opStaffOf(resource.data.restauranteId)
                     && soloEstado()
                     && transMesa(resource.data.estado,
                                  request.resource.data.estado);
@@ -249,11 +284,54 @@ service cloud.firestore {
                        in ['disponible', 'reservada']              // 1 access-call
                     && get(/databases/$(database)/documents/mesas/$(sesionId)).data.restauranteId
                        == request.resource.data.restauranteId;     // mismo doc: cacheado
-      allow update: if (resource.data.usuarioId == request.auth.uid  // dueño pide la cuenta
+      // ── RAMA DEL COMENSAL: pedir la cuenta y REABRIRLA (11-34) ─────────
+      //
+      // ANTES la condición era `request.resource.data.cuentaSolicitada ==
+      // true`: solo se podía ENCENDER la bandera. Apagarla estaba DENEGADO, y
+      // eso dejaba la mesa en un estado sin salida, reproducido por el
+      // usuario: pidió la cuenta, después pidió un café, el pedido nuevo se
+      // aceptó pero no entraba en el total (solo se cobra lo `servido`) y el
+      // botón de pedir la cuenta ya no volvía, porque la bandera seguía en
+      // true. El mesero, además, tenía en su lista un importe viejo.
+      //
+      // DECISIÓN DEL USUARIO (2026-08-20): se REABRE la cuenta. Al crear un
+      // pedido con la sesión en `cuentaSolicitada: true`, la misma
+      // transacción apaga la bandera; el botón vuelve y el aviso al mesero se
+      // rehace cuando el comensal la pida otra vez.
+      //
+      // QUÉ CONCEDE ESTA AMPLIACIÓN, EXACTAMENTE: que el DUEÑO de una sesión
+      // ACTIVA retire SU PROPIA solicitud de cuenta. Nada más. No puede
+      // cerrar la sesión, ni tocar importes (no hay ninguno en este doc), ni
+      // rozar otra mesa. Retirar una petición que hizo él es su derecho: el
+      // caso de uso literal es «espera, que pido un café».
+      //
+      // LOS TRES CANDADOS QUE LA ACOTAN (los tres tienen su caso en
+      // scripts/test/rules/sesiones.test.mjs → «update — reabrir la cuenta»):
+      //   1. `resource.data.estado == 'activa'` — sobre una sesión CERRADA no
+      //      se toca nada. Esto es MÁS ESTRICTO que la regla anterior, que
+      //      dejaba encender la bandera en una sesión ya cerrada.
+      //   2. `resource.data.cuentaSolicitada == true` — solo se apaga lo que
+      //      estaba encendido. Un update a false sobre una sesión que nunca
+      //      pidió la cuenta es ruido y queda denegado.
+      //   3. `cuentaPedidaAt` DEBE quedar en null — no se puede apagar la
+      //      bandera conservando la marca de tiempo vieja, que es justo el
+      //      estado inconsistente del que se sale ('no pidió la cuenta' pero
+      //      'la pidió a las 20:14').
+      //
+      // `.get('cuentaPedidaAt', null)`: el cliente puede mandar `null` o un
+      // `FieldValue.delete()`; con delete la clave NO está en
+      // `request.resource.data` y desreferenciarla directamente reventaría la
+      // regla (denegando por el motivo equivocado). Sigue contando en
+      // `affectedKeys()`, así que `hasOnly` la vigila igual.
+      allow update: if (resource.data.usuarioId == request.auth.uid
+                        && resource.data.estado == 'activa'
                         && request.resource.data.diff(resource.data).affectedKeys()
                            .hasOnly(['cuentaSolicitada', 'cuentaPedidaAt'])
-                        && request.resource.data.cuentaSolicitada == true)
-                    || (staffOf(resource.data.restauranteId)        // staff cierra/expira
+                        && (request.resource.data.cuentaSolicitada == true
+                            || (resource.data.cuentaSolicitada == true
+                                && request.resource.data.cuentaSolicitada == false
+                                && request.resource.data.get('cuentaPedidaAt', null) == null)))
+                    || (opStaffOf(resource.data.restauranteId)      // staff cierra/expira
                         && soloEstado()
                         && resource.data.estado == 'activa'
                         && request.resource.data.estado
@@ -351,11 +429,15 @@ service cloud.firestore {
                        <= get(/databases/$(database)/documents/mesas/$(request.resource.data.mesaId)).data.capacidad;
                        // capacidad restaurada server-side (mismo doc: cacheado)
       // Cancelar: dueño (futura) o staff (no-show). Solo estado+updatedAt.
+      // `opStaffOf` y no `staffOf` (11-34): el super_admin opera la sala.
+      // Cancelar la reserva es además, desde 11-34, LO QUE LIBERA LA MESA —
+      // el mapa deriva el color de las reservas del día, así que una reserva
+      // cancelada deja de teñir la mesa en el acto.
       allow update: if soloEstado()
                     && request.resource.data.estado == 'cancelada'
                     && ((resource.data.usuarioId == request.auth.uid
                          && resource.data.fecha > request.time)
-                     || staffOf(resource.data.restauranteId));
+                     || opStaffOf(resource.data.restauranteId));
       allow delete: if false;
     }
 

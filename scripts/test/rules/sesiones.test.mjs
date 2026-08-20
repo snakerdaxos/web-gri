@@ -497,13 +497,156 @@ describe('firestore.rules — sesiones', () => {
       );
     });
 
-    it('el SUPER_ADMIN tampoco cierra sesiones: la rama de staff exige rid propio', async () => {
-      // Veredicto fijado: `staffOf()` compara contra `rid()`, y el super_admin
-      // NO tiene rid (seed_firebase.mjs:47). Puede LEER todo, no operar mesas.
-      await assertFails(
+    it('el SUPER_ADMIN SÍ cierra sesiones (11-34): opStaffOf lo incluye', async () => {
+      // VEREDICTO INVERTIDO EN 11-34, a conciencia. Este caso afirmaba lo
+      // contrario ('el SUPER_ADMIN tampoco cierra sesiones') porque
+      // `staffOf()` compara contra `rid()` y el super no tiene rid. Se
+      // documentaba como una decisión, pero era un DEFECTO: el usuario, que
+      // es a la vez dueño de la plataforma y operador del restaurante,
+      // recibía `permission-denied` al pulsar «entregar cuenta».
+      //
+      // No abre nada nuevo: el super ya LEÍA este doc (caso 'el SUPER_ADMIN
+      // puede leer cualquier sesión', arriba). Ahora también puede actuar
+      // sobre él, con las MISMAS restricciones de forma que el staff — lo
+      // demuestran los dos casos siguientes.
+      await assertSucceeds(
         updateDoc(doc(superAdmin(env), 'sesiones', M_OCUPADA), {
           estado: 'cerrada',
           updatedAt: LUEGO,
+        }),
+      );
+    });
+
+    it('el SUPER_ADMIN tampoco re-abre una sesión cerrada: la forma se le aplica igual', async () => {
+      await assertFails(
+        updateDoc(doc(superAdmin(env), 'sesiones', M_CERRADA), {
+          estado: 'activa',
+          updatedAt: LUEGO,
+        }),
+      );
+    });
+
+    it('el SUPER_ADMIN tampoco puede cambiar el dueño de la sesión (soloEstado)', async () => {
+      await assertFails(
+        updateDoc(doc(superAdmin(env), 'sesiones', M_OCUPADA), {
+          estado: 'cerrada',
+          usuarioId: INTRUSO,
+          updatedAt: LUEGO,
+        }),
+      );
+    });
+  });
+
+  // --- update — REABRIR LA CUENTA (11-34) ------------------------------------
+  //
+  // El comensal pide la cuenta y después pide un café. La bandera
+  // `cuentaSolicitada` tiene que poder APAGARSE, cosa que la regla anterior
+  // denegaba (`request.resource.data.cuentaSolicitada == true`). La
+  // ampliación está acotada por tres candados y cada uno tiene aquí su caso
+  // ROJO: quitar el candado de la regla pone en verde un `assertFails` de
+  // este bloque, que es como se comprobó que ninguno es decorativo.
+
+  describe('update — reabrir la cuenta (11-34)', () => {
+    beforeEach(async () => {
+      // La sesión de M_OCUPADA arranca con la cuenta YA PEDIDA: es el estado
+      // del que hay que poder salir.
+      await sembrar(env, async (db) => {
+        await updateDoc(doc(db, 'sesiones', M_OCUPADA), {
+          cuentaSolicitada: true,
+          cuentaPedidaAt: AHORA,
+        });
+      });
+    });
+
+    it('el DUEÑO puede APAGAR la bandera y borrar el timestamp (el café de última hora)', async () => {
+      await assertSucceeds(
+        updateDoc(doc(cliente(env, DUENO), 'sesiones', M_OCUPADA), {
+          cuentaSolicitada: false,
+          cuentaPedidaAt: null,
+        }),
+      );
+    });
+
+    it('CANDADO 1 — no puede apagarla dejando el timestamp viejo puesto', async () => {
+      // Sin este candado la sesión quedaría diciendo a la vez «no pidió la
+      // cuenta» y «la pidió a las 20:14»: el estado inconsistente del que
+      // precisamente se quiere salir.
+      await assertFails(
+        updateDoc(doc(cliente(env, DUENO), 'sesiones', M_OCUPADA), {
+          cuentaSolicitada: false,
+        }),
+      );
+    });
+
+    it('CANDADO 2 — OTRO cliente no puede apagar la bandera de una mesa ajena', async () => {
+      await assertFails(
+        updateDoc(doc(cliente(env, INTRUSO), 'sesiones', M_OCUPADA), {
+          cuentaSolicitada: false,
+          cuentaPedidaAt: null,
+        }),
+      );
+    });
+
+    it('CANDADO 3 — sobre una sesión CERRADA no se apaga nada', async () => {
+      // M_CERRADA está en 'cerrada' con cuentaSolicitada: true.
+      await assertFails(
+        updateDoc(doc(cliente(env, DUENO), 'sesiones', M_CERRADA), {
+          cuentaSolicitada: false,
+          cuentaPedidaAt: null,
+        }),
+      );
+    });
+
+    it('sobre una sesión CERRADA tampoco se ENCIENDE (endurecido en 11-34)', async () => {
+      // Antes de 11-34 esto ESTABA PERMITIDO: la rama del dueño no miraba el
+      // estado de la sesión, así que se podía pedir la cuenta de una mesa ya
+      // cobrada y hacer reaparecer el aviso en el panel del mesero.
+      await assertFails(
+        updateDoc(doc(cliente(env, DUENO), 'sesiones', M_CERRADA), {
+          cuentaSolicitada: true,
+          cuentaPedidaAt: LUEGO,
+        }),
+      );
+    });
+
+    it('apagarla NO es una vía para cerrar la sesión ni para colar otro campo', async () => {
+      await assertFails(
+        updateDoc(doc(cliente(env, DUENO), 'sesiones', M_OCUPADA), {
+          cuentaSolicitada: false,
+          cuentaPedidaAt: null,
+          estado: 'cerrada',
+        }),
+      );
+    });
+
+    it('con la bandera YA en false, un update a false queda denegado (solo se apaga lo encendido)', async () => {
+      await sembrar(env, async (db) => {
+        await updateDoc(doc(db, 'sesiones', M_OCUPADA), {
+          cuentaSolicitada: false,
+          cuentaPedidaAt: null,
+        });
+      });
+      await assertFails(
+        updateDoc(doc(cliente(env, DUENO), 'sesiones', M_OCUPADA), {
+          cuentaSolicitada: false,
+          cuentaPedidaAt: null,
+        }),
+      );
+    });
+
+    it('y después de reabrir, el DUEÑO puede volver a pedir la cuenta', async () => {
+      // El ciclo completo: apagar y volver a encender. Es lo que hace que el
+      // botón vuelva y el mesero reciba un aviso NUEVO.
+      await assertSucceeds(
+        updateDoc(doc(cliente(env, DUENO), 'sesiones', M_OCUPADA), {
+          cuentaSolicitada: false,
+          cuentaPedidaAt: null,
+        }),
+      );
+      await assertSucceeds(
+        updateDoc(doc(cliente(env, DUENO), 'sesiones', M_OCUPADA), {
+          cuentaSolicitada: true,
+          cuentaPedidaAt: LUEGO,
         }),
       );
     });

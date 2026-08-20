@@ -284,6 +284,54 @@ describe('firestore.rules — mesas', () => {
         }),
       );
     });
+
+    // --- SUPER_ADMIN (11-34) -------------------------------------------------
+    //
+    // Hasta 11-34 el super_admin no podía mover NINGUNA mesa: `staffOf()`
+    // exige `r == rid()` y él no tiene rid. Con `opStaffOf` puede, con las
+    // MISMAS restricciones de forma. Los tres casos siguientes lo fijan: uno
+    // en verde y dos en rojo, para que «el super puede» no se confunda nunca
+    // con «al super no se le aplica la máquina de estados».
+
+    it('SUPER_ADMIN: ocupada→limpieza — opera la sala como el staff (11-34)', async () => {
+      await assertSucceeds(
+        updateDoc(doc(superAdmin(env), 'mesas', M_OCUPADA), {
+          estado: 'limpieza',
+          updatedAt: new Date('2026-08-19T13:00:00Z'),
+        }),
+      );
+    });
+
+    it('SUPER_ADMIN: reservada→disponible — LIBERAR la mesa a mano (11-34)', async () => {
+      // Es la acción que la especificación de la ventana de reserva pide
+      // explícitamente: «el administrador puede liberarla en cualquier
+      // momento». Con `staffOf` el super recibía permission-denied.
+      await assertSucceeds(
+        updateDoc(doc(superAdmin(env), 'mesas', M_RESERVADA), {
+          estado: 'disponible',
+          updatedAt: new Date('2026-08-19T13:00:00Z'),
+        }),
+      );
+    });
+
+    it('SUPER_ADMIN: ocupada→disponible sigue DENEGADA — transMesa también le aplica', async () => {
+      await assertFails(
+        updateDoc(doc(superAdmin(env), 'mesas', M_OCUPADA), {
+          estado: 'disponible',
+          updatedAt: new Date('2026-08-19T13:00:00Z'),
+        }),
+      );
+    });
+
+    it('SUPER_ADMIN: colar "capacidad" junto al estado sigue DENEGADO — soloEstado() también le aplica', async () => {
+      await assertFails(
+        updateDoc(doc(superAdmin(env), 'mesas', M_OCUPADA), {
+          estado: 'limpieza',
+          capacidad: 99,
+          updatedAt: new Date('2026-08-19T13:00:00Z'),
+        }),
+      );
+    });
   });
 
   // --- update rama CLIENTE ---------------------------------------------------
