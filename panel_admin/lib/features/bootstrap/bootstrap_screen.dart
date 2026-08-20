@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/password_policy.dart';
 import '../../core/theme.dart';
 import '../shared/password_field.dart';
 import 'bootstrap_controller.dart';
@@ -81,7 +82,7 @@ class _BootstrapScreenState extends ConsumerState<BootstrapScreen> {
       !_enVuelo &&
       _nombreCtrl.text.trim().isNotEmpty &&
       _emailRe.hasMatch(_emailCtrl.text.trim()) &&
-      _passCtrl.text.length >= 8 &&
+      validarPassword(_passCtrl.text) == null &&
       _pass2Ctrl.text == _passCtrl.text &&
       _secretoCtrl.text.trim().isNotEmpty;
 
@@ -202,8 +203,11 @@ class _BootstrapScreenState extends ConsumerState<BootstrapScreen> {
                       controller: _passCtrl,
                       labelText: 'Contraseña',
                       autofillHints: const [AutofillHints.newPassword],
-                      validator: (v) =>
-                          (v ?? '').length >= 8 ? null : 'Mínimo 8 caracteres',
+                      // `bootstrapPlataforma` NO fija contraseñas: la cuenta la
+                      // crea el SDK cliente desde aquí, así que este validador
+                      // es la única aplicación de la política para este punto.
+                      helperText: ayudaPolitica,
+                      validator: (v) => validarPassword(v ?? ''),
                     ),
                     const SizedBox(height: 16),
                     PasswordField(

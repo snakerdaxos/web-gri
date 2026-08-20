@@ -58,6 +58,9 @@ class LoginController extends _$LoginController {
     if (!_emailRe.hasMatch(trimmed)) {
       throw ArgumentError.value(email, 'email', 'Email inválido');
     }
+    // POLICY-LOGIN-OK: esto es INICIAR SESIÓN, no fijar una contraseña. La
+    // política de 11-22 NO se aplica aquí a propósito — una cuenta creada
+    // antes de la política tiene que poder seguir entrando (T-11-22-04).
     if (password.length < 8) {
       throw ArgumentError.value(
         password,

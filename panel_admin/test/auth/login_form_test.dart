@@ -71,6 +71,30 @@ IconData _iconoDe(WidgetTester tester, Key k) =>
 void main() {
   // ── UI parity: validación pre-red (screen intacta) ─────────────────────
 
+  // ── 11-22 / T-11-22-04: la política NO se aplica al INICIAR SESIÓN ──────
+  //
+  // Existe para que aplicar la política al login sea IMPOSIBLE sin ponerse en
+  // rojo. Sin este caso, cambiar el `validator` del login por `validarPassword`
+  // dejaba la suite entera verde — y habría dejado fuera a toda cuenta creada
+  // antes de la política, que es el riesgo que el plan acepta explícitamente.
+  testWidgets('login: una contraseña ANTIGUA (solo minúsculas) sigue entrando',
+      (tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(child: MaterialApp(home: LoginScreen())),
+    );
+
+    await _fillForm(tester, 'admin@demo.gri.dev', 'contrasena');
+
+    expect(
+      tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+      isNotNull,
+      reason: 'aplicar la política al login sería una DoS contra el staff que '
+          'ya tiene cuenta (T-11-22-04)',
+    );
+    expect(find.textContaining('Te falt'), findsNothing);
+    expect(find.textContaining('mayúscula'), findsNothing);
+  });
+
   testWidgets('form invalid email disables submit', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(child: MaterialApp(home: LoginScreen())),

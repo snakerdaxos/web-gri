@@ -106,6 +106,46 @@ void main() {
         reason: 'password < 8 chars debe deshabilitar Ingresar');
   });
 
+  // ── 11-22 / T-11-22-04: la política NO se aplica al INICIAR SESIÓN ──────
+  //
+  // Este caso existe para que aplicar la política al login sea IMPOSIBLE sin
+  // ponerse en rojo. MEDIDO: sin él, cambiar el `validator` del login por
+  // `validarPassword` dejaba la suite ENTERA verde — y habría dejado fuera a
+  // toda cuenta creada antes de esta política, que es justo el riesgo que el
+  // plan acepta y declara fuera de alcance.
+  testWidgets('login: una contraseña ANTIGUA (solo minúsculas) sigue entrando',
+      (tester) async {
+    await tester.pumpWidget(_wrap());
+    // 'contrasena' incumple la política de 11-22 (ni mayúscula ni dígito) y aun
+    // así es una contraseña perfectamente válida de una cuenta ya existente.
+    await _fill(tester, ['carlos@demo.gri.dev', 'contrasena']);
+
+    expect(
+      tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+      isNotNull,
+      reason: 'aplicar la política al login sería una DoS contra los usuarios '
+          'que ya tienen cuenta (T-11-22-04)',
+    );
+    expect(find.textContaining('Te falt'), findsNothing);
+    expect(find.textContaining('mayúscula'), findsNothing);
+  });
+
+  test('LoginController tampoco aplica la política a una contraseña antigua',
+      () async {
+    final auth = mockAuth(email: 'carlos@demo.gri.dev', signedIn: false);
+    final db = await buildFakeFirestoreConSeed();
+    final c = _container(auth, db);
+
+    // No lanza ArgumentError: la única comprobación local que queda es la
+    // longitud mínima histórica.
+    expect(
+      await c
+          .read(loginControllerProvider.notifier)
+          .submit('carlos@demo.gri.dev', 'contrasena'),
+      isTrue,
+    );
+  });
+
   testWidgets('login: toggle navega a la pantalla de registro', (tester) async {
     await tester.pumpWidget(_wrap());
 
@@ -602,10 +642,18 @@ void main() {
     await irARegistro(tester);
     await _rellenarRegistro(tester, pass: 'Abcdefgh', pass2: 'Abcdefgh');
 
-    expect(find.text('Te falta un número.'), findsOneWidget);
+    // Se miran SOLO los avisos, no todo el árbol: el texto de AYUDA nombra la
+    // mayúscula a propósito (describe la política antes de que el usuario
+    // falle), así que un `findsNothing` sobre 'mayúscula' saldría rojo por el
+    // motivo equivocado.
+    final avisos = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((t) => t.data ?? '')
+        .where((s) => s.startsWith('Te falt') || s.startsWith('Debe tener'))
+        .toList();
     expect(
-      find.textContaining('mayúscula'),
-      findsNothing,
+      avisos,
+      ['Te falta un número.'],
       reason: 'no puede reclamar algo que la contraseña SÍ tiene',
     );
     expect(botonCrear(tester).onPressed, isNull);

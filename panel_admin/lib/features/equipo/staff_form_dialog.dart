@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/firebase_providers.dart';
+import '../../core/password_policy.dart';
 import '../../core/theme.dart';
 import '../dashboard/restaurante_provider.dart';
 import '../dashboard/restaurantes_list_provider.dart';
@@ -20,10 +21,11 @@ import 'equipo_provider.dart';
 /// filas de tabla y 48 combinaciones de propiedad (11-08).
 const rolesAsignables = <String>['admin_restaurante', 'mesero', 'cocina'];
 
-/// Longitud mínima de contraseña del PRODUCTO (8), no la de Firebase (6).
-/// La callable rechaza 7 con `invalid-argument` y hay un caso e2e que lo fija;
-/// exigirlo aquí evita gastar una llamada para descubrirlo.
-const _minPassword = 8;
+// La regla de contraseña NO vive aquí. Está en `core/password_policy.dart`,
+// idéntica byte a byte a la de la app cliente y con la MISMA redacción que la
+// del servidor (`functions/src/password-policy.js`). Aquí solo se consulta:
+// exigirla en el formulario evita gastar una llamada para descubrir lo que la
+// callable ya rechaza (11-22).
 
 /// Alta de una persona del equipo (BOOT-03/BOOT-04).
 ///
@@ -84,14 +86,10 @@ class _StaffFormDialogState extends ConsumerState<StaffFormDialog> {
     return null;
   }
 
-  String? _validarPassword(String? v) {
-    final s = v ?? '';
-    if (s.isEmpty) return 'Requerido';
-    if (s.length < _minPassword) {
-      return 'Mínimo $_minPassword caracteres';
-    }
-    return null;
-  }
+  /// Delega ENTERA en la política. Ni siquiera el caso vacío se trata aparte:
+  /// el mensaje de la política ya dice todo lo que falta, que es más útil que
+  /// un "Requerido" que obliga a adivinar el resto.
+  String? _validarPassword(String? v) => validarPassword(v ?? '');
 
   Future<void> _guardar(bool esSuper) async {
     // Guarda de doble envío: el botón ya está deshabilitado, pero un `tap`
@@ -205,8 +203,8 @@ class _StaffFormDialogState extends ConsumerState<StaffFormDialog> {
                   controller: _passwordCtrl,
                   labelText: 'Contraseña temporal',
                   helperText:
-                      'Mínimo $_minPassword caracteres. Se la dictas tú; esa '
-                      'persona podrá cambiarla desde su perfil.',
+                      '$ayudaPolitica. Se la dictas tú; esa persona podrá '
+                      'cambiarla desde su perfil.',
                   validator: _validarPassword,
                 ),
                 const SizedBox(height: 14),

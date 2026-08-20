@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/password_policy.dart';
 import '../../core/theme.dart';
 import '../shared/google_boton.dart';
 import '../shared/password_field.dart';
@@ -61,7 +62,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return !submitting &&
         _nombreCtrl.text.trim().isNotEmpty &&
         _emailRe.hasMatch(_emailCtrl.text.trim()) &&
-        _passCtrl.text.length >= 8 &&
+        validarPassword(_passCtrl.text) == null &&
         _errorConfirmacion(_pass2Ctrl.text) == null;
   }
 
@@ -177,8 +178,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       // Paridad con el login: el gestor de contraseñas del
                       // sistema debe tratar ambos campos igual (T-11-06-03).
                       autofillHints: const [AutofillHints.password],
-                      validator: (v) =>
-                          (v ?? '').length >= 8 ? null : 'Mínimo 8 caracteres',
+                      // La regla NO se escribe aquí: la pantalla pregunta y
+                      // enseña lo que le devuelvan (11-22).
+                      helperText: ayudaPolitica,
+                      validator: (v) => validarPassword(v ?? ''),
                     ),
                     const SizedBox(height: GriSpacing.md),
                     PasswordField(

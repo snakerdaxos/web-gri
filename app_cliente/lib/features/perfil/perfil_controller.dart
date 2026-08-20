@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../auth/auth_controller.dart';
 import '../../core/firebase_providers.dart';
+import '../../core/password_policy.dart';
 
 part 'perfil_controller.g.dart';
 
@@ -82,12 +83,13 @@ class PerfilController extends _$PerfilController {
   /// updatePassword. 'wrong-password' → 'Contraseña actual incorrecta';
   /// 'requires-recent-login' no debería llegar (el re-auth ya se hizo).
   Future<bool> cambiarPassword(String actual, String nueva) async {
-    if (nueva.length < 8) {
-      throw ArgumentError.value(
-        nueva,
-        'password',
-        'La contraseña debe tener al menos 8 caracteres',
-      );
+    // Política ENTERA (11-22), no solo la longitud: este es el punto donde se
+    // FIJA la contraseña nueva. La `actual` NO se valida contra la política a
+    // propósito — se creó bajo las reglas de antes y exigírsela sería negarle
+    // el acceso a su propia cuenta (T-11-22-04).
+    final errorPassword = validarPassword(nueva);
+    if (errorPassword != null) {
+      throw ArgumentError.value(nueva, 'password', errorPassword);
     }
 
     state = const AsyncLoading<void>();

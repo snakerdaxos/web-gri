@@ -47,6 +47,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final submitting = ref.read(loginControllerProvider).isLoading;
     return !submitting &&
         _emailRe.hasMatch(_emailCtrl.text.trim()) &&
+        // POLICY-LOGIN-OK: iniciar sesión NO aplica la política de 11-22.
         _passCtrl.text.length >= 8;
   }
 
@@ -140,6 +141,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       controller: _passCtrl,
                       labelText: 'Contraseña',
                       autofillHints: const [AutofillHints.password],
+                      // POLICY-LOGIN-OK: iniciar sesión NO aplica la
+                      // política de 11-22 — una cuenta creada antes tiene que
+                      // poder entrar (T-11-22-04).
                       validator: (v) =>
                           (v ?? '').length >= 8 ? null : 'Mínimo 8 caracteres',
                       onFieldSubmitted: (_) => _canSubmit ? _submit() : null,

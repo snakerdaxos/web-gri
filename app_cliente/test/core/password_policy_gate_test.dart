@@ -144,9 +144,12 @@ void main() {
         final ventana = lineas.sublist(desde, i + 1).join('\n');
         if (!esReglaDeContrasena(lineas[i], ventana)) continue;
         final entrada = '$ruta:${i + 1}: ${lineas[i].trim()}';
-        // La exencion se declara en la propia linea o en las DOS anteriores.
-        final declaracion =
-            lineas.sublist(i - 2 < 0 ? 0 : i - 2, i + 1).join('\n');
+        // La exencion se declara en la propia linea o en el bloque de
+        // comentario inmediatamente anterior. La ventana es la MISMA que la
+        // de contexto: una exencion que hay que justificar no cabe en dos
+        // lineas (medido: con una ventana de 2 el gate rechazaba las dos
+        // exenciones legitimas del camino de login).
+        final declaracion = ventana;
         if (declaracion.contains(_marcador)) {
           declaradas.add(entrada);
         } else {

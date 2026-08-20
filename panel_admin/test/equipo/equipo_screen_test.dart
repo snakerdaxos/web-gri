@@ -146,7 +146,11 @@ Future<void> _rellenar(
   WidgetTester tester, {
   String nombre = 'Nuevo Mesero',
   String email = 'nuevo@demo.com',
-  String password = 'clave1234',
+  // 11-22: la contrasena por defecto CUMPLE la politica (mayuscula + minuscula
+  // + digito). Cambiarla no relaja nada: lo que estos casos verifican es el
+  // flujo del alta, no la contrasena — y con 'clave1234', que ya no es valida,
+  // estarian midiendo el validador en vez del alta.
+  String password = 'Clave1234',
 }) async {
   await tester.enterText(find.byKey(const Key('staff-nombre')), nombre);
   await tester.enterText(find.byKey(const Key('staff-email')), email);

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/firebase_providers.dart';
+import '../../core/password_policy.dart';
 import '../../core/google_auth.dart';
 
 part 'auth_controller.g.dart';
@@ -84,6 +85,11 @@ class LoginController extends _$LoginController {
     if (!_emailRe.hasMatch(trimmed)) {
       throw ArgumentError.value(email, 'email', 'Email inválido');
     }
+    // POLICY-LOGIN-OK: esto es INICIAR SESIÓN, no fijar una contraseña. La
+    // política de 11-22 NO se aplica aquí a propósito — una cuenta creada antes
+    // de la política tiene que poder seguir entrando (T-11-22-04). Lo único que
+    // se conserva es la longitud mínima histórica, para no gastar una llamada
+    // de red con un campo obviamente incompleto.
     if (password.length < 8) {
       throw ArgumentError.value(
         password,
@@ -130,12 +136,12 @@ class RegisterController extends _$RegisterController {
     if (!_emailRe.hasMatch(trimmedEmail)) {
       throw ArgumentError.value(email, 'email', 'Email inválido');
     }
-    if (password.length < 8) {
-      throw ArgumentError.value(
-        password,
-        'password',
-        'La contraseña debe tener al menos 8 caracteres',
-      );
+    // Aquí SÍ se FIJA una contraseña: se aplica la política ENTERA (11-22).
+    // Es la última línea de defensa del cliente — una pantalla futura que
+    // olvidara el `validator` volvería a dejar pasar `12345678`.
+    final errorPassword = validarPassword(password);
+    if (errorPassword != null) {
+      throw ArgumentError.value(password, 'password', errorPassword);
     }
 
     state = const AsyncLoading<void>();

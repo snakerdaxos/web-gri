@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/password_policy.dart';
 import '../../core/theme.dart';
 import '../auth/auth_controller.dart';
 import '../shared/password_field.dart';
@@ -20,6 +21,12 @@ class PerfilScreen extends ConsumerStatefulWidget {
 }
 
 class _PerfilScreenState extends ConsumerState<PerfilScreen> {
+  /// Hasta 11-22 esta pantalla NO tenia `Form`: los dos campos de contrasena no
+  /// llevaban `validator` ninguno, asi que no comprobaba absolutamente nada y
+  /// `12345678` se guardaba. Poner solo los `validator` no habria bastado: sin
+  /// un `Form` nadie los ejecuta y el aviso no apareceria jamas.
+  final _formKey = GlobalKey<FormState>();
+
   final _nombreCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passActualCtrl = TextEditingController();
@@ -39,7 +46,31 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
     super.dispose();
   }
 
+  /// La contrasena nueva es OPCIONAL: vacia significa "no la cambio", asi que
+  /// el validador devuelve `null` sin mirar la politica. Solo si el usuario
+  /// escribio algo se le exige que cumpla.
+  String? _validarNueva(String? v) {
+    final s = v ?? '';
+    if (s.isEmpty) return null;
+    return validarPassword(s);
+  }
+
+  /// La contrasena ACTUAL no se valida contra la politica: se creo bajo las
+  /// reglas de antes y exigirsela seria negarle el acceso a su propia cuenta
+  /// (T-11-22-04). Lo unico que se comprueba es la coherencia: no se puede
+  /// cambiar la contrasena sin decir cual es la de ahora.
+  String? _validarActual(String? v) {
+    if (_passCtrl.text.isEmpty) return null;
+    return (v ?? '').isEmpty
+        ? 'Escribe tu contraseña actual para poder cambiarla'
+        : null;
+  }
+
   Future<void> _guardar() async {
+    // Corta ANTES de escribir nada. El orden del metodo es nombre -> contrasena:
+    // sin esta guarda, una contrasena invalida dejaba el nombre YA guardado y el
+    // perfil a medias.
+    if (!(_formKey.currentState?.validate() ?? true)) return;
     try {
       await ref
           .read(perfilControllerProvider.notifier)
@@ -89,9 +120,12 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
       _synced = true;
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
+    return Form(
+      key: _formKey,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
         Text(
           'Mi perfil',
           style: GriText.tituloPantalla.copyWith(color: GriColors.text),
@@ -129,6 +163,7 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                   controller: _passActualCtrl,
                   labelText: 'Contraseña actual',
                   helperText: 'Solo si vas a cambiar la contraseña',
+                  validator: _validarActual,
                 ),
                 const SizedBox(height: GriSpacing.md),
                 PasswordField(
@@ -136,6 +171,20 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
                   controller: _passCtrl,
                   labelText: 'Nueva contraseña (opcional)',
                   helperText: 'Déjala vacía para no cambiarla',
+                  validator: _validarNueva,
+                ),
+                const SizedBox(height: GriSpacing.sm),
+                // La politica se anuncia ANTES de que el usuario falle. Va como
+                // texto aparte y no dentro del `helperText` porque ese hueco lo
+                // ocupa el aviso de opcionalidad, que es la otra mitad de la
+                // informacion y no se puede perder.
+                const Text(
+                  ayudaPolitica,
+                  key: ValueKey('perfil-politica-password'),
+                  style: TextStyle(
+                    color: GriColors.textoSecundarioAccesible,
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
@@ -173,7 +222,8 @@ class _PerfilScreenState extends ConsumerState<PerfilScreen> {
             style: TextStyle(color: GriColors.chipCanceladaFg),
           ),
         ),
-      ],
+        ],
+      ),
     );
   }
 }
