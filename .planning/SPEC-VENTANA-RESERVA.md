@@ -70,3 +70,40 @@ funciona en producción.
 ## Fuera de alcance
 
 Notificar al cliente que su reserva expiró. Reasignar automáticamente la mesa a otra reserva.
+
+---
+
+# Dos hallazgos más del usuario (2026-08-20), a resolver en el mismo trabajo
+
+## A. El super_admin no puede OPERAR
+
+Reproducido por el usuario al pulsar "entregar cuenta": `permission-denied` en el commit que
+escribe `sesiones/{id}.estado = 'cerrada'` y `mesas/{id}.estado = 'limpieza'`.
+
+Causa: `staffOf(r) = signedIn() && r == rid() && role() in ['admin_restaurante','mesero','cocina']`.
+El `super_admin` no está en la lista y no tiene `rid`, así que la condición es falsa. Puede LEER
+todo pero no cerrar sesiones, ni cambiar estado de mesa, ni cancelar reservas. En `pedidos` sí está
+contemplado con `isSuper()`; en el resto no. La auditoría de reglas (plan 11-04) ya lo marcó como
+asimetría a decidir y nadie lo tropezó hasta operar de verdad como super.
+
+**Arreglo:** permitir al `super_admin` las operaciones de staff. No abre nada nuevo — ya puede leer
+esos documentos; se le permite actuar sobre ellos. Con sus tests y redespliegue de reglas.
+Nota de producto: si algún día la plataforma tuviera restaurantes de dueños distintos, quizá
+convenga lo contrario. Hoy el usuario es dueño de la plataforma Y operador del restaurante.
+
+Rodeo mientras tanto: operar con `admin@demo.gri.dev` (rol `admin_restaurante`, rid `demo`).
+
+## B. El panel no ve las reservas futuras
+
+`panel_admin/lib/features/reservas/reservas_provider.dart:30-42` acota la consulta a
+`fecha >= inicioHoy && fecha < inicioManana` — **hoy y solo hoy**.
+
+Y hasta el plan 11-31 el cliente solo podía reservar de mañana en adelante (`firstDate: mañana`).
+Es decir: **ninguna reserva ha sido nunca visible para el restaurante hasta el día en que ocurría.**
+Un restaurante que no ve las reservas de mañana no puede planificar compras ni turnos.
+
+**Arreglo:** que el panel muestre las próximas reservas, no solo las de hoy. Decidir la ventana
+(¿próximos 7 días? ¿todas las futuras con paginación?) y si conviene separar "hoy" de "próximas" en
+la interfaz, porque el uso es distinto: hoy se opera, mañana se planifica.
+Ojo al índice: `reservas(restauranteId, fecha)` ya existe y sirve para una ventana más amplia, pero
+verificar con `audit_indexes.mjs` y con la sonda contra producción.
