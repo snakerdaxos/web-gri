@@ -73,16 +73,16 @@ sustituir un mensaje específico por uno genérico o equivocado, con el criterio
 ### 4. LA CUENTA — hueco funcional grave (decidido por el usuario 2026-08-20)
 
 **Nadie suma nunca los pedidos de una sesión.** Verificado: la única suma que existe en las dos
-apps es la del carrito (), antes de enviar un pedido. Después:
-- el cliente pulsa "solicitar la cuenta" → solo activa una bandera ;
-- el mesero pulsa "entregar cuenta" (, ) →
+apps es la del carrito (`carrito_controller.dart:31`), antes de enviar un pedido. Después:
+- el cliente pulsa "solicitar la cuenta" → solo activa una bandera `cuentaSolicitada`;
+- el mesero pulsa "entregar cuenta" (`entregarCuenta`, `pedidos_staff_provider.dart:144`) →
   **cierra la sesión y manda la mesa a limpieza**, sin importe.
 
 En ningún punto aparece cuánto debe pagar el cliente. **Hoy no se puede cobrar** sin ir a la base de
 datos a sumar a mano. El ciclo del producto no cierra: se reciben pedidos y no se cobran.
 
 Que se creen pedidos separados al pedir más veces desde la misma mesa **es correcto** y no se toca:
-son comandas distintas para cocina, con un mismo . Lo que falta es la suma.
+son comandas distintas para cocina, con un mismo `sesionId`. Lo que falta es la suma.
 
 **Alcance:**
 - Vista de cuenta para el CLIENTE al solicitarla: desglose de sus pedidos de la mesa y total.
@@ -94,8 +94,8 @@ no se paga. Implica que el importe puede cambiar mientras haya pedidos en curso 
 dejar claro qué está incluido y qué queda pendiente de servir, para que ni el cliente ni el mesero
 se lleven una sorpresa al cerrar.
 
-Los datos ya lo permiten: cada pedido tiene  y , y el índice
- está desplegado. Ojo: la cuenta de la MESA puede abarcar
+Los datos ya lo permiten: cada pedido tiene `total` y `sesionId`, y el índice
+`pedidos(sesionId, usuarioId, createdAt)` está desplegado. Ojo: la cuenta de la MESA puede abarcar
 más de un comensal si varios piden desde la misma sesión — decidir si la vista del mesero suma por
 sesión (mesa) y la del cliente solo lo suyo.
 
