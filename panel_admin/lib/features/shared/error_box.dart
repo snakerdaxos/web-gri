@@ -53,7 +53,10 @@ class ErrorBox extends StatelessWidget {
               // `textTheme.bodyLarge` NO es pixel-neutral (medido en 11-19:
               // el slot trae su propio letterSpacing/height y el inline los
               // hereda del DefaultTextStyle ambiente). Se conserva literal.
-              style: const TextStyle(color: GriColors.gray, fontSize: 16),
+              style: const TextStyle(
+                color: GriColors.textoSecundarioAccesible,
+                fontSize: 16,
+              ),
             ),
             const SizedBox(height: 12),
             ElevatedButton(

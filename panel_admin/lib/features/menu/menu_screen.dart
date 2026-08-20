@@ -70,7 +70,7 @@ class MenuScreen extends ConsumerWidget {
                   children: [
                     const Text(
                       'Error cargando el menú',
-                      style: TextStyle(color: GriColors.gray),
+                      style: TextStyle(color: GriColors.textoSecundarioAccesible),
                     ),
                     TextButton(
                       onPressed: () => ref.invalidate(staffMenuProvider),
@@ -88,14 +88,14 @@ class MenuScreen extends ConsumerWidget {
                             'Sin categorías',
                             style: TextStyle(
                               fontSize: 18,
-                              color: GriColors.gray,
+                              color: GriColors.textoSecundarioAccesible,
                             ),
                           ),
                           SizedBox(height: 6),
                           Text(
                             'Crea la primera categoría para armar el menú',
                             style: TextStyle(
-                              color: GriColors.gray,
+                              color: GriColors.textoSecundarioAccesible,
                               fontSize: 13,
                             ),
                           ),
@@ -195,7 +195,7 @@ class _CategoriaTileState extends State<_CategoriaTile> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Sin productos en esta categoría',
-                  style: TextStyle(color: GriColors.gray, fontSize: 13),
+                  style: TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 13),
                 ),
               ),
             )

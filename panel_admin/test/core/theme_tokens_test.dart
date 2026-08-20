@@ -279,12 +279,21 @@ void main() {
       expect(GriColors.gray, const Color(0xFF777777));
     });
 
-    test('textoSecundarioAccesible es OTRO token, y hoy no está aplicado', () {
-      // Guarda 2 de 2.
+    test('textoSecundarioAccesible es OTRO token, y desde 11-25 SÍ se aplica',
+        () {
+      // Guarda 2 de 2. El título decía «y hoy no está aplicado»: era cierto
+      // cuando 11-11 lo declaró y dejó de serlo en 11-25, que lo aplicó en los
+      // 57 puntos de TEXTO del panel. Quién lo usa y dónde lo vigilan el
+      // barrido y el gate estático de `test/a11y/a11y_test.dart`.
       expect(GriSemanticColors.gri.textoSecundarioAccesible,
           const Color(0xFF6E6E6E));
       expect(GriSemanticColors.gri.textoSecundarioAccesible,
           isNot(GriColors.gray));
+      // Un solo valor, dos caminos de acceso (11-25): la extensión referencia
+      // la constante de GriColors, que es la que pueden leer los `const
+      // TextStyle` de los puntos de uso.
+      expect(GriSemanticColors.gri.textoSecundarioAccesible,
+          GriColors.textoSecundarioAccesible);
     });
 
     test('copyWith respeta los campos no indicados', () {

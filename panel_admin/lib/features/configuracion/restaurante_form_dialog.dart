@@ -222,7 +222,7 @@ class _RestauranteFormDialogState
                     child: Text(
                       'Se usa en los códigos QR de las mesas '
                       '(GRI-MESA-identificador-001).',
-                      style: TextStyle(fontSize: 12, color: GriColors.gray),
+                      style: TextStyle(fontSize: 12, color: GriColors.textoSecundarioAccesible),
                     ),
                   ),
                 ),

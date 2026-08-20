@@ -156,7 +156,7 @@ class _BootstrapScreenState extends ConsumerState<BootstrapScreen> {
                             'plataforma. Solo funciona una vez y requiere el '
                             'correo autorizado y el secreto de inicialización.',
                             style: TextStyle(
-                              color: GriColors.gray,
+                              color: GriColors.textoSecundarioAccesible,
                               fontSize: 13,
                               height: 1.35,
                             ),

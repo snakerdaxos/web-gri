@@ -47,7 +47,7 @@ class ClientesScreen extends ConsumerWidget {
             const SizedBox(height: 4),
             const Text(
               'Usuarios que han hecho pedidos — toca una fila para ver su historial',
-              style: TextStyle(color: GriColors.gray, fontSize: 13),
+              style: TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 13),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -60,7 +60,7 @@ class ClientesScreen extends ConsumerWidget {
                     children: [
                       const Text(
                         'Error cargando clientes',
-                        style: TextStyle(color: GriColors.gray),
+                        style: TextStyle(color: GriColors.textoSecundarioAccesible),
                       ),
                       TextButton(
                         onPressed: () => ref.invalidate(clientesProvider),
@@ -74,7 +74,7 @@ class ClientesScreen extends ConsumerWidget {
                         child: Text(
                           'Aún no hay clientes con pedidos',
                           style:
-                              TextStyle(fontSize: 16, color: GriColors.gray),
+                              TextStyle(fontSize: 16, color: GriColors.textoSecundarioAccesible),
                         ),
                       )
                     : DataTable2(
@@ -117,7 +117,7 @@ class ClientesScreen extends ConsumerWidget {
                                         c.usuarioId,
                                         style: const TextStyle(
                                           fontSize: 12,
-                                          color: GriColors.gray,
+                                          color: GriColors.textoSecundarioAccesible,
                                         ),
                                       ),
                                     ],

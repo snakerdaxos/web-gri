@@ -480,7 +480,7 @@ class _TopBar extends ConsumerWidget {
                   subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: GriColors.gray),
+                  style: const TextStyle(color: GriColors.textoSecundarioAccesible),
                 ),
               ],
             ),
@@ -530,7 +530,7 @@ class _TopBar extends ConsumerWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: GriColors.gray,
+                              color: GriColors.textoSecundarioAccesible,
                               fontSize: 13,
                             ),
                           ),
@@ -540,7 +540,7 @@ class _TopBar extends ConsumerWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: GriColors.gray,
+                              color: GriColors.textoSecundarioAccesible,
                               fontSize: 13,
                             ),
                           ),

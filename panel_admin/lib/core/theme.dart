@@ -31,8 +31,26 @@ class GriColors {
   /// #252525 — texto principal.
   static const Color text = Color(0xFF252525);
 
-  /// #777777 — texto secundario.
+  /// #777777 — token de MARCA del mockup.
+  ///
+  /// ⚠ NO se usa como color de TEXTO: sobre blanco da 4.478:1 y sobre el
+  /// fondo del panel (#F5F6F8) 4.141:1, los dos por debajo del 4.5:1 que
+  /// WCAG AA exige para texto normal. Se queda para iconos, bordes y
+  /// decoración, donde ese umbral no aplica. Para texto secundario está
+  /// [textoSecundarioAccesible]. Hay un gate estático que lo vigila
+  /// (`test/a11y/a11y_test.dart`) y un test que afirma que este valor no
+  /// cambia: es una decisión BLOQUEADA del usuario.
   static const Color gray = Color(0xFF777777);
+
+  /// #6E6E6E — el gris de TEXTO secundario del panel (5.099:1 sobre blanco,
+  /// 4.715:1 sobre #F5F6F8).
+  ///
+  /// Lo declaró el plan 11-11 como campo de instancia de
+  /// [GriSemanticColors]; 11-25 lo añade también aquí porque la mayoría de
+  /// los puntos de uso son `const TextStyle`, donde un campo de instancia no
+  /// se puede leer. UN SOLO valor con dos caminos de acceso: la extensión
+  /// referencia esta constante y un test afirma la igualdad.
+  static const Color textoSecundarioAccesible = Color(0xFF6E6E6E);
 
   // ── Mesa: disponible (verde) ────────────────────────────────────────────
   static const Color mesaDisponibleBg = Color(0xFFE7F8F0);
@@ -230,12 +248,13 @@ class GriSemanticColors extends ThemeExtension<GriSemanticColors> {
   /// en 11-11.) El render es idéntico: mismo ARGB.
   final Color peligro;
 
-  /// #6E6E6E — gris de texto secundario que SÍ alcanza 4.5:1 sobre #F5F6F8.
+  /// #6E6E6E — gris de texto secundario que SÍ alcanza 4.5:1 sobre los dos
+  /// fondos del panel (5.099:1 sobre blanco, 4.715:1 sobre #F5F6F8).
   ///
-  /// ⚠ HOY NO ESTÁ APLICADO EN NINGÚN SITIO, y es deliberado. Aplicarlo es
-  /// trabajo del plan 11-14 (accesibilidad). Existe aquí para que ese plan
-  /// NO tenga que tocar [GriColors.gray] (#777777), que es un token de MARCA
-  /// y no puede cambiar de valor. Dos tests guardan esa separación.
+  /// APLICADO desde 11-25 en todo el texto secundario del panel. Existe para
+  /// que ese arreglo NO tenga que tocar [GriColors.gray] (#777777), que es un
+  /// token de MARCA y no puede cambiar de valor. El valor vive en
+  /// [GriColors.textoSecundarioAccesible]; este campo lo referencia.
   final Color textoSecundarioAccesible;
 
   /// La instancia canónica de GRI. Es la que registra [griTheme] y la que
@@ -254,7 +273,7 @@ class GriSemanticColors extends ThemeExtension<GriSemanticColors> {
     reservaPendienteFg: GriColors.mesaReservadaFg,
     reservaPendienteBg: GriColors.mesaReservadaBg,
     peligro: Color(0xFFF44336),
-    textoSecundarioAccesible: Color(0xFF6E6E6E),
+    textoSecundarioAccesible: GriColors.textoSecundarioAccesible,
   );
 
   /// Lee la extensión del tema. Cae a [gri] si no está registrada.

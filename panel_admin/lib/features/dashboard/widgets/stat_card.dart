@@ -55,7 +55,7 @@ class StatCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: GriColors.gray,
+                    color: GriColors.textoSecundarioAccesible,
                     fontSize: 14,
                   ),
                 ),

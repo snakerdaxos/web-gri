@@ -59,7 +59,7 @@ class NotFoundScreen extends StatelessWidget {
               const Text(
                 'La dirección que abriste no existe en el panel.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: GriColors.gray),
+                style: TextStyle(color: GriColors.textoSecundarioAccesible),
               ),
               const SizedBox(height: 8),
               // Solo el path. Ver el bloque de seguridad de arriba.
@@ -67,7 +67,7 @@ class NotFoundScreen extends StatelessWidget {
                 uri.path,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: GriColors.gray,
+                  color: GriColors.textoSecundarioAccesible,
                   fontSize: 12,
                   fontFamily: 'monospace',
                 ),

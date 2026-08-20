@@ -235,7 +235,7 @@ class _StaffFormDialogState extends ConsumerState<StaffFormDialog> {
                   'Si un alta quedó a medias, vuelve a crearla con el mismo '
                   'correo: la operación es idempotente y repara la cuenta sin '
                   'duplicarla.',
-                  style: TextStyle(color: GriColors.gray, fontSize: 12),
+                  style: TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 12),
                 ),
               ],
             ),
@@ -286,7 +286,7 @@ class _SelectorRestaurante extends ConsumerWidget {
       loading: () => const LinearProgressIndicator(),
       error: (_, _) => const Text(
         'No se pudo cargar la lista de restaurantes',
-        style: TextStyle(color: GriColors.gray, fontSize: 12),
+        style: TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 12),
       ),
       data: (lista) => DropdownButtonFormField<String>(
         key: const Key('staff-restaurante'),

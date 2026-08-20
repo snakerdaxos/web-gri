@@ -115,7 +115,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           SizedBox(height: 4),
                           Text(
                             'Inicia sesión',
-                            style: TextStyle(color: GriColors.gray, fontSize: 14),
+                            style: TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 14),
                           ),
                         ],
                       ),
@@ -175,7 +175,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         child: const Text(
                           '¿Primera vez? Inicializar plataforma',
                           style: TextStyle(
-                            color: GriColors.gray,
+                            color: GriColors.textoSecundarioAccesible,
                             fontSize: 13,
                           ),
                         ),

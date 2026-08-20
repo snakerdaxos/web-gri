@@ -36,7 +36,7 @@ class ConfiguracionScreen extends ConsumerWidget {
     return claimsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => const Center(
-        child: Text('Error cargando la sesión', style: TextStyle(color: GriColors.gray)),
+        child: Text('Error cargando la sesión', style: TextStyle(color: GriColors.textoSecundarioAccesible)),
       ),
       data: (claims) {
         final isSuperAdmin = claims.role == 'super_admin';
@@ -98,7 +98,7 @@ class _RestauranteTab extends ConsumerWidget {
             children: [
               const Text(
                 'No hay restaurante seleccionado',
-                style: TextStyle(color: GriColors.gray),
+                style: TextStyle(color: GriColors.textoSecundarioAccesible),
               ),
               TextButton(
                 onPressed: () => ref.invalidate(restauranteProvider),
@@ -122,7 +122,7 @@ class _RestauranteTab extends ConsumerWidget {
             const Text(
               'La edición del perfil del restaurante estará disponible en una '
               'próxima versión.',
-              style: TextStyle(color: GriColors.gray, fontSize: 13),
+              style: TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 13),
             ),
           ],
         ),
@@ -154,7 +154,7 @@ class _InfoCard extends StatelessWidget {
                   Text(
                     titulo.toUpperCase(),
                     style: const TextStyle(
-                      color: GriColors.gray,
+                      color: GriColors.textoSecundarioAccesible,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                     ),
@@ -295,7 +295,7 @@ class _RestaurantesTab extends ConsumerWidget {
             children: [
               const Text(
                 'Error cargando restaurantes',
-                style: TextStyle(color: GriColors.gray),
+                style: TextStyle(color: GriColors.textoSecundarioAccesible),
               ),
               TextButton(
                 onPressed: () => ref.invalidate(restaurantesAdminProvider),
@@ -317,7 +317,7 @@ class _RestaurantesTab extends ConsumerWidget {
                       '${restaurantes.length} restaurantes en la plataforma',
                       style: const TextStyle(
                         fontSize: 13,
-                        color: GriColors.gray,
+                        color: GriColors.textoSecundarioAccesible,
                       ),
                     ),
                   ),
@@ -347,12 +347,12 @@ class _RestaurantesTab extends ConsumerWidget {
                       const SizedBox(height: 12),
                       const Text(
                         'Aún no hay restaurantes en la plataforma',
-                        style: TextStyle(fontSize: 18, color: GriColors.gray),
+                        style: TextStyle(fontSize: 18, color: GriColors.textoSecundarioAccesible),
                       ),
                       const SizedBox(height: 6),
                       const Text(
                         'Crea el primero para empezar a operar',
-                        style: TextStyle(fontSize: 13, color: GriColors.gray),
+                        style: TextStyle(fontSize: 13, color: GriColors.textoSecundarioAccesible),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(

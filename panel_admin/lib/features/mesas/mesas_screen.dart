@@ -54,7 +54,7 @@ class MesasScreen extends ConsumerWidget {
                 const SizedBox(height: 5),
                 const Text(
                   'Crea, edita y gestiona los códigos QR de tus mesas',
-                  style: TextStyle(color: GriColors.gray),
+                  style: TextStyle(color: GriColors.textoSecundarioAccesible),
                 ),
                 const SizedBox(height: 20),
                 mesasAsync.when(
@@ -73,7 +73,7 @@ class MesasScreen extends ConsumerWidget {
                         child: Center(
                           child: Text(
                             'Sin mesas configuradas',
-                            style: TextStyle(color: GriColors.gray),
+                            style: TextStyle(color: GriColors.textoSecundarioAccesible),
                           ),
                         ),
                       );

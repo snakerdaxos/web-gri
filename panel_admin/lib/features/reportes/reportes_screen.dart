@@ -159,7 +159,7 @@ class ReportesScreenState extends ConsumerState<ReportesScreen> {
             const SizedBox(height: 4),
             const Text(
               'Sin rango: se consultan los últimos 7 días',
-              style: TextStyle(color: GriColors.gray, fontSize: 12),
+              style: TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 12),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -167,7 +167,7 @@ class ReportesScreenState extends ConsumerState<ReportesScreen> {
                   ? const Center(
                       child: Text(
                         'Elige un rango de fechas y presiona Consultar',
-                        style: TextStyle(color: GriColors.gray),
+                        style: TextStyle(color: GriColors.textoSecundarioAccesible),
                       ),
                     )
                   : _Resultados(
@@ -201,7 +201,7 @@ class _Resultados extends ConsumerWidget {
           children: [
             const Text(
               'Error al consultar los reportes',
-              style: TextStyle(color: GriColors.gray),
+              style: TextStyle(color: GriColors.textoSecundarioAccesible),
             ),
             TextButton(
               onPressed: () => ref.invalidate(reporteProvider(desde, hasta)),
@@ -238,7 +238,7 @@ class _Contenido extends StatelessWidget {
       return const Center(
         child: Text(
           'Sin ventas en el rango',
-          style: TextStyle(color: GriColors.gray),
+          style: TextStyle(color: GriColors.textoSecundarioAccesible),
         ),
       );
     }
@@ -279,7 +279,7 @@ class _Contenido extends StatelessWidget {
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text(
               'Sin ventas en el rango',
-              style: TextStyle(color: GriColors.gray),
+              style: TextStyle(color: GriColors.textoSecundarioAccesible),
             ),
           )
         else ...[
@@ -356,7 +356,7 @@ class _ResumenCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label, style: const TextStyle(color: GriColors.gray, fontSize: 14)),
+                Text(label, style: const TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 14)),
                 const SizedBox(height: 8),
                 Text(
                   value,

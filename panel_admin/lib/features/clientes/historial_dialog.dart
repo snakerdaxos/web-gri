@@ -141,14 +141,14 @@ class _PedidoTile extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               DateFormat('dd/MM/yyyy · HH:mm').format(pedido.createdAt),
-              style: const TextStyle(color: GriColors.gray, fontSize: 12),
+              style: const TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 12),
             ),
             if (pedido.items.isNotEmpty) ...[
               const SizedBox(height: 6),
               for (final item in pedido.items)
                 Text(
                   '${item.cantidad}× ${item.nombre}',
-                  style: const TextStyle(fontSize: 12, color: GriColors.gray),
+                  style: const TextStyle(fontSize: 12, color: GriColors.textoSecundarioAccesible),
                 ),
             ],
           ],

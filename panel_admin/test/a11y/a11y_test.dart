@@ -608,17 +608,18 @@ void main() {
     });
 
     test('los numeros exactos, calculados con la formula WCAG', () {
-      // Se escriben para que un cambio de token no pase inadvertido y para
-      // que el SUMMARY no tenga que citar la auditoria de memoria.
-      expect(ratioContraste(GriColors.gray, blanco), closeTo(4.478, 0.001));
-      expect(ratioContraste(GriColors.gray, GriColors.background),
-          closeTo(4.141, 0.001));
-      expect(ratioContraste(GriColors.textoSecundarioAccesible, blanco),
-          closeTo(5.099, 0.001));
-      expect(
-          ratioContraste(GriColors.textoSecundarioAccesible,
-              GriColors.background),
-          closeTo(4.715, 0.001));
+      // Contra el HEX escrito a mano, no contra el token (criterio de 11-12):
+      // comparar contra el token dejaria el caso verde justo cuando el token
+      // cambia. Aqui se comprueba la FORMULA y los numeros que cita el
+      // SUMMARY; de que los tokens sigan valiendo eso se encargan los dos
+      // casos de abajo.
+      const gris777 = Color(0xFF777777);
+      const gris6E = Color(0xFF6E6E6E);
+      const fondoPanel = Color(0xFFF5F6F8);
+      expect(ratioContraste(gris777, blanco), closeTo(4.478, 0.001));
+      expect(ratioContraste(gris777, fondoPanel), closeTo(4.141, 0.001));
+      expect(ratioContraste(gris6E, blanco), closeTo(5.099, 0.001));
+      expect(ratioContraste(gris6E, fondoPanel), closeTo(4.715, 0.001));
     });
 
     test('GriColors.gray sigue valiendo EXACTAMENTE #777777 (token de MARCA)',
@@ -636,36 +637,47 @@ void main() {
           GriColors.textoSecundarioAccesible);
     });
 
-    testWidgets(
-        'BARRIDO: ningun parrafo de las 8 pantallas se pinta con gray',
-        (tester) async {
-      // Mide el color PINTADO (el `TextStyle` resuelto de cada
-      // `RenderParagraph`), no el token declarado.
-      var parrafos = 0;
-      var conTokenAccesible = 0;
-      final infracciones = <String>[];
+    for (final ruta in rutasDelPanel) {
+      testWidgets('BARRIDO $ruta: ningun parrafo se pinta con gray',
+          (tester) async {
+        // Mide el color PINTADO (el `TextStyle` resuelto de cada
+        // `RenderParagraph`), no el token declarado: un token puede estar bien
+        // y el punto de uso seguir teniendo el hex viejo.
+        var parrafos = 0;
+        var conTokenAccesible = 0;
+        final infracciones = <String>[];
 
-      for (final ruta in rutasDelPanel) {
         await montarApp(tester, const Size(1280, 900), ruta: ruta);
         for (final e in find.byType(RichText).evaluate()) {
           final estilo = (e.renderObject! as RenderParagraph).text.style;
+          // Un `Icon` de Material tambien es un `RichText` (un glifo de la
+          // fuente MaterialIcons). NO es texto y el umbral de WCAG 1.4.3 no le
+          // aplica: los 7 iconos grises del panel son legitimos.
+          if (estilo?.fontFamily == 'MaterialIcons') continue;
           parrafos++;
-          if (estilo?.color == GriColors.gray) {
+          // Contra el HEX literal, no contra el token (criterio de 11-12): si
+          // alguien "arreglara" el contraste cambiando el valor de
+          // `GriColors.gray`, este caso seguiria diciendo la verdad —lo que se
+          // pinta ya no seria #777777— y quien se pondria rojo seria la guarda
+          // del token, que es a quien le toca.
+          if (estilo?.color == const Color(0xFF777777)) {
             infracciones.add('$ruta: «${_recorte(e)}»');
           }
-          if (estilo?.color == GriColors.textoSecundarioAccesible) {
+          if (estilo?.color == const Color(0xFF6E6E6E)) {
             conTokenAccesible++;
           }
         }
-      }
 
-      expect(infracciones, isEmpty, reason: infracciones.join('\n'));
-      // Canarios de cobertura: sin ellos el caso pasaria en verde si el
-      // montaje fallara y no hubiera ni un parrafo que mirar.
-      expect(parrafos, greaterThanOrEqualTo(200), reason: 'parrafos vistos');
-      expect(conTokenAccesible, greaterThanOrEqualTo(20),
-          reason: 'parrafos pintados con el token accesible');
-    });
+        expect(infracciones, isEmpty, reason: infracciones.join('\n'));
+        // Canarios de cobertura: sin ellos el caso pasaria en verde si el
+        // montaje fallara, o si el filtro de iconos se comiera el arbol.
+        // Medidos: la ruta mas pobre pinta 18 parrafos y 2 con el token.
+        expect(parrafos, greaterThanOrEqualTo(15),
+            reason: 'parrafos de texto vistos en $ruta');
+        expect(conTokenAccesible, greaterThanOrEqualTo(2),
+            reason: 'parrafos de $ruta pintados con el token accesible');
+      });
+    }
 
     test('GATE ESTATICO: GriColors.gray no aparece en contexto de TEXTO', () {
       // POR QUE HACE FALTA ADEMAS DEL BARRIDO (hallazgo 3 de 11-14): el
@@ -688,7 +700,6 @@ void main() {
         'CircularProgressIndicator(',
         'BorderSide(',
         'Divider(',
-        'color: GriColors.gray),', // Icon(GriIcons.x, size: n, color: ...)
       ];
 
       var apariciones = 0;

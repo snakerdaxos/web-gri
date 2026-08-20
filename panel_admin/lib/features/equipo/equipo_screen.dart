@@ -68,7 +68,7 @@ class EquipoScreen extends ConsumerWidget {
                       Text(
                         'Personal con acceso al panel — administradores, '
                         'meseros y cocina',
-                        style: TextStyle(color: GriColors.gray, fontSize: 13),
+                        style: TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 13),
                       ),
                     ],
                   ),
@@ -91,7 +91,7 @@ class EquipoScreen extends ConsumerWidget {
                     children: [
                       const Text(
                         'No se pudo cargar el equipo',
-                        style: TextStyle(color: GriColors.gray),
+                        style: TextStyle(color: GriColors.textoSecundarioAccesible),
                       ),
                       TextButton(
                         onPressed: () => ref.invalidate(equipoProvider),
@@ -154,7 +154,7 @@ class _EquipoVacio extends StatelessWidget {
                 'entra al panel con su propio correo y contraseña, y solo ve '
                 'lo que su rol le permite.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: GriColors.gray, fontSize: 13),
+                style: TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 13),
               ),
             ),
           ],
@@ -319,7 +319,7 @@ class _TablaEquipoState extends ConsumerState<_TablaEquipo> {
       return const Text(
         'Eres tú',
         key: Key('equipo-accion-propia'),
-        style: TextStyle(color: GriColors.gray, fontSize: 12),
+        style: TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 12),
       );
     }
     if (m.rol == 'super_admin') return const SizedBox.shrink();

@@ -115,7 +115,7 @@ class ReservasScreen extends ConsumerWidget {
             const SizedBox(height: 4),
             const Text(
               'En vivo — al llegar el cliente marca la mesa ocupada',
-              style: TextStyle(color: GriColors.gray, fontSize: 13),
+              style: TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 13),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -128,7 +128,7 @@ class ReservasScreen extends ConsumerWidget {
                     children: [
                       const Text(
                         'Error cargando reservas',
-                        style: TextStyle(color: GriColors.gray),
+                        style: TextStyle(color: GriColors.textoSecundarioAccesible),
                       ),
                       TextButton(
                         onPressed: () => ref.invalidate(reservasHoyProvider),
@@ -141,7 +141,7 @@ class ReservasScreen extends ConsumerWidget {
                     ? const Center(
                         child: Text(
                           'Sin reservas para hoy',
-                          style: TextStyle(color: GriColors.gray),
+                          style: TextStyle(color: GriColors.textoSecundarioAccesible),
                         ),
                       )
                     : ListView.builder(
@@ -217,7 +217,7 @@ class _ReservaCard extends StatelessWidget {
           '${reserva.numPersonas} personas',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: GriColors.gray, fontSize: 13),
+          style: const TextStyle(color: GriColors.textoSecundarioAccesible, fontSize: 13),
         ),
       ],
     );

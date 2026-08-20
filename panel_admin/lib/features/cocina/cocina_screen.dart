@@ -67,7 +67,7 @@ class CocinaScreen extends ConsumerWidget {
                         'Cola de pedidos activos (en vivo)',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: GriColors.gray),
+                        style: TextStyle(color: GriColors.textoSecundarioAccesible),
                       ),
                     ],
                   ),
@@ -114,14 +114,14 @@ class CocinaScreen extends ConsumerWidget {
                             'No hay pedidos activos',
                             style: TextStyle(
                               fontSize: 18,
-                              color: GriColors.gray,
+                              color: GriColors.textoSecundarioAccesible,
                             ),
                           ),
                           SizedBox(height: 6),
                           Text(
                             'Los pedidos enviados desde la app aparecerán aquí',
                             style: TextStyle(
-                              color: GriColors.gray,
+                              color: GriColors.textoSecundarioAccesible,
                               fontSize: 13,
                             ),
                           ),

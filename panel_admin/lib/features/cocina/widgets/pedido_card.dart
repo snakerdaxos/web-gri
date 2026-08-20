@@ -72,7 +72,7 @@ class PedidoCard extends StatelessWidget {
                           const Spacer(),
                           Text(
                             DateFormat('HH:mm').format(pedido.createdAt),
-                            style: const TextStyle(color: GriColors.gray),
+                            style: const TextStyle(color: GriColors.textoSecundarioAccesible),
                           ),
                         ],
                       ),
@@ -101,7 +101,7 @@ class PedidoCard extends StatelessWidget {
                               ),
                               Text(
                                 formatCOP(item.subtotal),
-                                style: const TextStyle(color: GriColors.gray),
+                                style: const TextStyle(color: GriColors.textoSecundarioAccesible),
                               ),
                             ],
                           ),
@@ -150,7 +150,7 @@ class PedidoCard extends StatelessWidget {
                                 '“${pedido.notas}”',
                                 style: const TextStyle(
                                   fontStyle: FontStyle.italic,
-                                  color: GriColors.gray,
+                                  color: GriColors.textoSecundarioAccesible,
                                 ),
                               ),
                             ),
@@ -161,7 +161,7 @@ class PedidoCard extends StatelessWidget {
                       Text(
                         'Pedido por ${pedido.usuarioNombre}',
                         style: const TextStyle(
-                          color: GriColors.gray,
+                          color: GriColors.textoSecundarioAccesible,
                           fontSize: 12,
                         ),
                       ),

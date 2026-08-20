@@ -233,7 +233,7 @@ class DashboardScreen extends ConsumerWidget {
                             child: Center(
                               child: Text(
                                 'Sin mesas configuradas',
-                                style: TextStyle(color: GriColors.gray),
+                                style: TextStyle(color: GriColors.textoSecundarioAccesible),
                               ),
                             ),
                           );
@@ -348,7 +348,7 @@ class _GuiaSinRestaurante extends ConsumerWidget {
                 : 'Usa el selector de la barra superior para elegir con qué '
                     'restaurante quieres trabajar.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: GriColors.gray),
+            style: const TextStyle(color: GriColors.textoSecundarioAccesible),
           ),
           if (plataformaVacia) ...[
             const SizedBox(height: 20),
