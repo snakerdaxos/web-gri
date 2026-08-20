@@ -321,7 +321,28 @@ service cloud.firestore {
       allow create: if isCliente()
                     && request.resource.data.usuarioId == request.auth.uid
                     && request.resource.data.estado == 'confirmada'
-                    && request.resource.data.fecha > request.time  // slot futuro
+                    // MARGEN MINIMO DE 4 HORAS (11-31, decision del usuario
+                    // 2026-08-20). Antes bastaba con que el slot fuera futuro,
+                    // asi que se podia reservar para dentro de un minuto. El
+                    // cliente ya no lo ofrece, pero si el margen vive SOLO en
+                    // el cliente es decoracion: cualquiera con un token de
+                    // cliente escribe el doc a mano.
+                    //
+                    // HUSO HORARIO: `fecha` es un Timestamp (instante
+                    // absoluto, lo escribe `Timestamp.fromDate(slot)` con el
+                    // slot en hora local del dispositivo) y `request.time`
+                    // tambien lo es (UTC). Comparar dos instantes absolutos no
+                    // depende del huso: no hay conversion que hacer ni que
+                    // olvidar. America/Bogota (UTC-5, sin horario de verano)
+                    // solo importa para la hora de PARED del slot y para el
+                    // `yyyyMMdd` del doc ID, que aqui no se evaluan.
+                    //
+                    // `request.time` es el instante en que el servidor recibe
+                    // la escritura, POSTERIOR al `DateTime.now()` con el que
+                    // decidio el cliente. El servidor es por tanto la
+                    // evaluacion autoritativa y un pelo mas estricta.
+                    && request.resource.data.fecha
+                       >= request.time + duration.value(4, 'h')
                     && request.resource.data.numPersonas >= 1
                     && request.resource.data.numPersonas <= 20
                     && get(/databases/$(database)/documents/mesas/$(request.resource.data.mesaId)).data.restauranteId

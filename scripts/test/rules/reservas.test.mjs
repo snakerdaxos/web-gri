@@ -508,6 +508,77 @@ describe('firestore.rules — reservas', () => {
       );
     });
 
+    // ── MARGEN MINIMO DE 4 HORAS (11-31) ────────────────────────────────
+    //
+    // La app cliente ya no OFRECE un slot a menos de 4 h, pero un margen que
+    // solo vive en el cliente es decoracion: el token de cualquier cliente
+    // sirve para escribir el doc a mano. Estos casos comprueban que la regla
+    // lo para de verdad.
+    //
+    // Las fechas se calculan a partir de `Date.now()` A PROPOSITO: la regla
+    // compara contra `request.time`, el reloj del EMULADOR, que no se puede
+    // fijar. Lo que se fija es la DISTANCIA (3 h, 5 h, +-30 s del borde), que
+    // es justo lo que la regla decide.
+    //
+    // EL BORDE EXACTO (4 h clavadas) NO SE PUEDE AFIRMAR de forma
+    // determinista: entre que el test construye la fecha y el emulador
+    // evalua `request.time` pasan milisegundos, asi que un `fecha` a
+    // exactamente 4 h del `Date.now()` del test llega SIEMPRE un pelo corto y
+    // seria denegado por una carrera, no por la regla. Se acota por los dos
+    // lados con 30 s de holgura, que es lo mas cerca que se puede afirmar sin
+    // escribir un test intermitente. La igualdad estricta (`>=` y no `>`) se
+    // custodia en el cliente, donde el reloj SI es inyectable:
+    // app_cliente/test/reservas/margen_reserva_test.dart.
+    const enHoras = (h) => new Date(Date.now() + h * 3600 * 1000);
+
+    it('slot a 3 HORAS: DENEGADO (el margen minimo son 4)', async () => {
+      await assertFails(
+        setDoc(
+          doc(cliente(env, DUENO), 'reservas', 'GRI-MESA-demo-001_margen_3h'),
+          reservaValida({ fecha: enHoras(3) }),
+        ),
+      );
+    });
+
+    it('slot a 5 HORAS: PERMITIDO', async () => {
+      await assertSucceeds(
+        setDoc(
+          doc(cliente(env, DUENO), 'reservas', 'GRI-MESA-demo-001_margen_5h'),
+          reservaValida({ fecha: enHoras(5) }),
+        ),
+      );
+    });
+
+    it('30 s ANTES del borde (3 h 59 min 30 s): DENEGADO', async () => {
+      await assertFails(
+        setDoc(
+          doc(cliente(env, DUENO), 'reservas', 'GRI-MESA-demo-001_margen_menos'),
+          reservaValida({ fecha: new Date(Date.now() + 4 * 3600 * 1000 - 30_000) }),
+        ),
+      );
+    });
+
+    it('30 s DESPUES del borde (4 h 0 min 30 s): PERMITIDO', async () => {
+      await assertSucceeds(
+        setDoc(
+          doc(cliente(env, DUENO), 'reservas', 'GRI-MESA-demo-001_margen_mas'),
+          reservaValida({ fecha: new Date(Date.now() + 4 * 3600 * 1000 + 30_000) }),
+        ),
+      );
+    });
+
+    it('slot dentro de 1 MINUTO: DENEGADO (antes SI se podia: bastaba futuro)', async () => {
+      // El caso que la regla vieja dejaba pasar: `fecha > request.time` es
+      // cierto para un slot a un minuto vista. Este test es el que se pone
+      // rojo si alguien restaura aquella condicion.
+      await assertFails(
+        setDoc(
+          doc(cliente(env, DUENO), 'reservas', 'GRI-MESA-demo-001_margen_1min'),
+          reservaValida({ fecha: new Date(Date.now() + 60_000) }),
+        ),
+      );
+    });
+
     it('el MESERO no puede crear una reserva: la regla de create es isCliente()', async () => {
       // Comportamiento ACTUAL fijado por escrito: hoy no existe la reserva
       // telefónica tomada por el salón. Ampliarlo sería un cambio consciente.
