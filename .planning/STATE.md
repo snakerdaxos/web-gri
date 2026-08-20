@@ -8,7 +8,7 @@ progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 53
-  completed_plans: 47
+  completed_plans: 48
   percent: 89
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 15/21 planes [###############------] 71%
+Phase 11: 16/21 planes [################-----] 76%
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -47,7 +47,8 @@ Phase 11: 15/21 planes [###############------] 71%
 - [x] 11-21 TODO lo visible del panel admin: 7 desbordes de RenderFlex cerrados (4 del plan + 3 que no estaban: sidebar COLAPSADO 5px+13px x8 por geometria pura, topbar 77px, cabecera del mapa 148px, cabecera de cocina 150px a 450) y los TRES filtros de overflow del repo retirados (el plan solo conocia 1); ResponsivePage con techo de 1200 en las 12 pantallas contadas del arbol; 33 emojis -> Icon de Material con GriIcons, incluido uno camuflado como una secuencia de escape que ningun grep de glifos veia. 29 roturas deliberadas, 3 VERDES cazadas (el gate del plan no distingue filtro de detector; find.byIcon es tautologico respecto a QUE icono se eligio). HALLAZGO: los 85px del sidebar son de la fuente de TEST, no hay evidencia de que se vieran en produccion. panel_admin 226 -> 280 -- 4872666, 7e0d330, 67859cc, dea78d7, 9c67d7e, 5e55e8b
 - [x] 11-19 Tokens en la app cliente: los 20 hex crudos de 6 pantallas a GriColors (el ambar estaba 9 veces, el degradado copiado en 4) + 34 TextStyle a GriText + 103 espaciados a GriSpacing; resuelto el TODO(11-19) de 11-17. MEDIDO con sonda que el criterio del plan para migrar a textTheme NO es pixel-neutral (bodySmall trae letterSpacing 0.4/height 1.33 frente al 0.25/1.43 heredado: 12px pasaria de 257.3x17 a 260.4x16); solo bodyMedium lo es, y por ser el DefaultTextStyle. Migracion 1:1 DEMOSTRADA: reversion byte a byte del espaciado en 32 archivos + auditoria del multiconjunto de numeros/hex/pesos en los 16 archivos de pantalla con 0 diferencias. Gate sin_hex_crudos_test con exencion TOKEN-IGNORE. 20 roturas/inyecciones, 2 VERDES cazadas (romper un estilo de la escala no lo notaba ninguna pantalla). app_cliente 206 -> 214 -- fa85e34, ac2328b, b72f221
 - [~] 11-17 Login con Google en la app cliente: 3 de 4 tareas cerradas (adaptador con rama Web funcional, boton en login y registro, appId de Android corregido al registro real). PARADO en su checkpoint humano: falta registrar la huella SHA-1 en la app com.gri.gri_cliente y verificar el ingreso en Android
-- [ ] 11-12, 11-14, 11-15, 11-16, 11-20, 11-22 .. 11-25
+- [x] 11-12 Tokens en el panel admin: los 18 hex crudos de 10 archivos a GriColors (11 constantes nuevas, 0 valores cambiados segun auditoria del diff), 7 copias de la sombra -> griCardDecoration, 9 estilos de boton duplicados retirados (6 los pone elevatedButtonTheme, el unico FAB pasa a floatingActionButtonTheme), 3 _ErrorBox privadas -> features/shared/error_box.dart y 12 paddings a GriSpacing. Gate sin_hex_crudos_test portado del ORIGINAL de 11-19. MEDIDO por rotura que la red de seguridad que el plan asignaba a T-11-12-01 cubria 2 de 11 tokens: se cierra con colores_render_test (10 casos que renderizan y miden contra el hex LITERAL). 36 roturas deliberadas. HALLAZGOS: el <verify> de grep del plan falla en LAS DOS direcciones (octavo de la fase); las 3 _ErrorBox NO eran iguales y aun asi el padding es un NO-OP dentro de un Expanded (medido). panel_admin 280 -> 292 -- 49574cb, 1967dc4, 7b58a40
+- [ ] 11-14, 11-15, 11-16, 11-20, 11-22 .. 11-25
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -56,6 +57,8 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 3. Smoke e2e flujo completo ([A]-[M] emuladores o [P] real)
 
 ## Test Baselines (final Firebase)
+
+- 11-12: panel_admin 280 -> 292 (+12); analyze 0. Desglose: +2 sin_hex_crudos_test (nuevo, port del gemelo de 11-19), +10 colores_render_test (nuevo). Base 280 MEDIDA antes de tocar nada
 
 - 11-21: panel_admin 226 -> 280 (+54); analyze 0. Desglose: +9 app_shell_layout_test (nuevo), +34 responsive_test (nuevo), +1 sin_filtros_overflow_test (nuevo), +4 sin_emojis_test (nuevo), +4 stats_render_test, +3 reservas_screen_test. Los 3 filtros de FlutterError.onError que tapaban desbordes (bootstrap_router 11-07, router_404 11-09, equipo_gating 11-10) estan RETIRADOS
 
@@ -170,6 +173,14 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 
 - 11-13: el gate de paridad token<->codigo de 11-11 se REESCRIBIO, tal y como su propio comentario pedia ("hay que reescribirlo, no borrarlo"): ya no hay literal que comparar, asi que afirma que NO vuelve ninguno y que los tres tokens se usan. El gate fuerte es el nuevo, que renderiza y mide
 
+- 11-12: dos roles visuales distintos que HOY comparten hex se declaran como DOS constantes, no como un alias (divider #EEEEEE vs imagenPlaceholderBg #EEEEEE; badgeCategoriaInactiva #E65100 vs advertencia #E65100). Un alias afirmaria que son la misma decision y arrastraria un cambio futuro de una a la otra; las roturas lo confirman poniendo rojo casos DISTINTOS
+- 11-12: HALLAZGO — la mitigacion que el plan asignaba a T-11-12-01 ("las 175+ pruebas existentes como red de seguridad") cubria 2 de 11 tokens. MEDIDO cambiando el ultimo digito de cada uno: solo sidebarItemInactivo (por app_shell_layout_test de 11-21) y pedidoEnPreparacion (por theme_tokens_test de 11-11) ponian algo rojo. Las otras nueve migraciones estaban AFIRMADAS, no verificadas
+- 11-12: toda asercion de color compara contra el hex ESCRITO A MANO, jamas contra el token — comparar contra el token deja el caso verde justo cuando el token cambia. Regla escrita en la cabecera de colores_render_test.dart
+- 11-12: HALLAZGO — el <verify> de grep del plan es defectuoso en LAS DOS direcciones (octavo de la fase). `grep -v "core/theme.dart"` filtra por CONTENIDO de linea: un Color(0x...) real cuya linea mencione core/theme.dart PASA; y un doc comment legitimo que cite un hex lo pone en rojo. Ambos demostrados en vivo
+- 11-12: HALLAZGO — las tres _ErrorBox NO eran iguales (cocina no llevaba el Padding vertical de 32), pero unificarlas SIN el parametro tampoco habria movido un pixel: dentro de un Expanded el Center reparte el sobrante y (H-h)/2 == 32+(H-64-h)/2. Medido en los dos contextos. Mismo espiritu que el SafeArea de 11-13
+- 11-12: Colors.black.withValues(alpha: 0.05) y Color(0x0D000000) tienen el MISMO ARGB de 32 bits pero distinto alpha flotante (0.05 vs 0.050980). Sobre blanco los dos cuantizan a 242 en 8 bits. Es el UNICO valor del plan que no es bit a bit identico y por eso queda declarado. En cambio Colors.red y Color(0xFFF44336) tienen los cuatro componentes identicos: solo cambia el runtimeType
+- 11-12: se registra floatingActionButtonTheme (1 de 1 FAB, no puede mover un pixel hoy) pero NO textButtonTheme, outlinedButtonTheme ni inputDecorationTheme — la guarda de 11-11 que afirma su ausencia sigue intacta y verde
+
 ## Performance Metrics
 
 | Phase | Plan | Duracion | Tareas | Archivos |
@@ -185,14 +196,16 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | 11 | 09 | ~50 min | 2 | 12 |
 | 11 | 11 | ~95 min | 2 | 8 |
 | 11 | 13 | ~110 min | 3 | 23 |
+| 11 | 12 | ~2h 40min | 2 | 24 |
 | 11 | 19 | ~80 min | 3 | 20 |
 
 ## Session
 
 - Last session: 2026-08-19
-- Stopped at: Completado 11-19-PLAN.md (tokens de la app cliente: 20 hex + 34 TextStyle + 103 espaciados; migracion 1:1 demostrada mecanicamente, 0 diferencias de valor). Ejecutado en paralelo con 11-21.
+- Stopped at: Completado 11-12-PLAN.md (tokens del panel: 18 hex + 7 sombras + 9 botones + 3 ErrorBox; 36 roturas, cobertura de render anadida por desviacion Regla 2). Ejecutado ANTES que 11-14, que figura en su depends_on, sin necesitar nada de el.
+- Stopped at (anterior): Completado 11-19-PLAN.md (tokens de la app cliente: 20 hex + 34 TextStyle + 103 espaciados; migracion 1:1 demostrada mecanicamente, 0 diferencias de valor). Ejecutado en paralelo con 11-21.
 - Stopped at (anterior): Completado 11-13-PLAN.md (todo lo visible de la app cliente: zona segura, responsive, overflow e iconos; 21 roturas deliberadas, 2 verdes cazadas). Ejecutado en paralelo con 11-21.
-- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-12-PLAN.md
+- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-14-PLAN.md
 
 ## Blockers / Notas
 
@@ -205,6 +218,12 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - PENDIENTE DE SELLADO HUMANO (11-15/11-16): el indice categorias(restauranteId, orden) queda DECLARADO en firestore.indexes.json pero NO verificado — el emulador no valida indices compuestos. Requiere `firebase deploy --only firestore:indexes` contra p-gri-b5b40 y abrir el menu del panel.
 - Los handlers state.advance-plan / state.update-progress / state.record-metric / state.record-session siguen sin parsear este STATE.md (reconfirmado en 11-02); se actualiza a mano. `roadmap.update-plan-progress 11` si funciona.
 - 11-02 (DIFERIDO, ver phases/11-*/deferred-items.md): StatCard del panel desborda 31px cuando el grid pasa a 4 columnas (viewport >=1100px). Preexistente; debe entrar en el bloque de responsive/tokens.
+- 11-12: DS-01 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11): `requirements.mark-complete DS-01` devuelve not_found. Queda en el frontmatter del SUMMARY.
+- 11-12: `test:rules` y `test:functions` NO se ejecutaron — el plan no toca rules, indices ni functions. Si se ejecutaron `audit:branding` (exit 0) y `audit:indexes` (22 queries, 0 fallos, exit 0).
+- 11-12 AVISO: quien mueva lineas en `panel_admin/lib` tiene que refrescar `docs/ICONOS-panel_admin.md` — el gate de paridad de 11-21 se pone rojo solo (paso en este plan: 19 filas desactualizadas). OJO: cuando en una rotura se cambio la GEOMETRIA de la ErrorBox de cocina, el unico rojo de toda la suite fue ese mismo gate de lineas, es decir un rojo por el motivo equivocado.
+- 11-12 AVISO PARA 11-14/11-25: al aplicar `textoSecundarioAccesible` se pondra rojo cualquier caso de `panel_admin/test/core/colores_render_test.dart` que dependa de un color que cambies. Es lo que tiene que pasar: actualiza el hex esperado CONSCIENTEMENTE y en el mismo commit. Y NO sustituyas los hex literales de ese archivo por `GriColors.x`: pasaria verde justo cuando el token cambia.
+- 11-12 PENDIENTE DE VERIFICACION HUMANA: que el panel se VEA igual. No hay golden tests en el repo; lo demostrado es que ningun valor hex cambio, no que el render sea identico. En particular la sombra de las tarjetas de login y bootstrap, unico valor del plan que no es bit a bit el mismo (alpha 0.05 -> 0.050980, ambos 242 sobre blanco en 8 bits).
+- 11-12: borrar el `style:` de 6 ElevatedButton es invisible en PRODUCCION (la app monta griTheme, app.dart:133) pero NO en los tests: la mayoria pumpean un MaterialApp sin tema, asi que ahi esos botones pasan a pintar el color por defecto de M3. Ningun caso lo assertaba, por eso la suite no se movio.
 - Sigue pendiente el sellado humano de la Fase 10 (deploy real + smoke, docs/SMOKE-E2E.md).
 - 11-05: BOOT-02 y UX-04 tampoco existen en .planning/REQUIREMENTS.md (mismo motivo que ENV-01/DOC-01/TEST-01/TEST-02): requirements.mark-complete no puede marcarlos.
 - 11-05: la MITAD del bootstrap sigue abierta — un restaurante creado desde el panel aun no tiene staff propio hasta la callable de 11-07/11-08.
