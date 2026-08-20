@@ -68,6 +68,19 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 
 ## Test Baselines (final Firebase)
 
+- 11-29: app_cliente 348 -> 371 (+23: asignacion_mesa_test.dart 10 casos de los bugs A/B de reservas,
+  errores_honestos_reserva_test.dart 13 del bug C), panel_admin 445 -> 446 (+1, 'Marcar ocupada' con la mesa
+  DISPONIBLE — consecuencia del bug B que no cubria ningun test), rules 282 -> 285 (+3, la FORMA nueva de la tx:
+  reserva futura SIN update de mesa). functions 149 + 50 e2e sin cambio. **9 gates - 9 OK - 0 fallos**, 1.6 min.
+  16 roturas deliberadas, 16 rojas; 2 casos preexistentes cazados VERDES por la razon equivocada y reparados.
+  OJO al leer el gate: la pasada midio app_cliente 401 porque 11-30 trabaja en el mismo arbol; el baseline se
+  subio a 371, que es lo medido y verificado de 11-29.
+  NO CUBIERTO POR NINGUN GATE: que el usuario pueda reservar contra p-gri-b5b40 (fake_cloud_firestore no tiene
+  motor de rules y el emulador no valida indices). Paso 3 del runbook SMOKE-E2E-v2 seccion [O].
+  HALLAZGO: desde la app NO se puede reservar para HOY (firstDate = manana en el wizard) y la app cliente es el
+  UNICO escritor de `reservas` — asi que la rama `esHoy` del arreglo B es hoy inalcanzable y el cliente ya nunca
+  marca una mesa como 'reservada'. Decision de producto pendiente, NO se toco el selector.
+
 - 11-28: rules 260 -> 282 (+22, bloques «QUERY vs RULES» con las consultas LITERALES de las apps: pedidos +12,
   sesiones +5, reservas +5) y app_cliente 345 -> 348 (+3, test/pedidos/query_sesion_test.dart, el primero que monta
   `pedidosSessionProvider` DE VERDAD; los que habia lo sobreescribian con un Stream.value y probaban la pantalla dando
