@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/firebase_providers.dart';
+import '../../core/format.dart';
 import '../../core/state_machines.dart';
 import '../../core/theme.dart';
 import '../../models/pedido_staff.dart';
+import 'cuenta_mesa.dart';
 import 'pedidos_staff_provider.dart';
 import 'widgets/pedido_card.dart';
 import '../shared/error_box.dart';
@@ -176,13 +178,9 @@ class CocinaScreen extends ConsumerWidget {
             ),
             const Divider(height: 1),
             for (final a in avisos)
-              ListTile(
-                leading: const Icon(GriIcons.marca, size: 20),
-                title: Text('Mesa ${a.mesaNumero}'),
-                subtitle: const Text(
-                  'Entregar cuenta cierra la sesión y pasa la mesa a limpieza',
-                ),
-                onTap: () => _entregar(context, ref, a),
+              _FilaAvisoCuenta(
+                aviso: a,
+                onEntregar: () => _entregar(context, ref, a),
               ),
           ],
         ),
@@ -201,14 +199,19 @@ class CocinaScreen extends ConsumerWidget {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final db = ref.read(firestoreProvider);
 
+    // El importe se lee ANTES de la tx: al cerrar la sesión el aviso
+    // desaparece y con él la fila que lo mostraba. Si se leyera después, la
+    // confirmación saldría en blanco justo cuando más se necesita.
+    final cobrado = _importeMesa(ref, aviso.mesaId);
+
     Navigator.of(context).pop();
 
     try {
       await entregarCuenta(db, mesaId: aviso.mesaId);
       messenger?.showSnackBar(
         SnackBar(
-          content:
-              Text('Mesa ${aviso.mesaNumero} — cuenta entregada (sesión cerrada)'),
+          content: Text('Mesa ${aviso.mesaNumero} — cuenta entregada por '
+              '${formatCOP(cobrado)} (sesión cerrada)'),
           duration: const Duration(seconds: 3),
         ),
       );
@@ -266,6 +269,86 @@ class CocinaScreen extends ConsumerWidget {
         ),
       );
     }
+  }
+}
+
+/// El importe ya servido de [mesaId], leído SIN suscribirse (`read`): se usa
+/// en el instante del cobro, no en un `build`.
+int _importeMesa(WidgetRef ref, String mesaId) {
+  final servidos =
+      ref.read(pedidosServidosMesaProvider(mesaId)).value ?? const [];
+  final enCurso = ref.read(pedidosStaffProvider).value ?? const [];
+  return cuentaDeMesa(mesaId: mesaId, servidos: servidos, enCurso: enCurso)
+      .total;
+}
+
+/// Una mesa que pidió la cuenta, CON SU IMPORTE (plan 11-32).
+///
+/// ── LO QUE ESTA FILA ARREGLA ──────────────────────────────────────────────
+/// Antes decía solo «Mesa 3» y, al tocarla, cerraba la sesión. El mesero
+/// cobraba a ojo. Ahora la cifra está a la vista ANTES del toque, que es el
+/// único momento en que sirve.
+///
+/// Y avisa de lo que se queda fuera: si la mesa tiene platos en curso,
+/// entregar la cuenta cierra la sesión y esos platos NO se cobran nunca
+/// (solo se cobra lo servido — decisión del usuario). Es información que el
+/// mesero necesita para decidir si cobra ya o espera a que salga la cocina.
+///
+/// El flujo NO cambia: un toque sigue siendo entregar la cuenta.
+class _FilaAvisoCuenta extends ConsumerWidget {
+  const _FilaAvisoCuenta({required this.aviso, required this.onEntregar});
+
+  final AvisoCuenta aviso;
+  final VoidCallback onEntregar;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final servidosAsync = ref.watch(pedidosServidosMesaProvider(aviso.mesaId));
+    final enCurso = ref.watch(pedidosStaffProvider).value ?? const [];
+    final cuenta = cuentaDeMesa(
+      mesaId: aviso.mesaId,
+      servidos: servidosAsync.value ?? const [],
+      enCurso: enCurso,
+    );
+    final n = cuenta.pendientes.length;
+
+    return ListTile(
+      leading: const Icon(GriIcons.marca, size: 20),
+      title: Text('Mesa ${aviso.mesaNumero}'),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (cuenta.hayPendientes)
+            Text(
+              '$n ${n == 1 ? 'pedido' : 'pedidos'} sin servir por '
+              '${formatCOP(cuenta.totalPendiente)}: al cerrar la sesión no se '
+              '${n == 1 ? 'cobra' : 'cobran'}.',
+              style: const TextStyle(
+                color: GriColors.mesaReservadaFg,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          const Text(
+            'Entregar cuenta cierra la sesión y pasa la mesa a limpieza',
+          ),
+        ],
+      ),
+      // El importe es lo primero que el ojo busca: va grande y a la derecha.
+      // Mientras la consulta carga se muestra un guion, NUNCA un cero: un
+      // cero es una cifra y se leería como "esta mesa no debe nada".
+      trailing: servidosAsync.isLoading
+          ? const Text('—', style: TextStyle(fontSize: 18))
+          : Text(
+              formatCOP(cuenta.total),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: GriColors.text,
+              ),
+            ),
+      isThreeLine: cuenta.hayPendientes,
+      onTap: onEntregar,
+    );
   }
 }
 

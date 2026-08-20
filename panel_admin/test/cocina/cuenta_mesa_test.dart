@@ -188,6 +188,24 @@ void main() {
       expect(cuenta.totalPendiente, 0);
     });
 
+    test('un NO servido colado en la lista de servidos no se cobra', () {
+      // El provider ya filtra `estado == 'servido'`, asi que este guard de
+      // `cuentaDeMesa` es redundante en el camino feliz — y por eso NINGUN
+      // test lo cubria: quitarlo dejaba la suite entera en verde (se
+      // comprobo saboteandolo). Es defensa en profundidad sobre DINERO y
+      // merece su propio caso: si alguien cambia la consulta y deja de
+      // filtrar por estado, la cuenta no se infla en silencio.
+      final cuenta = cuentaDeMesa(
+        mesaId: _mesa,
+        servidos: [
+          _p('ok', EstadoPedido.servido, 10000),
+          _p('colado', EstadoPedido.enPreparacion, 90000),
+        ],
+        enCurso: const [],
+      );
+      expect(cuenta.total, 10000);
+    });
+
     test('mesa sin nada servido: total 0 y la cuenta no es cobrable', () {
       final cuenta = cuentaDeMesa(
         mesaId: _mesa,
@@ -310,11 +328,16 @@ void main() {
       expect(find.text(cop('20.000')), findsOneWidget);
       // Cerrar la sesión con un plato en el fuego significa que ese plato no
       // se cobra NUNCA. El mesero tiene que saberlo antes de pulsar.
+      //
+      // Se afirma la FRASE ENTERA con la cifra dentro. Buscar solo `15.000 $`
+      // daría DOS aciertos —el aviso y la tarjeta de ese mismo pedido en la
+      // cola de cocina— y un `findsNWidgets(2)` pasaría en verde aunque el
+      // aviso no dijera nada: bastaría con que la cola pintara el pedido dos
+      // veces.
       expect(
-        find.textContaining('1 pedido sin servir'),
+        find.textContaining('1 pedido sin servir por ' + cop('15.000')),
         findsOneWidget,
       );
-      expect(find.textContaining(cop('15.000')), findsOneWidget);
     });
 
     testWidgets('sin nada servido el importe es 0 y se dice', (tester) async {
