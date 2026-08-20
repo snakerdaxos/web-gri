@@ -102,6 +102,27 @@ enum Contexto {
 
   /// Cancelar una reserva propia (11-29).
   cancelarReserva,
+
+  // ── CONTEXTOS DE LECTURA (11-33) ─────────────────────────────────────────
+  // Los seis de arriba son MUTACIONES: alguien pulsó un botón y la operación
+  // falló. Estos cuatro son LISTENERS: nadie pulsó nada, la pantalla
+  // simplemente no puede mostrar lo que fue a buscar. La causa se clasifica
+  // igual —es el mismo backend y los mismos códigos—, pero la redacción tiene
+  // que hablar de VER, no de hacer. Sin ellos, la rama `error:` de un
+  // `AsyncValue` no tenía ningún texto honesto que usar y se quedaba con un
+  // «Error al cargar X» que no dice ni la causa ni qué hacer.
+
+  /// Escuchar los pedidos de la sesión de mesa (pantalla «Mis pedidos»).
+  verPedidos,
+
+  /// Cargar la carta de un restaurante (menú de mesa y detalle).
+  verMenu,
+
+  /// Listar las reservas propias.
+  verReservas,
+
+  /// Listar los restaurantes disponibles.
+  verRestaurantes,
 }
 
 /// Clasifica un fallo crudo en su [CausaFallo].
@@ -204,6 +225,16 @@ String mensajeDe(CausaFallo causa, {required Contexto contexto}) {
               'Vuelve a elegir fecha, hora y número de personas.';
         case Contexto.cancelarReserva:
           return 'Los datos de esa reserva no tienen el formato esperado.';
+        case Contexto.verPedidos:
+          return 'Los datos de tus pedidos no tienen el formato esperado. '
+              'Vuelve a escanear el QR de la mesa.';
+        case Contexto.verMenu:
+          return 'Los datos del menú no tienen el formato esperado.';
+        case Contexto.verReservas:
+          return 'Los datos de tus reservas no tienen el formato esperado.';
+        case Contexto.verRestaurantes:
+          return 'Los datos de los restaurantes no tienen el formato '
+              'esperado.';
       }
 
     case CausaFallo.noEncontrado:
@@ -224,6 +255,16 @@ String mensajeDe(CausaFallo causa, {required Contexto contexto}) {
               'dado de baja.';
         case Contexto.cancelarReserva:
           return 'Esa reserva ya no existe.';
+        case Contexto.verPedidos:
+          return 'Tu sesión en la mesa ya no existe. Vuelve a escanear el QR '
+              'de la mesa.';
+        case Contexto.verMenu:
+          return 'Ese restaurante ya no está publicado. Puede que lo hayan '
+              'dado de baja.';
+        case Contexto.verReservas:
+          return 'No encontramos tus reservas.';
+        case Contexto.verRestaurantes:
+          return 'No encontramos ningún restaurante publicado.';
       }
 
     case CausaFallo.noDisponible:
@@ -247,6 +288,17 @@ String mensajeDe(CausaFallo causa, {required Contexto contexto}) {
               'Vuelve a intentarlo.';
         case Contexto.cancelarReserva:
           return 'Esa reserva ya estaba cancelada.';
+        case Contexto.verPedidos:
+          return 'Esta mesa ya no está activa. Vuelve a escanear el QR para '
+              'abrirla de nuevo.';
+        case Contexto.verMenu:
+          return 'El menú de este restaurante no está disponible en este '
+              'momento.';
+        case Contexto.verReservas:
+          return 'Tus reservas no están disponibles en este momento.';
+        case Contexto.verRestaurantes:
+          return 'La lista de restaurantes no está disponible en este '
+              'momento.';
       }
 
     case CausaFallo.permisoDenegado:
@@ -271,6 +323,18 @@ String mensajeDe(CausaFallo causa, {required Contexto contexto}) {
         case Contexto.cancelarReserva:
           return 'Tu cuenta no puede cancelar esta reserva. Entra con la '
               'cuenta de cliente con la que se hizo.';
+        case Contexto.verPedidos:
+          return 'Tu cuenta no puede ver los pedidos de esta mesa. Entra con '
+              'la cuenta de cliente con la que se abrió la mesa.';
+        case Contexto.verMenu:
+          return 'Tu cuenta no puede ver esta carta. Entra con una cuenta de '
+              'cliente para ver el menú.';
+        case Contexto.verReservas:
+          return 'Tu cuenta no puede ver estas reservas. Entra con la cuenta '
+              'de cliente con la que las hiciste.';
+        case Contexto.verRestaurantes:
+          return 'Tu cuenta no puede ver los restaurantes. Vuelve a entrar '
+              'con tu cuenta de cliente.';
       }
 
     case CausaFallo.sinConexion:
@@ -294,6 +358,18 @@ String mensajeDe(CausaFallo causa, {required Contexto contexto}) {
         case Contexto.cancelarReserva:
           base = 'No pudimos conectar con el servidor para cancelar tu '
               'reserva. Revisa tu conexión e inténtalo de nuevo.';
+        case Contexto.verPedidos:
+          base = 'No pudimos conectar con el servidor para ver tus pedidos. '
+              'Revisa tu conexión e inténtalo de nuevo.';
+        case Contexto.verMenu:
+          base = 'No pudimos conectar con el servidor para cargar el menú. '
+              'Revisa tu conexión e inténtalo de nuevo.';
+        case Contexto.verReservas:
+          base = 'No pudimos conectar con el servidor para cargar tus '
+              'reservas. Revisa tu conexión e inténtalo de nuevo.';
+        case Contexto.verRestaurantes:
+          base = 'No pudimos conectar con el servidor para cargar los '
+              'restaurantes. Revisa tu conexión e inténtalo de nuevo.';
       }
       // Rama podada en producción: `usandoEmuladores` es una constante de
       // compilación (ver su doc).
@@ -321,6 +397,22 @@ String mensajeDe(CausaFallo causa, {required Contexto contexto}) {
         case Contexto.cancelarReserva:
           return 'No pudimos cancelar la reserva. Vuelve a intentarlo; si '
               'sigue igual, llama al restaurante.';
+        // Los cuatro de lectura NO nombran red, cuenta ni permiso: si
+        // supiéramos cuál de las tres es, no estaríamos en `desconocido`.
+        // Aquí caen, entre otros, `failed-precondition` (índice compuesto
+        // ausente) y `aborted`, por la decisión explícita de 11-23.
+        case Contexto.verPedidos:
+          return 'No pudimos cargar tus pedidos. Vuelve a intentarlo; si '
+              'sigue igual, avisa al mesero.';
+        case Contexto.verMenu:
+          return 'No pudimos cargar el menú. Vuelve a intentarlo; si sigue '
+              'igual, avisa al mesero.';
+        case Contexto.verReservas:
+          return 'No pudimos cargar tus reservas. Vuelve a intentarlo; si '
+              'sigue igual, llama al restaurante.';
+        case Contexto.verRestaurantes:
+          return 'No pudimos cargar los restaurantes. Vuelve a intentarlo '
+              'más tarde.';
       }
   }
 }
