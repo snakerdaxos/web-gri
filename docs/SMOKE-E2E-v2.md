@@ -21,6 +21,33 @@
 
 ---
 
+## ⚠️ Este runbook se ejecuta CONTRA EMULADORES — y sigue siendo válido tal cual
+
+Todo lo que hay debajo se recorre con los emuladores de Auth, Firestore y
+Functions (§1). **El emulador de Functions no necesita Blaze**, así que las tres
+callables funcionan ahí y este documento sigue siendo la mejor verificación del
+flujo completo. No se ha recortado ni un paso.
+
+Lo que ha cambiado (2026-08-20) es el **proyecto real**: el propietario decidió
+no activar Blaze (`11-CONTEXT.md`, «Blaze — REVERTIDO»), así que las tres
+callables **no están desplegadas** en `p-gri-b5b40`. En consecuencia, contra el
+proyecto real:
+
+| Paso | Contra emuladores | Contra `p-gri-b5b40` |
+|---|---|---|
+| **[A]** Bootstrap del primer `super_admin` | ✅ funciona | ❌ no ejecutable — `node scripts/gestion_staff.mjs promover-super …` |
+| **[C]** Política de contraseñas en el alta de staff | ✅ funciona | ❌ no ejecutable por el panel — la valida el script |
+| **[D]** Alta de personal | ✅ funciona | ❌ no ejecutable — `node scripts/gestion_staff.mjs crear …` |
+| **[E]** Baja y readmisión de personal | ✅ funciona | ❌ no ejecutable — `node scripts/gestion_staff.mjs baja` / `reactivar` |
+| El resto ([B], [F]–[O]) | ✅ funciona | ✅ funciona |
+
+El equivalente real de esos cuatro pasos es **`scripts/gestion_staff.mjs`**:
+manual en [`docs/GESTION-PERSONAL.md`](GESTION-PERSONAL.md). El inventario
+completo de qué está desplegado y qué no está en
+[`docs/ESTADO-DESPLIEGUE.md`](ESTADO-DESPLIEGUE.md).
+
+---
+
 ## 0. Requisitos previos
 
 | Requisito | Verificación | Nota |
@@ -53,7 +80,7 @@ el emulador**, no al invocarla; escribirlos después llega tarde.
 | Archivo | Se commitea | Lo usa |
 |---|---|---|
 | `functions/.env.demo-gri` | **Sí**, a propósito | Los emuladores, porque todo va con `--project demo-gri` |
-| `functions/.env` | **No** (gitignored) | Solo el proyecto real, en el despliegue del plan 11-20 |
+| `functions/.env` | **No** (gitignored) | Solo el proyecto real, **el día que se desplieguen las funciones** (`docs/ESTADO-DESPLIEGUE.md` §5). Hoy no se usa: no hay funciones desplegadas |
 
 Para este runbook **no hay que tocar nada**: `functions/.env.demo-gri` ya está
 versionado con valores ficticios y deterministas:
@@ -150,6 +177,12 @@ flutter run -d chrome --dart-define=USE_EMULATORS=true
 
 Este paso NO existía en el runbook de la Fase 10 y es el bug P0 que cierra.
 
+> ⚠️ **Contra emuladores, tal cual. Contra `p-gri-b5b40`, NO se puede ejecutar
+> hoy:** `bootstrapPlataforma` no está desplegada (sin Blaze). Allí el primer
+> `super_admin` se crea con
+> `node scripts/gestion_staff.mjs promover-super` — ver
+> [`docs/GESTION-PERSONAL.md`](GESTION-PERSONAL.md).
+
 **Antes de nada — verificar el correo del fundador.** `bootstrapPlataforma`
 exige `email_verified === true` en el idToken (11-07: el correo del fundador no
 es un secreto, así que el control del buzón es uno de los dos factores). La
@@ -232,6 +265,13 @@ los claims en la UI de Auth), o las apps no llevan el flag de emuladores.
 
 ### [C] Política de contraseñas (bis de [B], antes de dar de alta a nadie)
 
+> ⚠️ **La mitad de este paso no se puede ejecutar contra `p-gri-b5b40` hoy:** el
+> alta de staff desde el panel exige `crearUsuarioStaff`, que no está desplegada.
+> Allí la política la aplica `scripts/gestion_staff.mjs crear --password …`, con
+> el MISMO módulo (`functions/src/password-policy.js`). La parte de 📱 el
+> registro del cliente y el cambio de contraseña del perfil **sí** funciona
+> contra el proyecto real.
+
 **Qué se hace:** 🖥️ `/equipo` → **Nuevo usuario** → escribe `12345678` como
 contraseña.
 
@@ -250,6 +290,13 @@ saltar invocando la callable directamente. Eso lo cubren 3 tests e2e; aquí solo
 se comprueba el formulario.
 
 ### [D] Crear el equipo del restaurante desde `/equipo`
+
+> ⚠️ **Contra `p-gri-b5b40` NO se puede ejecutar hoy:** `crearUsuarioStaff` no
+> está desplegada, y el panel lo dice con un aviso permanente junto al botón. El
+> equivalente real es
+> `node scripts/gestion_staff.mjs crear --como <admin> --email … --rol …` —
+> ver [`docs/GESTION-PERSONAL.md`](GESTION-PERSONAL.md). El **listado** de
+> `/equipo` sí funciona allí: es una lectura de Firestore.
 
 **Qué se hace:** 🖥️ `/equipo` → **Nuevo usuario**, tres veces:
 
@@ -282,6 +329,11 @@ está levantado (`--only auth,functions,firestore`). Correo ya usado por un
 cliente auto-registrado → es el anti-secuestro de 11-08 y está bien que falle.
 
 ### [E] Baja y readmisión de personal (bis de [D])
+
+> ⚠️ **Contra `p-gri-b5b40` NO se puede ejecutar hoy:** `cambiarEstadoStaff` no
+> está desplegada. El equivalente real es
+> `node scripts/gestion_staff.mjs baja --como <admin> --uid …` y su
+> `reactivar` — ver [`docs/GESTION-PERSONAL.md`](GESTION-PERSONAL.md).
 
 **Qué se hace:** 🖥️ `/equipo` → fila de **Beto Mesero** → **Desactivar** →
 confirmar.
@@ -413,7 +465,7 @@ montando. En blanco ≠ vacío.
 **Este paso NO se puede ejecutar contra emuladores.** El emulador de Auth no
 implementa el flujo real de Google: fabrica cuentas de mentira. Ejecutarlo aquí
 daría un verde que no significa nada. Su verificación es el **checkpoint humano
-del plan 11-20**, contra `p-gri-b5b40`.
+del plan 11-17** —la huella SHA-1 registrada en Firebase—, contra `p-gri-b5b40`.
 
 **Qué se hace (allí):** 📱 login o registro → **Continuar con Google** → elegir
 una cuenta de Google que **no** exista aún en la plataforma.
@@ -584,10 +636,17 @@ clasifica las queries del código y comprueba la paridad rules↔query. Un OK ah
 **no** sustituye a `firebase deploy --only firestore:indexes` contra el proyecto
 real y abrir el menú del panel. Eso es el plan **11-16**.
 
-### 4.2 El ingreso con Google — checkpoint del plan 11-20
+### 4.2 El ingreso con Google — checkpoint del plan 11-17
 
 El emulador de Auth no implementa el flujo real de Google (ver [I]). La
 verificación exige `p-gri-b5b40`, y en Android además la huella SHA-1 registrada.
+
+Este apartado remitía antes al plan **11-20**, que iba a desplegar las funciones
+y verificar Google; ese plan pasó a ser la gestión de personal **por script** y ya
+no despliega nada. El checkpoint vivo es el de **11-17**:
+la huella de depuración ya está registrada, falta comprobar el ingreso de punta a
+punta. Para un APK **de release** habría que registrar además su SHA-1
+(`docs/ESTADO-DESPLIEGUE.md` §7).
 
 ---
 
@@ -614,21 +673,30 @@ Estado del proyecto real comprobado el **2026-08-20**, fuera de este runbook:
 
 - **Los índices están TODOS desplegados**, incluido `categorias(restauranteId,
   orden)`. Diez en total. No hay nada que desplegar ahí.
-- **Las rules desplegadas son las de la Fase 10.** Les faltan dos cosas de esta
-  fase: el match del centinela `plataforma` (11-07) y la lectura acotada de
-  `usuarios` para listar el equipo (11-10). **Sin la segunda, `/equipo` responde
-  `permission-denied` en producción aunque el código sea correcto.**
-- **No hay ninguna Cloud Function desplegada.** Hasta que las haya,
-  `/bootstrap`, el alta de staff y la baja de personal **no funcionan** en
-  producción. Blaze está aprobado por el usuario pero puede no estar activado.
+- **Las rules de esta fase YA están desplegadas** (2026-08-20, ruleset
+  `25efd44a-8a0e-496a-9e96-2a92d8e3a28b`, releído del proyecto y comprobado
+  idéntico al repo). Incluyen el match del centinela `plataforma` (11-07) y la
+  lectura acotada de `usuarios` (11-10), así que **`/equipo` ya lista el equipo
+  en producción**. *(Este punto decía lo contrario hasta el 2026-08-20; se
+  corrigió al desplegar.)*
+- **No hay ninguna Cloud Function desplegada, y no va a haberla por ahora.** El
+  propietario decidió **no activar Blaze** (`11-CONTEXT.md`, «Blaze —
+  REVERTIDO»), así que `/bootstrap`, el alta de staff y la baja de personal
+  **no funcionan** contra el proyecto real y no es un despliegue pendiente: el
+  equivalente se hace con `scripts/gestion_staff.mjs`
+  ([`docs/GESTION-PERSONAL.md`](GESTION-PERSONAL.md)). Inventario completo en
+  [`docs/ESTADO-DESPLIEGUE.md`](ESTADO-DESPLIEGUE.md).
 - **La base NO está vacía**: conserva el seed de demostración de la Fase 10
   (restaurante `demo`, 9 mesas, categorías, productos y 9 cuentas de Auth, dos
   de ellas clientes auto-registrados sin claims). Ya existe además un
   `super_admin` concedido a mano, así que **`/bootstrap` allí ya está cerrado**:
   el paso [A] no es reproducible contra el proyecto real, y no debe serlo.
 
-El despliegue de rules e índices es el plan **11-16**; el de funciones y la
-verificación de Google, el plan **11-20**. Este runbook no los sustituye.
+El despliegue de rules e índices lo cubrió el plan **11-16** y **ya está hecho**.
+El de funciones **no se hará** mientras no se active Blaze (`ESTADO-DESPLIEGUE.md`
+§5 tiene la lista si algún día se decide). La verificación del ingreso con Google
+sigue pendiente: es el checkpoint del plan **11-17**. Este runbook no lo
+sustituye.
 
 ---
 
@@ -653,6 +721,10 @@ test borrado es una regresión que ningún runner reporta.
 
 ## 8. Checklist final del checkpoint (resume-signal)
 
+> Esta checklist es la del recorrido **contra emuladores**. Los pasos [A], [C],
+> [D] y [E] no se pueden marcar contra `p-gri-b5b40`: ahí el equivalente es
+> `scripts/gestion_staff.mjs` (ver la cabecera de este documento).
+
 - [ ] §0.1 La base arrancó **vacía** (sin `emulator_data/`, sin `seed_firebase.mjs`)
 - [ ] [A] Primer `super_admin` creado desde `/bootstrap`; el centinela `plataforma/bootstrap` existe y **la segunda llamada falla**
 - [ ] [B] Restaurante creado con doc ID **slug** (`la-brasa-roja`)
@@ -669,7 +741,7 @@ test borrado es una regresión que ningún runner reporta.
 - [ ] [N] Calificación 1:1 y ★ visible en el discover
 - [ ] [O] Reserva creada, **anti-sobre-reserva** disparado y cancelación revierte la mesa
 - [ ] §7 `npm run gates` en verde, con los conteos iguales o mayores que el baseline
-- [ ] [I] Ingreso con Google → **NO aplica aquí**: queda para el checkpoint del plan 11-20
+- [ ] [I] Ingreso con Google → **NO aplica aquí**: queda para el checkpoint del plan 11-17 (huella SHA-1)
 - [ ] §4.1 Índices compuestos → **NO aplica aquí**: queda para el checkpoint del plan 11-16
 - [ ] `git status` no muestra `scripts/serviceAccountKey.json`, `functions/.env` ni `emulator_data/`
 - [ ] Responder **"approved"** si todo lo aplicable pasó, o listar el paso que falló **con lo observado**, no con lo esperado

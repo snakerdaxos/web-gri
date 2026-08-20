@@ -7,14 +7,33 @@
 > Fuentes de configuración: `documentos/google-services.json` (Android) y
 > `documentos/firebase-config-web.js` (Web).
 
-## 0. ¿Plataforma nueva? Empieza por `/bootstrap`, no por el seed
+## 0. ¿Plataforma nueva? Cómo se arranca HOY
 
-**El camino de producto para arrancar una plataforma desde cero es la pantalla
-`/bootstrap` del panel** (§4.1): crea el primer `super_admin` sin scripts, sin
-consola y sin que nadie tenga que manejar una clave de servicio. A partir de
-ahí, todo —restaurante, equipo, mesas y menú— se da de alta desde el panel.
+> ⚠️ **`/bootstrap` existe en el repo pero NO está desplegado.** La callable
+> `bootstrapPlataforma` requiere Cloud Functions, que exige el plan Blaze, y el
+> propietario decidió el 2026-08-20 **no activarlo** (`11-CONTEXT.md`,
+> «Blaze — REVERTIDO»). La pantalla, la función y sus pruebas se conservan
+> intactas para el día que se despliegue — ver
+> **[`docs/ESTADO-DESPLIEGUE.md`](ESTADO-DESPLIEGUE.md)**, que es la fuente de
+> verdad de qué está desplegado y qué no.
 
-Ruta completa, con verificación paso a paso: **[`docs/SMOKE-E2E-v2.md`](SMOKE-E2E-v2.md)**.
+**Hoy, contra el proyecto real, una plataforma nueva se arranca con el script**:
+
+```bash
+node scripts/gestion_staff.mjs promover-super       # primer super_admin
+node scripts/gestion_staff.mjs crear --como … --rol …   # su equipo
+```
+
+Manual completo: **[`docs/GESTION-PERSONAL.md`](GESTION-PERSONAL.md)**. A partir
+de ahí, todo —restaurante, mesas y menú— se da de alta desde el panel.
+
+**Contra emuladores el camino de producto SÍ funciona tal cual** (el emulador de
+Functions no necesita Blaze): la pantalla `/bootstrap` del panel (§4.1) crea el
+primer `super_admin` sin scripts ni clave de servicio. Ruta completa, con
+verificación paso a paso: **[`docs/SMOKE-E2E-v2.md`](SMOKE-E2E-v2.md)**.
+
+Y `scripts/seed_firebase.mjs` (§3) sigue sin ser ninguna de las dos cosas: es la
+utilidad de **datos de demostración**.
 
 > `scripts/seed_firebase.mjs` (§3) **no** es el mecanismo de arranque: es una
 > utilidad para plantar **datos de demostración** en un entorno de pruebas.
@@ -190,6 +209,15 @@ Firestore Database → Create database).
 
 ## 4.1 Inicializar una plataforma nueva (`/bootstrap`)
 
+> ⚠️ **VÁLIDO CONTRA EMULADORES. NO EJECUTABLE contra `p-gri-b5b40` hoy:**
+> `bootstrapPlataforma` **no está desplegada** (sin Blaze). Todo lo que sigue
+> —incluido el paso 2, el `deploy`— describe el flujo que volverá a aplicarse el
+> día que se despliegue, y es exactamente el que se recorre en los emuladores.
+> Contra el proyecto real, el primer `super_admin` se crea con
+> `node scripts/gestion_staff.mjs promover-super`
+> ([`docs/GESTION-PERSONAL.md`](GESTION-PERSONAL.md)).
+> Estado y camino de activación: [`docs/ESTADO-DESPLIEGUE.md`](ESTADO-DESPLIEGUE.md).
+
 Para arrancar una plataforma **desde cero** ya no hace falta el seed ni una
 clave de servicio: la callable `bootstrapPlataforma`
 (`functions/src/bootstrap-plataforma.js`) crea el PRIMER `super_admin` y
@@ -275,8 +303,14 @@ npx --prefix scripts firebase login
 npx --prefix scripts firebase deploy --only firestore:rules,firestore:indexes
 ```
 
-Los 9 índices compuestos de `firestore.indexes.json` se crean solos con ese
-comando (tarda unos minutos en construirse).
+Los **10** índices compuestos de `firestore.indexes.json` se crean solos con ese
+comando (tarda unos minutos en construirse). *(Decía 9; son 10 desde 11-16.
+Comprobado contando `collectionGroup` en el archivo.)*
+
+> ✅ **Rules e índices YA están desplegados** en `p-gri-b5b40` (2026-08-20,
+> ruleset `25efd44a-8a0e-496a-9e96-2a92d8e3a28b`). Esta sección queda como
+> referencia del procedimiento — ver
+> [`docs/ESTADO-DESPLIEGUE.md`](ESTADO-DESPLIEGUE.md).
 
 ## 6. Flag `USE_EMULATORS`
 
@@ -462,5 +496,5 @@ de google-services lo leería y sobreescribiría la configuración correcta).
 | Emuladores no arrancan | Falta Java | Usar `node scripts/run_emulators.mjs` (resuelve Java solo, §2.1) o definir `JAVA_HOME` |
 | `npm install --prefix scripts` falla en Windows | npm resuelve mal el package.json | `cd scripts; npm install` |
 | Seed contra proyecto real falla con permisos | Service account sin roles / Firestore no creado | Regenerar key (§3) y crear Firestore en Console |
-| `/bootstrap` responde `failed-precondition` | `BOOTSTRAP_EMAIL` o `BOOTSTRAP_SECRET` no llegaron al despliegue | Rellenar `functions/.env` y **re-desplegar** la función (§4.1) |
+| `/bootstrap` responde `failed-precondition` | `BOOTSTRAP_EMAIL` o `BOOTSTRAP_SECRET` no llegaron al despliegue | Rellenar `functions/.env` y **re-desplegar** la función (§4.1). *Solo aplica contra emuladores: contra `p-gri-b5b40` la función no está desplegada* |
 | `/bootstrap` responde `No puedes inicializar esta plataforma.` | Correo distinto, correo sin verificar, secreto incorrecto, o la plataforma YA está inicializada | El mensaje es el mismo para los 4 casos **a propósito**; revisarlos en ese orden (§4.1) |
