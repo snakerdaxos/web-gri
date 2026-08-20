@@ -269,7 +269,7 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
   15. Un admin puede dar de baja y readmitir personal sin perder historial, y nadie puede desactivar a un `super_admin` ni a sí mismo
 
 **Notas**: La identidad visual se CONSERVA (naranja `#FF4C05`, layout del mockup) — es trabajo de consistencia, no de rediseño. El plan Blaze solo hace falta para desplegar Cloud Functions, no para emularlas: toda la fase es desarrollable y testeable sin tocar la facturación, y el despliegue está partido en dos checkpoints (rules/índices sin Blaze en 11-16; funciones con Blaze en 11-20) para que la prueba real del bug del índice no quede rehén de una decisión de facturación.
-**Plans:** 19/25 plans executed
+**Plans:** 20/25 plans executed
 
 Plans:
 
@@ -292,7 +292,7 @@ Plans:
 - [x] 11-12-PLAN.md — Ola 8 (limpieza interna, en paralelo): migración 1:1 de hex crudos y estilos duplicados del PANEL + gate anti-regresión
 - [x] 11-19-PLAN.md — Ola 8 (limpieza interna, en paralelo): migración 1:1 de hex crudos y `TextStyle` de la APP CLIENTE + gate anti-regresión
 - [ ] 11-22-PLAN.md — Ola 9: política de contraseñas (8 + mayus + minus + número) en los CUATRO puntos y también en la callable
-- [ ] 11-23-PLAN.md — Ola 9: mensajes de error del escaneo y la sesión — cinco causas distinguidas; un permission-denied deja de parecer un QR mal escaneado
+- [x] 11-23-PLAN.md — Ola 9: mensajes de error del escaneo y la sesión — cinco causas distinguidas; un permission-denied deja de parecer un QR mal escaneado
 - [x] 11-24-PLAN.md — Ola 9: baja de personal reversible (desactivar/reactivar) con dos prohibiciones nuevas validadas en la callable
 - [ ] 11-25-PLAN.md — Ola 10: accesibilidad de PANEL_ADMIN — sidebar colapsado, `InkWell` del mapa de mesas, contraste AA, gates `meetsGuideline`
 - [ ] 11-15-PLAN.md — Ola 11: runbook `SMOKE-E2E-v2` desde base vacía + `npm run gates` como ejecutor único

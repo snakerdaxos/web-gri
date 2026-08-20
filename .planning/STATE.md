@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 19/25 planes [###################------] 76%  (denominador corregido: `roadmap.update-plan-progress 11` cuenta 25 planes y 18 SUMMARY en disco; el 21 anterior venia arrastrado)
+Phase 11: 20/25 planes [####################-----] 80%  (denominador corregido: `roadmap.update-plan-progress 11` cuenta 25 planes y 20 SUMMARY en disco; el 21 anterior venia arrastrado)
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -50,7 +50,8 @@ Phase 11: 19/25 planes [###################------] 76%  (denominador corregido: 
 - [x] 11-12 Tokens en el panel admin: los 18 hex crudos de 10 archivos a GriColors (11 constantes nuevas, 0 valores cambiados segun auditoria del diff), 7 copias de la sombra -> griCardDecoration, 9 estilos de boton duplicados retirados (6 los pone elevatedButtonTheme, el unico FAB pasa a floatingActionButtonTheme), 3 _ErrorBox privadas -> features/shared/error_box.dart y 12 paddings a GriSpacing. Gate sin_hex_crudos_test portado del ORIGINAL de 11-19. MEDIDO por rotura que la red de seguridad que el plan asignaba a T-11-12-01 cubria 2 de 11 tokens: se cierra con colores_render_test (10 casos que renderizan y miden contra el hex LITERAL). 36 roturas deliberadas. HALLAZGOS: el <verify> de grep del plan falla en LAS DOS direcciones (octavo de la fase); las 3 _ErrorBox NO eran iguales y aun asi el padding es un NO-OP dentro de un Expanded (medido). panel_admin 280 -> 292 -- 49574cb, 1967dc4, 7b58a40
 - [x] 11-14 Accesibilidad de la app cliente: boton QR a 48x48 CON nodo de semantica propio (sin el, el tap se fusionaba con toda la cabecera en un nodo de 800x77 y la guia del plan pasaba VERDE con el bug puesto), 7 controles de icono etiquetados incluido un FAB que la auditoria no conto, 29 puntos de TEXTO de #777777 a #6E6E6E sin tocar el token de MARCA, suite a11y de 16 casos sobre 7 pantallas (las tres guias, ninguna excluida) + gate ESTATICO sobre las fuentes porque el barrido solo ve lo que monta. 24 roturas deliberadas, 3 VERDES cazadas. app_cliente 214 -> 230 -- c732cda, 29c2078, defb8f5, 5dc0398, 950f3ae, 6d69637
 - [x] 11-24 Baja REVERSIBLE de personal: baja-matrix.js (matriz PURA hermana de auth-matrix, 49 casos en 234ms) + callable cambiarEstadoStaff (disabled + claims a null + revokeRefreshTokens, CONSERVANDO role/restauranteId en el espejo, que es lo unico que permite reactivar) + 22 e2e con tokens reales + /equipo con insignia de estado y confirmacion solo destructiva. 26 roturas deliberadas, 4 VERDES cazadas (la propiedad de la prohibicion 1 NO la probaba —la tapaba otra comprobacion—; quitar revokeRefreshTokens no tumbaba NADA; el test de compatibilidad de `activo` era una TAUTOLOGIA; la forma del payload no estaba afirmada). MEDIDO: con la asercion de mensaje debilitada a solo-codigo, quitar la prohibicion 1 NO tumba ni una fila de la tabla. HALLAZGO: el razonamiento del plan para dejar a los clientes fuera de alcance solo cierra la puerta al admin_restaurante, no al super_admin. panel_admin 292 -> 313, functions unit 34 -> 96, functions e2e 25 -> 47 -- a392812, ea95ed8, 260da01, 2ada353 (este ultimo AJENO: ver colision en Blockers)
-- [ ] 11-15, 11-16, 11-20, 11-22, 11-23, 11-25
+- [x] 11-23 Mensajes honestos en el flujo de mesa: clasificador unico de fallos de Firebase (CausaFallo x6 / Contexto x4, modulo PURO sin dart:io porque la app compila tambien a web). Las CINCO causas del escaneo separadas con mensaje propio -- el permission-denied deja de decir 'verifica el codigo', que es el bug que le costo tiempo real al usuario. codigoMesaRegExp se muda al DOMINIO (la camara NO pasa por el validator del campo). Mismo criterio en pedido, cuenta y calificacion. 34 roturas deliberadas, 3 VERDES cazadas (borrar el debugPrint no lo notaba nadie -T-11-23-04 afirmada, no verificada-; la regexp 'compartida' no estaba verificada; la pista de emuladores comparada consigo misma). DECIMO gate de grep defectuoso de la fase, fallado en LAS DOS direcciones. app_cliente 230 -> 273 -- ccada96, 2ada353, 6064faf, 562be15, 4401b4d, 82eae56
+- [ ] 11-15, 11-16, 11-20, 11-22, 11-25
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -59,6 +60,8 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 3. Smoke e2e flujo completo ([A]-[M] emuladores o [P] real)
 
 ## Test Baselines (final Firebase)
+
+- 11-23: app_cliente 230 -> 273 (+43); analyze 0. Desglose: +22 test/core/firebase_error_mapper_test.dart (nuevo), +10 test/pedidos/errores_honestos_test.dart (nuevo), +11 en test/sesion_qr/scan_test.dart (11 -> 22; un caso PREEXISTENTE se reescribio, no se anadio: afirmaba 'Codigo de mesa invalido' para una mesa BIEN FORMADA pero inexistente, que es justo la confusion que el plan separa). Base 230 MEDIDA antes de tocar nada. La rama de emuladores se verifica APARTE: `flutter test --dart-define=USE_EMULATORS=true --dart-define=ESPERA_PISTA_EMULADORES=true test/core/firebase_error_mapper_test.dart` -> +22
 
 - 11-24: panel_admin 292 -> 313 (+21: equipo_baja_test.dart nuevo); analyze 0. functions unitarios 34 -> 96 (+62: 49 de baja-matrix.test.js y 13 del contrato estatico de la callable). functions e2e 25 -> 47 (+22). rules 221 -> 221 (el plan no toca rules). Base MEDIDA en las CUATRO suites antes de tocar nada
 
@@ -205,6 +208,18 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-24: `activo` ausente en el doc espejo se lee como TRUE. Las fichas creadas antes de este plan no lo tienen y con el criterio contrario todo el equipo existente apareceria de baja de golpe
 - 11-24: un contrato ESTATICO sobre la fuente debe leer SOLO codigo. Comparando contra el archivo entero, la cabecera que EXPLICA los pasos de la revocacion hacia que indexOf() encontrara el COMENTARIO y el orden saliera invertido; y el veto a `!!activo` lo disparaba su propia advertencia. Mismo defecto que los ocho gates de grep ya documentados en la fase
 
+- 11-23: la causa de un fallo se CLASIFICA en un modulo puro (core/firebase_error_mapper.dart) y la redaccion se elige por (causa, contexto). Mismo papel que functions/src/auth-matrix.js: la decision se aisla para poder probar la combinatoria entera sin montar nada
+- 11-23: PROHIBIDO importar dart:io en app_cliente/lib (esta app compila tambien a web). SocketException y compania se reconocen por el PREFIJO de toString(), que es un literal de la propia clase y sobrevive a la minificacion de dart2js; runtimeType.toString() NO sobrevive
+- 11-23: `aborted` y `failed-precondition` caen a CausaFallo.desconocido A PROPOSITO. No son de red ni de permisos, y meterlos en un saco concreto reproduciria el bug que el plan repara, solo que con otro texto. El mensaje de `desconocido` tampoco culpa a la red
+- 11-23: `permission-denied` y `unauthenticated` se agrupan: para el usuario el problema es el MISMO (su cuenta) y en ninguno de los dos casos es el codigo que escaneo
+- 11-23: la validacion de FORMATO del codigo vive en el DOMINIO, no en el validator de la pantalla. `_onDetect` (camara) entrega el texto crudo del QR directo a abrirSesion sin pasar por el formulario: con la regla solo arriba, un QR de otra app salia por el mensaje de 'mesa inexistente', que es falso
+- 11-23: HALLAZGO - cuando la expectativa de un test depende de un `bool.fromEnvironment`, la expectativa tiene que entrar por un define DISTINTO. `expect(texto.contains(pista), usandoEmuladores)` es tautologico: con defaultValue: true la pista apareceria en PRODUCCION y los dos lados se moverian a la vez. Con ESPERA_PISTA_EMULADORES la rotura del defaultValue se pone roja
+- 11-23: HALLAZGO - en `testWidgets` la restauracion de `debugPrint` NO puede ir en un addTearDown. `TestWidgetsFlutterBinding._verifyInvariants` llama a `debugAssertAllFoundationVarsUnset` ANTES de ejecutar los tearDown ('The value of a foundation debug variable was changed by the test'). En un `test()` normal si vale
+- 11-23: HALLAZGO - la mitigacion T-11-23-04 ('ningun catch queda mudo') estaba AFIRMADA. Borrar el debugPrint entero de los CUATRO puntos dejaba la suite verde. Un debugPrint no esta verificado hasta que se intercepta la variable global y se afirma que la traza lleva el code de Firebase Y la clasificacion
+- 11-23: HALLAZGO - el <verify> 2 del plan (grep del mensaje ciego en lib/features) falla en LAS DOS direcciones, DECIMO gate de grep defectuoso de la fase (11-06, 11-08 x2, 11-13 x2, 11-19, 11-12, 11-14, 11-23). Un COMENTARIO que cite el texto lo pone rojo; un mensaje ciego con OTRA redaccion ('Sin conexion. Reintenta.') lo pasa. Medido en vivo con 3 mutaciones. Lo que SI caza la redaccion distinta son los casos de comportamiento
+- 11-23: el criterio para tocar un catch es que AFIRME una causa concreta ('es tu codigo', 'es tu conexion'). Un 'no se pudo hacer X' es incompleto pero no miente: por eso reservas, auth y perfil se dejan como estan, con la tabla del barrido en el SUMMARY
+- 11-23: DEUDA - los dos `catch (_)` de reserva_controller.dart son MUDOS (se tragan la excepcion sin traza). Mismo defecto que T-11-23-04, en el flujo de reservas, fuera de alcance
+
 ## Performance Metrics
 
 | Phase | Plan | Duracion | Tareas | Archivos |
@@ -224,16 +239,18 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | 11 | 19 | ~80 min | 3 | 20 |
 | 11 | 14 | ~135 min | 3 | 19 |
 | 11 | 24 | ~38 min | 3 | 13 |
+| 11 | 23 | ~2h 05min | 3 | 10 |
 
 ## Session
 
 - Last session: 2026-08-20
-- Stopped at: Completado 11-24-PLAN.md (baja reversible de personal: matriz pura + callable cambiarEstadoStaff + acciones en /equipo; 26 roturas deliberadas, 4 verdes cazadas). Ejecutado en paralelo con 11-14 y 11-23 en el mismo arbol.
+- Stopped at: Completado 11-23-PLAN.md (mensajes honestos del flujo de mesa: 5 causas / 5 mensajes; 34 roturas deliberadas, 3 verdes cazadas, decimo gate de grep defectuoso de la fase). Ejecutado en paralelo con 11-24 y 11-25 en el mismo arbol.
+- Stopped at (anterior): Completado 11-24-PLAN.md (baja reversible de personal: matriz pura + callable cambiarEstadoStaff + acciones en /equipo; 26 roturas deliberadas, 4 verdes cazadas). Ejecutado en paralelo con 11-14 y 11-23 en el mismo arbol.
 - Stopped at (anterior): Completado 11-14-PLAN.md (accesibilidad de app_cliente: 48dp + etiquetas + contraste AA; 24 roturas deliberadas, 3 verdes cazadas). Ejecutado en paralelo con 11-12 y 11-24.
 - Stopped at (anterior): Completado 11-12-PLAN.md (tokens del panel: 18 hex + 7 sombras + 9 botones + 3 ErrorBox; 36 roturas, cobertura de render anadida por desviacion Regla 2). Ejecutado ANTES que 11-14, que figura en su depends_on, sin necesitar nada de el.
 - Stopped at (anterior): Completado 11-19-PLAN.md (tokens de la app cliente: 20 hex + 34 TextStyle + 103 espaciados; migracion 1:1 demostrada mecanicamente, 0 diferencias de valor). Ejecutado en paralelo con 11-21.
 - Stopped at (anterior): Completado 11-13-PLAN.md (todo lo visible de la app cliente: zona segura, responsive, overflow e iconos; 21 roturas deliberadas, 2 verdes cazadas). Ejecutado en paralelo con 11-21.
-- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-14-PLAN.md
+- Resume file: .planning/phases/11-correcci-n-cr-tica-y-profesionalizaci-n-bootstrap-reglas-ndi/11-23-PLAN.md
 
 ## Blockers / Notas
 
@@ -301,3 +318,10 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-14 (AJENO, sigue sin commitear): app_cliente/lib/features/restaurantes/restaurantes_provider.g.dart sigue regenerado sin que ningun plan lo reclame (declarado por 11-13 y 11-19). 11-14 tampoco lo estageo: no ejecuto build_runner ni toco ningun @riverpod.
 - 11-14 AVISO PARA 11-25 (accesibilidad del panel): (1) sonda si tus controles de icono abren nodo propio ANTES de confiar en androidTapTargetGuideline; (2) busca nombres accesibles por `tooltip` ademas de por `label`; (3) el fondo del panel es #F5F6F8, NO #F7F7F7: recalcula el ratio en vez de copiar el numero; (4) su textoSecundarioAccesible vive solo como campo de instancia — anade la constante a GriColors si tus puntos de uso son `const`.
 - 11-14: `test:rules`, `test:functions` y `audit:indexes` NO se ejecutaron (el plan no toca rules, indices ni functions, y 11-24 tenia functions/ y scripts/test/functions/ abiertos en el mismo arbol). Si se ejecuto `audit:branding`, exit 0.
+- 11-23: UX-05 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11): `requirements.mark-complete UX-05` lo devuelve como not_found. Queda en el frontmatter del SUMMARY.
+- 11-23: `pedidos_provider.dart` figura en el `files_modified` del plan pero NO SE TOCO: no contiene ni un solo `catch`. Los fallos crudos suben a las pantallas, que es donde estaban los catch ciegos y donde se corrigieron. Declarado como desviacion en el SUMMARY.
+- 11-23 (COLISION DE ARBOL COMPARTIDO, la otra cara de la que declara 11-24): los 8 archivos de panel_admin/docs que 11-24 dejo ESTAGEADOS se fueron dentro de MI commit `2ada353`. CAUSA RAIZ: `git commit -m` SIN pathspec committea el INDICE ENTERO, no solo lo que acabas de anadir. Estagear solo lo propio (que es lo que se hizo: `git add app_cliente/lib/core/firebase_error_mapper.dart`) NO basta en arbol compartido. LECCION: usar `git commit -- <rutas>` o comprobar `git diff --cached --name-only` ANTES de committear. Auditados los 6 commits de 11-23: solo `2ada353` esta contaminado; los otros 5 llevan exactamente sus archivos. NO se reescribio el historial (destructivo con otros ejecutores activos) y el contenido esta intacto en HEAD.
+- 11-23 AVISO: `codigoMesaRegExp` cambio de ARCHIVO (scan_screen.dart -> sesion_provider.dart), NO de valor. Los 4 comentarios que la citan apuntando a scan_screen.dart siguen desactualizados en la UBICACION: panel_admin/lib/features/configuracion/slug.dart, panel_admin/test/configuracion/slug_test.dart, functions/src/auth-matrix.js y scripts/test/rules/mesas.test.mjs. Son de otros ejecutores y no se tocaron. La COPIA literal de slug_test.dart (decision de 11-05) sigue siendo correcta.
+- 11-23: los 4 doc comments de `sesion_provider.g.dart` se actualizaron A MANO (es exactamente lo que emitiria build_runner). NO se ejecuto build_runner a proposito: 11-24 y 11-25 tenian archivos abiertos en el mismo arbol y regenerar todos los .g.dart habria mezclado trabajo ajeno.
+- 11-23: `test:rules`, `test:functions`, `audit:indexes` y `audit:branding` NO se ejecutaron (el plan no toca rules, indices, functions ni assets de marca, y 11-24/11-25 tenian functions/ y panel_admin/ abiertos).
+- 11-23 PENDIENTE DE VERIFICACION HUMANA: (1) que los 6 textos nuevos SE LEAN bien y de verdad ayuden — un widget test prueba que una cadena se renderiza ante un fallo simulado, no que un comensal con el movil en la mano entienda que hacer; (2) el incidente REAL de punta a punta: entrar con una cuenta de staff contra Firebase real y escanear un QR valido. Aqui se INYECTO el permission-denied en el fake, y `fake_cloud_firestore` NO tiene motor de rules (11-04): esta probada la REACCION al codigo de error, no que las rules lo emitan en ese caso; (3) arrancar con --dart-define=USE_EMULATORS=true y los emuladores apagados, para confirmar que un emulador caido produce `unavailable` y no otro codigo.
