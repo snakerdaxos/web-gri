@@ -1,13 +1,16 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gri_cliente/core/firebase_error_mapper.dart';
 import 'package:gri_cliente/core/firebase_providers.dart';
 import 'package:gri_cliente/core/state_machines.dart';
 import 'package:gri_cliente/features/sesion_qr/scan_screen.dart';
 import 'package:gri_cliente/features/sesion_qr/sesion_provider.dart';
 import 'package:gri_cliente/models/sesion_mesa.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:mock_exceptions/mock_exceptions.dart';
 
 import '../helpers/firebase_fakes.dart';
 
@@ -107,18 +110,182 @@ void main() {
         'La mesa no está disponible en este momento');
   });
 
-  test('código inexistente (GRI-MESA-demo-999) → "Código de mesa inválido"',
+  // CAMBIADO EN 11-23: antes este caso afirmaba 'Código de mesa inválido', el
+  // MISMO texto que recibía un código con el formato roto. Eran dos causas
+  // distintas con un solo mensaje; ahora cada una tiene el suyo.
+  test('código BIEN FORMADO pero inexistente (GRI-MESA-demo-999) → mensaje de mesa inexistente',
       () async {
     final db = await buildFakeFirestoreConSeed();
 
     await expectLater(
       abrirSesion(db, uid: 'uid-a', codigoQR: 'GRI-MESA-demo-999'),
-      throwsA(isA<SesionException>()
-          .having((e) => e.message, 'message', 'Código de mesa inválido')),
+      throwsA(isA<SesionException>().having((e) => e.message, 'message',
+          mensajeDe(CausaFallo.noEncontrado, contexto: Contexto.abrirMesa))),
     );
 
     final sesiones = await db.collection('sesiones').get();
     expect(sesiones.docs, isEmpty, reason: 'sin doc creado');
+  });
+
+  test('código con formato ROTO → mensaje de formato, DISTINTO del de mesa inexistente',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+
+    // Lo que devuelve el QR de otra app: una URL, no un código de mesa. Por la
+    // cámara (`_onDetect`) esto entra SIN pasar por el validator del campo
+    // manual, así que la comprobación tiene que vivir en el dominio.
+    for (final basura in <String>[
+      'https://ejemplo.com/mesa/1',
+      'GRI-MESA-001', // le falta el slug del restaurante
+      'gri-mesa-demo-001', // minúsculas
+      'GRI-MESA-demo-1', // sin los tres dígitos
+      '',
+    ]) {
+      await expectLater(
+        abrirSesion(db, uid: 'uid-a', codigoQR: basura),
+        throwsA(isA<SesionException>().having(
+            (e) => e.message,
+            'message',
+            mensajeDe(CausaFallo.formatoInvalido,
+                contexto: Contexto.abrirMesa))),
+        reason: 'código rechazado: $basura',
+      );
+    }
+
+    expect(
+      mensajeDe(CausaFallo.formatoInvalido, contexto: Contexto.abrirMesa),
+      isNot(mensajeDe(CausaFallo.noEncontrado, contexto: Contexto.abrirMesa)),
+      reason: 'formato roto y mesa inexistente NO son la misma cosa',
+    );
+  });
+
+  // ── El incidente real: permission-denied y backend inalcanzable ──────────
+
+  test('permission-denied de Firestore → mensaje sobre la CUENTA, no sobre el código',
+      () async {
+    final db = await buildFakeFirestoreConSeed();
+    // Inyección en la lectura de `sesiones/{mesa}` dentro de la tx. En
+    // producción la denegación del incidente venía del `create` sobre
+    // `sesiones` (la regla exige `isCliente()` y la cuenta era `super_admin`);
+    // el fake no puede lanzar desde el `tx.set` sin dejar un future huérfano,
+    // así que se inyecta en la lectura de la MISMA colección. Al clasificador
+    // le da igual qué llamada lanzó: lo que clasifica es el `code`.
+    whenCalling(Invocation.method(#get, null))
+        .on(db.doc('sesiones/$_mesa'))
+        .thenThrow(FirebaseException(
+            plugin: 'cloud_firestore', code: 'permission-denied'));
+
+    final container = ProviderContainer(overrides: [
+      firestoreProvider.overrideWithValue(db),
+      firebaseAuthProvider.overrideWithValue(mockAuth(uid: 'uid-a')),
+    ]);
+    addTearDown(container.dispose);
+
+    final error = await container
+        .read(sesionControllerProvider.notifier)
+        .abrir(_mesa)
+        .then<Object?>((s) => s, onError: (Object e) => e);
+
+    expect(error, isA<SesionException>());
+    final mensaje = (error as SesionException).message;
+    expect(mensaje,
+        mensajeDe(CausaFallo.permisoDenegado, contexto: Contexto.abrirMesa));
+    // La regresión, afirmada donde nace:
+    expect(mensaje.toLowerCase(), isNot(contains('código')));
+    expect(mensaje.toLowerCase(), isNot(contains('qr')));
+    expect(mensaje.toLowerCase(), isNot(contains('verifica')));
+  });
+
+  test('unavailable de Firestore → mensaje sobre la CONEXIÓN', () async {
+    final db = await buildFakeFirestoreConSeed();
+    whenCalling(Invocation.method(#get, null)).on(db.doc('mesas/$_mesa'))
+        .thenThrow(
+            FirebaseException(plugin: 'cloud_firestore', code: 'unavailable'));
+
+    final container = ProviderContainer(overrides: [
+      firestoreProvider.overrideWithValue(db),
+      firebaseAuthProvider.overrideWithValue(mockAuth(uid: 'uid-a')),
+    ]);
+    addTearDown(container.dispose);
+
+    final error = await container
+        .read(sesionControllerProvider.notifier)
+        .abrir(_mesa)
+        .then<Object?>((s) => s, onError: (Object e) => e);
+
+    expect(error, isA<SesionException>());
+    expect((error as SesionException).message,
+        mensajeDe(CausaFallo.sinConexion, contexto: Contexto.abrirMesa));
+  });
+
+  test('LAS CINCO CAUSAS dan CINCO mensajes distintos a través del controller',
+      () async {
+    // No es el test del mapeador (aquel compara la tabla consigo misma): aquí
+    // cada mensaje se OBTIENE ejecutando el flujo real con su causa montada.
+    Future<String> mensajeDelFlujo(
+      Future<dynamic> Function() montar,
+      String codigo,
+    ) async {
+      final db = await montar();
+      final container = ProviderContainer(overrides: [
+        firestoreProvider.overrideWithValue(db),
+        firebaseAuthProvider.overrideWithValue(mockAuth(uid: 'uid-a')),
+      ]);
+      addTearDown(container.dispose);
+      final error = await container
+          .read(sesionControllerProvider.notifier)
+          .abrir(codigo)
+          .then<Object?>((s) => s, onError: (Object e) => e);
+      expect(error, isA<SesionException>(), reason: 'código $codigo');
+      return (error as SesionException).message;
+    }
+
+    final formato = await mensajeDelFlujo(
+        buildFakeFirestoreConSeed, 'https://ejemplo.com/mesa/1');
+    final inexistente =
+        await mensajeDelFlujo(buildFakeFirestoreConSeed, 'GRI-MESA-demo-999');
+    final noDisponible = await mensajeDelFlujo(() async {
+      final db = await buildFakeFirestoreConSeed();
+      await db.doc('mesas/$_mesa').update({'estado': 'limpieza'});
+      return db;
+    }, _mesa);
+    final permiso = await mensajeDelFlujo(() async {
+      final db = await buildFakeFirestoreConSeed();
+      whenCalling(Invocation.method(#get, null))
+          .on(db.doc('sesiones/$_mesa'))
+          .thenThrow(FirebaseException(
+              plugin: 'cloud_firestore', code: 'permission-denied'));
+      return db;
+    }, _mesa);
+    final red = await mensajeDelFlujo(() async {
+      final db = await buildFakeFirestoreConSeed();
+      whenCalling(Invocation.method(#get, null)).on(db.doc('mesas/$_mesa'))
+          .thenThrow(FirebaseException(
+              plugin: 'cloud_firestore', code: 'unavailable'));
+      return db;
+    }, _mesa);
+
+    final mensajes = <String, String>{
+      'formatoInvalido': formato,
+      'noEncontrado': inexistente,
+      'noDisponible': noDisponible,
+      'permisoDenegado': permiso,
+      'sinConexion': red,
+    };
+    final claves = mensajes.keys.toList();
+    for (var i = 0; i < claves.length; i++) {
+      for (var j = i + 1; j < claves.length; j++) {
+        expect(mensajes[claves[i]], isNot(mensajes[claves[j]]),
+            reason: '${claves[i]} y ${claves[j]} comparten mensaje');
+      }
+    }
+    // Y ninguno de los dos que NO son culpa del usuario habla del código.
+    for (final clave in ['permisoDenegado', 'sinConexion']) {
+      final texto = mensajes[clave]!.toLowerCase();
+      expect(texto, isNot(contains('código')), reason: clave);
+      expect(texto, isNot(contains('qr')), reason: clave);
+      expect(texto, isNot(contains('verifica')), reason: clave);
+    }
   });
 
   test('sesión cerrada previa en esa mesa → se permite re-abrir', () async {
@@ -288,6 +455,160 @@ void main() {
         find.text('La mesa no está disponible en este momento'), findsOneWidget);
     expect(find.text('MESA_PAGE'), findsNothing);
   });
+
+  // ── 11-23: la pantalla ante las causas que NO son culpa del código ───────
+
+  /// Junta el `data` de TODOS los `Text` del árbol. Mismo criterio que el 404
+  /// de 11-09: no se mira el widget que uno espera, se mira TODO lo que el
+  /// usuario puede leer — incluidos el AppBar, el hint del campo y el
+  /// SnackBar.
+  String textoVisible(WidgetTester tester) => tester
+      .widgetList<Text>(find.byType(Text))
+      .map((t) => t.data ?? '')
+      .join(' ⏐ ');
+
+  Future<void> intentarAbrir(WidgetTester tester, String codigo) async {
+    await tester.enterText(find.byType(TextFormField), codigo);
+    await tester.tap(find.text('Abrir mesa'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+
+  testWidgets('permission-denied → la pantalla habla de la CUENTA y NO dice código, QR ni verifica',
+      (tester) async {
+    // El incidente real, reproducido de punta a punta: cuenta sin permiso para
+    // crear sesión (era `super_admin`), QR perfectamente correcto.
+    final db = await buildFakeFirestoreConSeed();
+    whenCalling(Invocation.method(#get, null))
+        .on(db.doc('sesiones/$_mesa'))
+        .thenThrow(FirebaseException(
+            plugin: 'cloud_firestore', code: 'permission-denied'));
+
+    await tester.pumpWidget(wrapFake(FakeTestFirestoreBuilder(db: db)));
+    await tester.pumpAndSettle();
+    await intentarAbrir(tester, _mesa);
+
+    expect(
+        find.text(mensajeDe(CausaFallo.permisoDenegado,
+            contexto: Contexto.abrirMesa)),
+        findsOneWidget);
+    expect(find.text('MESA_PAGE'), findsNothing);
+
+    // LA REGRESIÓN. El usuario perdió el tiempo revisando un QR correcto
+    // porque la pantalla le habló del código. Ya no puede volver a pasar: se
+    // afirma sobre TODO el texto visible, no solo sobre el SnackBar.
+    final visible = textoVisible(tester).toLowerCase();
+    expect(visible, isNot(contains('verifica')));
+    expect(visible, isNot(contains('no pudimos abrir la mesa')));
+    expect(visible, contains('cuenta'));
+  });
+
+  testWidgets('permission-denied → el botón vuelve y se puede reintentar',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    whenCalling(Invocation.method(#get, null))
+        .on(db.doc('sesiones/$_mesa'))
+        .thenThrow(FirebaseException(
+            plugin: 'cloud_firestore', code: 'permission-denied'));
+
+    await tester.pumpWidget(wrapFake(FakeTestFirestoreBuilder(db: db)));
+    await tester.pumpAndSettle();
+    await intentarAbrir(tester, _mesa);
+
+    final boton = tester.widget<ElevatedButton>(
+        find.ancestor(of: find.text('Abrir mesa'), matching: find.byType(ElevatedButton)));
+    expect(boton.onPressed, isNotNull, reason: 'habilitado para reintentar');
+
+    // Segundo intento: mismo mensaje, sin quedarse colgado.
+    await intentarAbrir(tester, _mesa);
+    expect(
+        find.text(mensajeDe(CausaFallo.permisoDenegado,
+            contexto: Contexto.abrirMesa)),
+        findsWidgets);
+  });
+
+  testWidgets('unavailable → la pantalla habla de la CONEXIÓN', (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    whenCalling(Invocation.method(#get, null)).on(db.doc('mesas/$_mesa'))
+        .thenThrow(
+            FirebaseException(plugin: 'cloud_firestore', code: 'unavailable'));
+
+    await tester.pumpWidget(wrapFake(FakeTestFirestoreBuilder(db: db)));
+    await tester.pumpAndSettle();
+    await intentarAbrir(tester, _mesa);
+
+    expect(
+        find.text(
+            mensajeDe(CausaFallo.sinConexion, contexto: Contexto.abrirMesa)),
+        findsOneWidget);
+    expect(find.text('MESA_PAGE'), findsNothing);
+    final visible = textoVisible(tester).toLowerCase();
+    expect(visible, isNot(contains('verifica')));
+  });
+
+  testWidgets('mesa inexistente → la pantalla dice que la mesa no existe, no que el código esté mal',
+      (tester) async {
+    final db = await buildFakeFirestoreConSeed();
+    await tester.pumpWidget(wrapFake(FakeTestFirestoreBuilder(db: db)));
+    await tester.pumpAndSettle();
+    await intentarAbrir(tester, 'GRI-MESA-demo-999');
+
+    expect(
+        find.text(
+            mensajeDe(CausaFallo.noEncontrado, contexto: Contexto.abrirMesa)),
+        findsOneWidget);
+    expect(find.text('Código de mesa inválido'), findsNothing,
+        reason: 'el mensaje viejo, que confundía las dos causas, ya no existe');
+    expect(find.text('MESA_PAGE'), findsNothing);
+  });
+
+  testWidgets('un fallo CRUDO que se salta al controller no sale como "Error de conexión"',
+      (tester) async {
+    // El `catch (e)` de scan_screen es la última red: solo se alcanza si algo
+    // lanza FUERA del try de `SesionController.abrir` (hoy el controller ya
+    // envuelve todo en SesionException, así que es defensa en profundidad).
+    // Se fuerza sustituyendo el controller por uno que lanza el error crudo.
+    final db = await buildFakeFirestoreConSeed();
+    final router = GoRouter(
+      initialLocation: '/sesion/scan',
+      routes: [
+        GoRoute(path: '/sesion/scan', builder: (_, _) => const ScanScreen()),
+        GoRoute(
+          path: '/mesa',
+          builder: (_, _) =>
+              const Scaffold(body: Center(child: Text('MESA_PAGE'))),
+        ),
+      ],
+    );
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        firestoreProvider.overrideWithValue(db),
+        firebaseAuthProvider.overrideWithValue(mockAuth()),
+        sesionControllerProvider.overrideWith(ControllerQueLanzaCrudo.new),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ));
+    await tester.pumpAndSettle();
+    await intentarAbrir(tester, _mesa);
+
+    expect(find.text('Error de conexión. Intenta de nuevo.'), findsNothing,
+        reason: 'el mensaje ciego que afirmaba una causa sin saberla');
+    expect(
+        find.text(mensajeDe(CausaFallo.permisoDenegado,
+            contexto: Contexto.abrirMesa)),
+        findsOneWidget);
+  });
+}
+
+/// Controller que lanza el error CRUDO de Firebase sin envolverlo — la única
+/// forma de alcanzar el `catch (e)` genérico de `ScanScreen`.
+class ControllerQueLanzaCrudo extends SesionController {
+  @override
+  Future<SesionMesa> abrir(String codigoQr) async {
+    throw FirebaseException(
+        plugin: 'cloud_firestore', code: 'permission-denied');
+  }
 }
 
 /// Envoltorio mínimo para inyectar db+auth al _wrap de los widget tests.
