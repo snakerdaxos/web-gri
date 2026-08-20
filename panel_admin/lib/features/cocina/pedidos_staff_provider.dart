@@ -75,6 +75,65 @@ Stream<List<AvisoCuenta>> avisoCuenta(Ref ref) async* {
           ]);
 }
 
+/// Los pedidos YA SERVIDOS de la sesión abierta en [mesaId] — la cuenta que
+/// el mesero tiene que cobrar (plan 11-32).
+///
+/// ── POR QUÉ ESTA FORMA DE CONSULTA Y NO OTRA ─────────────────────────
+/// Lo natural sería `where('sesionId') + where('estado')`. No se puede, por
+/// dos motivos independientes y los dos verificables sin desplegar:
+///
+///  1. RULES. Firestore evalúa las rules contra la CONSULTA, no contra los
+///     documentos devueltos. La rama de staff de `/pedidos` es
+///     `staffOf(resource.data.restauranteId)`, así que la query DEBE llevar
+///     `where('restauranteId', isEqualTo: rid)` o se deniega ENTERA — el
+///     mismo modo de fallo del menú (11-03) y del listener del cliente
+///     (11-28). Lo vigila `scripts/audit_indexes.mjs` (AUDIT 2/4).
+///  2. ÍNDICES. `pedidos(restauranteId, estado, createdAt ASC)` YA existe en
+///     `firestore.indexes.json` (lo usa la cola de cocina). Con igualdad en
+///     los dos primeros campos y RANGO en `createdAt`, ese mismo índice sirve
+///     a esta consulta: 11-32 no necesita índice nuevo ni despliegue.
+///
+/// ── LA VENTANA `createdAt >= inicioAt` NO ES UNA OPTIMIZACIÓN ──────────
+/// `sesiones/{mesaId}` tiene doc ID DETERMINISTA y `abrirSesion()` hace
+/// `tx.set()` sobre el MISMO documento en cada visita. Los pedidos de la
+/// visita anterior conservan su `sesionId`, así que sin acotar por el
+/// `inicioAt` de la sesión VIGENTE el mesero le cobraría a este comensal la
+/// cena del anterior. Además acota lo que se lee: sin ella la consulta
+/// crecería con todo el histórico de pedidos servidos del restaurante.
+///
+/// Si no hay doc de sesión (o no trae `inicioAt`) se cae a una ventana de 24
+/// horas: la FORMA de la consulta no cambia nunca — el audit estático la
+/// parsea siempre igual y el índice sirve en los dos casos.
+///
+/// El filtro final por `sesionId` es client-side a propósito: añadirlo a la
+/// query obligaría a un índice nuevo y el conjunto que llega ya está acotado
+/// al restaurante y a la ventana de la sesión.
+@riverpod
+Stream<List<PedidoStaff>> pedidosServidosMesa(Ref ref, String mesaId) async* {
+  final db = ref.watch(firestoreProvider);
+  final rid = await ref.watch(ridActivoProvider.future);
+
+  if (rid == null) {
+    yield const <PedidoStaff>[];
+    return;
+  }
+
+  final sesionSnap = await db.doc('sesiones/$mesaId').get();
+  final inicio = (sesionSnap.data()?['inicioAt'] as Timestamp?)?.toDate() ??
+      DateTime.now().subtract(const Duration(hours: 24));
+
+  yield* db
+      .collection('pedidos')
+      .where('restauranteId', isEqualTo: rid)
+      .where('estado', isEqualTo: 'servido')
+      .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
+      .snapshots()
+      .map((snap) => [
+            for (final doc in snap.docs)
+              if (doc.data()['sesionId'] == mesaId) PedidoStaff.fromDoc(doc),
+          ]);
+}
+
 /// Matriz rol×transición de pedidos (espejo client-side de las rules 10-01
 /// — la autoridad). `enviado→aceptado|rechazado` y
 /// `aceptado→en_preparacion`: cocina/admin/super; `en_preparacion→
