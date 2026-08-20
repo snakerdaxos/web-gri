@@ -121,7 +121,7 @@ void main() {
   });
 
   testWidgets(
-      'reservar para HOY desde la UI: el doc lleva la fecha de hoy y la mesa '
+      'reservar para HOY desde la UI: el doc lleva la fecha de hoy '
       'y la mesa NO se toca (11-34)', (tester) async {
     // 11-31 escribió aquí «la primera vez que la rama `esHoy` del controller
     // se ejecuta DESDE EL PRODUCTO». Se ejecutó, se vio lo que hacía —
