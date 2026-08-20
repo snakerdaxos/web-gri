@@ -14,12 +14,21 @@ import '../../core/gri_icons.dart';
 /// Pantalla /reservas (RESV-05 UI, 10-06): reservas de HOY del tenant EN
 /// VIVO (`reservasHoyProvider` — misma query del dashboard, onSnapshot).
 ///
-/// * 'Marcar ocupada' (confirmadas): transición de la MESA
-///   `reservada → ocupada` vía [marcarMesaOcupada] — la transición se
-///   valida ANTES del write ([cambiarEstadoMesa] 10-05; las rules
-///   re-fuerzan `transMesa`). Un [TransicionInvalidaException] (otro staff
-///   movió la mesa primero) se traduce a SnackBar — el stream ya muestra
-///   la verdad.
+/// * 'Marcar ocupada' (confirmadas): la MESA pasa a `ocupada` desde el
+///   estado que tenga —`reservada` si la reserva se creó hoy, `disponible`
+///   si se creó ayer para hoy (11-29)— vía [marcarMesaOcupada]; la
+///   transición se valida ANTES del write ([cambiarEstadoMesa] 10-05; las
+///   rules re-fuerzan `transMesa`). Un [TransicionInvalidaException] (otro
+///   staff movió la mesa primero) se traduce a SnackBar — el stream ya
+///   muestra la verdad.
+///
+/// DEUDA DECLARADA (11-29): el mapa de mesas del dashboard pinta el campo
+/// `estado`, así que una reserva para MÁS TARDE HOY creada en un día anterior
+/// no tiñe la mesa de amarillo. Es correcto respecto del momento presente
+/// —la mesa está libre ahora— pero el operador pierde el aviso. El modelo
+/// correcto es que el mapa lea las reservas del día; el usuario eligió el
+/// cambio mínimo. ESTA pantalla no se ve afectada: lee la colección
+/// `reservas`, no el estado de la mesa.
 /// * 'No-show' (pendientes/confirmadas): [cancelarReservaNoShow] — la
 ///   reserva pasa a `cancelada` (staff lo permite rules).
 class ReservasScreen extends ConsumerWidget {

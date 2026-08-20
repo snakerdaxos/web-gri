@@ -144,6 +144,35 @@ void main() {
   );
 
   testWidgets(
+    '(b2) Marcar ocupada con la mesa DISPONIBLE: la reserva de hoy creada AYER '
+    'no la pre-marcaba (11-29)',
+    (tester) async {
+      // CONSECUENCIA DIRECTA DEL BUG B. Antes de 11-29, crear una reserva
+      // marcaba la mesa 'reservada' en el acto, fuera cual fuera la fecha, así
+      // que al llegar el cliente la mesa SIEMPRE estaba 'reservada' y la
+      // transición era reservada→ocupada. Desde 11-29 el estado solo se toca
+      // si el slot es de HOY: una reserva para hoy creada AYER deja la mesa
+      // 'disponible' y el botón tiene que seguir funcionando
+      // (disponible→ocupada está en la máquina y en `transMesa` de las rules).
+      final db = await buildFakeFirestoreConSeed();
+      await _seedHoy(db);
+      // El seed marca la mesa 2 'reservada'. Se deshace: este es el escenario
+      // nuevo, la mesa libre hasta que el cliente aparece.
+      await db.doc('mesas/GRI-MESA-demo-002').update({'estado': 'disponible'});
+      await _pump(tester, db);
+
+      await tester.tap(find.text('Marcar ocupada'));
+      await tester.pumpAndSettle();
+
+      final mesa = await db.doc('mesas/GRI-MESA-demo-002').get();
+      expect(mesa.data()!['estado'], 'ocupada');
+      expect(find.text('Mesa 2 marcada ocupada'), findsOneWidget);
+      // Y NO el mensaje de carrera, que sería falso aquí.
+      expect(find.text('La mesa ya cambió de estado'), findsNothing);
+    },
+  );
+
+  testWidgets(
     '(c) No-show → reserva cancelada (doc + chip tachado en vivo)',
     (tester) async {
       final db = await buildFakeFirestoreConSeed();

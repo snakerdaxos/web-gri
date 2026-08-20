@@ -43,14 +43,23 @@ Stream<List<Reserva>> reservasHoy(Ref ref) async* {
       .map((snap) => [for (final doc in snap.docs) Reserva.fromDoc(doc)]);
 }
 
-/// 'Marcar ocupada' al llegar el cliente de una reserva: transición de la
-/// MESA `reservada → ocupada` vía [cambiarEstadoMesa] (10-05 — valida la
-/// transición ANTES del update y toca SOLO {estado, updatedAt}; las rules
-/// re-fuerzan `transMesa`).
+/// 'Marcar ocupada' al llegar el cliente de una reserva: la MESA pasa a
+/// `ocupada` DESDE EL ESTADO QUE TENGA, vía [cambiarEstadoMesa] (10-05 —
+/// valida la transición ANTES del update y toca SOLO {estado, updatedAt}; las
+/// rules re-fuerzan `transMesa`).
+///
+/// ⚠️ EL ORIGEN YA NO ES SIEMPRE `reservada` (11-29). Antes, crear una reserva
+/// marcaba la mesa en el acto fuera cual fuera la fecha, así que al llegar el
+/// cliente la mesa estaba siempre `reservada`. Desde 11-29 el `estado` solo lo
+/// toca una reserva de HOY: una reserva de hoy creada AYER deja la mesa
+/// `disponible`, y `disponible → ocupada` es igual de válida en la máquina y
+/// en `transMesa`. NO reintroducir un guard que exija `reservada`: rompería
+/// justo ese caso (lo custodia el caso (b2) de reservas_screen_test.dart).
 ///
 /// La reserva en sí NO cambia de estado (ocurrió); lo que se mueve es la
-/// mesa. Si otro staff la movió primero → [TransicionInvalidaException]
-/// (la UI la traduce a 'La mesa ya cambió de estado').
+/// mesa. Si otro staff la movió primero (a `ocupada` o `limpieza`) →
+/// [TransicionInvalidaException] (la UI la traduce a 'La mesa ya cambió de
+/// estado').
 Future<void> marcarMesaOcupada(
   FirebaseFirestore db, {
   required Reserva reserva,

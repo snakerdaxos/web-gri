@@ -65,7 +65,7 @@ Una fila por punto de uso. Las líneas son las del árbol tras 11-21.
 | 📅 | `features/reportes/reportes_screen.dart:139` | `calendar_today_outlined` | `reservas` | 14 |
 | 💵 | `features/reportes/reportes_screen.dart:252` | `payments_outlined` | `ventas` | 25 |
 | 🧾 | `features/reportes/reportes_screen.dart:260` | `receipt_outlined` | `ticket` | 25 |
-| 📅 | `features/reservas/reservas_screen.dart:99` | `calendar_today_outlined` | `reservas` | 18 |
+| 📅 | `features/reservas/reservas_screen.dart:108` | `calendar_today_outlined` | `reservas` | 18 |
 | `\u{1F9ED}` (🧭) | `features/shared/not_found_screen.dart:52` | `explore_outlined` | `rutaDesconocida` | 40 |
 
 **33 sustituciones** en 13 archivos. Rutas relativas a `panel_admin/lib/`.
