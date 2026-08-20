@@ -153,3 +153,13 @@
 - **Qué haría falta:** (a) que el formulario del panel valide la URL con
   `urlFotoSegura` (el gemelo Dart ya existe en app_cliente, habría que portarlo) y
   muestre una vista previa; (b) que el seed traiga una URL por plato. 1-2 horas.
+
+## 11-31 — fuera de alcance, no tocado
+
+- `app_cliente/test/pedidos/cuenta_vista_test.dart:129,147,172` —
+  `prefer_interpolation_to_compose_strings` (3 issues de `flutter analyze`).
+  Es el archivo que el ejecutor de **11-32** tenía a medias (commit `9b799a7`, fase RED)
+  mientras corría 11-31; no es mío y arreglarlo sería pisarle el trabajo. **El gate
+  `app_cliente: flutter analyze` está en FALLO por estos 3 issues y solo por ellos**
+  (verificado: `flutter analyze` no reporta nada de `features/reservas/` ni de
+  `core/reloj.dart`). Lo cierra 11-32 al pasar a GREEN.

@@ -60,6 +60,26 @@ Phase 11: 25/26 planes [########################-] 96%  (26 planes y 25 SUMMARY 
 
 - [x] 11-28 P0 de `pedidos` en produccion: DOS bugs distintos con el mismo sintoma. (a) La query del cliente `pedidos where sesionId + orderBy createdAt` NO era demostrable frente a la regla (`usuarioId == uid`) y Firestore denegaba el LISTENER ENTERO — pantalla en blanco tras enviar el pedido; reproducido contra el emulador ANTES de tocar nada (`Property usuarioId is undefined on object. for 'list'`). Arreglado con `where('usuarioId')`, que ademas cierra una INCORRECCION: `sesiones/{mesaId}` se REUTILIZA (`abrirSesion` hace tx.set sobre el mismo id), asi que sin el filtro el siguiente comensal veia los pedidos del anterior. (b) Cocina y reportes daban FAILED_PRECONDITION en el proyecto REAL con el indice DECLARADO Y CONSTRUIDO: estaba en `createdAt DESCENDING` y las consultas ordenan ASC (la de reportes, por el rango sin orderBy, que impone ASC implicito). NO reproducible en local — el emulador no evalua indices compuestos. HALLAZGO CENTRAL: `audit_indexes.mjs` comprobaba la PRESENCIA del indice y no su SENTIDO, por eso las tres consultas rotas salian OK. Ahora exige sentido exacto, admite paridad por RAMAS (`usuarioId` | `restauranteId`, la forma real de las reglas en disyuncion) para pedidos/sesiones/reservas, y falla si una coleccion de las queries o de firestore.rules se queda SIN CLASIFICAR (AUDIT 3/4, el cierre por los dos lados). Nuevo `scripts/probar_consultas_reales.mjs`: firma custom token por uid+rol, lo canjea por idToken y lanza las consultas del MISMO inventario por REST contra el proyecto real — lo unico que distingue «falta indice» de «las reglas deniegan». 4 roturas deliberadas, las 4 en rojo como debian. Ninguna regla tocada: la consulta se adapta a la regla. app_cliente 345 -> 348, rules 260 -> 282, baseline panel_admin corregido 423 -> 445. PENDIENTE DE DESPLIEGUE: 2 indices nuevos de pedidos -- 22075de, 328bac1, 9893966, 1063ac7, 5a74aa5
 
+- [x] 11-31 Reservar el MISMO DIA con 4 h de margen (decision del usuario 2026-08-20). `firstDate` era manana:
+  hoy no era una fecha dificil de elegir, era INEXISTENTE. Regla unica: `slot >= ahora + 4 h` con la IGUALDAD
+  incluida; como los slots son horas en punto el efecto es subir el limite a la hora siguiente salvo que ya caiga
+  en punto (14:30 -> 19:00; 14:00 clavadas -> 18:00; a partir de las 17:01 hoy ya no admite nada y el calendario
+  abre en manana). El redondeo NO es una segunda regla: la rejilla es `horasSlotReserva.where(slotRespetaMargen)`,
+  asi que calendario, desplegable y validacion salen del MISMO predicado y no pueden contradecirse (probado
+  ademas hora por hora contra el validador, para 6 instantes fijos). Nuevo `core/reloj.dart`: sin un 'ahora'
+  inyectable ni el picker y el validador leen el mismo instante ni los tests de tiempo son deterministas — se
+  cazo que CINCO archivos de test estaban verdes por la hora que era (los de slot de HOY se habrian puesto rojos
+  a partir de las 19:01; los del wizard, a partir de las 15:01). Margen TAMBIEN server-side:
+  `fecha >= request.time + duration.value(4, 'h')` — la condicion vieja (`> request.time`) dejaba pasar un slot
+  a un minuto vista. Husos: los dos lados son instantes ABSOLUTOS, la comparacion no depende del huso; el borde
+  exacto de 4 h no se puede afirmar en el emulador (`request.time` no es inyectable) y se acota a +-30 s, con la
+  igualdad estricta custodiada en el cliente. La rama `esHoy` que 11-29 midio como INALCANZABLE pasa a
+  ejecutarse: probada tambien desde la UI, mesa ocupada incluida. Panel: NO se rediseña el mapa (deuda declarada
+  de 11-29), pero se documenta que pasa de «nunca avisa» a «avisa a veces», que es peor de interpretar.
+  10 roturas deliberadas, las 10 en rojo (7 de cliente + 3 de rules, una de ellas mutando el TEST para probar que
+  las reglas se evaluan). app_cliente 408 -> 439, rules 285 -> 290. NO DESPLEGADO: el usuario revisa las rules
+  antes -- 9e5e3e3, d223768, b8a4d6d
+
 - [x] 11-30 La CARTA del menu del cliente: las fotos que los 16 productos tenian guardadas desde la Fase 10 no se
   pintaban en ninguna parte (cero `Image`/`NetworkImage` en las dos pantallas de menu) y el menu era una lista de
   `ListTile` con el precio de `trailing` — las dos cosas reportadas por el usuario probando la app real. Ahora:
@@ -85,6 +105,16 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 3. Smoke e2e flujo completo ([A]-[M] emuladores o [P] real)
 
 ## Test Baselines (final Firebase)
+
+- 11-31: app_cliente 408 -> 439 (+31 MEDIDOS aparte: margen_reserva_test.dart 26 —la regla con instantes
+  literales, la rejilla, el calendario, crearReserva y la rama esHoy en vivo— y wizard_hoy_test.dart 5 —firstDate,
+  el desplegable filtrado, el alta de hoy de punta a punta y el reloj que corre con la pantalla abierta—).
+  rules 285 -> 290 (+5 de borde del margen server-side: 3 h no, 5 h si, -30 s no, +30 s si, «dentro de 1 minuto»
+  no). panel_admin 446, functions 149 + 50: SIN cambio. OJO al leer el gate: la pasada midio app_cliente 466
+  porque 11-32 trabaja en el mismo arbol; el baseline se subio a 439, que es lo medido y verificado de 11-31.
+  El gate `app_cliente: flutter analyze` salio en FALLO con 3 issues, TODOS de
+  `test/pedidos/cuenta_vista_test.dart` (archivo de 11-32 en fase RED): 8 OK / 1 fallo, ajeno a este plan y
+  anotado en deferred-items.md.
 
 - 11-30: app_cliente 371 -> 408 (+37: imagen_url_test.dart 12 puro, foto_producto_test.dart 8, producto_card_test.dart
   11, menu_carta_test.dart 6 — el CABLEADO, que es el unico nivel donde se habria cazado el fallo original de que la

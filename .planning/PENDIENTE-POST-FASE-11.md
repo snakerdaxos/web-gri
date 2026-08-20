@@ -36,11 +36,32 @@ estado, tampoco se consulta (el guard existía solo para proteger esa escritura)
 `cancelarReserva` solo revierte la mesa si la reserva era de hoy — si no, podría liberar una mesa
 que reservó OTRA reserva de esta tarde.
 
-**DEUDA QUE SIGUE ABIERTA (declarada, no resuelta).** El mapa de mesas del panel pinta el campo
-`estado`, así que una reserva para **más tarde hoy creada en un día anterior** ya no tiñe la mesa
-de amarillo: es correcto respecto del momento presente, pero el operador pierde el aviso. Lo mismo
-con el contador `mesasReservadas` del dashboard. El modelo correcto es que el mapa lea las
-**reservas del día** en vez de depender de un campo en vivo.
+**DEUDA QUE SIGUE ABIERTA (declarada, no resuelta) — Y AHORA ES MÁS VISIBLE.** El mapa de mesas
+del panel pinta el campo `estado`, así que una reserva para **más tarde hoy creada en un día
+anterior** no tiñe la mesa de amarillo: es correcto respecto del momento presente, pero el operador
+pierde el aviso. Lo mismo con el contador `mesasReservadas` del dashboard. El modelo correcto es que
+el mapa lea las **reservas del día** en vez de depender de un campo en vivo.
+
+Tras el plan 11-31 (reservar para hoy con 4 h de margen) el mapa pasa de «nunca avisa» a **«avisa a
+veces»**, que es peor de interpretar:
+
+| Reserva | ¿Tiñe la mesa de amarillo? |
+|---|---|
+| Creada HOY para más tarde HOY (nuevo desde 11-31) | **Sí** |
+| Creada AYER para HOY | No |
+| Creada hoy para mañana o más allá | No (correcto: describe este momento) |
+
+Antes de 11-31 el amarillo lo ponía **solo el staff** a mano, y eso era una lectura uniforme. Ahora
+el operador no puede deducir de dónde viene. **Verificado leyendo el código, no con datos reales:**
+`stats_provider.dart:71` cuenta `mesa.estado == reservada`, mientras que el contador `reservasHoy`
+del mismo provider consulta la colección `reservas` con la ventana del día — así que ESE sí muestra
+todas las reservas de hoy, vengan de cuando vengan. Las pantallas de reservas del panel tampoco
+dependen del estado de la mesa.
+
+Efecto secundario nuevo: con el margen de 4 h, una mesa reservada para hoy queda amarilla **al menos
+4 horas** antes del turno, y nada la devuelve a `disponible` si el cliente no aparece (el operador
+tiene que moverla a mano; ya pasaba con el «Marcar reservada» del staff). No se ha tocado: cambiar
+el modelo del mapa es una decisión de arquitectura, no un arreglo colado dentro de este plan.
 
 ### 2. Barrido de mensajes que culpan a lo equivocado  ✔ RESUELTO en el plan 11-29
 
@@ -52,6 +73,23 @@ traza con el código de Firebase y su clasificación.
 **Barrido completo de los 36 `catch` de las dos apps: no quedó ningún otro que afirme una causa
 falsa.** El detalle, sitio por sitio, está en el SUMMARY de 11-29. Hallazgos menores anotados allí
 (ninguno es una mentira sobre la causa).
+
+### 2-bis. Reservar el mismo día  ✔ RESUELTO en el plan 11-31
+
+`firstDate` era MAÑANA: hoy no se podía ni seleccionar. Decisión del usuario (2026-08-20): «sí pero
+con un margen de 4 horas, ya que no se puede reservar para la misma hora».
+
+Regla implantada: **`slot >= ahora + 4 h`, con la igualdad incluida**. Como los slots son horas en
+punto, a las 14:30 el primero de hoy es las 19:00 y a las 14:00 clavadas son las 18:00; a partir de
+las 17:01 hoy ya no admite nada (el turno acaba a las 21:00) y el calendario abre en mañana. Las
+tres caras —calendario, desplegable y validación— salen del mismo predicado
+(`slotRespetaMargen`, en `reserva_controller.dart`). El margen está **también en
+`firestore.rules`** (`fecha >= request.time + duration.value(4, 'h')`), con casos de borde en
+`scripts/test/rules/reservas.test.mjs`.
+
+Consecuencia: la rama `esHoy` del controller —la que marca la mesa `reservada` y la que salta las
+mesas ocupadas—, que 11-29 midió como **inalcanzable desde el producto**, pasa a ejecutarse de
+verdad. Está cubierta ahora también desde la UI. Ver el efecto en el mapa del panel arriba.
 
 ### 3. Menú del cliente — imágenes y presentación
 
