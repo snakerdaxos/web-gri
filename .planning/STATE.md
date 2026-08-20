@@ -29,7 +29,7 @@ See: .planning/PROJECT.md
 
 ## Progress
 
-Phase 11: 18/25 planes [##################-------] 72%  (denominador corregido: `roadmap.update-plan-progress 11` cuenta 25 planes y 18 SUMMARY en disco; el 21 anterior venia arrastrado)
+Phase 11: 19/25 planes [###################------] 76%  (denominador corregido: `roadmap.update-plan-progress 11` cuenta 25 planes y 18 SUMMARY en disco; el 21 anterior venia arrastrado)
 
 - [x] 11-01 Bootstrap del entorno de test Firebase (Java + .firebaserc + functions/ + arnes de rules + CLAUDE.md corregido) — 46e2422, 58063f0, af125a8
 - [x] 11-02 Base vacia + cliente de Cloud Functions (buildFakeFirestoreVacio en ambas apps, firebaseFunctionsProvider us-central1 + emulador 5001, guia de arranque del dashboard) — 9b2b965, 65a5f5d, d347b71, a2333de, f6085af
@@ -49,7 +49,8 @@ Phase 11: 18/25 planes [##################-------] 72%  (denominador corregido: 
 - [~] 11-17 Login con Google en la app cliente: 3 de 4 tareas cerradas (adaptador con rama Web funcional, boton en login y registro, appId de Android corregido al registro real). PARADO en su checkpoint humano: falta registrar la huella SHA-1 en la app com.gri.gri_cliente y verificar el ingreso en Android
 - [x] 11-12 Tokens en el panel admin: los 18 hex crudos de 10 archivos a GriColors (11 constantes nuevas, 0 valores cambiados segun auditoria del diff), 7 copias de la sombra -> griCardDecoration, 9 estilos de boton duplicados retirados (6 los pone elevatedButtonTheme, el unico FAB pasa a floatingActionButtonTheme), 3 _ErrorBox privadas -> features/shared/error_box.dart y 12 paddings a GriSpacing. Gate sin_hex_crudos_test portado del ORIGINAL de 11-19. MEDIDO por rotura que la red de seguridad que el plan asignaba a T-11-12-01 cubria 2 de 11 tokens: se cierra con colores_render_test (10 casos que renderizan y miden contra el hex LITERAL). 36 roturas deliberadas. HALLAZGOS: el <verify> de grep del plan falla en LAS DOS direcciones (octavo de la fase); las 3 _ErrorBox NO eran iguales y aun asi el padding es un NO-OP dentro de un Expanded (medido). panel_admin 280 -> 292 -- 49574cb, 1967dc4, 7b58a40
 - [x] 11-14 Accesibilidad de la app cliente: boton QR a 48x48 CON nodo de semantica propio (sin el, el tap se fusionaba con toda la cabecera en un nodo de 800x77 y la guia del plan pasaba VERDE con el bug puesto), 7 controles de icono etiquetados incluido un FAB que la auditoria no conto, 29 puntos de TEXTO de #777777 a #6E6E6E sin tocar el token de MARCA, suite a11y de 16 casos sobre 7 pantallas (las tres guias, ninguna excluida) + gate ESTATICO sobre las fuentes porque el barrido solo ve lo que monta. 24 roturas deliberadas, 3 VERDES cazadas. app_cliente 214 -> 230 -- c732cda, 29c2078, defb8f5, 5dc0398, 950f3ae, 6d69637
-- [ ] 11-15, 11-16, 11-20, 11-22 .. 11-25
+- [x] 11-24 Baja REVERSIBLE de personal: baja-matrix.js (matriz PURA hermana de auth-matrix, 49 casos en 234ms) + callable cambiarEstadoStaff (disabled + claims a null + revokeRefreshTokens, CONSERVANDO role/restauranteId en el espejo, que es lo unico que permite reactivar) + 22 e2e con tokens reales + /equipo con insignia de estado y confirmacion solo destructiva. 26 roturas deliberadas, 4 VERDES cazadas (la propiedad de la prohibicion 1 NO la probaba —la tapaba otra comprobacion—; quitar revokeRefreshTokens no tumbaba NADA; el test de compatibilidad de `activo` era una TAUTOLOGIA; la forma del payload no estaba afirmada). MEDIDO: con la asercion de mensaje debilitada a solo-codigo, quitar la prohibicion 1 NO tumba ni una fila de la tabla. HALLAZGO: el razonamiento del plan para dejar a los clientes fuera de alcance solo cierra la puerta al admin_restaurante, no al super_admin. panel_admin 292 -> 313, functions unit 34 -> 96, functions e2e 25 -> 47 -- a392812, ea95ed8, 260da01, 2ada353 (este ultimo AJENO: ver colision en Blockers)
+- [ ] 11-15, 11-16, 11-20, 11-22, 11-23, 11-25
 
 Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pendiente sellado humano:
 
@@ -58,6 +59,8 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 3. Smoke e2e flujo completo ([A]-[M] emuladores o [P] real)
 
 ## Test Baselines (final Firebase)
+
+- 11-24: panel_admin 292 -> 313 (+21: equipo_baja_test.dart nuevo); analyze 0. functions unitarios 34 -> 96 (+62: 49 de baja-matrix.test.js y 13 del contrato estatico de la callable). functions e2e 25 -> 47 (+22). rules 221 -> 221 (el plan no toca rules). Base MEDIDA en las CUATRO suites antes de tocar nada
 
 - 11-14: app_cliente 214 -> 230 (+16); analyze 0. Desglose: +16 en test/a11y/a11y_test.dart (nuevo). Los 3 tests preexistentes tocados (iconos_test 45->48, app_shell_responsive unselectedItemColor, theme_tokens_test) NO cambian de numero
 
@@ -192,6 +195,16 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 - 11-14: HALLAZGO — el `<verify>` del plan (`grep -q "0xFF777777" lib/core/theme.dart`) es DEFECTUOSO: bajo la rotura que cambia GriColors.gray a #6E6E6E imprime igual GRAY_INTACTO, porque el hex sigue en `neutroFg`. Noveno gate de grep defectuoso de la fase (11-06, 11-08 x2, 11-13 x2, 11-19, 11-12, 11-14)
 - 11-14: HALLAZGO — los `constraints: BoxConstraints(minWidth: 48, minHeight: 48)` de PasswordField (11-06) son REDUNDANTES. Borrando la linea ENTERA el ojo sigue midiendo 48x48: los pone el IconButton de M3. El test de 11-06 afirma la DECLARACION, no la geometria. Extiende el Hallazgo 3 de 11-11
 
+- 11-24: la matriz de la BAJA vive en un archivo HERMANO (baja-matrix.js), no dentro de auth-matrix.js: son decisiones distintas (una crea, otra revoca) y sus tablas no se solapan. Se comparte SOLO ROLES_LLAMADORES, IMPORTADO, con un test que prohibe redeclararlo — dos allow-lists paralelas divergen en silencio
+- 11-24: el ORDEN de comprobaciones es parte del contrato (llamador -> objetivo no super -> objetivo no soy yo -> alcance de rid -> el objetivo es personal). Consecuencia MEDIDA: un super_admin sobre SI MISMO muere por la prohibicion 1, no por la 2, asi que ese caso NO sirve para probar la 2; hace falta un caso AISLADO cuyo objetivo no sea super. A nivel e2e el unico aislamiento posible es el admin_restaurante sobre si mismo, porque el rol del objetivo se deriva de sus CLAIMS
+- 11-24: HALLAZGO — el test de propiedad de la prohibicion 1 estaba VERDE POR EL MOTIVO EQUIVOCADO. Con el control quitado, un objetivo super_admin seguia denegandose por la allow-list de objetivos del paso 5. Solo comprobaba ok===false; ahora exige el MENSAJE y la rotura pasa de tumbar 6 casos a 7
+- 11-24: HALLAZGO MEDIDO — debilitando la asercion de mensaje a solo-codigo y quitando la prohibicion 1, NINGUNA fila de la tabla cae. Los cinco controles de la matriz devuelven permission-denied: sin identidad del mensaje la suite habria dado el plan por bueno sin ejercitar la prohibicion ni una vez. Es la leccion de 11-08 aplicada antes de que costara
+- 11-24: HALLAZGO — revokeRefreshTokens estaba AFIRMADO, no verificado: quitarlo no tumbaba NADA. Y no era mala escritura del e2e: mientras disabled:true siga puesto, revocar o no es indistinguible POR COMPORTAMIENTO. Se cierra observando su efecto directo (tokensValidAfterTime), con una espera deliberada de 1,1s porque esa marca tiene precision de SEGUNDO y sin ella la comparacion estricta seria verde por construccion
+- 11-24: HALLAZGO — el razonamiento del plan para dejar los clientes fuera de alcance («un cliente no pertenece a ningun rid») solo cierra la puerta al admin_restaurante; el super_admin no tiene rid contra el que comparar y podia deshabilitar la cuenta de un comensal de la app movil. Se anade una allow-list de OBJETIVOS, comprobada AL FINAL para no tapar la prohibicion 1
+- 11-24: la baja REPARA la ficha incompleta — si el espejo no tiene role/restauranteId se escriben desde los claims ANTES de borrarlos. Sin eso, desactivar a alguien con la ficha rota destruye el ultimo rastro de su rol (los claims se acaban de borrar) y la baja deja de ser reversible
+- 11-24: `activo` ausente en el doc espejo se lee como TRUE. Las fichas creadas antes de este plan no lo tienen y con el criterio contrario todo el equipo existente apareceria de baja de golpe
+- 11-24: un contrato ESTATICO sobre la fuente debe leer SOLO codigo. Comparando contra el archivo entero, la cabecera que EXPLICA los pasos de la revocacion hacia que indexOf() encontrara el COMENTARIO y el orden saliera invertido; y el veto a `!!activo` lo disparaba su propia advertencia. Mismo defecto que los ocho gates de grep ya documentados en la fase
+
 ## Performance Metrics
 
 | Phase | Plan | Duracion | Tareas | Archivos |
@@ -210,11 +223,13 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 | 11 | 12 | ~2h 40min | 2 | 24 |
 | 11 | 19 | ~80 min | 3 | 20 |
 | 11 | 14 | ~135 min | 3 | 19 |
+| 11 | 24 | ~38 min | 3 | 13 |
 
 ## Session
 
-- Last session: 2026-08-19
-- Stopped at: Completado 11-14-PLAN.md (accesibilidad de app_cliente: 48dp + etiquetas + contraste AA; 24 roturas deliberadas, 3 verdes cazadas). Ejecutado en paralelo con 11-12 y 11-24.
+- Last session: 2026-08-20
+- Stopped at: Completado 11-24-PLAN.md (baja reversible de personal: matriz pura + callable cambiarEstadoStaff + acciones en /equipo; 26 roturas deliberadas, 4 verdes cazadas). Ejecutado en paralelo con 11-14 y 11-23 en el mismo arbol.
+- Stopped at (anterior): Completado 11-14-PLAN.md (accesibilidad de app_cliente: 48dp + etiquetas + contraste AA; 24 roturas deliberadas, 3 verdes cazadas). Ejecutado en paralelo con 11-12 y 11-24.
 - Stopped at (anterior): Completado 11-12-PLAN.md (tokens del panel: 18 hex + 7 sombras + 9 botones + 3 ErrorBox; 36 roturas, cobertura de render anadida por desviacion Regla 2). Ejecutado ANTES que 11-14, que figura en su depends_on, sin necesitar nada de el.
 - Stopped at (anterior): Completado 11-19-PLAN.md (tokens de la app cliente: 20 hex + 34 TextStyle + 103 espaciados; migracion 1:1 demostrada mecanicamente, 0 diferencias de valor). Ejecutado en paralelo con 11-21.
 - Stopped at (anterior): Completado 11-13-PLAN.md (todo lo visible de la app cliente: zona segura, responsive, overflow e iconos; 21 roturas deliberadas, 2 verdes cazadas). Ejecutado en paralelo con 11-21.
@@ -222,6 +237,14 @@ Status: Phases 1-10 ejecutadas. Phase 10 verificada PASSED (automatizable); pend
 
 ## Blockers / Notas
 
+- 11-24: BOOT-05 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo que el resto de IDs de la Fase 11): `requirements.mark-complete BOOT-05` devuelve not_found. Queda en el frontmatter del SUMMARY.
+- 11-24 (COLISION DE ARBOL COMPARTIDO): los 8 archivos de la Tarea 3 acabaron DENTRO del commit `2ada353` de 11-23. Un `git status --short --cached` (opcion inexistente, exit 129) corto la cadena `&&` y los dejo ESTAGEADOS sin committear; el ejecutor de 11-23 committeo acto seguido y se los llevo. El contenido esta intacto y verificado en HEAD; NO se reescribio el historial (destructivo con otro ejecutor activo). LECCION: en arbol compartido, `git add` y `git commit` en la MISMA invocacion y sin nada entre medias que pueda fallar.
+- 11-24 AVISO DE ENTORNO: `cat > archivo <<'EOF'` falla con `unexpected EOF while looking for matching` para archivos largos y NO crea el archivo (silencioso salvo por el exit 2). Los heredocs cortos van bien. Para archivos largos hay que usar la herramienta de escritura directa.
+- 11-24 PENDIENTE DE SELLADO HUMANO: `cambiarEstadoStaff` NO esta desplegada en p-gri-b5b40, igual que `bootstrapPlataforma` (11-07) y `crearUsuarioStaff` (11-08). Hasta `firebase deploy --only functions`, en produccion no se puede dar de baja a nadie desde el producto.
+- 11-24 PENDIENTE DE VERIFICACION HUMANA: que la columna de estado y la de accion se VEAN bien (no hay golden tests). Y la ventana residual del ID token: lo verificado es que la revocacion ocurre y que la cuenta queda deshabilitada; NO se ha medido que un token ya emitido siga siendo aceptado por las rules durante esa ~1 h, que es justamente la parte ACEPTADA del riesgo T-11-24-04.
+- 11-24: `npm run verify:shell` NO se ejecuto — exige `flutter build web --release` en las DOS apps y app_cliente estaba siendo modificada por 11-14 y 11-23. Si se ejecutaron `audit:indexes` (22 queries, 5 sujetas a paridad, 0 fallos, exit 0), `audit:branding` (exit 0), `test:rules` (221) y `test:functions` (47).
+- 11-24 AVISO CUMPLIDO (el de 11-12): mover lineas en panel_admin/lib puso rojo el gate de paridad de `docs/ICONOS-panel_admin.md` (GriIcons.equipo 135 -> 138). Actualizado en el mismo commit que lo movio.
+- 11-24 AVISO PARA 11-25 / quien toque /equipo: la accion por fila se oculta para uno mismo y para los `super_admin`, pero eso es UX y esta comentado como tal. La decision real vive en `cambiarEstadoStaff` y tiene e2e con token real; PROHIBIDO mover ahi ninguna comprobacion de autorizacion.
 - ENV-01, DOC-01 y TEST-02 (requisitos de la Fase 11 segun ROADMAP.md) NO existen en .planning/REQUIREMENTS.md, que solo contiene los requisitos v1: `requirements.mark-complete` los reporta como not_found (reconfirmado en 11-02).
 - 11-03: FIX-01, FIX-02 y TEST-01 tampoco existen en .planning/REQUIREMENTS.md (mismo motivo que ENV-01/DOC-01/TEST-02): `requirements.mark-complete` no puede marcarlos.
 - 11-06: UX-01 tampoco existe en .planning/REQUIREMENTS.md (mismo motivo). Queda registrado en el frontmatter del SUMMARY.
