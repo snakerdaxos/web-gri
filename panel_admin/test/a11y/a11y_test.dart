@@ -2,6 +2,8 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
@@ -11,6 +13,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gri_panel_admin/app.dart';
 import 'package:gri_panel_admin/core/firebase_providers.dart';
+import 'package:gri_panel_admin/core/theme.dart';
+import 'package:gri_panel_admin/features/auth/login_screen.dart';
 import 'package:gri_panel_admin/features/equipo/equipo_controller.dart';
 import 'package:gri_panel_admin/features/equipo/equipo_provider.dart';
 import 'package:gri_panel_admin/features/equipo/equipo_screen.dart';
@@ -143,6 +147,69 @@ List<NodoA11y> nodos(WidgetTester tester) {
 /// Escribirlo aqui evita el error que 11-14 documento: `find.bySemanticsLabel`
 /// solo mira `label`, asi que no ve un nombre puesto con `tooltip`.
 String nombreAccesible(NodoA11y n) => n.label.isEmpty ? n.tooltip : n.label;
+
+// -------------------------------------------------------------------------
+// Contraste (formula WCAG, calculada aqui y no importada de ningun sitio)
+// -------------------------------------------------------------------------
+
+/// Luminancia relativa de un color (WCAG 2.x, 1.4.3).
+double _luminancia(Color c) {
+  double canal(double v) =>
+      v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
+  return 0.2126 * canal(c.r) + 0.7152 * canal(c.g) + 0.0722 * canal(c.b);
+}
+
+/// Ratio de contraste WCAG entre dos colores OPACOS.
+double ratioContraste(Color a, Color b) {
+  final la = _luminancia(a);
+  final lb = _luminancia(b);
+  final (alto, bajo) = la > lb ? (la, lb) : (lb, la);
+  return (alto + 0.05) / (bajo + 0.05);
+}
+
+const blanco = Color(0xFFFFFFFF);
+
+/// Los 4 pares (texto, fondo) de la paleta de mesas.
+const paresDeMesa = <String, (Color, Color)>{
+  'disponible': (GriColors.mesaDisponibleFg, GriColors.mesaDisponibleBg),
+  'ocupada': (GriColors.mesaOcupadaFg, GriColors.mesaOcupadaBg),
+  'reservada': (GriColors.mesaReservadaFg, GriColors.mesaReservadaBg),
+  'limpieza': (GriColors.mesaLimpiezaFg, GriColors.mesaLimpiezaBg),
+};
+
+/// Las 8 rutas del shell.
+const rutasDelPanel = <String>[
+  '/',
+  '/mesas',
+  '/cocina',
+  '/reservas',
+  '/clientes',
+  '/reportes',
+  '/equipo',
+  '/configuracion',
+];
+
+/// Monta SOLO el login (vive fuera del ShellRoute).
+Future<void> montarLogin(WidgetTester tester) async {
+  tester.view.physicalSize = const Size(1000, 900);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+
+  final db = await buildFakeFirestoreConSeed();
+  final c = ProviderContainer(overrides: [
+    firestoreProvider.overrideWithValue(db),
+    firebaseAuthProvider.overrideWithValue(MockFirebaseAuth(signedIn: false)),
+  ]);
+  addTearDown(c.dispose);
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: c,
+      child: MaterialApp(theme: griTheme, home: const LoginScreen()),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
 
 /// Los 8 items del sidebar, en orden.
 const itemsSidebar = <String>[
@@ -520,4 +587,238 @@ void main() {
       handle.dispose();
     });
   });
+
+  // =======================================================================
+  // 6. Contraste (Tarea 2)
+  // =======================================================================
+
+  group('contraste del texto secundario', () {
+    test('el token accesible cumple AA sobre los DOS fondos del panel', () {
+      // El panel pinta texto secundario sobre blanco (tarjetas, sheets,
+      // dialogos) Y sobre el fondo de pagina #F5F6F8 (cabeceras de pantalla,
+      // topbar, estados vacios). Afirmarlo solo sobre blanco dejaria pasar un
+      // gris que falla donde de verdad se usa: 11-14 midio que #767676 pasa
+      // sobre blanco (4.54) y falla sobre el fondo (4.24).
+      expect(ratioContraste(GriColors.textoSecundarioAccesible, blanco),
+          greaterThanOrEqualTo(4.5));
+      expect(
+          ratioContraste(GriColors.textoSecundarioAccesible,
+              GriColors.background),
+          greaterThanOrEqualTo(4.5));
+    });
+
+    test('los numeros exactos, calculados con la formula WCAG', () {
+      // Se escriben para que un cambio de token no pase inadvertido y para
+      // que el SUMMARY no tenga que citar la auditoria de memoria.
+      expect(ratioContraste(GriColors.gray, blanco), closeTo(4.478, 0.001));
+      expect(ratioContraste(GriColors.gray, GriColors.background),
+          closeTo(4.141, 0.001));
+      expect(ratioContraste(GriColors.textoSecundarioAccesible, blanco),
+          closeTo(5.099, 0.001));
+      expect(
+          ratioContraste(GriColors.textoSecundarioAccesible,
+              GriColors.background),
+          closeTo(4.715, 0.001));
+    });
+
+    test('GriColors.gray sigue valiendo EXACTAMENTE #777777 (token de MARCA)',
+        () {
+      // Guarda del threat model T-11-25-01. El arreglo de contraste NO puede
+      // hacerse cambiando la paleta: es una decision BLOQUEADA del usuario.
+      expect(GriColors.gray, const Color(0xFF777777));
+      // Y sigue SIN cumplir: por eso hay un token aparte.
+      expect(ratioContraste(GriColors.gray, blanco), lessThan(4.5));
+    });
+
+    test('los dos caminos al token accesible dan el MISMO valor', () {
+      expect(GriColors.textoSecundarioAccesible, const Color(0xFF6E6E6E));
+      expect(GriSemanticColors.gri.textoSecundarioAccesible,
+          GriColors.textoSecundarioAccesible);
+    });
+
+    testWidgets(
+        'BARRIDO: ningun parrafo de las 8 pantallas se pinta con gray',
+        (tester) async {
+      // Mide el color PINTADO (el `TextStyle` resuelto de cada
+      // `RenderParagraph`), no el token declarado.
+      var parrafos = 0;
+      var conTokenAccesible = 0;
+      final infracciones = <String>[];
+
+      for (final ruta in rutasDelPanel) {
+        await montarApp(tester, const Size(1280, 900), ruta: ruta);
+        for (final e in find.byType(RichText).evaluate()) {
+          final estilo = (e.renderObject! as RenderParagraph).text.style;
+          parrafos++;
+          if (estilo?.color == GriColors.gray) {
+            infracciones.add('$ruta: «${_recorte(e)}»');
+          }
+          if (estilo?.color == GriColors.textoSecundarioAccesible) {
+            conTokenAccesible++;
+          }
+        }
+      }
+
+      expect(infracciones, isEmpty, reason: infracciones.join('\n'));
+      // Canarios de cobertura: sin ellos el caso pasaria en verde si el
+      // montaje fallara y no hubiera ni un parrafo que mirar.
+      expect(parrafos, greaterThanOrEqualTo(200), reason: 'parrafos vistos');
+      expect(conTokenAccesible, greaterThanOrEqualTo(20),
+          reason: 'parrafos pintados con el token accesible');
+    });
+
+    test('GATE ESTATICO: GriColors.gray no aparece en contexto de TEXTO', () {
+      // POR QUE HACE FALTA ADEMAS DEL BARRIDO (hallazgo 3 de 11-14): el
+      // barrido solo ve las pantallas que monta. El panel tiene dialogos,
+      // sheets y el 404 que ningun caso monta; devolver ahi el gris no
+      // pondria roja la suite. Este gate lee TODAS las fuentes de `lib/`.
+      //
+      // Criterio: de los marcadores conocidos gana el que este MAS CERCA por
+      // delante de la aparicion.
+      const marcadoresTexto = <String>[
+        'TextStyle(',
+        'GriText.',
+        'unselectedItemColor:',
+        'disabledForegroundColor:',
+        'foregroundColor:',
+      ];
+      const marcadoresNoTexto = <String>[
+        'Icon(',
+        'backgroundColor:',
+        'CircularProgressIndicator(',
+        'BorderSide(',
+        'Divider(',
+        'color: GriColors.gray),', // Icon(GriIcons.x, size: n, color: ...)
+      ];
+
+      var apariciones = 0;
+      var archivos = 0;
+      final infracciones = <String>[];
+
+      for (final f in Directory('lib')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart'))) {
+        // core/theme.dart es donde vive el token: ahi aparece por definicion.
+        if (f.path.replaceAll(r'\', '/').endsWith('core/theme.dart')) continue;
+        archivos++;
+
+        // Fuera comentarios: el doc de un widget puede nombrar el token.
+        final codigo = f
+            .readAsStringSync()
+            .split('\n')
+            .map((l) {
+              final i = l.indexOf('//');
+              return i == -1 ? l : l.substring(0, i);
+            })
+            .join('\n');
+
+        var desde = 0;
+        while (true) {
+          final i = codigo.indexOf('GriColors.gray', desde);
+          if (i == -1) break;
+          desde = i + 1;
+          // `GriColors.grayAlgo` no es `GriColors.gray`.
+          final sig = i + 'GriColors.gray'.length;
+          if (sig < codigo.length &&
+              RegExp(r'[A-Za-z0-9_]').hasMatch(codigo[sig])) {
+            continue;
+          }
+          apariciones++;
+
+          final antes = codigo.substring(0, i);
+          var mejor = -1;
+          var esTexto = false;
+          for (final m in marcadoresTexto) {
+            final p = antes.lastIndexOf(m);
+            if (p > mejor) {
+              mejor = p;
+              esTexto = true;
+            }
+          }
+          for (final m in marcadoresNoTexto) {
+            final p = antes.lastIndexOf(m);
+            if (p > mejor) {
+              mejor = p;
+              esTexto = false;
+            }
+          }
+          final linea = '\n'.allMatches(antes).length + 1;
+          if (mejor == -1) {
+            infracciones.add('${f.path}:$linea — contexto DESCONOCIDO: '
+                'clasificalo anadiendo su marcador al gate');
+          } else if (esTexto) {
+            infracciones.add('${f.path}:$linea — GriColors.gray como color de '
+                'TEXTO (4.478:1 sobre blanco, 4.141:1 sobre el fondo del '
+                'panel). Usa GriColors.textoSecundarioAccesible');
+          }
+        }
+      }
+
+      expect(infracciones, isEmpty, reason: infracciones.join('\n'));
+      // Autocomprobacion de cobertura: sin esto `isEmpty` pasaria por vacio
+      // si el gate dejara de leer archivos o de encontrar apariciones.
+      expect(archivos, greaterThanOrEqualTo(30), reason: 'archivos leidos');
+      expect(apariciones, greaterThanOrEqualTo(3),
+          reason: 'apariciones de GriColors.gray clasificadas');
+    });
+  });
+
+  group('contraste: lo que NO se puede arreglar sin tocar la paleta', () {
+    // Estos dos casos NO afirman conformidad: FIJAN una deuda medida para que
+    // no se olvide y para que cambiar la paleta la ponga roja y obligue a
+    // revisarla. La paleta es una decision BLOQUEADA del usuario.
+
+    test('blanco sobre el naranja de marca: 3.34:1', () {
+      expect(ratioContraste(blanco, GriColors.primary), closeTo(3.34, 0.005));
+      // Pasa el umbral de TEXTO GRANDE (3.0) y no el de texto normal (4.5):
+      // los botones de 16 bold cumplen y los de 14 normal no.
+      expect(ratioContraste(blanco, GriColors.primary), greaterThan(3.0));
+      expect(ratioContraste(blanco, GriColors.primary), lessThan(4.5));
+    });
+
+    test('la paleta de mesas no llega a AA para su etiqueta de estado', () {
+      // La auditoria señala los colores de mesa como la unica parte del
+      // sistema de diseño bien ejecutada desde el principio, y el plan
+      // PROHIBE tocarlos. Medido aqui por primera vez: 3 de los 4 pares no
+      // llegan a 4.5, y la etiqueta de estado del tile es de 13px normal.
+      //
+      // El texto 'Mesa N' (25 bold) SI cumple: su umbral es 3.0.
+      final medido = <String, double>{
+        for (final e in paresDeMesa.entries)
+          e.key: ratioContraste(e.value.$1, e.value.$2),
+      };
+      expect(medido['disponible'], closeTo(3.983, 0.001));
+      expect(medido['ocupada'], closeTo(4.358, 0.001));
+      expect(medido['reservada'], closeTo(3.514, 0.001));
+      expect(medido['limpieza'], closeTo(4.694, 0.001));
+
+      final bajoAA = medido.entries.where((e) => e.value < 4.5).map((e) => e.key);
+      expect(bajoAA, unorderedEquals(['disponible', 'ocupada', 'reservada']),
+          reason: 'DEUDA CONOCIDA: si esta lista cambia, la paleta de mesas se '
+              'ha movido y hay que revisar la deuda del SUMMARY de 11-25');
+      // Los cuatro superan el 3:1 de objetos graficos (WCAG 1.4.11), asi que
+      // el punto de color de la leyenda si cumple.
+      expect(medido.values.every((r) => r >= 3.0), isTrue);
+    });
+  });
+
+  testWidgets('el login cumple textContrastGuideline', (tester) async {
+    // El login vive FUERA del ShellRoute, asi que es la unica pantalla del
+    // panel donde esta guia puede pasar: dentro del shell el item ACTIVO del
+    // sidebar es blanco sobre el naranja de marca (3.34) en TODAS las rutas.
+    final handle = tester.ensureSemantics();
+    await montarLogin(tester);
+    await expectLater(tester, meetsGuideline(textContrastGuideline));
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    handle.dispose();
+  });
+}
+
+/// Los primeros 30 caracteres del texto de un parrafo, para el mensaje de
+/// fallo del barrido.
+String _recorte(Element e) {
+  final t = (e.renderObject! as RenderParagraph).text.toPlainText();
+  return t.length <= 30 ? t : '${t.substring(0, 30)}…';
 }
