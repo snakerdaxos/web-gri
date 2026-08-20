@@ -100,3 +100,55 @@ describe('contratos estructurales de la callable', () => {
     assert.match(FUENTE, /db\.doc\(`usuarios\/\$\{uid\}`\)\.get\(\)/);
   });
 });
+
+describe('11-22 · la POLÍTICA de contraseñas es del servidor, no solo del panel', () => {
+  it('importa la política del módulo compartido y no la reimplementa', () => {
+    assert.match(
+      FUENTE,
+      /import \{[^}]*validarPassword[^}]*\} from '\.\/password-policy\.js';/,
+      'la regla tiene que venir de password-policy.js, que es lo que los '
+        + 'vectores canónicos mantienen sincronizado con las dos apps',
+    );
+    assert.ok(
+      LINEAS_CODIGO.some(({ txt }) => /validarPassword\(\s*password\s*\)/.test(txt)),
+      'la callable no llama a validarPassword con el password recibido',
+    );
+  });
+
+  it('no queda ni rastro de la regla escrita a mano', () => {
+    // `MIN_PASSWORD` era la regla vieja. Si vuelve, es que alguien duplicó el
+    // umbral aquí y las tres implementaciones ya pueden divergir.
+    const sospechosas = LINEAS_CODIGO.filter(({ txt }) =>
+      /MIN_PASSWORD/.test(txt)
+      || /password(\?\.)?\.length\s*[<>]=?/.test(txt)
+      || /\[A-Z\]|\[a-z\]/.test(txt),
+    );
+    assert.deepEqual(sospechosas.map(({ n, txt }) => `${n}: ${txt.trim()}`), []);
+  });
+
+  it('la validación va ANTES de tocar Auth (si no, deja cuentas prohibidas)', () => {
+    // Sin este orden, un rechazo posterior a `createUser` dejaría al usuario
+    // creado con una contraseña que la política prohíbe. El e2e lo comprueba
+    // por comportamiento; esto lo fija en la FUENTE, que es donde se rompe.
+    const idx = (re) => LINEAS_CODIGO.findIndex(({ txt }) => re.test(txt));
+    const iValidacion = idx(/validarPassword\(\s*password\s*\)/);
+    const iCreate = idx(/auth\.createUser\(/);
+    assert.ok(iValidacion >= 0, 'no encuentro la llamada a validarPassword');
+    assert.ok(iCreate >= 0, 'no encuentro createUser');
+    assert.ok(
+      iValidacion < iCreate,
+      `validarPassword (línea ${LINEAS_CODIGO[iValidacion]?.n}) tiene que ir `
+        + `ANTES de createUser (línea ${LINEAS_CODIGO[iCreate]?.n})`,
+    );
+  });
+
+  it('el rechazo es invalid-argument con el mensaje CONCRETO de la política', () => {
+    // `invalid-argument` = "lo que me mandaste no tiene sentido". Un
+    // `permission-denied` aquí mentiría: el problema no es quién llama.
+    assert.match(
+      FUENTE,
+      /new HttpsError\(\s*'invalid-argument',\s*errorPassword\s*\)/,
+      'el mensaje que viaja tiene que ser el de la política, no uno genérico',
+    );
+  });
+});

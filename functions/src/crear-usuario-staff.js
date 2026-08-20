@@ -70,13 +70,7 @@ import { logger } from 'firebase-functions';
 import { HttpsError, onCall } from 'firebase-functions/https';
 
 import { autorizarAlta } from './auth-matrix.js';
-
-/**
- * Longitud mínima de contraseña del PRODUCTO. Firebase exige 6; aquí se exige
- * 8 y el formulario del panel (11-10) debe pedir lo mismo — si divergieran, el
- * usuario vería un error del servidor tras un formulario que dio por válido.
- */
-const MIN_PASSWORD = 8;
+import { validarPassword } from './password-policy.js';
 
 function textoNoVacio(v) {
   return typeof v === 'string' && v.trim().length > 0;
@@ -107,11 +101,23 @@ export const crearUsuarioStaff = onCall(
     if (!textoNoVacio(emailBruto) || !emailBruto.includes('@')) {
       throw new HttpsError('invalid-argument', 'El correo no es válido.');
     }
-    if (typeof password !== 'string' || password.length < MIN_PASSWORD) {
-      throw new HttpsError(
-        'invalid-argument',
-        `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.`,
-      );
+    // POLÍTICA DE CONTRASEÑAS (11-22) · la MISMA regla que los formularios.
+    //
+    // Vive aquí y no solo en Flutter porque la validación del panel es UX: se
+    // salta invocando esta función directamente, y entonces `12345678` acabaría
+    // en Auth (T-11-22-01). Hay dos casos e2e que hacen exactamente eso.
+    //
+    // Y va ANTES de tocar Auth a propósito: validar después de `createUser`
+    // dejaría la cuenta creada con una contraseña que la política prohíbe.
+    //
+    // El mensaje SÍ viaja al cliente, al revés que el resto de errores de esta
+    // función: describe la política pública —que además aparece en el texto de
+    // ayuda del formulario— y no revela nada del estado del sistema
+    // (T-11-22-03). Su redacción es idéntica, palabra por palabra, a la de las
+    // dos apps: la fijan los mismos vectores canónicos.
+    const errorPassword = validarPassword(password);
+    if (errorPassword !== null) {
+      throw new HttpsError('invalid-argument', errorPassword);
     }
     if (!textoNoVacio(nombre)) {
       throw new HttpsError('invalid-argument', 'El nombre es obligatorio.');
