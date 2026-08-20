@@ -246,7 +246,7 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
 
 **Goal:** GRI arranca desde una base de datos vacía y se comporta como un producto profesional: un super_admin se crea a sí mismo desde el panel, da de alta restaurantes y equipo sin scripts, el cliente puede entrar con Google, el menú del cliente y el del panel cargan sin errores de rules ni de índices, y las dos apps son responsive, accesibles y con identidad GRI.
 **Depends on:** Phase 10
-**Requirements**: ENV-01, DOC-01, FIX-01, FIX-02, TEST-01, TEST-02, BOOT-01, BOOT-02, BOOT-03, BOOT-04, AUTH-G01, UX-01, UX-02, UX-03, UX-04, DS-01, DS-02, DS-03, E2E-01, E2E-02
+**Requirements**: ENV-01, DOC-01, FIX-01, FIX-02, TEST-01, TEST-02, BOOT-01, BOOT-02, BOOT-03, BOOT-04, BOOT-05, AUTH-G01, SEC-P01, UX-01, UX-02, UX-03, UX-04, UX-05, DS-01, DS-02, DS-03, E2E-01, E2E-02
 **Success Criteria** (qué debe ser VERDAD):
 
   1. Desde un proyecto Firebase vacío, una persona autorizada crea el primer super_admin desde `/bootstrap`, da de alta un restaurante con slug válido y su equipo (admin/mesero/cocina) sin tocar la consola ni `serviceAccountKey.json`
@@ -262,9 +262,12 @@ Phases execute in numeric order: 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 �
   11. `npm run gates` deja en verde los 8 gates (2 suites Flutter, 2 analyze, rules, functions, audit de índices, audit de branding) sin bajar de los baselines 91 + 84
   12. El runbook `docs/SMOKE-E2E-v2.md` recorre el flujo completo desde base vacía, incluidas la verificación de que el QR de mesa es escaneable y el ingreso con Google
 
-**Orden**: a peticion del usuario lo VISIBLE va antes que la limpieza interna. Los planes visuales estan cortados POR APP (11-13 cliente / 11-21 panel) para poder ejecutarse en paralelo sin compartir un solo archivo; accesibilidad va detras porque un `Icon` acepta `semanticLabel` de forma nativa; y las migraciones a tokens (11-12 / 11-19), que por requisito no cambian ni un color renderizado, van al final y tambien en paralelo, migrando codigo ya asentado en vez de codigo que iba a reescribirse.
+**Orden**: a peticion del usuario lo VISIBLE va antes que la limpieza interna. Los planes visuales estan cortados POR APP (11-13 cliente / 11-21 panel) para poder ejecutarse en paralelo sin compartir un solo archivo, y la accesibilidad se corto igual (11-14 cliente / 11-25 panel); accesibilidad va detras de los iconos porque un `Icon` acepta `semanticLabel` de forma nativa; y las migraciones a tokens (11-12 / 11-19), que por requisito no cambian ni un color renderizado, van al final y tambien en paralelo, migrando codigo ya asentado en vez de codigo que iba a reescribirse.
+  13. La contraseña `12345678` se rechaza en los cuatro puntos donde se fija una y también en la callable, con un mensaje que dice qué falta
+  14. Un `permission-denied` al escanear una mesa NUNCA se presenta como si el código QR estuviera mal: el flujo distingue cinco causas con cinco mensajes
+  15. Un admin puede dar de baja y readmitir personal sin perder historial, y nadie puede desactivar a un `super_admin` ni a sí mismo
 **Notas**: La identidad visual se CONSERVA (naranja `#FF4C05`, layout del mockup) — es trabajo de consistencia, no de rediseño. El plan Blaze solo hace falta para desplegar Cloud Functions, no para emularlas: toda la fase es desarrollable y testeable sin tocar la facturación, y el despliegue está partido en dos checkpoints (rules/índices sin Blaze en 11-16; funciones con Blaze en 11-20) para que la prueba real del bug del índice no quede rehén de una decisión de facturación.
-**Plans:** 16/21 plans executed
+**Plans:** 16/25 plans executed en 13 olas
 
 Plans:
 
@@ -283,12 +286,16 @@ Plans:
 - [x] 11-11-PLAN.md — Ola 5: tokens de diseño (espaciado, radios, breakpoints), escala tipográfica y colores semánticos
 - [x] 11-13-PLAN.md — Ola 6 (VISIBLE, en paralelo): TODO lo visual de app_cliente — zona segura (SafeArea), fin del maxWidth 480, overflow del wizard y sus ~46 emojis → iconos
 - [x] 11-21-PLAN.md — Ola 6 (VISIBLE, en paralelo): TODO lo visual de panel_admin — sidebar 85px, StatCard 31px, ResponsivePage, overflow de reservas y sus ~47 emojis → iconos
-- [ ] 11-14-PLAN.md — Ola 7: accesibilidad (etiquetas, tap targets de 48dp, contraste AA sin tocar la paleta) con gates `meetsGuideline`
+- [ ] 11-14-PLAN.md — Ola 7 (VISIBLE, en paralelo con 11-12): accesibilidad de APP_CLIENTE — etiquetas, tap targets de 48dp, contraste AA sin tocar la paleta, gates `meetsGuideline`
 - [ ] 11-12-PLAN.md — Ola 8 (limpieza interna, en paralelo): migración 1:1 de hex crudos y estilos duplicados del PANEL + gate anti-regresión
 - [x] 11-19-PLAN.md — Ola 8 (limpieza interna, en paralelo): migración 1:1 de hex crudos y `TextStyle` de la APP CLIENTE + gate anti-regresión
-- [ ] 11-15-PLAN.md — Ola 9: runbook `SMOKE-E2E-v2` desde base vacía + `npm run gates` como ejecutor único
-- [ ] 11-16-PLAN.md — Ola 10: runbook de despliegue + CHECKPOINT HUMANO A (rules e índices, sin Blaze) con la prueba real del bug del índice
-- [ ] 11-20-PLAN.md — Ola 11: CHECKPOINT HUMANO B (Blaze, deploy de Cloud Functions y smoke E2E completo)
+- [ ] 11-22-PLAN.md — Ola 9: política de contraseñas (8 + mayus + minus + número) en los CUATRO puntos y también en la callable
+- [ ] 11-23-PLAN.md — Ola 9: mensajes de error del escaneo y la sesión — cinco causas distinguidas; un permission-denied deja de parecer un QR mal escaneado
+- [ ] 11-24-PLAN.md — Ola 9: baja de personal reversible (desactivar/reactivar) con dos prohibiciones nuevas validadas en la callable
+- [ ] 11-25-PLAN.md — Ola 10: accesibilidad de PANEL_ADMIN — sidebar colapsado, `InkWell` del mapa de mesas, contraste AA, gates `meetsGuideline`
+- [ ] 11-15-PLAN.md — Ola 11: runbook `SMOKE-E2E-v2` desde base vacía + `npm run gates` como ejecutor único
+- [ ] 11-16-PLAN.md — Ola 12: runbook de despliegue + CHECKPOINT HUMANO A (rules e índices, sin Blaze) con la prueba real del bug del índice
+- [ ] 11-20-PLAN.md — Ola 13: CHECKPOINT HUMANO B (Blaze, deploy de Cloud Functions y smoke E2E completo)
 
 ---
 *Coverage: 50/50 requisitos v1 mapeados (PLAT 5, AUTH 5, REST 2, MENU 2, MESA 6, RESV 5, PEDI 6, RT 3, PAGO 4, CALI 2, ADMN 5, REPO 2, INFR 3). Nota: REQUIREMENTS.md decÃƒÂ­a "47 total" por error aritmÃƒÂ©tico; el conteo real de IDs es 50.*
