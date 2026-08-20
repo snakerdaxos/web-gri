@@ -73,8 +73,17 @@ void main() {
       expect(calcularCuenta(pedidos).total, 50000);
     });
 
-    test('el total formateado es exactamente "\$ 50.000"', () {
-      expect(formatCOP(calcularCuenta(pedidos).total), '\$ 50.000');
+    // El literal es lo que el usuario LEE. Hasta 11-32 ni un solo test del
+    // repo afirmaba una cadena de dinero: todos escribían
+    // `expect(find.text(formatCOP(50000)), ...)`, que compara el helper
+    // consigo mismo y pasa en verde aunque el formato sea el equivocado.
+    // Este literal descubrió DOS cosas que la cabecera de `core/format.dart`
+    // decía mal: el locale es_CO pone el símbolo DETRÁS (no "\$ 32.000" sino
+    // "32.000 \$") y el separador es un ESPACIO DURO (U+00A0), no un espacio
+    // normal. Por eso el literal lleva ` ` explícito: escribir un espacio
+    // de teclado aquí deja el test rojo, y esa es justo la trampa que se buscó.
+    test('el total formateado es exactamente "50.000 \$" (NBSP)', () {
+      expect(formatCOP(calcularCuenta(pedidos).total), '50.000 \$');
     });
 
     test('lo pendiente de servir se reporta APARTE: 25.000, 1 pedido', () {
@@ -216,7 +225,7 @@ void main() {
     expect(cuenta.totalPendiente, 0);
     expect(cuenta.vacia, isTrue);
     expect(cuenta.hayPendientes, isFalse);
-    expect(formatCOP(cuenta.total), '\$ 0');
+    expect(formatCOP(cuenta.total), '0 \$');
   });
 
   test('solo pendientes: total 0 pero la cuenta NO está vacía', () {
