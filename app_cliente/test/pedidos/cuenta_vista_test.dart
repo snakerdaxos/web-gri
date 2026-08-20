@@ -119,7 +119,11 @@ void main() {
     ]));
     await tester.pumpAndSettle();
 
-    expect(find.text(cop('32.000')), findsWidgets, reason: 'total a pagar');
+    expect(
+      find.text(cop('32.000')),
+      findsNWidgets(2),
+      reason: 'la tarjeta Y el total; con una sola el total no viene del pedido',
+    );
     // 25.000 + 13.000 pendientes, anunciados APARTE del total.
     expect(
       find.textContaining('2 pedidos por ' + cop('38.000')),
@@ -192,7 +196,8 @@ void main() {
     ]));
     await tester.pumpAndSettle();
 
-    expect(find.text(cop('20.000')), findsWidgets);
+    expect(find.text(cop('20.000')), findsNWidgets(2),
+        reason: 'la tarjeta y el total');
     expect(find.text(cop('35.000')), findsNothing);
     expect(find.text('No se cobra'), findsOneWidget);
   });
@@ -212,7 +217,8 @@ void main() {
     ]));
     await tester.pumpAndSettle();
 
-    expect(find.text(cop('20.000')), findsWidgets);
+    expect(find.text(cop('20.000')), findsNWidgets(2),
+        reason: 'la tarjeta y el total');
     expect(find.text(cop('119.000')), findsNothing,
         reason: 'cobrar la visita pasada sería cobrar dos veces');
     expect(find.text(cop('99.000')), findsNothing,
@@ -240,7 +246,8 @@ void main() {
 
     expect(find.text('Cuenta solicitada'), findsOneWidget);
     expect(find.text('Total a pagar'), findsOneWidget);
-    expect(find.text(cop('10.000')), findsWidgets);
+    expect(find.text(cop('10.000')), findsNWidgets(2),
+        reason: 'la tarjeta y el total');
   });
 
   testWidgets('sesión cerrada: el importe final se sigue viendo',
@@ -252,7 +259,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Total pagado'), findsOneWidget);
-    expect(find.text(cop('10.000')), findsWidgets);
+    expect(find.text(cop('10.000')), findsNWidgets(2),
+        reason: 'la tarjeta y el total');
     expect(find.text('Pedir la cuenta'), findsNothing);
   });
 

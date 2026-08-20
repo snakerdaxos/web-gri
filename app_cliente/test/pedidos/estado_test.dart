@@ -122,7 +122,16 @@ void main() {
     expect(find.text('Servido'), findsOneWidget);
     // Items y total en cada card.
     expect(find.text('Pasta ×2'), findsNWidgets(2));
-    expect(find.textContaining('57.000'), findsNWidgets(2));
+    // 11-32: 57.000 aparece CUATRO veces y cada una dice algo distinto.
+    // Antes de este plan eran dos (los importes de las dos tarjetas) y el
+    // comensal no tenia ninguna suma en pantalla. Ahora se suman el "Total a
+    // pagar" (solo el pedido SERVIDO) y la linea de lo que sigue en cocina
+    // (solo el pedido ENVIADO). Que los cuatro numeros coincidan es una
+    // casualidad de este fixture: los dos pedidos valen lo mismo.
+    expect(find.textContaining('57.000'), findsNWidgets(4));
+    // Lo que de verdad importa: el total NO son los dos pedidos sumados.
+    expect(find.textContaining('114.000'), findsNothing,
+        reason: 'el pedido enviado no se cobra hasta que se sirva');
   });
 
   testWidgets('los 5 estados renderizan chips con labels y colores distintos',
