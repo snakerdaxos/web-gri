@@ -81,6 +81,30 @@ service cloud.firestore {
           || (a == 'limpieza'   && b == 'disponible');
     }
 
+    // ---- NOTA TRANSVERSAL (11-27) — LEER ANTES DE TOCAR CUALQUIER `read` ----
+    //
+    // Una rama de `read` que desreferencia `resource.data` DENIEGA los
+    // documentos QUE NO EXISTEN. Sobre un doc ausente `resource` es null, la
+    // expresion revienta y la regla evalua a denegado: el SDK devuelve
+    // `permission-denied`, NO "no encontrado". Es indistinguible de un fallo
+    // de autorizacion y por eso costo un P0 completo.
+    //
+    // GRI usa check-then-create en CUATRO sitios (el doc ID es determinista y
+    // se lee antes de escribirlo):
+    //   sesiones/{mesaId}          abrirSesion()   — sesion_provider.dart
+    //   reservas/{mesa}_{fecha}_{H} crearReserva() — reserva_controller.dart
+    //   mesas/{GRI-MESA-rid-NNN}   crearMesa()     — mesas_crud.dart
+    //   calificaciones/{pedidoId}  _calificar()    — calificacion_sheet.dart
+    // Los dos primeros estaban ROTOS: nadie podia abrir una mesa ni reservar,
+    // NUNCA, porque la primera lectura es siempre sobre un doc ausente.
+    //
+    // Donde haga falta, la forma correcta es `signedIn() && (resource == null
+    // || <condicion>)` — NUNCA `resource == null || (signedIn() && ...)`, que
+    // dejaria a los anonimos sondear la coleccion. Solo concede aprender que
+    // "aqui no hay nada"; el CONTENIDO sigue exactamente igual de protegido.
+    // Cobertura: los bloques `read de un doc AUSENTE` de las 9 suites de
+    // scripts/test/rules/.
+
     // ---- restaurantes (descubrimiento público) · 0 access-calls ----
     match /restaurantes/{restId} {
       // Lista pública (la query del cliente filtra activo == true).
@@ -205,7 +229,14 @@ service cloud.firestore {
 
     // ---- sesiones (doc ID = mesaId → UNA sesión por mesa) · create 1 access-call ----
     match /sesiones/{sesionId} {
-      allow read: if signedIn() && (resource.data.usuarioId == request.auth.uid
+      // `resource == null` (11-27): la mesa que AUN NO tiene sesion. Es el
+      // `tx.get(sesiones/{codigoQR})` con el que abrirSesion() averigua si la
+      // mesa esta ocupada ANTES de crear la sesion — la primera apertura de
+      // CUALQUIER mesa lee un doc ausente. Sin esto no se puede abrir ninguna
+      // mesa: el core value del producto. Concede solo saber que no hay sesion
+      // abierta en una mesa cuyo codigo va IMPRESO en su propio QR.
+      allow read: if signedIn() && (resource == null
+                  || resource.data.usuarioId == request.auth.uid
                   || staffOf(resource.data.restauranteId) || isSuper());
       // set() sobre doc existente se evalúa como UPDATE: "re-abrir" una
       // sesión cerrada queda bloqueado ex profeso (no pasa por create).
@@ -232,7 +263,14 @@ service cloud.firestore {
 
     // ---- pedidos · create 2 access-calls (3 gets, sesiones cacheado) ----
     match /pedidos/{pedidoId} {
-      allow read: if signedIn() && (resource.data.usuarioId == request.auth.uid
+      // `resource == null` (11-27): mismo defecto que sesiones/reservas. Aqui
+      // no habia check-then-create (los ids son autoId) pero SI codigo que ya
+      // dependia de leer el hueco y era inalcanzable: la rama
+      // `if (!pedidoSnap.exists) throw 'Pedido no encontrado'` de _calificar()
+      // moria antes con permission-denied. Con autoId de 20 caracteres, saber
+      // "existe o no" no es enumerable ni revela nada.
+      allow read: if signedIn() && (resource == null
+                  || resource.data.usuarioId == request.auth.uid
                   || staffOf(resource.data.restauranteId) || isSuper());
       // Snapshot de nombre/precio embebido por item (gap estructural v1:
       // sin backend no hay validación fuerte de totales — Functions DEFERRED).
@@ -272,7 +310,13 @@ service cloud.firestore {
 
     // ---- reservas (doc ID {mesaId}_{yyyyMMdd}_{HH} → 1 por slot) · create 1 access-call ----
     match /reservas/{reservaId} {
-      allow read: if signedIn() && (resource.data.usuarioId == request.auth.uid
+      // `resource == null` (11-27): el SLOT LIBRE. crearReserva() recorre las
+      // mesas candidatas haciendo `tx.get(reservas/{mesaId}_{fecha}_{HH})` y
+      // ELIGE la primera que no existe — leer el hueco no es un accesorio del
+      // flujo, ES el flujo. Concede solo saber que una franja esta libre: la
+      // disponibilidad que cualquier sistema de reservas publica por diseno.
+      allow read: if signedIn() && (resource == null
+                  || resource.data.usuarioId == request.auth.uid
                   || staffOf(resource.data.restauranteId) || isSuper());
       allow create: if isCliente()
                     && request.resource.data.usuarioId == request.auth.uid
