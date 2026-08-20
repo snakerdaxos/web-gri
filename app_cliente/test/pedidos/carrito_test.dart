@@ -7,6 +7,7 @@ import 'package:gri_cliente/features/pedidos/carrito_controller.dart';
 import 'package:gri_cliente/features/pedidos/menu_mesa_screen.dart';
 import 'package:gri_cliente/features/pedidos/pedidos_provider.dart';
 import 'package:gri_cliente/features/restaurantes/restaurantes_provider.dart';
+import 'package:gri_cliente/features/shared/producto_card.dart';
 import 'package:gri_cliente/features/sesion_qr/sesion_provider.dart';
 import 'package:gri_cliente/models/categoria.dart';
 import 'package:gri_cliente/models/pedido_item.dart';
@@ -96,10 +97,15 @@ class FakeFirebaseHandle {
   final dynamic db;
 }
 
-/// El botón +/- del producto [nombre] (scoping por fila — el orden global
+/// El botón +/- del producto [nombre] (scoping por TARJETA — el orden global
 /// de iconos cambia al insertar el [-]).
+///
+/// 11-30: el ancla era `ListTile`. El menú dejó de ser una lista de filas y
+/// pasó a ser una carta de [ProductoCard]; el scoping es el mismo, sobre otro
+/// tipo. Lo que se prueba —que el botón es el DE ESE plato— no cambia.
 Finder _btnProducto(String nombre, IconData icon) => find.descendant(
-      of: find.ancestor(of: find.text(nombre), matching: find.byType(ListTile)),
+      of: find.ancestor(
+          of: find.text(nombre), matching: find.byType(ProductoCard)),
       matching: find.byIcon(icon),
     );
 
@@ -230,10 +236,19 @@ void main() {
 
     expect(find.text('Mesa 1 · Restaurante Demo GRI'), findsOneWidget);
     expect(find.text('Platos'), findsOneWidget);
-    expect(find.text('Bebidas'), findsOneWidget);
     expect(find.text('Pasta'), findsOneWidget);
     expect(find.text('Pizza'), findsOneWidget);
     expect(find.text('Tu carrito está vacío'), findsOneWidget);
+
+    // 'Bebidas' es la SEGUNDA categoría y hay que bajar hasta ella: desde
+    // 11-30 cada plato es una tarjeta con foto (~280 px) en vez de una fila
+    // de ~60, así que los 3 platos de la primera categoría ya no caben con
+    // la cabecera siguiente en un viewport de 600 px de alto. Sigue
+    // afirmando lo mismo —que las DOS categorías se pintan—, pero pagando
+    // el scroll que también paga el comensal.
+    await tester.scrollUntilVisible(find.text('Bebidas'), 300,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.text('Bebidas'), findsOneWidget);
   });
 
   testWidgets('tap + agrega al carrito: badge (1) y total COP correcto',
@@ -274,7 +289,7 @@ void main() {
     expect(
         find.descendant(
             of: find.ancestor(
-                of: find.text('Pasta'), matching: find.byType(ListTile)),
+                of: find.text('Pasta'), matching: find.byType(ProductoCard)),
             matching: find.byIcon(Icons.remove_circle_outline)),
         findsNothing);
   });

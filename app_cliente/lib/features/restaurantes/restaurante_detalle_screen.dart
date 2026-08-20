@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/format.dart';
 import '../../core/gri_icons.dart';
 import '../../core/theme.dart';
 import '../shared/empty_state.dart';
+import '../shared/producto_card.dart';
 import '../../core/design_tokens.dart';
 import 'restaurantes_provider.dart';
 
@@ -167,28 +167,18 @@ class RestauranteDetalleScreen extends ConsumerWidget {
                     '${categoria.productos.length} ítems',
                     style: GriText.auxiliar.copyWith(color: GriColors.textoSecundarioAccesible),
                   ),
+                  childrenPadding:
+                      const EdgeInsets.only(bottom: GriSpacing.md),
                   children: [
-                    for (final producto in categoria.productos)
-                      ListTile(
-                        enabled: producto.disponible,
-                        title: Text(producto.nombre),
-                        subtitle: producto.descripcion != null
-                            ? Text(
-                                producto.descripcion!,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              )
-                            : null,
-                        trailing: Text(
-                          // ⚠️ SIEMPRE formatCOP — el precio llega como
-                          // double del backend (Pitfall 3).
-                          formatCOP(producto.precio),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: GriColors.primary,
-                          ),
-                        ),
-                      ),
+                    // La MISMA tarjeta que la carta de la mesa (11-30), pero
+                    // sin acción ni pulsación: esto es el escaparate del
+                    // restaurante, aquí todavía no se pide nada y un botón
+                    // que no hace nada es peor que ninguno. El precio lo
+                    // formatea la tarjeta con `formatCOP` (Pitfall 3).
+                    ListaProductos(
+                      productos: categoria.productos,
+                      tarjeta: (producto) => ProductoCard(producto: producto),
+                    ),
                   ],
                 ),
           ],

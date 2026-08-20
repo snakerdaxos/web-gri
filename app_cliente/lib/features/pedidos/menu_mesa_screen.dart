@@ -10,6 +10,7 @@ import '../../models/producto.dart';
 import '../restaurantes/restaurantes_provider.dart';
 import '../sesion_qr/sesion_provider.dart';
 import '../shared/empty_state.dart';
+import '../shared/producto_card.dart';
 import '../../core/design_tokens.dart';
 import 'carrito_controller.dart';
 import 'pedidos_provider.dart';
@@ -154,9 +155,17 @@ class MenuMesaScreen extends ConsumerWidget {
                     style:
                         GriText.auxiliar.copyWith(color: GriColors.textoSecundarioAccesible),
                   ),
+                  // El aire de la carta lo reparte `ListaProductos`; el
+                  // `ExpansionTile` solo separa la última tarjeta de la
+                  // categoría siguiente.
+                  childrenPadding:
+                      const EdgeInsets.only(bottom: GriSpacing.md),
                   children: [
-                    for (final producto in categoria.productos)
-                      _ProductoRow(producto: producto),
+                    ListaProductos(
+                      productos: categoria.productos,
+                      tarjeta: (producto) =>
+                          _ProductoDeLaMesa(producto: producto),
+                    ),
                   ],
                 ),
             ],
@@ -195,91 +204,65 @@ class MenuMesaScreen extends ConsumerWidget {
   }
 }
 
-/// Fila de producto del menú: precio COP + controles del carrito.
-/// Agotado (`disponible=false`) → fila deshabilitada, sin botones.
-class _ProductoRow extends ConsumerWidget {
-  const _ProductoRow({required this.producto});
+/// Un plato de la carta de la mesa: la tarjeta compartida
+/// ([ProductoCard]) + los controles del carrito (11-30).
+///
+/// ANTES era una `ListTile` con el precio de `trailing` — la "lista" que el
+/// usuario dijo que no parecía una carta, y sin la foto que el producto ya
+/// tenía guardada. Lo que NO cambia es la interacción: los mismos botones,
+/// los mismos `tooltip` (que son lo que lee el lector de pantalla, 11-14) y
+/// el mismo `carritoProvider`.
+///
+/// Agotado (`disponible == false`): la tarjeta se encarga (chip, foto en gris
+/// y precio apagado) y aquí no se pasa ninguna acción.
+class _ProductoDeLaMesa extends ConsumerWidget {
+  const _ProductoDeLaMesa({required this.producto});
 
   final Producto producto;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final linea = ref.watch(carritoProvider)[producto.id];
+    final carrito = ref.read(carritoProvider.notifier);
 
     if (!producto.disponible) {
-      return ListTile(
-        enabled: false,
-        title: Text(
-          producto.nombre,
-          style: const TextStyle(color: GriColors.textoSecundarioAccesible),
-        ),
-        subtitle: const Text(
-          'Agotado',
-          style: TextStyle(
-            color: GriColors.textoSecundarioAccesible,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        trailing: Text(
-          formatCOP(producto.precio),
-          style: const TextStyle(color: GriColors.textoSecundarioAccesible),
-        ),
-      );
+      return ProductoCard(producto: producto);
     }
 
-    return ListTile(
-      title: Text(producto.nombre),
-      subtitle: producto.descripcion != null
-          ? Text(
-              producto.descripcion!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            )
-          : null,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            formatCOP(producto.precio),
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: GriColors.primary,
-            ),
-          ),
-          const SizedBox(width: GriSpacing.sm),
-          if (linea == null)
-            IconButton(
+    return ProductoCard(
+      producto: producto,
+      // Pulsar el plato entero lo agrega — en una carta se señala el plato,
+      // no un botoncito. La etiqueta es la que anuncia el lector de pantalla.
+      etiquetaAccion: 'Agregar ${producto.nombre} al pedido',
+      onTap: () => linea == null
+          ? carrito.agregar(producto)
+          : carrito.incrementar(producto.id),
+      accion: linea == null
+          ? IconButton(
               icon: const Icon(Icons.add_circle_outline),
               color: GriColors.primary,
               tooltip: 'Agregar ${producto.nombre}',
-              onPressed: () =>
-                  ref.read(carritoProvider.notifier).agregar(producto),
+              onPressed: () => carrito.agregar(producto),
             )
-          else ...[
-            IconButton(
-              icon: const Icon(Icons.remove_circle_outline),
-              // Sin tooltip el lector de pantalla anunciaba solo "botón":
-              // el icono no lleva texto al lado (11-14).
-              tooltip: 'Quitar una unidad',
-              onPressed: () => ref
-                  .read(carritoProvider.notifier)
-                  .decrementar(producto.id),
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  // Sin tooltip el lector de pantalla anunciaba solo "botón":
+                  // el icono no lleva texto al lado (11-14).
+                  tooltip: 'Quitar una unidad',
+                  onPressed: () => carrito.decrementar(producto.id),
+                ),
+                Text('${linea.cantidad}', style: GriText.boton),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  color: GriColors.primary,
+                  tooltip: 'Agregar una unidad',
+                  onPressed: () => carrito.incrementar(producto.id),
+                ),
+              ],
             ),
-            Text(
-              '${linea.cantidad}',
-              style: GriText.boton,
-            ),
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline),
-              color: GriColors.primary,
-              tooltip: 'Agregar una unidad',
-              onPressed: () => ref
-                  .read(carritoProvider.notifier)
-                  .incrementar(producto.id),
-            ),
-          ],
-        ],
-      ),
     );
   }
 }

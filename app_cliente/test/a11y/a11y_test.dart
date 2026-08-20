@@ -30,6 +30,7 @@ import 'package:gri_cliente/features/reservas/mis_reservas_screen.dart';
 import 'package:gri_cliente/features/reservas/reserva_wizard_screen.dart';
 import 'package:gri_cliente/features/restaurantes/home_screen.dart';
 import 'package:gri_cliente/features/restaurantes/restaurantes_provider.dart';
+import 'package:gri_cliente/features/shared/producto_card.dart';
 import 'package:gri_cliente/features/sesion_qr/sesion_provider.dart';
 import 'package:gri_cliente/models/categoria.dart';
 import 'package:gri_cliente/models/pedido_item.dart';
@@ -206,7 +207,10 @@ Future<void> _pumpCalificacion(WidgetTester tester) async {
 
 /// El `IconButton` con [icon] dentro de la fila del producto [nombre].
 Finder _btnProducto(String nombre, IconData icon) => find.descendant(
-      of: find.ancestor(of: find.text(nombre), matching: find.byType(ListTile)),
+      // 11-30: el ancla era `ListTile`; ahora cada plato es un
+      // `ProductoCard` (la carta con foto). Mismo scoping, otro tipo.
+      of: find.ancestor(
+          of: find.text(nombre), matching: find.byType(ProductoCard)),
       matching: find.byWidgetPredicate(
           (w) => w is IconButton && (w.icon as Icon).icon == icon),
     );
